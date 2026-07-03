@@ -1,0 +1,372 @@
+// Esquema Prisma de ToCosas — derivado de docs/03-esquema-base-datos.md
+// Fuente de verdad: PostgreSQL. Todas las cifras monetarias usan Decimal(18,2).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum EntityType {
+  banco
+  cooperativa
+  fintech
+  prestamista_particular
+  tarjeta
+  otro
+}
+
+enum TxKind {
+  ingreso
+  gasto
+  pago_deuda
+  transferencia
+}
+
+enum DebtType {
+  tarjeta_credito
+  credito_personal
+  hipotecario
+  libre_inversion
+  vehiculo
+  educativo
+  gota_a_gota
+  prestamo_familiar
+  otro
+}
+
+enum RateKind {
+  fija
+  variable
+}
+
+enum RateBasis {
+  EA
+  NMV
+  NAMV
+  MV
+}
+
+enum DebtStatus {
+  activa
+  en_mora
+  pagada
+  refinanciada
+  cancelada
+}
+
+enum AmortSystem {
+  frances
+  aleman
+  americano
+  cuota_fija
+  tarjeta_rotativo
+}
+
+enum TxSource {
+  app
+  whatsapp
+  ocr
+  import
+  system
+}
+
+enum TxStatus {
+  confirmada
+  pendiente_confirmacion
+  descartada
+}
+
+enum ReminderChannel {
+  push
+  whatsapp
+  email
+}
+
+enum WaLinkStatus {
+  pending
+  verified
+  revoked
+}
+
+enum SuggestionType {
+  priorizar_deuda
+  recorte_gasto
+  alerta_sobregiro
+  abono_extra
+  felicitacion
+  otro
+}
+
+// ---------- Modelos ----------
+
+model User {
+  id             String   @id @default(uuid()) @db.Uuid
+  email          String?  @unique
+  phoneE164      String?  @unique @map("phone_e164")
+  passwordHash   String?  @map("password_hash")
+  fullName       String?  @map("full_name")
+  authProvider   String   @default("local") @map("auth_provider")
+  externalUid    String?  @map("external_uid")
+  currency       String   @default("COP") @db.Char(3)
+  locale         String   @default("es-CO")
+  timezone       String   @default("America/Bogota")
+  emailVerified  Boolean  @default(false) @map("email_verified")
+  onboardingDone Boolean  @default(false) @map("onboarding_done")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  entities     FinancialEntity[]
+  debts        Debt[]
+  transactions Transaction[]
+  categories   Category[]
+  reminders    Reminder[]
+  devices      Device[]
+  suggestions  Suggestion[]
+  waLinks      WhatsappLink[]
+  settings     UserSettings?
+
+  @@map("users")
+}
+
+model FinancialEntity {
+  id           String     @id @default(uuid()) @db.Uuid
+  userId       String?    @map("user_id") @db.Uuid
+  name         String
+  type         EntityType @default(otro)
+  contactPhone String?    @map("contact_phone")
+  website      String?
+  typicalRate  Decimal?   @map("typical_rate") @db.Decimal(6, 3)
+  rateType     String?    @map("rate_type")
+  logoUrl      String?    @map("logo_url")
+  isGlobal     Boolean    @default(false) @map("is_global")
+  notes        String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  deletedAt    DateTime?  @map("deleted_at")
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  debts        Debt[]
+  transactions Transaction[]
+
+  @@index([userId])
+  @@map("financial_entities")
+}
+
+model Category {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String?   @map("user_id") @db.Uuid
+  name      String
+  kind      TxKind
+  icon      String?
+  color     String?
+  isGlobal  Boolean   @default(false) @map("is_global")
+  keywords  String[]
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId])
+  @@map("categories")
+}
+
+model Debt {
+  id             String      @id @default(uuid()) @db.Uuid
+  userId         String      @map("user_id") @db.Uuid
+  entityId       String?     @map("entity_id") @db.Uuid
+  name           String
+  debtType       DebtType    @default(otro) @map("debt_type")
+  currency       String      @default("COP") @db.Char(3)
+  originalAmount Decimal     @map("original_amount") @db.Decimal(18, 2)
+  currentBalance Decimal     @map("current_balance") @db.Decimal(18, 2)
+  startDate      DateTime    @map("start_date") @db.Date
+  termMonths     Int?        @map("term_months")
+  interestRate   Decimal     @map("interest_rate") @db.Decimal(7, 4)
+  rateKind       RateKind    @default(fija) @map("rate_kind")
+  rateBasis      RateBasis   @default(EA) @map("rate_basis")
+  amortSystem    AmortSystem @default(frances) @map("amort_system")
+  monthlyPayment Decimal?    @map("monthly_payment") @db.Decimal(18, 2)
+  paymentDay     Int?        @map("payment_day") @db.SmallInt
+  nextDueDate    DateTime?   @map("next_due_date") @db.Date
+  status         DebtStatus  @default(activa)
+  notes          String?
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  deletedAt      DateTime?   @map("deleted_at")
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity       FinancialEntity?     @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  amortization AmortizationEntry[]
+  transactions Transaction[]
+  reminders    Reminder[]
+
+  @@index([userId])
+  @@index([nextDueDate])
+  @@map("debts")
+}
+
+model AmortizationEntry {
+  id            String    @id @default(uuid()) @db.Uuid
+  debtId        String    @map("debt_id") @db.Uuid
+  periodNo      Int       @map("period_no")
+  dueDate       DateTime  @map("due_date") @db.Date
+  openingBal    Decimal   @map("opening_bal") @db.Decimal(18, 2)
+  payment       Decimal   @db.Decimal(18, 2)
+  interestPart  Decimal   @map("interest_part") @db.Decimal(18, 2)
+  principalPart Decimal   @map("principal_part") @db.Decimal(18, 2)
+  extraPayment  Decimal   @default(0) @map("extra_payment") @db.Decimal(18, 2)
+  closingBal    Decimal   @map("closing_bal") @db.Decimal(18, 2)
+  isProjected   Boolean   @default(true) @map("is_projected")
+  paidAt        DateTime? @map("paid_at")
+
+  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@unique([debtId, periodNo])
+  @@index([debtId])
+  @@map("amortization_entries")
+}
+
+model Transaction {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  kind            TxKind
+  amount          Decimal   @db.Decimal(18, 2)
+  currency        String    @default("COP") @db.Char(3)
+  occurredAt      DateTime  @map("occurred_at")
+  categoryId      String?   @map("category_id") @db.Uuid
+  entityId        String?   @map("entity_id") @db.Uuid
+  debtId          String?   @map("debt_id") @db.Uuid
+  note            String?
+  tags            String[]
+  source          TxSource  @default(app)
+  status          TxStatus  @default(confirmada)
+  rawMessage      String?   @map("raw_message")
+  attachmentUrl   String?   @map("attachment_url")
+  parseConfidence Decimal?  @map("parse_confidence") @db.Decimal(4, 3)
+  waMessageId     String?   @unique @map("wa_message_id")
+  clientUuid      String?   @map("client_uuid") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  entity   FinancialEntity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  debt     Debt?            @relation(fields: [debtId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, clientUuid])
+  @@index([userId, occurredAt])
+  @@index([debtId])
+  @@map("transactions")
+}
+
+model Reminder {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  debtId      String?           @map("debt_id") @db.Uuid
+  title       String
+  dueDate     DateTime          @map("due_date") @db.Date
+  offsetsDays Int[]             @default([3, 1, 0]) @map("offsets_days")
+  channels    ReminderChannel[] @default([push])
+  amount      Decimal?          @db.Decimal(18, 2)
+  isActive    Boolean           @default(true) @map("is_active")
+  lastSentAt  DateTime?         @map("last_sent_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  deletedAt   DateTime?         @map("deleted_at")
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  debt Debt? @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@index([dueDate])
+  @@map("reminders")
+}
+
+model WhatsappLink {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  phoneE164    String       @unique @map("phone_e164")
+  waId         String?      @map("wa_id")
+  status       WaLinkStatus @default(pending)
+  otpCodeHash  String?      @map("otp_code_hash")
+  otpExpiresAt DateTime?    @map("otp_expires_at")
+  verifiedAt   DateTime?    @map("verified_at")
+  optIn        Boolean      @default(false) @map("opt_in")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("whatsapp_links")
+}
+
+model Device {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  platform     String
+  fcmToken     String?   @map("fcm_token")
+  appVersion   String?   @map("app_version")
+  lastSyncedAt DateTime? @map("last_synced_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fcmToken])
+  @@map("devices")
+}
+
+model Suggestion {
+  id         String         @id @default(uuid()) @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  type       SuggestionType
+  title      String
+  body       String
+  payload    Json?
+  score      Decimal?       @db.Decimal(5, 2)
+  status     String         @default("new")
+  validUntil DateTime?      @map("valid_until")
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("suggestions")
+}
+
+model UserSettings {
+  userId             String   @id @map("user_id") @db.Uuid
+  reminderDefaults   Int[]    @default([3, 1, 0]) @map("reminder_defaults")
+  notifPush          Boolean  @default(true) @map("notif_push")
+  notifWhatsapp      Boolean  @default(false) @map("notif_whatsapp")
+  quietHours         Json?    @map("quiet_hours")
+  suggestionStrategy String   @default("avalanche") @map("suggestion_strategy")
+  dataConsentAt      DateTime? @map("data_consent_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model WebhookEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  provider    String    @default("whatsapp")
+  externalId  String?   @unique @map("external_id")
+  payload     Json
+  status      String    @default("received")
+  error       String?
+  receivedAt  DateTime  @default(now()) @map("received_at")
+  processedAt DateTime? @map("processed_at")
+
+  @@map("webhook_events")
+}
