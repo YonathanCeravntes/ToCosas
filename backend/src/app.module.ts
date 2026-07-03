@@ -11,6 +11,7 @@ import { FinanceModule } from './modules/finance/finance.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { SuggestionsModule } from './modules/suggestions/suggestions.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
+import { SyncModule } from './modules/sync/sync.module';
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { RemindersModule } from './modules/reminders/reminders.module';
     WhatsappModule,
     SuggestionsModule,
     RemindersModule,
-    // TODO (siguientes PRs): SyncModule, LLM fallback, cola BullMQ.
+    SyncModule,
+    // TODO (siguientes PRs): LLM fallback en el parser, cola BullMQ, OCR.
   ],
   controllers: [HealthController],
 })

@@ -49,6 +49,7 @@ El foco de cobertura está en el **motor financiero** (`src/modules/finance/amor
 | `suggestions` | ✅ | Motor de reglas (priorizar deuda cara, alerta sobregiro, recorte gasto, abono extra) + comparador avalanche/snowball |
 | `reminders` | ✅ | CRUD de recordatorios + scheduler diario (cron) que dispara avisos por push/WhatsApp |
 | `finance/portfolio` | ✅ | Simulador de estrategias avalanche vs snowball (bola de nieve) |
+| `sync` | ✅ | Sincronización offline: `GET /sync/pull` (delta) y `POST /sync/push` (idempotente, last-write-wins) |
 | `prisma` | ✅ | Cliente Prisma compartido |
 
 Todos los endpoints de negocio requieren `Authorization: Bearer <accessToken>`.
@@ -120,10 +121,9 @@ curl -X POST localhost:3000/v1/debts -H "Authorization: Bearer <TOKEN>" \
 
 Según [doc 06 (plan por fases)](../docs/06-plan-desarrollo-fases.md):
 
-1. `SuggestionsModule` — motor de reglas (avalanche/snowball, alerta de sobregiro).
-2. `RemindersModule` + scheduler (recordatorios push/WhatsApp).
-3. Cola **BullMQ/Redis** para el procesamiento asíncrono del webhook (hoy es
+1. Cola **BullMQ/Redis** para el procesamiento asíncrono del webhook (hoy es
    síncrono dentro del handler; ver [doc 04](../docs/04-integracion-whatsapp.md)).
-4. Escalado del parser NLP con **LLM** de fallback (hoy: solo reglas) + OCR.
-5. `SyncModule` — sincronización delta offline.
-6. Auth por teléfono (OTP) y refresh-token rotatorio persistido.
+2. Escalado del parser NLP con **LLM** de fallback (hoy: solo reglas) + OCR.
+3. Capa offline en la app (SQLite/WatermelonDB) consumiendo `/sync/pull|push`.
+4. Push real con **FCM** (hoy el canal push del scheduler solo loguea).
+5. Auth por teléfono (OTP) y refresh-token rotatorio persistido.
