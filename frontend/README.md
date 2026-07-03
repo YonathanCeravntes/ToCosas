@@ -1,0 +1,74 @@
+# ToCosas — App móvil (React Native + Expo)
+
+App multiplataforma (Android + iOS) de ToCosas. Consume el [backend NestJS](../backend).
+
+## Requisitos
+
+- Node.js 20+
+- App **Expo Go** en tu teléfono (o un emulador Android / simulador iOS)
+- El [backend](../backend) corriendo y accesible
+
+## Puesta en marcha
+
+```bash
+cd frontend
+npm install
+# Apunta al backend. En teléfono físico usa la IP LAN de tu PC (no localhost):
+EXPO_PUBLIC_API_URL="http://192.168.1.20:3000/v1" npm start
+```
+
+Luego escanea el QR con Expo Go (Android) o la cámara (iOS). Alternativas:
+
+```bash
+npm run android   # emulador Android
+npm run ios       # simulador iOS (solo macOS)
+npm run typecheck # verificación de tipos (tsc --noEmit)
+```
+
+> **URL del API:** por defecto `http://localhost:3000/v1` (ver `app.json`).
+> `localhost` en un teléfono físico apunta al teléfono, no a tu PC: usa
+> `EXPO_PUBLIC_API_URL` con la IP de tu red local.
+
+## Pantallas incluidas
+
+| Flujo | Pantalla |
+|-------|----------|
+| Auth | Login, Registro (persistencia de sesión con `expo-secure-store`) |
+| Inicio | Dashboard: deuda total, flujo del mes, próximos pagos |
+| Deudas | Lista, detalle con tabla de amortización, **simulador de abono extra**, alta de deuda |
+| Registrar | Alta de transacción (gasto/ingreso/pago) + tip de WhatsApp |
+| Consejos | Sugerencias del motor (priorizar deuda, sobregiro, abono extra…) |
+| WhatsApp | Vinculación por OTP (muestra el código a enviar por chat) |
+| Ajustes | Perfil, vincular WhatsApp, cerrar sesión |
+
+## Arquitectura
+
+```
+frontend/
+├── App.tsx                     # SafeArea + StatusBar + RootNavigator
+├── app.json                    # config Expo (bundle ids, extra.apiUrl)
+├── src/
+│   ├── api/                    # cliente fetch + endpoints tipados + types
+│   ├── store/auth.store.ts     # Zustand + SecureStore (token persistente)
+│   ├── navigation/             # Root (auth/main) + tabs + stack de deudas
+│   ├── screens/                # pantallas por dominio
+│   ├── components/ui.tsx       # Button, Field, Card, Screen, Row
+│   ├── theme/colors.ts         # paleta y espaciados
+│   └── utils/                  # formato de moneda/fecha, useApi hook
+```
+
+- **Estado:** Zustand para sesión; `useApi` (hook ligero) para fetching. En
+  producción se recomienda migrar el fetching a React Query.
+- **Navegación:** React Navigation (native-stack + bottom-tabs). El flujo cambia
+  según haya sesión (`tokens`) o no.
+- **Sesión:** el access token se guarda cifrado con `expo-secure-store` y se
+  inyecta en cada request vía `setTokenGetter`.
+
+## Pendientes (siguientes iteraciones)
+
+- Refresh automático del token (interceptor) y logout ante 401.
+- Modo **offline** con SQLite/WatermelonDB + sincronización delta (doc 03/05).
+- Notificaciones push (FCM) y registro del `deviceToken`.
+- Gráficas de progreso de deuda (avalanche/snowball) y comparador visual.
+- Íconos con librería (hoy emojis) y pantalla de OCR de comprobantes.
+```

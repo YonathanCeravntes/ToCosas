@@ -1,0 +1,26 @@
+import { NavigatorScreenParams } from '@react-navigation/native';
+
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: undefined;
+};
+
+export type DebtsStackParamList = {
+  DebtsList: undefined;
+  DebtDetail: { debtId: string; name: string };
+  AddDebt: undefined;
+};
+
+export type MainTabsParamList = {
+  Dashboard: undefined;
+  Debts: NavigatorScreenParams<DebtsStackParamList>;
+  Add: undefined;
+  Insights: undefined;
+  Settings: undefined;
+};
+
+export type RootStackParamList = {
+  Auth: NavigatorScreenParams<AuthStackParamList>;
+  Main: NavigatorScreenParams<MainTabsParamList>;
+  LinkWhatsApp: undefined;
+};

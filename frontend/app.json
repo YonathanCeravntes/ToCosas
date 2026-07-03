@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "ToCosas",
+    "slug": "tocosas",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "tocosas",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0B6E4F"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "co.tocosas.app"
+    },
+    "android": {
+      "package": "co.tocosas.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B6E4F"
+      }
+    },
+    "extra": {
+      "apiUrl": "http://localhost:3000/v1"
+    }
+  }
+}
