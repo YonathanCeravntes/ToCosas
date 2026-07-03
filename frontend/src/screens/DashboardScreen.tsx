@@ -1,24 +1,46 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Card, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
-import { formatMoney } from '../utils/format';
+import { formatDate, formatMoney } from '../utils/format';
 import { useApi } from '../utils/useApi';
 import { debtsApi, transactionsApi } from '../api/endpoints';
 import { useAuthStore } from '../store/auth.store';
 import { useSync } from '../offline/useSync';
+import { LocalTransaction, transactionsRepo } from '../offline/transactionsRepo';
+
+const KIND_META: Record<string, { emoji: string; sign: string; color: string }> = {
+  ingreso: { emoji: '💵', sign: '+', color: colors.success },
+  gasto: { emoji: '🛒', sign: '-', color: colors.danger },
+  pago_deuda: { emoji: '💳', sign: '-', color: colors.primary },
+  transferencia: { emoji: '🔁', sign: '', color: colors.textMuted },
+};
 
 export function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const dashboard = useApi(() => transactionsApi.dashboard(), []);
   const summary = useApi(() => debtsApi.summary(), []);
   const sync = useSync();
+  const [recent, setRecent] = useState<LocalTransaction[]>([]);
+
+  const loadRecent = useCallback(async () => {
+    try {
+      setRecent(await transactionsRepo.list(5));
+    } catch {
+      /* la caché local puede no estar lista aún */
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRecent();
+  }, [loadRecent, sync.lastResult]);
 
   const loading = dashboard.loading || summary.loading;
   const reload = () => {
     void dashboard.reload();
     void summary.reload();
     void sync.sync();
+    void loadRecent();
   };
 
   return (
@@ -101,9 +123,45 @@ export function DashboardScreen() {
         <Text style={{ color: colors.textMuted }}>Sin pagos próximos registrados.</Text>
       )}
 
+      {/* Movimientos recientes (desde la caché local: visible offline) */}
+      <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
+        Movimientos recientes
+      </Text>
+      {recent.length ? (
+        recent.map((t) => {
+          const meta = KIND_META[t.kind] ?? KIND_META.transferencia;
+          return (
+            <Card key={t.id} style={{ paddingVertical: spacing.sm }}>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Row style={{ gap: spacing.sm, flex: 1 }}>
+                  <Text style={{ fontSize: 18 }}>{meta.emoji}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: '600', color: colors.text }} numberOfLines={1}>
+                      {t.note || t.kind}
+                    </Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                      {formatDate(t.occurred_at)}
+                      {t.id.startsWith('local:') ? ' · sin sincronizar' : ''}
+                    </Text>
+                  </View>
+                </Row>
+                <Text style={{ fontWeight: '700', color: meta.color }}>
+                  {meta.sign}
+                  {formatMoney(t.amount)}
+                </Text>
+              </Row>
+            </Card>
+          );
+        })
+      ) : (
+        <Text style={{ color: colors.textMuted }}>
+          Aún no registras movimientos. Usa la pestaña "Registrar" o WhatsApp.
+        </Text>
+      )}
+
       {summary.error ? (
         <Text style={{ color: colors.danger, marginTop: spacing.md }}>
-          No se pudo cargar. Revisa la conexión con el backend.
+          Sin conexión con el backend. Tus datos locales siguen disponibles.
         </Text>
       ) : null}
     </ScrollView>

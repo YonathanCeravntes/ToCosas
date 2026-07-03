@@ -85,11 +85,31 @@ la capa offline sin errores.
 - **Sesión:** el access token se guarda cifrado con `expo-secure-store` y se
   inyecta en cada request vía `setTokenGetter`.
 
+## Generar un APK/IPA real (EAS Build)
+
+La configuración está en `eas.json` (perfiles `development`, `preview`,
+`production`). Para compilar en la nube de Expo:
+
+```bash
+npm i -g eas-cli
+eas login
+eas build --profile preview --platform android   # genera un APK instalable
+eas build --profile production --platform ios     # requiere cuenta Apple
+```
+
+Ajusta `EXPO_PUBLIC_API_URL` en cada perfil para apuntar al backend correcto.
+Publicación paso a paso en [doc 09](../docs/09-despliegue-publicacion.md).
+
 ## Pendientes (siguientes iteraciones)
 
-- Refresh automático del token (interceptor) y logout ante 401.
-- Modo **offline** con SQLite/WatermelonDB + sincronización delta (doc 03/05).
-- Notificaciones push (FCM) y registro del `deviceToken`.
+- Push real con FCM y registro del `deviceToken` en `/devices`.
+- Extender el offline a deudas/entidades (hoy: transacciones).
 - Gráficas de progreso de deuda (avalanche/snowball) y comparador visual.
 - Íconos con librería (hoy emojis) y pantalla de OCR de comprobantes.
+
+## Hecho recientemente
+
+- ✅ Refresh automático del token ante 401 (con logout si falla).
+- ✅ Modo offline con SQLite + outbox + motor de sincronización delta.
+- ✅ Movimientos recientes en el Dashboard desde la caché local (visible offline).
 ```

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import { setTokenGetter } from '../api/client';
+import { setAuthHandlers } from '../api/client';
 import { authApi } from '../api/endpoints';
 import { AuthTokens, User } from '../api/types';
 
@@ -88,5 +88,15 @@ async function persist(tokens: AuthTokens, user: User): Promise<void> {
   ]);
 }
 
-// Conecta el token del store con el cliente HTTP.
-setTokenGetter(() => useAuthStore.getState().tokens?.accessToken ?? null);
+// Conecta el store de auth con el cliente HTTP: tokens, refresh y logout.
+setAuthHandlers({
+  getAccessToken: () => useAuthStore.getState().tokens?.accessToken ?? null,
+  getRefreshToken: () => useAuthStore.getState().tokens?.refreshToken ?? null,
+  onRefreshed: async (tokens) => {
+    await SecureStore.setItemAsync(TOKENS_KEY, JSON.stringify(tokens));
+    useAuthStore.setState({ tokens });
+  },
+  onAuthFailure: async () => {
+    await useAuthStore.getState().logout();
+  },
+});
