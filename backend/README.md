@@ -46,6 +46,9 @@ El foco de cobertura está en el **motor financiero** (`src/modules/finance/amor
 | `debts` | ✅ | CRUD de deudas; calcula y persiste la amortización; simulador de abono |
 | `transactions` | ✅ | CRUD de transacciones; el pago de deuda descuenta saldo (atómico); dashboard mensual |
 | `whatsapp` | ✅ | ⭐ Webhook (verificación + firma HMAC + dedup), parser NLP en español, vinculación por OTP, procesador que registra movimientos y responde |
+| `suggestions` | ✅ | Motor de reglas (priorizar deuda cara, alerta sobregiro, recorte gasto, abono extra) + comparador avalanche/snowball |
+| `reminders` | ✅ | CRUD de recordatorios + scheduler diario (cron) que dispara avisos por push/WhatsApp |
+| `finance/portfolio` | ✅ | Simulador de estrategias avalanche vs snowball (bola de nieve) |
 | `prisma` | ✅ | Cliente Prisma compartido |
 
 Todos los endpoints de negocio requieren `Authorization: Bearer <accessToken>`.

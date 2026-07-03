@@ -10,6 +10,6 @@ import { MetaCloudProvider } from './whatsapp.provider';
   imports: [AuthModule, TransactionsModule],
   controllers: [WhatsappController],
   providers: [WhatsappLinkService, MessageProcessorService, MetaCloudProvider],
-  exports: [WhatsappLinkService],
+  exports: [WhatsappLinkService, MetaCloudProvider],
 })
 export class WhatsappModule {}
