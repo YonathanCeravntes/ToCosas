@@ -33,6 +33,27 @@ Este repositorio contiene el **diseño y la especificación técnica completa** 
 - **WhatsApp:** WhatsApp Business Cloud API (Meta) → webhook → cola (BullMQ/Redis) → parser NLP (reglas + LLM ligero) → transacción estructurada → confirmación.
 - **Notificaciones:** FCM (push) + WhatsApp Cloud API (recordatorios conversacionales).
 
+## 📦 Código
+
+Además del diseño en `docs/`, el repositorio ya incluye una implementación funcional:
+
+| Carpeta | Qué es | Estado |
+|---------|--------|--------|
+| [`backend/`](backend) | API NestJS + PostgreSQL (auth, entidades, deudas con amortización, transacciones, **WhatsApp**, sugerencias, recordatorios) | ✅ 109 tests en verde, verificado end-to-end |
+| [`frontend/`](frontend) | App móvil React Native (Expo) para Android/iOS | ✅ typecheck + bundle Android OK |
+
+Arranque rápido:
+
+```bash
+# Backend
+cd backend && cp .env.example .env && npm install && docker compose up -d
+npm run prisma:migrate && npm run start:dev     # API en :3000/v1
+
+# App móvil (en otra terminal)
+cd frontend && npm install
+EXPO_PUBLIC_API_URL="http://<IP-LAN>:3000/v1" npm start
+```
+
 ## 🚀 Cómo continuar
 
 1. Lee **[00-Visión](docs/00-vision-y-propuesta-de-valor.md)** y **[01-MoSCoW](docs/01-funcionalidades-moscow.md)** para entender alcance.
