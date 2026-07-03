@@ -1,0 +1,105 @@
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import {
+  IsEnum,
+  IsInt,
+  IsISO8601,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
+
+export enum DebtTypeDto {
+  tarjeta_credito = 'tarjeta_credito',
+  credito_personal = 'credito_personal',
+  hipotecario = 'hipotecario',
+  libre_inversion = 'libre_inversion',
+  vehiculo = 'vehiculo',
+  educativo = 'educativo',
+  gota_a_gota = 'gota_a_gota',
+  prestamo_familiar = 'prestamo_familiar',
+  otro = 'otro',
+}
+
+export enum RateBasisDto {
+  EA = 'EA',
+  MV = 'MV',
+  NMV = 'NMV',
+  NAMV = 'NAMV',
+}
+
+export enum AmortSystemDto {
+  frances = 'frances',
+  aleman = 'aleman',
+}
+
+export class CreateDebtDto {
+  @ApiProperty({ example: 'Crédito casa' })
+  @IsString()
+  name!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  entityId?: string;
+
+  @ApiProperty({ enum: DebtTypeDto, default: DebtTypeDto.otro })
+  @IsEnum(DebtTypeDto)
+  debtType!: DebtTypeDto;
+
+  @ApiProperty({ example: 60000000 })
+  @IsNumber()
+  @IsPositive()
+  originalAmount!: number;
+
+  @ApiProperty({ example: 49000000 })
+  @IsNumber()
+  @IsPositive()
+  currentBalance!: number;
+
+  @ApiProperty({ example: '2023-01-15' })
+  @IsISO8601()
+  startDate!: string;
+
+  @ApiProperty({ example: 180 })
+  @IsInt()
+  @IsPositive()
+  termMonths!: number;
+
+  @ApiProperty({ example: 12.5, description: 'Tasa en porcentaje' })
+  @IsNumber()
+  @Min(0)
+  interestRate!: number;
+
+  @ApiProperty({ enum: RateBasisDto, default: RateBasisDto.EA })
+  @IsEnum(RateBasisDto)
+  rateBasis!: RateBasisDto;
+
+  @ApiPropertyOptional({ enum: AmortSystemDto, default: AmortSystemDto.frances })
+  @IsOptional()
+  @IsEnum(AmortSystemDto)
+  amortSystem?: AmortSystemDto;
+
+  @ApiPropertyOptional({ example: 5, minimum: 1, maximum: 31 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  paymentDay?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  currency?: string;
+}
+
+export class UpdateDebtDto extends PartialType(CreateDebtDto) {}
+
+export class SimulateExtraDto {
+  @ApiProperty({ example: 100000 })
+  @IsNumber()
+  @IsPositive()
+  extraMonthly!: number;
+}

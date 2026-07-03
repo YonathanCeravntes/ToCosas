@@ -36,30 +36,65 @@ El foco de cobertura está en el **motor financiero** (`src/modules/finance/amor
 - `interest.util.spec.ts` — conversión de tasas (EA / MV / NMV / NAMV).
 - `amortization.service.spec.ts` — sistema francés y alemán, tasa 0, abonos extra, reconstrucción exacta del principal, encadenamiento de saldos, fechas de vencimiento y simulación de ahorro.
 
+## Módulos implementados
+
+| Módulo | Estado | Qué hace |
+|--------|--------|----------|
+| `finance/amortization` | ✅ | Motor de amortización (francés/alemán, tasa 0, abonos extra, simulador) |
+| `auth` | ✅ | Registro/login/refresh con JWT + hashing scrypt + guard `JwtAuthGuard` |
+| `entities` | ✅ | CRUD de entidades financieras (propias + catálogo global) |
+| `debts` | ✅ | CRUD de deudas; calcula y persiste la amortización; simulador de abono |
+| `transactions` | ✅ | CRUD de transacciones; el pago de deuda descuenta saldo (atómico); dashboard mensual |
+| `prisma` | ✅ | Cliente Prisma compartido |
+
+Todos los endpoints de negocio requieren `Authorization: Bearer <accessToken>`.
+
 ## Estructura
 
 ```
 backend/
-├── prisma/schema.prisma         # modelo de datos (fuente de verdad)
+├── prisma/
+│   ├── schema.prisma            # modelo de datos (fuente de verdad)
+│   └── migrations/              # migración inicial aplicada
 ├── docker-compose.yml           # Postgres + Redis para dev
 ├── src/
 │   ├── main.ts                  # bootstrap, prefijo /v1, Swagger, validación
 │   ├── app.module.ts            # módulo raíz
 │   ├── common/money.util.ts     # utilidades monetarias (round2, tolerancia)
+│   ├── prisma/                  # PrismaService/Module (global)
 │   ├── health/                  # /health y /ready
 │   └── modules/
-│       └── finance/
-│           ├── finance.module.ts
-│           └── amortization/    # ⭐ motor de amortización + tests
+│       ├── finance/amortization # ⭐ motor de amortización + tests
+│       ├── auth/                # JWT + scrypt + guard + tests
+│       ├── entities/            # CRUD entidades
+│       ├── debts/               # CRUD deudas (usa el motor) + tests del mapper
+│       └── transactions/        # CRUD transacciones + dashboard
 └── package.json
+```
+
+## Smoke test manual (verificado)
+
+```bash
+# 1) registro → devuelve accessToken
+curl -X POST localhost:3000/v1/auth/register -H 'Content-Type: application/json' \
+  -d '{"email":"juan@mail.com","password":"secreto123"}'
+
+# 2) crear deuda (usa el token) → calcula cuota y amortización
+curl -X POST localhost:3000/v1/debts -H "Authorization: Bearer <TOKEN>" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Credito casa","debtType":"hipotecario","originalAmount":60000000,
+       "currentBalance":49000000,"startDate":"2026-07-15","termMonths":180,
+       "interestRate":12.5,"rateBasis":"EA","paymentDay":5}'
+
+# 3) simular abono extra / 4) registrar pago (descuenta saldo) / 5) dashboard
 ```
 
 ## Próximos módulos (siguientes PRs)
 
 Según [doc 06 (plan por fases)](../docs/06-plan-desarrollo-fases.md):
 
-1. `AuthModule` — email + OTP por teléfono (JWT + refresh).
-2. `EntitiesModule`, `DebtsModule` (usa este motor), `TransactionsModule`.
-3. `WhatsappModule` — webhook + cola BullMQ + worker NLP ([doc 04](../docs/04-integracion-whatsapp.md)).
-4. `RemindersModule` + scheduler.
-5. `SyncModule` — sincronización delta offline.
+1. `WhatsappModule` — webhook + cola BullMQ + worker NLP ([doc 04](../docs/04-integracion-whatsapp.md)).
+2. `RemindersModule` + scheduler (recordatorios push/WhatsApp).
+3. `SuggestionsModule` — motor de reglas (avalanche/snowball, sobregiro).
+4. `SyncModule` — sincronización delta offline.
+5. Auth por teléfono (OTP) y refresh-token rotatorio persistido.
