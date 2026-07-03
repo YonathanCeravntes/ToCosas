@@ -45,6 +45,7 @@ El foco de cobertura está en el **motor financiero** (`src/modules/finance/amor
 | `entities` | ✅ | CRUD de entidades financieras (propias + catálogo global) |
 | `debts` | ✅ | CRUD de deudas; calcula y persiste la amortización; simulador de abono |
 | `transactions` | ✅ | CRUD de transacciones; el pago de deuda descuenta saldo (atómico); dashboard mensual |
+| `whatsapp` | ✅ | ⭐ Webhook (verificación + firma HMAC + dedup), parser NLP en español, vinculación por OTP, procesador que registra movimientos y responde |
 | `prisma` | ✅ | Cliente Prisma compartido |
 
 Todos los endpoints de negocio requieren `Authorization: Bearer <accessToken>`.
@@ -68,9 +69,32 @@ backend/
 │       ├── auth/                # JWT + scrypt + guard + tests
 │       ├── entities/            # CRUD entidades
 │       ├── debts/               # CRUD deudas (usa el motor) + tests del mapper
-│       └── transactions/        # CRUD transacciones + dashboard
+│       ├── transactions/        # CRUD transacciones + dashboard
+│       └── whatsapp/            # ⭐ webhook + NLP + vinculación OTP + procesador
+│           ├── nlp/             # amount/date/rule parsers (con tests)
+│           ├── signature.util.ts   # validación HMAC del webhook
+│           ├── whatsapp.provider.ts # interfaz + Meta Cloud API
+│           ├── whatsapp-link.service.ts
+│           └── message-processor.service.ts
 └── package.json
 ```
+
+## Integración WhatsApp (verificada end-to-end)
+
+El pipeline `webhook → dedup → parser → transacción → respuesta` se probó
+simulando el payload de Meta contra una base real:
+
+- Número no vinculado → el bot pide vincular.
+- OTP generado en la app + enviado por WhatsApp → vinculación.
+- `"Gasté 45.000 en almuerzo"` → gasto/comida registrado.
+- `"Pagué 250.000 a Bancolombia cuota crédito casa"` → pago asociado a la deuda,
+  saldo descontado atómicamente.
+- `"resumen"` → panorama financiero.
+- Reenvío del mismo `message_id` → **no duplica** (idempotencia por `webhook_events`).
+
+Ver el diseño en [doc 04](../docs/04-integracion-whatsapp.md). Para conectar Meta
+real, configurar `WHATSAPP_*` en `.env` (sin credenciales, el provider loguea
+las respuestas y omite la validación de firma para desarrollo).
 
 ## Smoke test manual (verificado)
 
@@ -93,8 +117,10 @@ curl -X POST localhost:3000/v1/debts -H "Authorization: Bearer <TOKEN>" \
 
 Según [doc 06 (plan por fases)](../docs/06-plan-desarrollo-fases.md):
 
-1. `WhatsappModule` — webhook + cola BullMQ + worker NLP ([doc 04](../docs/04-integracion-whatsapp.md)).
+1. `SuggestionsModule` — motor de reglas (avalanche/snowball, alerta de sobregiro).
 2. `RemindersModule` + scheduler (recordatorios push/WhatsApp).
-3. `SuggestionsModule` — motor de reglas (avalanche/snowball, sobregiro).
-4. `SyncModule` — sincronización delta offline.
-5. Auth por teléfono (OTP) y refresh-token rotatorio persistido.
+3. Cola **BullMQ/Redis** para el procesamiento asíncrono del webhook (hoy es
+   síncrono dentro del handler; ver [doc 04](../docs/04-integracion-whatsapp.md)).
+4. Escalado del parser NLP con **LLM** de fallback (hoy: solo reglas) + OCR.
+5. `SyncModule` — sincronización delta offline.
+6. Auth por teléfono (OTP) y refresh-token rotatorio persistido.

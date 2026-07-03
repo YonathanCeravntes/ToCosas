@@ -25,7 +25,16 @@ export class TransactionsService {
    * de forma atómica (misma transacción de base de datos). Idempotente por
    * clientUuid: si ya existe una con ese clientUuid para el usuario, la devuelve.
    */
-  async create(userId: string, dto: CreateTransactionDto) {
+  async create(
+    userId: string,
+    dto: CreateTransactionDto,
+    meta?: {
+      source?: 'app' | 'whatsapp' | 'ocr' | 'import' | 'system';
+      rawMessage?: string;
+      waMessageId?: string;
+      parseConfidence?: number;
+    },
+  ) {
     if (dto.clientUuid) {
       const existing = await this.prisma.transaction.findUnique({
         where: { userId_clientUuid: { userId, clientUuid: dto.clientUuid } },
@@ -68,7 +77,10 @@ export class TransactionsService {
           note: dto.note ?? null,
           tags: dto.tags ?? [],
           clientUuid: dto.clientUuid ?? null,
-          source: 'app',
+          source: meta?.source ?? 'app',
+          rawMessage: meta?.rawMessage ?? null,
+          waMessageId: meta?.waMessageId ?? null,
+          parseConfidence: meta?.parseConfidence ?? null,
           status: 'confirmada',
         },
       });

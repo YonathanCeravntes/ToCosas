@@ -4,7 +4,9 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true permite validar la firma HMAC del webhook de WhatsApp sobre
+  // el cuerpo crudo (req.rawBody), antes de que Express lo re-serialice.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.setGlobalPrefix('v1');
   app.useGlobalPipes(

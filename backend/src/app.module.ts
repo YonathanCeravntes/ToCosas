@@ -7,6 +7,7 @@ import { EntitiesModule } from './modules/entities/entities.module';
 import { DebtsModule } from './modules/debts/debts.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { FinanceModule } from './modules/finance/finance.module';
+import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { FinanceModule } from './modules/finance/finance.module';
     EntitiesModule,
     DebtsModule,
     TransactionsModule,
-    // TODO (siguientes PRs): WhatsappModule, RemindersModule, SyncModule, SuggestionsModule.
+    WhatsappModule,
+    // TODO (siguientes PRs): RemindersModule, SyncModule, SuggestionsModule.
   ],
   controllers: [HealthController],
 })
