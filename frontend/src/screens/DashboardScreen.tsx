@@ -1,21 +1,24 @@
 import React from 'react';
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Card, Row } from '../components/ui';
-import { colors, spacing } from '../theme/colors';
+import { colors, radius, spacing } from '../theme/colors';
 import { formatMoney } from '../utils/format';
 import { useApi } from '../utils/useApi';
 import { debtsApi, transactionsApi } from '../api/endpoints';
 import { useAuthStore } from '../store/auth.store';
+import { useSync } from '../offline/useSync';
 
 export function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const dashboard = useApi(() => transactionsApi.dashboard(), []);
   const summary = useApi(() => debtsApi.summary(), []);
+  const sync = useSync();
 
   const loading = dashboard.loading || summary.loading;
   const reload = () => {
     void dashboard.reload();
     void summary.reload();
+    void sync.sync();
   };
 
   return (
@@ -27,6 +30,27 @@ export function DashboardScreen() {
       <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: spacing.md }}>
         Hola{user?.fullName ? `, ${user.fullName.split(' ')[0]}` : ''} 👋
       </Text>
+
+      {sync.pending > 0 ? (
+        <Pressable onPress={() => void sync.sync()}>
+          <View
+            style={{
+              backgroundColor: '#FFF6E5',
+              borderColor: colors.warning,
+              borderWidth: 1,
+              borderRadius: radius.md,
+              padding: spacing.md,
+              marginBottom: spacing.md,
+            }}
+          >
+            <Text style={{ color: colors.warning, fontWeight: '600' }}>
+              {sync.syncing
+                ? '🔄 Sincronizando…'
+                : `☁️ ${sync.pending} cambio(s) sin sincronizar · toca para reintentar`}
+            </Text>
+          </View>
+        </Pressable>
+      ) : null}
 
       {/* Deuda total — tarjeta destacada */}
       <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>

@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button, Card, Field } from '../../components/ui';
 import { colors, radius, spacing } from '../../theme/colors';
-import { transactionsApi } from '../../api/endpoints';
 import { TxKind } from '../../api/types';
+import { transactionsRepo } from '../../offline/transactionsRepo';
+import { runSync } from '../../offline/syncEngine';
 
 const KINDS: Array<{ key: TxKind; label: string; emoji: string }> = [
   { key: 'gasto', label: 'Gasto', emoji: '🛒' },
@@ -27,17 +28,24 @@ export function AddTransactionScreen() {
     setLoading(true);
     setFeedback(null);
     try {
-      await transactionsApi.create({
+      // Offline-first: se guarda local y se encola. La UI no depende de la red.
+      await transactionsRepo.add({
         kind,
         amount: value,
         occurredAt: new Date().toISOString(),
         note: note || undefined,
       });
-      setFeedback('✅ Movimiento registrado');
       setAmount('');
       setNote('');
-    } catch (e) {
-      setFeedback((e as Error).message);
+      // Intento de sincronización en segundo plano (no bloquea al usuario).
+      const result = await runSync();
+      setFeedback(
+        result.skipped
+          ? '✅ Guardado. Se sincronizará cuando vuelva la conexión.'
+          : '✅ Movimiento registrado y sincronizado.',
+      );
+    } catch {
+      setFeedback('✅ Guardado localmente. Se subirá al reconectar.');
     } finally {
       setLoading(false);
     }

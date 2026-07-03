@@ -53,9 +53,30 @@ frontend/
 │   ├── navigation/             # Root (auth/main) + tabs + stack de deudas
 │   ├── screens/                # pantallas por dominio
 │   ├── components/ui.tsx       # Button, Field, Card, Screen, Row
+│   ├── offline/                # ⭐ capa offline-first
+│   │   ├── database.ts         # SQLite (caché + outbox + cursor)
+│   │   ├── transactionsRepo.ts # repositorio local-first de transacciones
+│   │   ├── syncEngine.ts       # push (outbox) + pull (delta) contra /sync
+│   │   ├── network.ts          # detección de conectividad (expo-network)
+│   │   └── useSync.ts          # hook: sincroniza al abrir y al volver a foreground
 │   ├── theme/colors.ts         # paleta y espaciados
 │   └── utils/                  # formato de moneda/fecha, useApi hook
 ```
+
+## Modo offline (offline-first)
+
+El registro de movimientos **funciona sin conexión**:
+
+1. Al registrar, la transacción se guarda en **SQLite local** y se encola en un
+   **outbox** con un `clientUuid` (idempotencia).
+2. El **motor de sync** sube el outbox (`POST /sync/push`) y baja los cambios del
+   servidor (`GET /sync/pull?since=<cursor>`), actualizando la caché local.
+3. La sincronización corre **al abrir la app** y **al volver a primer plano**; el
+   Dashboard muestra un aviso con los cambios pendientes y permite reintentar.
+4. Como el push es idempotente por `clientUuid`, reintentar nunca duplica.
+
+Verificado: `tsc --noEmit` limpio y `expo export` (Android) empaqueta la app con
+la capa offline sin errores.
 
 - **Estado:** Zustand para sesión; `useApi` (hook ligero) para fetching. En
   producción se recomienda migrar el fetching a React Query.
