@@ -51,6 +51,24 @@ export function DebtDetailScreen({ route }: Props) {
         </Text>
       </Card>
 
+      {/* Datos del crédito: plazo, inicio y fin */}
+      <Card>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Text style={{ color: colors.textMuted }}>Plazo</Text>
+          <Text style={{ fontWeight: '700' }}>{amort.length} cuotas</Text>
+        </Row>
+        <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
+          <Text style={{ color: colors.textMuted }}>Inicio</Text>
+          <Text style={{ fontWeight: '700' }}>{formatDate(data.startDate)}</Text>
+        </Row>
+        <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
+          <Text style={{ color: colors.textMuted }}>Terminas de pagar</Text>
+          <Text style={{ fontWeight: '700', color: colors.primary }}>
+            {amort.length ? formatDate(amort[amort.length - 1].dueDate) : '—'}
+          </Text>
+        </Row>
+      </Card>
+
       {/* Simulador de abono extra */}
       <Card>
         <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
@@ -66,19 +84,38 @@ export function DebtDetailScreen({ route }: Props) {
         <Button title="Calcular ahorro" onPress={runSim} loading={simLoading} />
         {sim ? (
           <View style={{ marginTop: spacing.md }}>
+            {/* Antes vs. después para que los números tengan contexto */}
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ color: colors.textMuted }}>Ahorro en intereses</Text>
-              <Text style={{ fontWeight: '800', color: colors.success }}>
-                {formatMoney(sim.interestSaved)}
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>Sin abono extra</Text>
+                <Text style={{ fontWeight: '700' }}>{sim.baseline.months} cuotas</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                  {formatDate(sim.baseline.payoffDate)}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 18, marginHorizontal: 8 }}>→</Text>
+              <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>Con tu abono</Text>
+                <Text style={{ fontWeight: '700', color: colors.primary }}>
+                  {sim.withExtra.months} cuotas
+                </Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                  {formatDate(sim.withExtra.payoffDate)}
+                </Text>
+              </View>
+            </Row>
+            <View
+              style={{
+                backgroundColor: '#EAF7F1',
+                borderRadius: 10,
+                padding: spacing.md,
+                marginTop: spacing.md,
+              }}
+            >
+              <Text style={{ color: colors.primaryDark, fontWeight: '700' }}>
+                🎉 Te ahorras {sim.monthsSaved} cuotas y {formatMoney(sim.interestSaved)} en intereses.
               </Text>
-            </Row>
-            <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-              <Text style={{ color: colors.textMuted }}>Meses que te ahorras</Text>
-              <Text style={{ fontWeight: '800', color: colors.primary }}>{sim.monthsSaved}</Text>
-            </Row>
-            <Text style={{ color: colors.textMuted, marginTop: 4 }}>
-              Nueva liquidación: {formatDate(sim.withExtra.payoffDate)}
-            </Text>
+            </View>
           </View>
         ) : null}
       </Card>
