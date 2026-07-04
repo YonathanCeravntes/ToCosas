@@ -57,4 +57,4 @@ el proceso ARQ→AUD→DEC→IMP). Cambios **futuros** sobre ellas sí pasan por
 - Motor de sugerencias (reglas) · Recordatorios + scheduler
 - Sincronización offline (SQLite + outbox) · App móvil (Expo SDK 54)
 
-> *Última actualización de este tablero: 2026-07-04 · al generar ARQ-0001.*
+> *Última actualización de este tablero: 2026-07-04 · verificación de estructura documental (carpeta `auditorias/` alineada a plural, índice `docs/README.md` y plantilla AUD añadidos).*

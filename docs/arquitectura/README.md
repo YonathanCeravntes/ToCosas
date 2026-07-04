@@ -32,7 +32,7 @@ FASE 1 Análisis → FASE 2 Propuesta (ARQ) → ⏸ FASE 3 Espera (DEC) → FASE
 | Tipo | Carpeta | Formato |
 |------|---------|---------|
 | Propuesta de arquitectura | `docs/arquitectura/` | `ARQ-XXXX-NombreModulo.md` |
-| Informe de auditoría | `docs/auditoria/` | `AUD-XXXX-NombreModulo.md` |
+| Informe de auditoría | `docs/auditorias/` | `AUD-XXXX-NombreModulo.md` |
 | Decisión oficial (aprobación) | `docs/oficial/` | `DEC-XXXX-NombreModulo.md` |
 | Informe de implementación | `docs/implementaciones/` | `IMP-XXXX-NombreModulo.md` |
 | **Tablero maestro** | `docs/roadmap/` | `BACKLOG.md` |

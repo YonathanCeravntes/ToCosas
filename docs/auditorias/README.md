@@ -13,6 +13,8 @@ ARQ (propuesta) → AUD (auditoría) → DEC (decisión del CTO) → IMP (implem
 La auditoría revisa la propuesta y produce un veredicto recomendado; la decisión
 final y vinculante la toma el CTO en el `DEC`.
 
+La plantilla está en [`AUD-0000-Plantilla.md`](AUD-0000-Plantilla.md).
+
 ## Contenido mínimo de una auditoría (AUD)
 
 | Campo | Descripción |
