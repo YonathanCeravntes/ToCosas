@@ -3,8 +3,40 @@
 - **Módulo/Feature:** FIN-002
 - **Documentos base:** `ARQ-0002-Fundaciones-de-Datos.md` · `AUD-0002-...` · `DEC-0002-Fundaciones-de-Datos.md`
 - **Autor:** Agente Desarrollador
-- **Fecha:** 2026-07-04
-- **Estado:** Entregado — a la espera de validación del CTO contra DEC-0002
+- **Fecha:** 2026-07-04 (reenvío v2 tras rechazo de validación)
+- **Estado:** Reenviado — a la espera de re-validación del CTO contra DEC-0002
+
+## 0. Reenvío v2 — respuesta al rechazo de validación
+
+**Hallazgo del CTO:** archivos truncados (`schema.prisma` sin modelos FIN-002;
+`app.module.ts`, `debts.service.ts`, `budget.service.ts` cortados a mitad de sentencia)
+y `tsc` fallando; el informe no era reproducible.
+
+**Diagnóstico:** el trabajo estaba **sin commitear** (HEAD seguía en `3aadc15`, previo a
+todo el desarrollo del día) y la validación se realizó leyendo el working tree en un
+estado parcial/concurrente (se encontró además un `index.lock` huérfano de git de esa
+franja horaria). El estado que este informe reportó sí existió y fue verificado en vivo
+(el backend con FIN-002 sigue corriendo de esa build), pero al no existir un commit no
+había una referencia inmutable contra la cual validar. **La falla de proceso fue mía: se
+entregó un IMP sin fijar el código en git.**
+
+**Corrección aplicada:**
+1. Verificación re-ejecutada sobre el estado final: `tsc` backend **exit 0**, `tsc`
+   frontend **exit 0**, **129/129 tests** verdes.
+2. Trabajo commiteado en la rama `claude/finance-app-design-pr8qd5`:
+   - `6adfc2d` — features de app previas (fechas, proyección de deuda, presupuesto, push, Telegram).
+   - **`622bfa1` — FIN-002 completo** (código autorizado por DEC-0002).
+   - `0058621` — documentación de gobernanza (ARQ/AUD/DEC/IMP + BACKLOG).
+3. Integridad verificada **sobre el contenido commiteado** (`git show 622bfa1:`):
+   `schema.prisma` contiene los 6 modelos FIN-002 y cierra correctamente; los tres
+   archivos señalados terminan en sentencia completa. Working tree == HEAD (0 diffs).
+
+**Cómo reproducir la validación:**
+```bash
+git checkout 0058621   # o la punta de claude/finance-app-design-pr8qd5
+cd backend && npx tsc --noEmit && npx jest   # exit 0 · 129/129
+cd ../frontend && npx tsc --noEmit           # exit 0
+```
 
 ---
 
