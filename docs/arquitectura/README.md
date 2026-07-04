@@ -4,21 +4,28 @@ Este directorio contiene las **propuestas de arquitectura (ARQ)**. Ninguna
 funcionalidad, módulo, mejora o cambio importante se implementa sin pasar por
 este proceso.
 
-## Flujo obligatorio
+## Flujo obligatorio (5 fases)
 
 ```
-Diseño → Propuesta (ARQ) → ⏸ Auditoría + decisión del CTO → DEC aprobado → Implementación → Informe (IMP)
+FASE 1 Análisis → FASE 2 Propuesta (ARQ) → ⏸ FASE 3 Espera (DEC) → FASE 4 Implementación → FASE 5 Documentación (IMP)
 ```
 
-1. **Propuesta.** Antes de implementar cualquier cambio importante se crea un
-   documento `ARQ-XXXX-NombreModulo.md` en `./docs/arquitectura/`.
-2. **Pausa.** Tras generar la propuesta, la implementación importante se detiene
-   y se espera el proceso de **Auditoría** y la **decisión oficial del CTO**.
-3. **Aprobación.** La decisión se formaliza como un documento **DEC** dentro de
-   `./docs/oficial/`. Solo con un DEC aprobado se continúa.
-4. **Implementación.** Se ejecuta siguiendo **estrictamente** el DEC aprobado.
-5. **Informe.** Al terminar se genera `IMP-XXXX-NombreModulo.md` en
-   `./docs/implementaciones/`.
+1. **FASE 1 · Análisis.** Analizar el requerimiento, comprender el problema,
+   evaluar impacto técnico, identificar módulos afectados y **clasificar** si el
+   cambio requiere gobernanza. Ante cualquier duda → **requiere gobernanza**.
+   Requieren gobernanza los cambios en: lógica de negocio, arquitectura, base de
+   datos, seguridad, IA, APIs, permisos, integraciones, monetización o
+   experiencia funcional. Las correcciones triviales (ortografía, estilos,
+   ajustes visuales sin cambio funcional, bugs simples) se implementan directo.
+2. **FASE 2 · Propuesta.** Crear `ARQ-XXXX-NombreModulo.md` en
+   `./docs/arquitectura/` con las 14 secciones. Al terminar, **detener la implementación**.
+3. **FASE 3 · Espera.** Esperar obligatoriamente `./docs/oficial/DEC-XXXX-NombreModulo.md`.
+   Hasta que exista, **no se modifica código** de esa funcionalidad.
+4. **FASE 4 · Implementación.** Con el DEC aprobado, implementar **exactamente lo
+   autorizado**: sin funcionalidades extra, sin cambiar la arquitectura por
+   iniciativa propia.
+5. **FASE 5 · Documentación.** Crear `IMP-XXXX-NombreModulo.md` en
+   `./docs/implementaciones/`. Luego, quedar disponible para una nueva auditoría.
 
 ## Nomenclatura
 
