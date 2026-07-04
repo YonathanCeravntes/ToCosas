@@ -53,6 +53,6 @@ Diseño → Propuesta (ARQ) → ⏸ Auditoría + decisión del CTO → DEC aprob
 
 | ARQ | Módulo | Estado | DEC | IMP |
 |-----|--------|--------|-----|-----|
-| — | _(aún no hay propuestas)_ | — | — | — |
+| [ARQ-0001](ARQ-0001-Gestion-Movimientos.md) | Gestión de Movimientos | En auditoría | — | — |
 
 > Estados posibles: `Borrador` · `En auditoría` · `Aprobada (DEC)` · `Rechazada` · `Implementada`.
