@@ -151,24 +151,48 @@ export class TransactionsService {
         status: 'confirmada',
         occurredAt: { gte: start, lt: end },
       },
+      include: { category: true },
     });
 
     let income = 0;
     let expense = 0;
     let debtPayments = 0;
+    // Acumulado de gasto por categoría (para el desglose visual del dashboard).
+    const byCat = new Map<string, { name: string; icon: string; color: string; amount: number }>();
+
     for (const t of txs) {
       const amt = Number(t.amount);
       if (t.kind === 'ingreso') income += amt;
-      else if (t.kind === 'gasto') expense += amt;
-      else if (t.kind === 'pago_deuda') debtPayments += amt;
+      else if (t.kind === 'gasto') {
+        expense += amt;
+        const key = t.categoryId ?? 'sin';
+        const cur = byCat.get(key) ?? {
+          name: t.category?.name ?? 'Sin categoría',
+          icon: t.category?.icon ?? '📦',
+          color: t.category?.color ?? '#B0B0B0',
+          amount: 0,
+        };
+        cur.amount += amt;
+        byCat.set(key, cur);
+      } else if (t.kind === 'pago_deuda') debtPayments += amt;
     }
+
     const round = (n: number) => Math.round(n * 100) / 100;
+    const byCategory = [...byCat.values()]
+      .map((c) => ({
+        ...c,
+        amount: round(c.amount),
+        percent: expense > 0 ? Math.round((c.amount / expense) * 100) : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
     return {
       period: `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}`,
       income: round(income),
       expense: round(expense),
       debtPayments: round(debtPayments),
       estimatedCashflow: round(income - expense - debtPayments),
+      byCategory,
     };
   }
 }

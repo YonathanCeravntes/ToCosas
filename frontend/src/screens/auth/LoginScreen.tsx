@@ -28,12 +28,12 @@ export function LoginScreen({ navigation }: Props) {
         style={{ flex: 1, justifyContent: 'center' }}
       >
         <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
-          <Text style={{ fontSize: 40 }}>💰</Text>
+          <Text style={{ fontSize: 40 }}>🪈</Text>
           <Text style={{ fontSize: 28, fontWeight: '800', color: colors.primary }}>
-            ToCosas
+            Millo
           </Text>
           <Text style={{ color: colors.textMuted, marginTop: 4 }}>
-            Controla tus deudas, con calma.
+            Cuida tus millos, sal de deudas con calma.
           </Text>
         </View>
 

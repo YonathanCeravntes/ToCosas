@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button, Card, Field } from '../../components/ui';
 import { colors, radius, spacing } from '../../theme/colors';
-import { TxKind } from '../../api/types';
+import { Category, TxKind } from '../../api/types';
+import { categoriesApi } from '../../api/endpoints';
 import { transactionsRepo } from '../../offline/transactionsRepo';
 import { runSync } from '../../offline/syncEngine';
 
@@ -16,8 +17,32 @@ export function AddTransactionScreen() {
   const [kind, setKind] = useState<TxKind>('gasto');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCat, setSelectedCat] = useState<Category | null>(null);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  // Cargar categorías según el tipo elegido.
+  useEffect(() => {
+    let active = true;
+    setSelectedCat(null);
+    categoriesApi
+      .list(kind)
+      .then((cats) => {
+        if (active) setCategories(cats);
+      })
+      .catch(() => {
+        if (active) setCategories([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [kind]);
+
+  const amountPreview = useMemo(() => {
+    const n = parseFloat(amount.replace(/[^\d.]/g, '')) || 0;
+    return n ? '$' + Math.round(n).toLocaleString('es-CO') : '$0';
+  }, [amount]);
 
   const onSubmit = async () => {
     const value = parseFloat(amount.replace(/[^\d.]/g, '')) || 0;
@@ -28,21 +53,22 @@ export function AddTransactionScreen() {
     setLoading(true);
     setFeedback(null);
     try {
-      // Offline-first: se guarda local y se encola. La UI no depende de la red.
       await transactionsRepo.add({
         kind,
         amount: value,
         occurredAt: new Date().toISOString(),
-        note: note || undefined,
+        note: note || selectedCat?.name || undefined,
+        categoryId: selectedCat?.id,
+        categoryIcon: selectedCat?.icon ?? undefined,
       });
       setAmount('');
       setNote('');
-      // Intento de sincronización en segundo plano (no bloquea al usuario).
+      setSelectedCat(null);
       const result = await runSync();
       setFeedback(
         result.skipped
-          ? '✅ Guardado. Se sincronizará cuando vuelva la conexión.'
-          : '✅ Movimiento registrado y sincronizado.',
+          ? '✅ Guardado. Se sincronizará al reconectar.'
+          : '✅ ¡Registrado!',
       );
     } catch {
       setFeedback('✅ Guardado localmente. Se subirá al reconectar.');
@@ -53,10 +79,13 @@ export function AddTransactionScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
-      <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: spacing.md }}>
-        Registrar movimiento
-      </Text>
+      {/* Monto grande, tipo calculadora */}
+      <Card style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
+        <Text style={{ color: colors.textMuted }}>Monto</Text>
+        <Text style={{ fontSize: 36, fontWeight: '800', color: colors.text }}>{amountPreview}</Text>
+      </Card>
 
+      {/* Selector de tipo */}
       <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
         {KINDS.map((k) => (
           <Pressable
@@ -64,7 +93,7 @@ export function AddTransactionScreen() {
             onPress={() => setKind(k.key)}
             style={{
               flex: 1,
-              padding: spacing.md,
+              padding: spacing.sm,
               borderRadius: radius.md,
               alignItems: 'center',
               backgroundColor: kind === k.key ? colors.primary : colors.surface,
@@ -72,10 +101,11 @@ export function AddTransactionScreen() {
               borderColor: kind === k.key ? colors.primary : colors.border,
             }}
           >
-            <Text style={{ fontSize: 22 }}>{k.emoji}</Text>
+            <Text style={{ fontSize: 20 }}>{k.emoji}</Text>
             <Text
               style={{
-                marginTop: 4,
+                marginTop: 2,
+                fontSize: 12,
                 fontWeight: '600',
                 color: kind === k.key ? colors.textInverse : colors.text,
               }}
@@ -86,16 +116,46 @@ export function AddTransactionScreen() {
         ))}
       </View>
 
-      <Field label="Monto" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="45000" />
-      <Field label="Nota (opcional)" value={note} onChangeText={setNote} placeholder="almuerzo, arriendo…" />
+      <Field label="¿Cuánto?" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="45000" />
+
+      {/* Grilla de categorías con iconos */}
+      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: spacing.sm }}>
+        Categoría
+      </Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
+        {categories.map((cat) => {
+          const active = selectedCat?.id === cat.id;
+          return (
+            <Pressable
+              key={cat.id}
+              onPress={() => setSelectedCat(active ? null : cat)}
+              style={{
+                width: '22%',
+                aspectRatio: 1,
+                borderRadius: radius.md,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: active ? (cat.color ?? colors.primary) + '22' : colors.surface,
+                borderWidth: 2,
+                borderColor: active ? (cat.color ?? colors.primary) : colors.border,
+              }}
+            >
+              <Text style={{ fontSize: 24 }}>{cat.icon ?? '🏷️'}</Text>
+              <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }} numberOfLines={1}>
+                {cat.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+        {categories.length === 0 ? (
+          <Text style={{ color: colors.textMuted }}>Cargando categorías…</Text>
+        ) : null}
+      </View>
+
+      <Field label="Nota (opcional)" value={note} onChangeText={setNote} placeholder="detalle…" />
 
       {feedback ? (
-        <Text
-          style={{
-            color: feedback.startsWith('✅') ? colors.success : colors.danger,
-            marginBottom: 8,
-          }}
-        >
+        <Text style={{ color: feedback.startsWith('✅') ? colors.success : colors.danger, marginBottom: 8 }}>
           {feedback}
         </Text>
       ) : null}
@@ -103,10 +163,10 @@ export function AddTransactionScreen() {
       <Button title="Registrar" onPress={onSubmit} loading={loading} />
 
       <Card style={{ marginTop: spacing.lg, backgroundColor: '#EAF7F1', borderColor: colors.primaryLight }}>
-        <Text style={{ fontWeight: '700', color: colors.primaryDark }}>💬 ¿Sabías que…?</Text>
+        <Text style={{ fontWeight: '700', color: colors.primaryDark }}>💬 Tip</Text>
         <Text style={{ color: colors.text, marginTop: 4 }}>
-          También puedes registrar por WhatsApp. Escribe "Gasté $45.000 en almuerzo" a tu número de
-          ToCosas y listo. Vincúlalo en Ajustes.
+          También puedes registrar por WhatsApp: escribe "Gasté $45.000 en almuerzo" a tu número de
+          Millo. Vincúlalo en Ajustes.
         </Text>
       </Card>
     </ScrollView>

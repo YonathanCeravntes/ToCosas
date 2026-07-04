@@ -10,6 +10,8 @@ export interface LocalTransaction {
   occurred_at: string;
   note: string | null;
   debt_id: string | null;
+  category_id: string | null;
+  category_icon: string | null;
   source: string;
   updated_at: string | null;
   deleted: number;
@@ -21,6 +23,8 @@ export interface NewTransactionInput {
   occurredAt: string;
   note?: string;
   debtId?: string;
+  categoryId?: string;
+  categoryIcon?: string;
 }
 
 /**
@@ -37,8 +41,8 @@ export const transactionsRepo = {
 
     await db.runAsync(
       `INSERT INTO local_transactions
-        (id, client_uuid, kind, amount, occurred_at, note, debt_id, source, updated_at, deleted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'app', ?, 0)`,
+        (id, client_uuid, kind, amount, occurred_at, note, debt_id, category_id, category_icon, source, updated_at, deleted)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'app', ?, 0)`,
       [
         localId,
         clientUuid,
@@ -47,6 +51,8 @@ export const transactionsRepo = {
         input.occurredAt,
         input.note ?? null,
         input.debtId ?? null,
+        input.categoryId ?? null,
+        input.categoryIcon ?? null,
         now,
       ],
     );
@@ -62,6 +68,7 @@ export const transactionsRepo = {
           occurredAt: input.occurredAt,
           note: input.note,
           debtId: input.debtId,
+          categoryId: input.categoryId,
           clientUuid,
         }),
         now,
@@ -76,6 +83,8 @@ export const transactionsRepo = {
       occurred_at: input.occurredAt,
       note: input.note ?? null,
       debt_id: input.debtId ?? null,
+      category_id: input.categoryId ?? null,
+      category_icon: input.categoryIcon ?? null,
       source: 'app',
       updated_at: now,
       deleted: 0,

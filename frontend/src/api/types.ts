@@ -76,12 +76,30 @@ export interface Transaction {
   source: string;
 }
 
+export interface CategorySpend {
+  name: string;
+  icon: string;
+  color: string;
+  amount: number;
+  percent: number;
+}
+
 export interface Dashboard {
   period: string;
   income: number;
   expense: number;
   debtPayments: number;
   estimatedCashflow: number;
+  byCategory: CategorySpend[];
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  kind: TxKind;
+  icon: string | null;
+  color: string | null;
+  isGlobal: boolean;
 }
 
 export interface Suggestion {

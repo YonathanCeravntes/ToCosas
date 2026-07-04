@@ -2,6 +2,7 @@ import { api } from './client';
 import {
   AmortizationEntry,
   AuthResult,
+  Category,
   Dashboard,
   Debt,
   DebtsSummary,
@@ -35,6 +36,11 @@ export const transactionsApi = {
     api.post<Transaction>('/transactions', input),
 };
 
+export const categoriesApi = {
+  list: (kind?: string) =>
+    api.get<Category[]>(`/categories${kind ? `?kind=${kind}` : ''}`),
+};
+
 export const suggestionsApi = {
   list: () => api.get<Suggestion[]>('/suggestions'),
   compareStrategies: (extraBudget: number) =>
@@ -66,6 +72,7 @@ export interface CreateTransactionInput {
   amount: number;
   occurredAt: string;
   debtId?: string;
+  categoryId?: string;
   note?: string;
 }
 

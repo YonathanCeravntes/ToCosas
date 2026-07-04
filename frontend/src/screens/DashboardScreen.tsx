@@ -123,6 +123,41 @@ export function DashboardScreen() {
         <Text style={{ color: colors.textMuted }}>Sin pagos próximos registrados.</Text>
       )}
 
+      {/* Gastos por categoría (barras visuales) */}
+      {dashboard.data?.byCategory?.length ? (
+        <>
+          <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
+            ¿En qué se te va la plata?
+          </Text>
+          <Card>
+            {dashboard.data.byCategory.map((c) => (
+              <View key={c.name} style={{ marginBottom: spacing.sm }}>
+                <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Row style={{ gap: 6 }}>
+                    <Text style={{ fontSize: 16 }}>{c.icon}</Text>
+                    <Text style={{ color: colors.text, fontWeight: '600' }}>{c.name}</Text>
+                  </Row>
+                  <Text style={{ color: colors.textMuted }}>
+                    {formatMoney(c.amount)} · {c.percent}%
+                  </Text>
+                </Row>
+                {/* Barra de progreso proporcional al gasto */}
+                <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: 'hidden' }}>
+                  <View
+                    style={{
+                      height: 8,
+                      width: `${Math.max(c.percent, 3)}%`,
+                      backgroundColor: c.color,
+                      borderRadius: 4,
+                    }}
+                  />
+                </View>
+              </View>
+            ))}
+          </Card>
+        </>
+      ) : null}
+
       {/* Movimientos recientes (desde la caché local: visible offline) */}
       <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
         Movimientos recientes
@@ -134,7 +169,7 @@ export function DashboardScreen() {
             <Card key={t.id} style={{ paddingVertical: spacing.sm }}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <Row style={{ gap: spacing.sm, flex: 1 }}>
-                  <Text style={{ fontSize: 18 }}>{meta.emoji}</Text>
+                  <Text style={{ fontSize: 18 }}>{t.category_icon ?? meta.emoji}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontWeight: '600', color: colors.text }} numberOfLines={1}>
                       {t.note || t.kind}

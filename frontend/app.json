@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "ToCosas",
-    "slug": "tocosas",
+    "name": "Millo",
+    "slug": "millo",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "tocosas",
+    "scheme": "millo",
     "userInterfaceStyle": "automatic",
     "splash": {
       "resizeMode": "contain",

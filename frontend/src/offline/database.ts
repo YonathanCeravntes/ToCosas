@@ -24,6 +24,8 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
           occurred_at TEXT NOT NULL,
           note        TEXT,
           debt_id     TEXT,
+          category_id TEXT,
+          category_icon TEXT,
           source      TEXT DEFAULT 'app',
           updated_at  TEXT,
           deleted     INTEGER DEFAULT 0
@@ -43,6 +45,14 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
           value TEXT
         );
       `);
+      // Migración suave para bases creadas antes de agregar categorías.
+      for (const col of ['category_id TEXT', 'category_icon TEXT']) {
+        try {
+          await db.execAsync(`ALTER TABLE local_transactions ADD COLUMN ${col}`);
+        } catch {
+          /* la columna ya existe */
+        }
+      }
       return db;
     });
   }

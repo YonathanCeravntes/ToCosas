@@ -12,6 +12,7 @@ import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { SuggestionsModule } from './modules/suggestions/suggestions.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { SyncModule } from './modules/sync/sync.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { SyncModule } from './modules/sync/sync.module';
     EntitiesModule,
     DebtsModule,
     TransactionsModule,
+    CategoriesModule,
     WhatsappModule,
     SuggestionsModule,
     RemindersModule,
