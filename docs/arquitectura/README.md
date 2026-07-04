@@ -32,12 +32,18 @@ FASE 1 Análisis → FASE 2 Propuesta (ARQ) → ⏸ FASE 3 Espera (DEC) → FASE
 | Tipo | Carpeta | Formato |
 |------|---------|---------|
 | Propuesta de arquitectura | `docs/arquitectura/` | `ARQ-XXXX-NombreModulo.md` |
+| Informe de auditoría | `docs/auditoria/` | `AUD-XXXX-NombreModulo.md` |
 | Decisión oficial (aprobación) | `docs/oficial/` | `DEC-XXXX-NombreModulo.md` |
 | Informe de implementación | `docs/implementaciones/` | `IMP-XXXX-NombreModulo.md` |
+| **Tablero maestro** | `docs/roadmap/` | `BACKLOG.md` |
 
 - `XXXX` = consecutivo de 4 dígitos (0001, 0002, …). El número se conserva
-  entre ARQ ↔ DEC ↔ IMP del mismo módulo para trazabilidad.
+  entre ARQ ↔ AUD ↔ DEC ↔ IMP del mismo módulo para trazabilidad.
 - La plantilla de propuesta está en [`ARQ-0000-Plantilla.md`](ARQ-0000-Plantilla.md).
+
+> **Regla del tablero:** cada vez que se genere o actualice un documento (ARQ,
+> AUD, DEC o IMP), es **obligatorio** actualizar
+> [`docs/roadmap/BACKLOG.md`](../roadmap/BACKLOG.md) con el nuevo estado.
 
 ## Secciones mínimas de una propuesta (ARQ)
 
