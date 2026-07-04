@@ -36,6 +36,31 @@ El foco de cobertura está en el **motor financiero** (`src/modules/finance/amor
 - `interest.util.spec.ts` — conversión de tasas (EA / MV / NMV / NAMV).
 - `amortization.service.spec.ts` — sistema francés y alemán, tasa 0, abonos extra, reconstrucción exacta del principal, encadenamiento de saldos, fechas de vencimiento y simulación de ahorro.
 
+## Despliegue en la nube
+
+El backend está dockerizado y listo para desplegar. Hay un blueprint de Render
+en la raíz del repo ([`render.yaml`](../render.yaml)):
+
+1. Entra a **https://dashboard.render.com/blueprints** → *New Blueprint Instance*.
+2. Conecta este repositorio. Render lee `render.yaml` y crea el **servicio web**
+   (Docker) + la **base de datos PostgreSQL** gestionada, e inyecta `DATABASE_URL`
+   y los secretos JWT automáticamente.
+3. El contenedor aplica las migraciones (`prisma migrate deploy`) y arranca.
+   Health check en `/v1/health`.
+4. Tu API quedará en `https://tocosas-api.onrender.com/v1`. Apunta
+   `EXPO_PUBLIC_API_URL` de la app a esa URL.
+
+Build local de la imagen (si tienes Docker):
+
+```bash
+cd backend
+docker build -t tocosas-api .
+docker run -p 3000:3000 -e DATABASE_URL=... -e JWT_ACCESS_SECRET=... tocosas-api
+```
+
+> **Railway/Fly.io** también sirven: usan el mismo `Dockerfile`. Solo define las
+> variables de entorno de `.env.example` y provee un Postgres gestionado.
+
 ## Módulos implementados
 
 | Módulo | Estado | Qué hace |
