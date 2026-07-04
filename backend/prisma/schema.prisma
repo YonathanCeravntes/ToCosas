@@ -71,6 +71,7 @@ enum AmortSystem {
 enum TxSource {
   app
   whatsapp
+  telegram
   ocr
   import
   system
@@ -85,6 +86,7 @@ enum TxStatus {
 enum ReminderChannel {
   push
   whatsapp
+  telegram
   email
 }
 
@@ -101,6 +103,52 @@ enum SuggestionType {
   abono_extra
   felicitacion
   otro
+}
+
+// Tipo de compromiso mensual recurrente: ingreso fijo (salario) o gasto fijo.
+enum FixedKind {
+  ingreso
+  gasto
+}
+
+// ---------- FIN-002 · Fundaciones de datos ----------
+
+// Cuenta monetaria (saldo líquido o casi líquido) del usuario.
+enum AccountType {
+  efectivo
+  ahorros
+  corriente
+  billetera
+  otro
+}
+
+// Activo de patrimonio (no monetario o de menor liquidez).
+enum AssetType {
+  inmueble
+  vehiculo
+  inversion
+  negocio
+  otro
+}
+
+// Estado de un evento en el outbox transaccional.
+enum OutboxStatus {
+  pending
+  processing
+  processed
+  failed
+}
+
+// Granularidad de una lectura de métrica en la serie de tiempo.
+enum MetricPeriod {
+  day
+  month
+}
+
+// Origen de un registro histórico de saldo.
+enum BalanceEntrySource {
+  manual
+  import
 }
 
 // ---------- Modelos ----------
@@ -130,6 +178,12 @@ model User {
   devices      Device[]
   suggestions  Suggestion[]
   waLinks      WhatsappLink[]
+  fixedItems   FixedItem[]
+  tgLinks      TelegramLink[]
+  accounts     Account[]
+  assets       Asset[]
+  snapshots    FinancialSnapshot[]
+  metrics      MetricReading[]
   settings     UserSettings?
 
   @@map("users")
@@ -154,6 +208,7 @@ model FinancialEntity {
   user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   debts        Debt[]
   transactions Transaction[]
+  accounts     Account[]
 
   @@index([userId])
   @@map("financial_entities")
@@ -254,6 +309,7 @@ model Transaction {
   parseConfidence Decimal?  @map("parse_confidence") @db.Decimal(4, 3)
   waMessageId     String?   @unique @map("wa_message_id")
   clientUuid      String?   @map("client_uuid") @db.Uuid
+  accountId       String?   @map("account_id") @db.Uuid
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   deletedAt       DateTime? @map("deleted_at")
@@ -262,6 +318,7 @@ model Transaction {
   category Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   entity   FinancialEntity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
   debt     Debt?            @relation(fields: [debtId], references: [id], onDelete: SetNull)
+  account  Account?         @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
   @@unique([userId, clientUuid])
   @@index([userId, occurredAt])
@@ -309,6 +366,25 @@ model WhatsappLink {
   @@map("whatsapp_links")
 }
 
+model TelegramLink {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  chatId       String?      @unique @map("chat_id")
+  username     String?
+  status       WaLinkStatus @default(pending)
+  otpCodeHash  String?      @map("otp_code_hash")
+  otpExpiresAt DateTime?    @map("otp_expires_at")
+  verifiedAt   DateTime?    @map("verified_at")
+  optIn        Boolean      @default(false) @map("opt_in")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("telegram_links")
+}
+
 model Device {
   id           String    @id @default(uuid()) @db.Uuid
   userId       String    @map("user_id") @db.Uuid
@@ -341,6 +417,156 @@ model Suggestion {
 
   @@index([userId, status])
   @@map("suggestions")
+}
+
+// Compromiso mensual recurrente: ingreso fijo (p. ej. salario) o gasto fijo
+// inflexible (arriendo, servicios, suscripciones). Un crédito NO se registra
+// aquí: sus cuotas ya se cuentan desde el modelo Debt.
+model FixedItem {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  kind       FixedKind
+  name       String
+  amount     Decimal   @db.Decimal(18, 2)
+  currency   String    @default("COP") @db.Char(3)
+  dayOfMonth Int?      @map("day_of_month") @db.SmallInt
+  categoryId String?   @map("category_id") @db.Uuid
+  isActive   Boolean   @default(true) @map("is_active")
+  startDate  DateTime? @map("start_date") @db.Date
+  endDate    DateTime? @map("end_date") @db.Date
+  notes      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@map("fixed_items")
+}
+
+// ---------- FIN-002 · Cuentas, activos, patrimonio ----------
+
+// Cuenta monetaria del usuario (efectivo, ahorros, corriente, billetera).
+// El saldo manual es la fuente de verdad (sin derivación automática en FIN-002).
+model Account {
+  id                String      @id @default(uuid()) @db.Uuid
+  userId            String      @map("user_id") @db.Uuid
+  entityId          String?     @map("entity_id") @db.Uuid
+  name              String
+  type              AccountType @default(otro)
+  currency          String      @default("COP") @db.Char(3)
+  currentBalance    Decimal     @default(0) @map("current_balance") @db.Decimal(18, 2)
+  isLiquid          Boolean     @default(true) @map("is_liquid")
+  includeInNetWorth Boolean     @default(true) @map("include_in_net_worth")
+  isEmergencyFund   Boolean     @default(false) @map("is_emergency_fund")
+  archivedAt        DateTime?   @map("archived_at")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+  deletedAt         DateTime?   @map("deleted_at")
+
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity         FinancialEntity?      @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  balanceEntries AccountBalanceEntry[]
+  transactions   Transaction[]
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+// Historial de saldos de una cuenta (se escribe en cada cambio de saldo).
+model AccountBalanceEntry {
+  id         String             @id @default(uuid()) @db.Uuid
+  accountId  String             @map("account_id") @db.Uuid
+  balance    Decimal            @db.Decimal(18, 2)
+  recordedAt DateTime           @default(now()) @map("recorded_at")
+  source     BalanceEntrySource @default(manual)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, recordedAt])
+  @@map("account_balance_entries")
+}
+
+// Activo de patrimonio (inmueble, vehículo, inversión, negocio).
+model Asset {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  name              String
+  type              AssetType @default(otro)
+  currency          String    @default("COP") @db.Char(3)
+  currentValue      Decimal   @map("current_value") @db.Decimal(18, 2)
+  acquisitionValue  Decimal?  @map("acquisition_value") @db.Decimal(18, 2)
+  acquisitionDate   DateTime? @map("acquisition_date") @db.Date
+  isLiquid          Boolean   @default(false) @map("is_liquid")
+  includeInNetWorth Boolean   @default(true) @map("include_in_net_worth")
+  notes             String?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("assets")
+}
+
+// ---------- FIN-002 · Eventos (outbox transaccional) y series ----------
+
+// Outbox transaccional: el evento de dominio se escribe en la MISMA transacción
+// que el cambio de negocio. Un despachador (cron) lo consume con claim atómico.
+model OutboxEvent {
+  id            String       @id @default(uuid()) @db.Uuid
+  aggregateType String       @map("aggregate_type")
+  aggregateId   String       @map("aggregate_id")
+  eventType     String       @map("event_type")
+  payload       Json
+  status        OutboxStatus @default(pending)
+  attempts      Int          @default(0)
+  availableAt   DateTime     @default(now()) @map("available_at")
+  processedAt   DateTime?    @map("processed_at")
+  error         String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  @@index([status, availableAt])
+  @@map("outbox_events")
+}
+
+// Foto financiera periódica del usuario. Creada aquí; poblada por FIN-003.
+model FinancialSnapshot {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  capturedAt       DateTime @map("captured_at")
+  netWorth         Decimal  @map("net_worth") @db.Decimal(18, 2)
+  totalAssets      Decimal  @map("total_assets") @db.Decimal(18, 2)
+  totalLiquid      Decimal  @map("total_liquid") @db.Decimal(18, 2)
+  totalLiabilities Decimal  @map("total_liabilities") @db.Decimal(18, 2)
+  extra            Json?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, capturedAt])
+  @@map("financial_snapshots")
+}
+
+// Serie de tiempo genérica de indicadores. Creada aquí; poblada por FIN-003.
+// La estrategia de particionamiento mensual por `captured_at` y la retención
+// (180 días para lecturas `day`) se aplicarán físicamente en FIN-003, cuando la
+// tabla comience a poblarse (ver IMP-0002 · Limitaciones).
+model MetricReading {
+  id         String       @id @default(uuid()) @db.Uuid
+  userId     String       @map("user_id") @db.Uuid
+  metricKey  String       @map("metric_key")
+  value      Decimal      @db.Decimal(18, 4)
+  capturedAt DateTime     @map("captured_at")
+  period     MetricPeriod @default(month)
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, metricKey, capturedAt])
+  @@map("metric_readings")
 }
 
 model UserSettings {

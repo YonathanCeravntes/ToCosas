@@ -31,6 +31,14 @@ export type DebtType =
 
 export type RateBasis = 'EA' | 'MV' | 'NMV' | 'NAMV';
 
+/** Proyección del crédito calculada desde la tabla de amortización. */
+export interface DebtProjection {
+  totalInterest: number;
+  totalPaid: number;
+  numberOfPayments: number;
+  payoffDate: string | null;
+}
+
 export interface Debt {
   id: string;
   name: string;
@@ -45,6 +53,7 @@ export interface Debt {
   monthlyPayment: string | number | null;
   nextDueDate: string | null;
   status: string;
+  projection?: DebtProjection;
 }
 
 export interface AmortizationEntry {
@@ -102,6 +111,70 @@ export interface Category {
   isGlobal: boolean;
 }
 
+export type AccountType = 'efectivo' | 'ahorros' | 'corriente' | 'billetera' | 'otro';
+export type AssetType = 'inmueble' | 'vehiculo' | 'inversion' | 'negocio' | 'otro';
+
+export interface Account {
+  id: string;
+  name: string;
+  type: AccountType;
+  currency: string;
+  currentBalance: string | number;
+  isLiquid: boolean;
+  includeInNetWorth: boolean;
+  isEmergencyFund: boolean;
+}
+
+export interface Asset {
+  id: string;
+  name: string;
+  type: AssetType;
+  currency: string;
+  currentValue: string | number;
+  includeInNetWorth: boolean;
+}
+
+export interface NetWorth {
+  netWorth: number;
+  totalAssets: number;
+  totalLiquid: number;
+  totalEmergencyFund: number;
+  totalAccounts: number;
+  totalAssetsOnly: number;
+  totalLiabilities: number;
+  accounts: Array<{ id: string; name: string; type: AccountType; currentBalance: number; isLiquid: boolean; isEmergencyFund: boolean }>;
+  assets: Array<{ id: string; name: string; type: AssetType; currentValue: number }>;
+  liabilities: Array<{ id: string; name: string; currentBalance: number }>;
+}
+
+export type FixedKind = 'ingreso' | 'gasto';
+
+export interface FixedItem {
+  id: string;
+  kind: FixedKind;
+  name: string;
+  amount: string | number;
+  currency: string;
+  dayOfMonth: number | null;
+  categoryId: string | null;
+  isActive: boolean;
+  startDate: string | null;
+  endDate: string | null;
+  notes: string | null;
+}
+
+export interface MonthlyBudget {
+  fixedIncome: number;
+  fixedExpense: number;
+  debtPayments: number;
+  committed: number;
+  available: number;
+  committedRatio: number;
+  debts: Array<{ debtId: string; name: string; amount: number; nextDueDate: string | null }>;
+  expenses: Array<{ id: string; name: string; amount: number; dayOfMonth: number | null }>;
+  incomes: Array<{ id: string; name: string; amount: number; dayOfMonth: number | null }>;
+}
+
 export interface Suggestion {
   type: string;
   title: string;
@@ -113,6 +186,13 @@ export interface Suggestion {
 export interface StartLinkResult {
   otp: string;
   phoneE164: string;
+  expiresAt: string;
+}
+
+export interface StartTelegramLinkResult {
+  otp: string;
+  botUsername: string;
+  deepLink: string;
   expiresAt: string;
 }
 

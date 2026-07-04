@@ -14,6 +14,7 @@ export type DebtsStackParamList = {
 export type MainTabsParamList = {
   Dashboard: undefined;
   Debts: NavigatorScreenParams<DebtsStackParamList>;
+  Budget: undefined;
   Add: undefined;
   Insights: undefined;
   Settings: undefined;
@@ -23,4 +24,6 @@ export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<MainTabsParamList>;
   LinkWhatsApp: undefined;
+  LinkTelegram: undefined;
+  Accounts: undefined;
 };

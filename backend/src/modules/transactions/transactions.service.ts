@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { OutboxService } from '../events/outbox.service';
+import { DomainEventType } from '../events/domain-events';
 import { CreateTransactionDto, UpdateTransactionDto } from './dto/transaction.dto';
 
 export interface TransactionQuery {
@@ -18,7 +20,10 @@ export interface TransactionQuery {
 
 @Injectable()
 export class TransactionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   /**
    * Crea una transacción. Si es pago de deuda, descuenta el saldo de la deuda
@@ -29,7 +34,7 @@ export class TransactionsService {
     userId: string,
     dto: CreateTransactionDto,
     meta?: {
-      source?: 'app' | 'whatsapp' | 'ocr' | 'import' | 'system';
+      source?: 'app' | 'whatsapp' | 'telegram' | 'ocr' | 'import' | 'system';
       rawMessage?: string;
       waMessageId?: string;
       parseConfidence?: number;
@@ -64,7 +69,7 @@ export class TransactionsService {
         });
       }
 
-      return tx.transaction.create({
+      const created = await tx.transaction.create({
         data: {
           userId,
           kind: dto.kind,
@@ -84,6 +89,23 @@ export class TransactionsService {
           status: 'confirmada',
         },
       });
+
+      // Evento de dominio en la MISMA transacción (patrón outbox, FIN-002).
+      await this.outbox.enqueue(tx, {
+        aggregateType: 'transaction',
+        aggregateId: created.id,
+        eventType: DomainEventType.TransactionCreated,
+        payload: { userId, kind: created.kind, amount: Number(created.amount) },
+      });
+      if (dto.kind === 'pago_deuda' && dto.debtId) {
+        await this.outbox.enqueue(tx, {
+          aggregateType: 'debt',
+          aggregateId: dto.debtId,
+          eventType: DomainEventType.DebtUpdated,
+          payload: { userId, reason: 'payment' },
+        });
+      }
+      return created;
     });
   }
 

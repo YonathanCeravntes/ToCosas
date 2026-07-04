@@ -7,6 +7,9 @@ import { colors } from '../theme/colors';
 import { AuthNavigator } from './AuthNavigator';
 import { MainTabs } from './MainTabs';
 import { LinkWhatsAppScreen } from '../screens/whatsapp/LinkWhatsAppScreen';
+import { LinkTelegramScreen } from '../screens/telegram/LinkTelegramScreen';
+import { AccountsScreen } from '../screens/AccountsScreen';
+import { registerForPush } from '../notifications/push';
 import { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -17,6 +20,11 @@ export function RootNavigator() {
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
+
+  // Registra el push token una vez el usuario está autenticado (best-effort).
+  useEffect(() => {
+    if (tokens) void registerForPush();
+  }, [tokens]);
 
   if (!hydrated) {
     return (
@@ -36,6 +44,16 @@ export function RootNavigator() {
               name="LinkWhatsApp"
               component={LinkWhatsAppScreen}
               options={{ headerShown: true, title: 'Vincular WhatsApp', presentation: 'modal' }}
+            />
+            <Stack.Screen
+              name="LinkTelegram"
+              component={LinkTelegramScreen}
+              options={{ headerShown: true, title: 'Vincular Telegram', presentation: 'modal' }}
+            />
+            <Stack.Screen
+              name="Accounts"
+              component={AccountsScreen}
+              options={{ headerShown: true, title: 'Cuentas y patrimonio' }}
             />
           </>
         ) : (

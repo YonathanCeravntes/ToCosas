@@ -1,12 +1,19 @@
 import { api } from './client';
 import {
   AmortizationEntry,
+  Account,
+  Asset,
   AuthResult,
   Category,
   Dashboard,
   Debt,
   DebtsSummary,
+  FixedItem,
+  FixedKind,
+  MonthlyBudget,
+  NetWorth,
   StartLinkResult,
+  StartTelegramLinkResult,
   Suggestion,
   Transaction,
   TxKind,
@@ -41,16 +48,50 @@ export const categoriesApi = {
     api.get<Category[]>(`/categories${kind ? `?kind=${kind}` : ''}`),
 };
 
+export const accountsApi = {
+  netWorth: () => api.get<NetWorth>('/net-worth'),
+  listAccounts: () => api.get<Account[]>('/accounts'),
+  createAccount: (input: CreateAccountInput) => api.post<Account>('/accounts', input),
+  updateBalance: (id: string, balance: number) =>
+    api.patch<Account>(`/accounts/${id}/balance`, { balance }),
+  removeAccount: (id: string) => api.delete<{ deleted: boolean }>(`/accounts/${id}`),
+  listAssets: () => api.get<Asset[]>('/assets'),
+  createAsset: (input: CreateAssetInput) => api.post<Asset>('/assets', input),
+  removeAsset: (id: string) => api.delete<{ deleted: boolean }>(`/assets/${id}`),
+};
+
+export const budgetApi = {
+  monthly: () => api.get<MonthlyBudget>('/budget/monthly'),
+  listFixed: () => api.get<FixedItem[]>('/budget/fixed-items'),
+  createFixed: (input: CreateFixedItemInput) =>
+    api.post<FixedItem>('/budget/fixed-items', input),
+  removeFixed: (id: string) => api.delete<{ deleted: boolean }>(`/budget/fixed-items/${id}`),
+};
+
 export const suggestionsApi = {
   list: () => api.get<Suggestion[]>('/suggestions'),
   compareStrategies: (extraBudget: number) =>
     api.post<StrategyComparison>('/simulator/strategy', { extraBudget }),
 };
 
+export const devicesApi = {
+  register: (pushToken: string, platform?: string, appVersion?: string) =>
+    api.post<{ id: string; registered: boolean }>('/devices', {
+      pushToken,
+      platform,
+      appVersion,
+    }),
+};
+
 export const whatsappApi = {
   startLink: (phoneE164: string) =>
     api.post<StartLinkResult>('/whatsapp/link/start', { phoneE164 }),
   unlink: () => api.delete<{ revoked: boolean }>('/whatsapp/link'),
+};
+
+export const telegramApi = {
+  startLink: () => api.post<StartTelegramLinkResult>('/telegram/link/start'),
+  unlink: () => api.delete<{ revoked: boolean }>('/telegram/link'),
 };
 
 // --- Tipos de entrada ---
@@ -65,6 +106,31 @@ export interface CreateDebtInput {
   interestRate: number;
   rateBasis: string;
   paymentDay?: number;
+}
+
+export interface CreateAccountInput {
+  name: string;
+  type: string;
+  currentBalance?: number;
+  isLiquid?: boolean;
+  isEmergencyFund?: boolean;
+  includeInNetWorth?: boolean;
+}
+
+export interface CreateAssetInput {
+  name: string;
+  type: string;
+  currentValue: number;
+  includeInNetWorth?: boolean;
+}
+
+export interface CreateFixedItemInput {
+  kind: FixedKind;
+  name: string;
+  amount: number;
+  dayOfMonth?: number;
+  categoryId?: string;
+  notes?: string;
 }
 
 export interface CreateTransactionInput {

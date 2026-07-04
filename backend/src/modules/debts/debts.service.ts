@@ -4,6 +4,9 @@ import { AmortizationService } from '../finance/amortization/amortization.servic
 import {
   AmortizationResult,
 } from '../finance/amortization/amortization.types';
+import { RemindersService } from '../reminders/reminders.service';
+import { OutboxService } from '../events/outbox.service';
+import { DomainEventType } from '../events/domain-events';
 import { debtToAmortizationInput } from './debt-amortization.mapper';
 import { CreateDebtDto, UpdateDebtDto } from './dto/debt.dto';
 
@@ -12,50 +15,91 @@ export class DebtsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly amortization: AmortizationService,
+    private readonly reminders: RemindersService,
+    private readonly outbox: OutboxService,
   ) {}
 
   async create(userId: string, dto: CreateDebtDto) {
     const schedule = this.computeSchedule(dto);
     const nextDue = schedule.entries[0]?.dueDate ?? null;
 
-    const debt = await this.prisma.debt.create({
-      data: {
-        userId,
-        entityId: dto.entityId ?? null,
-        name: dto.name,
-        debtType: dto.debtType,
-        currency: dto.currency ?? 'COP',
-        originalAmount: dto.originalAmount,
-        currentBalance: dto.currentBalance,
-        startDate: new Date(dto.startDate),
-        termMonths: dto.termMonths,
-        interestRate: dto.interestRate,
-        rateBasis: dto.rateBasis,
-        amortSystem: dto.amortSystem ?? 'frances',
-        monthlyPayment: schedule.monthlyPayment,
-        paymentDay: dto.paymentDay ?? null,
-        nextDueDate: nextDue ? new Date(nextDue) : null,
-        amortization: {
-          create: schedule.entries.map((e) => ({
-            periodNo: e.periodNo,
-            dueDate: new Date(e.dueDate),
-            openingBal: e.openingBalance,
-            payment: e.payment,
-            interestPart: e.interestPart,
-            principalPart: e.principalPart,
-            extraPayment: e.extraPayment,
-            closingBal: e.closingBalance,
-          })),
+    // Deuda + evento de dominio en la misma transacción (patrón outbox, FIN-002).
+    const debt = await this.outbox.withEvent(async (tx) => {
+      const created = await tx.debt.create({
+        data: {
+          userId,
+          entityId: dto.entityId ?? null,
+          name: dto.name,
+          debtType: dto.debtType,
+          currency: dto.currency ?? 'COP',
+          originalAmount: dto.originalAmount,
+          currentBalance: dto.currentBalance,
+          startDate: new Date(dto.startDate),
+          termMonths: dto.termMonths,
+          interestRate: dto.interestRate,
+          rateBasis: dto.rateBasis,
+          amortSystem: dto.amortSystem ?? 'frances',
+          monthlyPayment: schedule.monthlyPayment,
+          paymentDay: dto.paymentDay ?? null,
+          nextDueDate: nextDue ? new Date(nextDue) : null,
+          amortization: {
+            create: schedule.entries.map((e) => ({
+              periodNo: e.periodNo,
+              dueDate: new Date(e.dueDate),
+              openingBal: e.openingBalance,
+              payment: e.payment,
+              interestPart: e.interestPart,
+              principalPart: e.principalPart,
+              extraPayment: e.extraPayment,
+              closingBal: e.closingBalance,
+            })),
+          },
         },
-      },
+      });
+      return {
+        result: created,
+        event: {
+          aggregateType: 'debt',
+          aggregateId: created.id,
+          eventType: DomainEventType.DebtCreated,
+          payload: { userId, currentBalance: Number(created.currentBalance) },
+        },
+      };
     });
+    // Recordatorio automático de la cuota (push + WhatsApp).
+    await this.reminders.ensureDebtReminder(userId, debt);
     return { debt, projection: this.summary(schedule) };
   }
 
   async findAll(userId: string) {
-    return this.prisma.debt.findMany({
+    const debts = await this.prisma.debt.findMany({
       where: { userId, deletedAt: null },
       orderBy: { nextDueDate: 'asc' },
+    });
+    if (debts.length === 0) return debts;
+
+    // Proyección agregada (intereses, total a pagar, nº de cuotas, fecha fin) en
+    // una sola consulta sobre la tabla de amortización, sin recalcular el plan.
+    const grouped = await this.prisma.amortizationEntry.groupBy({
+      by: ['debtId'],
+      where: { debtId: { in: debts.map((d) => d.id) } },
+      _sum: { interestPart: true, payment: true },
+      _count: { _all: true },
+      _max: { dueDate: true },
+    });
+    const byDebt = new Map(grouped.map((g) => [g.debtId, g]));
+
+    return debts.map((d) => {
+      const g = byDebt.get(d.id);
+      return {
+        ...d,
+        projection: {
+          totalInterest: Number(g?._sum.interestPart ?? 0),
+          totalPaid: Number(g?._sum.payment ?? 0),
+          numberOfPayments: g?._count._all ?? 0,
+          payoffDate: g?._max.dueDate ?? null,
+        },
+      };
     });
   }
 
@@ -65,7 +109,27 @@ export class DebtsService {
       include: { amortization: { orderBy: { periodNo: 'asc' } } },
     });
     if (!debt) throw new NotFoundException('Deuda no encontrada');
-    return debt;
+    return { ...debt, projection: this.projectionFromEntries(debt.amortization) };
+  }
+
+  /** Proyección (intereses, total, cuotas, fecha fin) a partir de la tabla guardada. */
+  private projectionFromEntries(
+    entries: { interestPart: unknown; payment: unknown; dueDate: Date }[],
+  ) {
+    let totalInterest = 0;
+    let totalPaid = 0;
+    let payoffDate: Date | null = null;
+    for (const e of entries) {
+      totalInterest += Number(e.interestPart);
+      totalPaid += Number(e.payment);
+      if (!payoffDate || e.dueDate > payoffDate) payoffDate = e.dueDate;
+    }
+    return {
+      totalInterest: Math.round(totalInterest * 100) / 100,
+      totalPaid: Math.round(totalPaid * 100) / 100,
+      numberOfPayments: entries.length,
+      payoffDate,
+    };
   }
 
   async update(userId: string, id: string, dto: UpdateDebtDto) {
