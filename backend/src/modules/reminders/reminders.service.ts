@@ -1,8 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WhatsAppSender } from './whatsapp-sender.interface';
+import { PushSender } from '../notifications/push-sender.interface';
+import { TelegramSender } from '../telegram/telegram.provider';
 import { CreateReminderDto, UpdateReminderDto } from './dto/reminder.dto';
-import { daysUntil, offsetLabel, shouldFireToday } from './reminder.util';
+import { addOneMonth, daysUntil, offsetLabel, shouldFireToday } from './reminder.util';
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO');
 
@@ -13,7 +15,42 @@ export class RemindersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly sender: WhatsAppSender,
+    private readonly push: PushSender,
+    private readonly telegram: TelegramSender,
   ) {}
+
+  /**
+   * Crea o actualiza el recordatorio recurrente de la cuota de una deuda. Se
+   * llama al crear/editar la deuda para que las cuotas avisen sin configuración
+   * manual. Canales por defecto: push + WhatsApp.
+   */
+  async ensureDebtReminder(
+    userId: string,
+    debt: { id: string; name: string; nextDueDate: Date | null; monthlyPayment: unknown },
+  ): Promise<void> {
+    if (!debt.nextDueDate) return;
+    const existing = await this.prisma.reminder.findFirst({
+      where: { userId, debtId: debt.id, deletedAt: null },
+    });
+    const data = {
+      title: `Cuota ${debt.name}`,
+      dueDate: debt.nextDueDate,
+      amount: debt.monthlyPayment != null ? (debt.monthlyPayment as never) : null,
+    };
+    if (existing) {
+      await this.prisma.reminder.update({ where: { id: existing.id }, data });
+    } else {
+      await this.prisma.reminder.create({
+        data: {
+          userId,
+          debtId: debt.id,
+          ...data,
+          offsetsDays: [3, 1, 0],
+          channels: ['push', 'whatsapp', 'telegram'],
+        },
+      });
+    }
+  }
 
   async create(userId: string, dto: CreateReminderDto) {
     return this.prisma.reminder.create({
@@ -63,7 +100,7 @@ export class RemindersService {
   async dispatchDue(today: Date = new Date()): Promise<{ sent: number }> {
     const reminders = await this.prisma.reminder.findMany({
       where: { isActive: true, deletedAt: null },
-      include: { user: { include: { settings: true, waLinks: true } } },
+      include: { user: { include: { settings: true, waLinks: true, devices: true, tgLinks: true } } },
     });
 
     let sent = 0;
@@ -77,9 +114,16 @@ export class RemindersService {
       const amount = r.amount ? ` de ${fmt(Number(r.amount))}` : '';
       const message = `🔔 Recordatorio: ${when === 'hoy' ? 'hoy vence' : `${when} vence`} "${r.title}"${amount}.`;
 
-      // Canal push (FCM) — placeholder de log; integración real en un PR aparte.
+      // Canal push (Expo/FCM) — envía a los dispositivos registrados del usuario.
       if (r.channels.includes('push')) {
-        this.logger.log(`[PUSH] user=${r.userId}: ${message}`);
+        const tokens = (r.user?.devices ?? [])
+          .map((d) => d.fcmToken)
+          .filter((t): t is string => !!t);
+        await this.push.sendToTokens(tokens, {
+          title: r.title,
+          body: `${when === 'hoy' ? 'Vence hoy' : `Vence ${when}`}${amount}.`,
+          data: { reminderId: r.id, debtId: r.debtId },
+        });
       }
       // Canal WhatsApp — usa el número verificado si existe y hay opt-in.
       if (r.channels.includes('whatsapp')) {
@@ -90,11 +134,31 @@ export class RemindersService {
           await this.sender.sendText(link.phoneE164, message);
         }
       }
+      // Canal Telegram — usa el chat verificado con opt-in.
+      if (r.channels.includes('telegram')) {
+        const link = r.user?.tgLinks?.find(
+          (l) => l.status === 'verified' && l.optIn && l.chatId,
+        );
+        if (link?.chatId) {
+          await this.telegram.sendText(link.chatId, message);
+        }
+      }
 
+      // Cuota recurrente: al llegar el día de vencimiento, avanza al mes siguiente
+      // para que la próxima cuota vuelva a avisar automáticamente.
+      const rollToNextMonth = r.debtId != null && remaining <= 0;
       await this.prisma.reminder.update({
         where: { id: r.id },
-        data: { lastSentAt: today },
+        data: rollToNextMonth
+          ? { lastSentAt: today, dueDate: addOneMonth(r.dueDate) }
+          : { lastSentAt: today },
       });
+      if (rollToNextMonth && r.debtId) {
+        await this.prisma.debt.update({
+          where: { id: r.debtId },
+          data: { nextDueDate: addOneMonth(r.dueDate) },
+        });
+      }
       sent += 1;
     }
     if (sent > 0) this.logger.log(`Recordatorios enviados: ${sent}`);

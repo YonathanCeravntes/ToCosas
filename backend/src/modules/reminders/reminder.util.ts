@@ -28,3 +28,12 @@ export function offsetLabel(remainingDays: number): string {
   if (remainingDays === 1) return 'mañana';
   return `en ${remainingDays} días`;
 }
+
+/** Suma un mes a la fecha (ajustando fin de mes). Útil para cuotas recurrentes. */
+export function addOneMonth(base: Date): Date {
+  const year = base.getUTCFullYear();
+  const month = base.getUTCMonth() + 1;
+  const day = base.getUTCDate();
+  const lastDayNextMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month, Math.min(day, lastDayNextMonth)));
+}

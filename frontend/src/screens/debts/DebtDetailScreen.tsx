@@ -51,6 +51,39 @@ export function DebtDetailScreen({ route }: Props) {
         </Text>
       </Card>
 
+      {/* Resumen del crédito: cuándo termina, intereses y total a pagar */}
+      {data.projection ? (
+        <Card>
+          <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
+            📅 Resumen del crédito
+          </Text>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text style={{ color: colors.textMuted }}>Terminas de pagar</Text>
+            <Text style={{ fontWeight: '800', color: colors.text }}>
+              {data.projection.payoffDate ? formatDate(data.projection.payoffDate) : '—'}
+            </Text>
+          </Row>
+          <Row style={{ justifyContent: 'space-between', marginTop: 6 }}>
+            <Text style={{ color: colors.textMuted }}>Cuotas restantes</Text>
+            <Text style={{ fontWeight: '700', color: colors.text }}>
+              {data.projection.numberOfPayments}
+            </Text>
+          </Row>
+          <Row style={{ justifyContent: 'space-between', marginTop: 6 }}>
+            <Text style={{ color: colors.textMuted }}>Total en intereses</Text>
+            <Text style={{ fontWeight: '800', color: colors.danger }}>
+              {formatMoney(data.projection.totalInterest)}
+            </Text>
+          </Row>
+          <Row style={{ justifyContent: 'space-between', marginTop: 6 }}>
+            <Text style={{ color: colors.textMuted }}>Total a pagar</Text>
+            <Text style={{ fontWeight: '800', color: colors.text }}>
+              {formatMoney(data.projection.totalPaid)}
+            </Text>
+          </Row>
+        </Card>
+      ) : null}
+
       {/* Simulador de abono extra */}
       <Card>
         <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>

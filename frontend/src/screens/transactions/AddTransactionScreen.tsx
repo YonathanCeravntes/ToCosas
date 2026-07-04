@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Button, Card, Field } from '../../components/ui';
 import { colors, radius, spacing } from '../../theme/colors';
 import { Category, TxKind } from '../../api/types';
 import { categoriesApi } from '../../api/endpoints';
 import { transactionsRepo } from '../../offline/transactionsRepo';
 import { runSync } from '../../offline/syncEngine';
+import { formatDate } from '../../utils/format';
 
 const KINDS: Array<{ key: TxKind; label: string; emoji: string }> = [
   { key: 'gasto', label: 'Gasto', emoji: '🛒' },
@@ -17,6 +19,8 @@ export function AddTransactionScreen() {
   const [kind, setKind] = useState<TxKind>('gasto');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [occurredAt, setOccurredAt] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCat, setSelectedCat] = useState<Category | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,7 +60,7 @@ export function AddTransactionScreen() {
       await transactionsRepo.add({
         kind,
         amount: value,
-        occurredAt: new Date().toISOString(),
+        occurredAt: occurredAt.toISOString(),
         note: note || selectedCat?.name || undefined,
         categoryId: selectedCat?.id,
         categoryIcon: selectedCat?.icon ?? undefined,
@@ -64,6 +68,7 @@ export function AddTransactionScreen() {
       setAmount('');
       setNote('');
       setSelectedCat(null);
+      setOccurredAt(new Date());
       const result = await runSync();
       setFeedback(
         result.skipped
@@ -117,6 +122,40 @@ export function AddTransactionScreen() {
       </View>
 
       <Field label="¿Cuánto?" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="45000" />
+
+      {/* Selector de fecha del movimiento */}
+      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 6 }}>
+        Fecha
+      </Text>
+      <Pressable
+        onPress={() => setShowDatePicker(true)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: radius.sm,
+          paddingHorizontal: spacing.md,
+          paddingVertical: 12,
+          marginBottom: spacing.md,
+        }}
+      >
+        <Text style={{ fontSize: 16, color: colors.text }}>📅 {formatDate(occurredAt)}</Text>
+        <Text style={{ color: colors.primary, fontWeight: '600' }}>Cambiar</Text>
+      </Pressable>
+      {showDatePicker ? (
+        <DateTimePicker
+          value={occurredAt}
+          mode="date"
+          maximumDate={new Date()}
+          onChange={(event, selected) => {
+            if (Platform.OS !== 'ios') setShowDatePicker(false);
+            if (event.type === 'set' && selected) setOccurredAt(selected);
+          }}
+        />
+      ) : null}
 
       {/* Grilla de categorías con iconos */}
       <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: spacing.sm }}>

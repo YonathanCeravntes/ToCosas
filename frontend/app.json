@@ -10,7 +10,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0B6E4F"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "co.tocosas.app"
@@ -23,6 +25,10 @@
     },
     "extra": {
       "apiUrl": "http://localhost:3000/v1"
-    }
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      "expo-notifications"
+    ]
   }
 }

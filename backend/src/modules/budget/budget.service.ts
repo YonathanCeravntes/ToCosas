@@ -1,0 +1,134 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { OutboxService } from '../events/outbox.service';
+import { DomainEventType } from '../events/domain-events';
+import { CreateFixedItemDto, UpdateFixedItemDto } from './dto/fixed-item.dto';
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+@Injectable()
+export class BudgetService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: OutboxService,
+  ) {}
+
+  async create(userId: string, dto: CreateFixedItemDto) {
+    // Compromiso fijo + evento de dominio en la misma transacción (outbox, FIN-002).
+    return this.outbox.withEvent(async (tx) => {
+      const item = await tx.fixedItem.create({
+        data: {
+          userId,
+          kind: dto.kind,
+          name: dto.name,
+          amount: dto.amount,
+          currency: dto.currency ?? 'COP',
+          dayOfMonth: dto.dayOfMonth ?? null,
+          categoryId: dto.categoryId ?? null,
+          startDate: dto.startDate ? new Date(dto.startDate) : null,
+          endDate: dto.endDate ? new Date(dto.endDate) : null,
+          notes: dto.notes ?? null,
+        },
+      });
+      return {
+        result: item,
+        event: {
+          aggregateType: 'fixed_item',
+          aggregateId: item.id,
+          eventType: DomainEventType.FixedItemChanged,
+          payload: { userId, kind: item.kind, op: 'create' },
+        },
+      };
+    });
+  }
+
+  async findAll(userId: string) {
+    return this.prisma.fixedItem.findMany({
+      where: { userId, deletedAt: null },
+      orderBy: [{ kind: 'asc' }, { amount: 'desc' }],
+    });
+  }
+
+  async update(userId: string, id: string, dto: UpdateFixedItemDto) {
+    await this.ensureOwned(userId, id);
+    return this.prisma.fixedItem.update({
+      where: { id },
+      data: {
+        ...dto,
+        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      },
+    });
+  }
+
+  async remove(userId: string, id: string) {
+    await this.ensureOwned(userId, id);
+    await this.prisma.fixedItem.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    return { deleted: true };
+  }
+
+  /**
+   * Presupuesto mensual: cuánto le queda al usuario tras cubrir sus compromisos
+   * inflexibles. Las cuotas de deuda se suman automáticamente desde el modelo
+   * Debt (no se duplican en fixed_items).
+   *
+   *   disponible = ingresos fijos − gastos fijos − cuotas de deuda
+   */
+  async monthlySummary(userId: string) {
+    const [fixedItems, debts] = await Promise.all([
+      this.prisma.fixedItem.findMany({
+        where: { userId, deletedAt: null, isActive: true },
+      }),
+      this.prisma.debt.findMany({
+        where: { userId, deletedAt: null, status: 'activa' },
+      }),
+    ]);
+
+    const fixedIncome = fixedItems
+      .filter((i) => i.kind === 'ingreso')
+      .reduce((acc, i) => acc + Number(i.amount), 0);
+    const fixedExpense = fixedItems
+      .filter((i) => i.kind === 'gasto')
+      .reduce((acc, i) => acc + Number(i.amount), 0);
+    const debtPayments = debts.reduce(
+      (acc, d) => acc + Number(d.monthlyPayment ?? 0),
+      0,
+    );
+
+    const committed = fixedExpense + debtPayments;
+    const available = fixedIncome - committed;
+
+    return {
+      fixedIncome: round2(fixedIncome),
+      fixedExpense: round2(fixedExpense),
+      debtPayments: round2(debtPayments),
+      committed: round2(committed),
+      available: round2(available),
+      // Porcentaje del ingreso comprometido en gastos inflexibles (0 si no hay ingreso).
+      committedRatio: fixedIncome > 0 ? round2((committed / fixedIncome) * 100) : 0,
+      debts: debts.map((d) => ({
+        debtId: d.id,
+        name: d.name,
+        amount: Number(d.monthlyPayment ?? 0),
+        nextDueDate: d.nextDueDate,
+      })),
+      expenses: fixedItems
+        .filter((i) => i.kind === 'gasto')
+        .map((i) => ({ id: i.id, name: i.name, amount: Number(i.amount), dayOfMonth: i.dayOfMonth })),
+      incomes: fixedItems
+        .filter((i) => i.kind === 'ingreso')
+        .map((i) => ({ id: i.id, name: i.name, amount: Number(i.amount), dayOfMonth: i.dayOfMonth })),
+    };
+  }
+
+  private async ensureOwned(userId: string, id: string) {
+    const item = await this.prisma.fixedItem.findFirst({
+      where: { id, userId, deletedAt: null },
+    });
+    if (!item) throw new NotFoundException('Compromiso fijo no encontrado');
+    return item;
+  }
+}

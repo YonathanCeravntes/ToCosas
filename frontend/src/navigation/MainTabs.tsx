@@ -5,6 +5,7 @@ import { colors } from '../theme/colors';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { DebtsNavigator } from './DebtsNavigator';
 import { AddTransactionScreen } from '../screens/transactions/AddTransactionScreen';
+import { BudgetScreen } from '../screens/BudgetScreen';
 import { InsightsScreen } from '../screens/InsightsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { MainTabsParamList } from './types';
@@ -38,6 +39,11 @@ export function MainTabs() {
         name="Debts"
         component={DebtsNavigator}
         options={{ headerShown: false, title: 'Deudas', tabBarIcon: icon('💳') }}
+      />
+      <Tab.Screen
+        name="Budget"
+        component={BudgetScreen}
+        options={{ title: 'Presupuesto', tabBarIcon: icon('💰') }}
       />
       <Tab.Screen
         name="Add"

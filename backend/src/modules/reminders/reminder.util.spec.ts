@@ -1,4 +1,4 @@
-import { daysUntil, offsetLabel, shouldFireToday } from './reminder.util';
+import { addOneMonth, daysUntil, offsetLabel, shouldFireToday } from './reminder.util';
 
 describe('reminder.util', () => {
   const today = new Date(Date.UTC(2026, 6, 3)); // 2026-07-03
@@ -41,6 +41,25 @@ describe('reminder.util', () => {
       [3, 'en 3 días'],
     ])('%d → %s', (d, label) => {
       expect(offsetLabel(d)).toBe(label);
+    });
+  });
+
+  describe('addOneMonth', () => {
+    it('avanza un mes normal', () => {
+      expect(addOneMonth(new Date(Date.UTC(2026, 6, 5))).toISOString().slice(0, 10)).toBe(
+        '2026-08-05',
+      );
+    });
+    it('cruza el fin de año', () => {
+      expect(addOneMonth(new Date(Date.UTC(2026, 11, 15))).toISOString().slice(0, 10)).toBe(
+        '2027-01-15',
+      );
+    });
+    it('ajusta el 31 a un mes más corto', () => {
+      // 31 ene → 28 feb (2026 no bisiesto)
+      expect(addOneMonth(new Date(Date.UTC(2026, 0, 31))).toISOString().slice(0, 10)).toBe(
+        '2026-02-28',
+      );
     });
   });
 });

@@ -4,7 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Button, Card, Row, Screen } from '../../components/ui';
 import { colors, spacing } from '../../theme/colors';
-import { formatMoney, formatPercent } from '../../utils/format';
+import { formatDate, formatMoney, formatPercent } from '../../utils/format';
 import { toNumber } from '../../api/types';
 import { debtsApi } from '../../api/endpoints';
 import { useApi } from '../../utils/useApi';
@@ -59,6 +59,11 @@ export function DebtsListScreen({ navigation }: Props) {
                   Cuota {formatMoney(toNumber(item.monthlyPayment))}
                 </Text>
               </Row>
+              {item.projection?.payoffDate ? (
+                <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 6 }}>
+                  🏁 Terminas de pagar el {formatDate(item.projection.payoffDate)}
+                </Text>
+              ) : null}
             </Card>
           </Pressable>
         )}

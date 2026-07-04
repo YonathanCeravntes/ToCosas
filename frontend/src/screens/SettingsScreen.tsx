@@ -34,6 +34,18 @@ export function SettingsScreen() {
         </Row>
       </Card>
 
+      <Card>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, paddingRight: spacing.md }}>
+            <Text style={{ fontWeight: '700', color: colors.text }}>✈️ Telegram</Text>
+            <Text style={{ color: colors.textMuted, marginTop: 4 }}>
+              Registra movimientos y recibe alertas de cuotas.
+            </Text>
+          </View>
+          <Button title="Vincular" variant="secondary" onPress={() => navigation.navigate('LinkTelegram')} />
+        </Row>
+      </Card>
+
       <View style={{ marginTop: spacing.lg }}>
         <Button title="Cerrar sesión" variant="danger" onPress={() => void logout()} />
       </View>
