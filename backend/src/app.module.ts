@@ -21,6 +21,7 @@ import { BudgetModule } from './modules/budget/budget.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { EventsModule } from './modules/events/events.module';
 import { AccountsModule } from './modules/accounts/accounts.module';
+import { FinancialEngineModule } from './modules/financial-engine/financial-engine.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { AccountsModule } from './modules/accounts/accounts.module';
     BudgetModule,
     NotificationsModule,
     AccountsModule,
+    FinancialEngineModule,
     // TODO (siguientes PRs): LLM fallback en el parser, OCR.
   ],
   controllers: [HealthController],

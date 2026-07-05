@@ -1,0 +1,132 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { computeNetWorth } from '../accounts/networth.util';
+import { computeCoreMetrics, MetricValue } from './metrics/core-metrics';
+import { daysBetween, monthStart } from './metrics/series.util';
+import { COLD_START_DAYS } from './engine.constants';
+
+/**
+ * Núcleo del Motor Financiero (FIN-003). `recompute(userId)` es una función de
+ * ESTADO ABSOLUTO: recalcula las métricas del mes desde las tablas fuente y hace
+ * upsert por (userId, metricKey, period, capturedAt). Procesar un evento
+ * duplicado produce el mismo resultado → idempotente por diseño (contrato
+ * at-least-once del outbox de FIN-002).
+ */
+@Injectable()
+export class EngineService {
+  private readonly logger = new Logger(EngineService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  /** Recalcula y persiste las métricas core del mes corriente del usuario. */
+  async recompute(userId: string, now: Date = new Date()): Promise<MetricValue[]> {
+    const from = monthStart(now);
+    const to = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 1, 1));
+
+    const [txByKind, fixedItems, debts, accounts, assets] = await Promise.all([
+      this.prisma.transaction.groupBy({
+        by: ['kind'],
+        where: { userId, deletedAt: null, occurredAt: { gte: from, lt: to } },
+        _sum: { amount: true },
+      }),
+      this.prisma.fixedItem.findMany({
+        where: { userId, deletedAt: null, isActive: true },
+      }),
+      this.prisma.debt.findMany({
+        where: { userId, deletedAt: null, status: 'activa' },
+      }),
+      this.prisma.account.findMany({
+        where: { userId, deletedAt: null, archivedAt: null },
+      }),
+      this.prisma.asset.findMany({ where: { userId, deletedAt: null } }),
+    ]);
+
+    const sumKind = (k: string) =>
+      Number(txByKind.find((t) => t.kind === k)?._sum.amount ?? 0);
+    const fixedIncome = fixedItems
+      .filter((i) => i.kind === 'ingreso')
+      .reduce((a, i) => a + Number(i.amount), 0);
+    const fixedExpense = fixedItems
+      .filter((i) => i.kind === 'gasto')
+      .reduce((a, i) => a + Number(i.amount), 0);
+    const debtMonthly = debts.reduce((a, d) => a + Number(d.monthlyPayment ?? 0), 0);
+    const liabilities = debts.reduce((a, d) => a + Number(d.currentBalance), 0);
+
+    const nw = computeNetWorth(
+      accounts.map((a) => ({
+        currentBalance: Number(a.currentBalance),
+        isLiquid: a.isLiquid,
+        includeInNetWorth: a.includeInNetWorth,
+        isEmergencyFund: a.isEmergencyFund,
+      })),
+      assets.map((a) => ({
+        currentValue: Number(a.currentValue),
+        includeInNetWorth: a.includeInNetWorth,
+      })),
+      liabilities,
+    );
+
+    const metrics = computeCoreMetrics({
+      income: sumKind('ingreso'),
+      expense: sumKind('gasto'),
+      debtPayments: sumKind('pago_deuda'),
+      fixedIncome,
+      fixedExpense,
+      debtMonthly,
+      liquidBalance: nw.totalLiquid,
+      emergencyBalance: nw.totalEmergencyFund,
+      netWorth: nw.netWorth,
+    });
+
+    await this.upsertReadings(userId, metrics, from, 'month');
+    return metrics;
+  }
+
+  /** Upsert idempotente de lecturas en la serie. */
+  async upsertReadings(
+    userId: string,
+    metrics: MetricValue[],
+    capturedAt: Date,
+    period: 'day' | 'month',
+  ): Promise<void> {
+    for (const m of metrics) {
+      await this.prisma.metricReading.upsert({
+        where: {
+          userId_metricKey_period_capturedAt: {
+            userId,
+            metricKey: m.metricKey,
+            period,
+            capturedAt,
+          },
+        },
+        update: { value: m.value },
+        create: {
+          userId,
+          metricKey: m.metricKey,
+          value: m.value,
+          period,
+          capturedAt,
+        },
+      });
+    }
+  }
+
+  /**
+   * Estado de cold-start global (DEC-0003 §10.2): días de historial desde la
+   * primera transacción y si tendencias/anomalías están habilitadas.
+   */
+  async coldStartStatus(userId: string, now: Date = new Date()) {
+    const first = await this.prisma.transaction.findFirst({
+      where: { userId, deletedAt: null },
+      orderBy: { occurredAt: 'asc' },
+      select: { occurredAt: true },
+    });
+    const days = first ? daysBetween(first.occurredAt, now) : 0;
+    return {
+      historyDays: days,
+      requiredDays: COLD_START_DAYS,
+      enabled: days >= COLD_START_DAYS,
+      remainingDays: Math.max(0, COLD_START_DAYS - days),
+    };
+  }
+}

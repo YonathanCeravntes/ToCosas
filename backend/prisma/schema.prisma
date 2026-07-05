@@ -550,12 +550,13 @@ model FinancialSnapshot {
   @@map("financial_snapshots")
 }
 
-// Serie de tiempo genérica de indicadores. Creada aquí; poblada por FIN-003.
-// La estrategia de particionamiento mensual por `captured_at` y la retención
-// (180 días para lecturas `day`) se aplicarán físicamente en FIN-003, cuando la
-// tabla comience a poblarse (ver IMP-0002 · Limitaciones).
+// Serie de tiempo genérica de indicadores (poblada por el Motor, FIN-003).
+// Tabla particionada por rango mensual sobre `captured_at` (DEC-0002 §4.5 /
+// DEC-0003): por eso la PK es compuesta (id, captured_at) — PostgreSQL exige
+// que toda constraint única incluya la columna de partición. El índice único
+// (user, metric, period, captured_at) es la clave del upsert idempotente.
 model MetricReading {
-  id         String       @id @default(uuid()) @db.Uuid
+  id         String       @default(uuid()) @db.Uuid
   userId     String       @map("user_id") @db.Uuid
   metricKey  String       @map("metric_key")
   value      Decimal      @db.Decimal(18, 4)
@@ -565,6 +566,8 @@ model MetricReading {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@id([id, capturedAt])
+  @@unique([userId, metricKey, period, capturedAt])
   @@index([userId, metricKey, capturedAt])
   @@map("metric_readings")
 }
