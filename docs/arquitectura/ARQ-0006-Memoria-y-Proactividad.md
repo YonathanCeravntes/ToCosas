@@ -94,7 +94,7 @@ Corren dentro del ciclo nightly existente (TrendsJob → generadores → §4.5 e
 | Sobregiro del mes | cashflow del mes < 0 | riesgo/critical |
 | DTI en zona roja | dti > 0.35 (cruce de umbral vs mes anterior) | riesgo/warning |
 | Fondo de emergencia logrado | emergency_fund_months cruza ≥6 | logro/info |
-| Deuda saldada | `DebtUpdated` con balance 0 (listener existente) | logro/info |
+| Deuda saldada | `DebtUpdated` (el payload actual no trae balance: el generador consulta la deuda y dispara si `currentBalance=0`/`status=pagada`) | logro/info |
 | Score sube de banda | banda(mes) > banda(mes−1) | logro/info |
 | Cambio de tendencia | signo de trend.cashflow/net_worth se invierte | cambio_tendencia/info |
 
