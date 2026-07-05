@@ -36,3 +36,10 @@ Cada vez que se genere un documento (ARQ, AUD, DEC o IMP) se debe actualizar
 ## Numeración
 Cuatro dígitos, correlativa por tipo: `ARQ-0001`, `AUD-0001`, `DEC-0001`, `IMP-0001`.
 Un mismo módulo comparte número entre tipos cuando corresponde.
+
+## Referencia inmutable obligatoria para todo IMP
+Añadida tras el incidente de validación de FIN-002 (IMP-0002 v1, rechazado por código
+sin commitear). Todo `IMP-XXXX` debe declarar el **SHA de commit** exacto sobre el que
+se hicieron las pruebas reportadas (`git log -1 --format=%H` de la punta entregada). El
+CTO valida contra ese commit (`git show`/checkout aislado), nunca contra un working tree
+sin commitear. Un IMP sin SHA de commit verificable se rechaza sin excepción.
