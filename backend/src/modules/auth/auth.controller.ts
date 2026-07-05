@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto, RefreshDto, RegisterDto } from './dto/auth.dto';
@@ -14,16 +15,20 @@ export class AuthController {
     private readonly prisma: PrismaService,
   ) {}
 
+  // Hardening FIN-009 (DEC-0009 §4): anti fuerza bruta — 5 intentos/min por IP.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('refresh')
   async refresh(@Body() dto: RefreshDto) {
     return { tokens: await this.auth.refresh(dto.refreshToken) };

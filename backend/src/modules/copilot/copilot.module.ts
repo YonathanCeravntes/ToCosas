@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { SimulationsModule } from '../simulations/simulations.module';
+import { BillingModule } from '../billing/billing.module';
 import { AnthropicClient } from './anthropic.client';
 import { ConsentService } from './consent.service';
 import { ContextAssembler } from './context-assembler';
@@ -14,7 +15,7 @@ import { CopilotRetentionJob } from './copilot-retention.job';
  * plantilla-primero, y datos reales bloqueados hasta DPA+PIA.
  */
 @Module({
-  imports: [AuthModule, SimulationsModule],
+  imports: [AuthModule, SimulationsModule, BillingModule],
   controllers: [CopilotController],
   providers: [
     ConsentService,

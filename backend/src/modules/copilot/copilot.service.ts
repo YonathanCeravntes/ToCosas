@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EntitlementsService, Feature } from '../billing/entitlements.service';
 import { SimulationsService } from '../simulations/simulations.service';
 import { ScenarioParams } from '../simulations/simulation-engine';
 import { AnthropicClient } from './anthropic.client';
@@ -41,6 +42,7 @@ export class CopilotService {
     private readonly assembler: ContextAssembler,
     private readonly llm: AnthropicClient,
     private readonly simulations: SimulationsService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   async sendMessage(userId: string, content: string, conversationId?: string): Promise<CopilotReply> {
@@ -297,8 +299,10 @@ export class CopilotService {
   }
 
   private async dailyUsage(userId: string): Promise<{ used: number; limit: number }> {
-    const settings = await this.prisma.userSettings.findUnique({ where: { userId } });
-    const limit = settings?.plan === 'premium' ? AI_DAILY_LIMIT_PREMIUM : AI_DAILY_LIMIT_FREE;
+    // FIN-009: el límite lo decide EntitlementsService leyendo Subscription
+    // (DEC-0009 §10.4), no la caché `plan`.
+    const limit =
+      (await this.entitlements.limit(userId, Feature.AiDailyMessages)) ?? AI_DAILY_LIMIT_PREMIUM;
     const dayStart = new Date();
     dayStart.setUTCHours(0, 0, 0, 0);
     const used = await this.prisma.aiInteractionLog.count({

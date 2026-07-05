@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TRIAL_DAYS } from '../billing/subscription.service';
 import { PasswordService } from './password.service';
 import { TokenService, TokenPair } from './token.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
@@ -34,7 +35,17 @@ export class AuthService {
         passwordHash,
         fullName: dto.fullName ?? null,
         currency: dto.currency ?? 'COP',
-        settings: { create: {} },
+        // Trial de Millo+ al registrarse, una única vez (DEC-0009 §4.8).
+        // Directo aquí (no vía SubscriptionService) para evitar el ciclo
+        // AuthModule↔BillingModule; espeja grantTrialOnce + caché de plan.
+        settings: { create: { plan: 'premium' } },
+        subscriptions: {
+          create: {
+            status: 'trial',
+            provider: 'manual',
+            trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 86_400_000),
+          },
+        },
       },
     });
     const tokens = await this.tokens.issueTokens(user.id, user.email);

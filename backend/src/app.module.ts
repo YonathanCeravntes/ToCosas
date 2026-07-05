@@ -29,6 +29,7 @@ import { MemoryModule } from './modules/memory/memory.module';
 import { SimulationsModule } from './modules/simulations/simulations.module';
 import { RecommendationsModule } from './modules/recommendations/recommendations.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
+import { BillingModule } from './modules/billing/billing.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { GamificationModule } from './modules/gamification/gamification.module';
     SimulationsModule,
     RecommendationsModule,
     GamificationModule,
+    BillingModule,
     // TODO (siguientes PRs): LLM fallback en el parser, OCR.
   ],
   controllers: [HealthController],

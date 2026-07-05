@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { EngineService } from '../financial-engine/engine.service';
 import { MetricKey } from '../financial-engine/engine.constants';
 import { monthStart, monthStartMinus } from '../financial-engine/metrics/series.util';
@@ -41,6 +42,7 @@ export class HealthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly engine: EngineService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   async score(userId: string, now: Date = new Date()) {
@@ -86,10 +88,11 @@ export class HealthService {
     };
   }
 
-  /** Histórico mensual del Score — feature premium (DEC-0001 §10.8). */
+  /** Histórico mensual del Score — feature premium (DEC-0001 §10.8).
+   *  FIN-009: la autorización la decide EntitlementsService leyendo
+   *  Subscription (DEC-0009 §10.4) — nunca la caché `plan`. */
   async scoreHistory(userId: string) {
-    const settings = await this.prisma.userSettings.findUnique({ where: { userId } });
-    if ((settings?.plan ?? 'free') !== 'premium') {
+    if (!(await this.entitlements.hasPremium(userId))) {
       // Telemetría de intención de pago (señal de monetización).
       this.logger.log(`[monetización] intento de histórico con plan free user=${userId}`);
       throw new ForbiddenException({ code: 'PREMIUM_REQUIRED', message: 'El histórico del Score es una función premium.' });

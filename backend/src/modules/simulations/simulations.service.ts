@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { computeNetWorth } from '../accounts/networth.util';
 import { MetricKey } from '../financial-engine/engine.constants';
 import { monthStart } from '../financial-engine/metrics/series.util';
@@ -19,13 +20,27 @@ import {
  */
 @Injectable()
 export class SimulationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(SimulationsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly entitlements: EntitlementsService,
+  ) {}
 
   async run(
     userId: string,
     params: ScenarioParams,
     source: 'app' | 'copilot' = 'app',
   ): Promise<SimulationResult> {
+    // FIN-009 (DEC-0009 §4.7): cuota free de 5 simulaciones/mes, sin grandfathering.
+    const quota = await this.entitlements.simulationQuota(userId);
+    if (!quota.allowed) {
+      this.logger.log(`[funnel] upgrade_intent user=${userId} source=simulations_limit`);
+      throw new ForbiddenException({
+        code: 'PREMIUM_REQUIRED',
+        message: `Alcanzaste tus ${quota.limit} simulaciones del mes. Con Millo+ son ilimitadas.`,
+      });
+    }
     this.validate(params);
     const state = await this.loadState(userId);
     const result = project(state, params);

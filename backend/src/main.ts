@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -9,9 +10,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.setGlobalPrefix('v1');
+  // Hardening (FIN-009 / DEC-0009 §4.10): cabeceras de seguridad estándar.
+  app.use(helmet());
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );
+  // CORS: en producción restringir origins vía env (ver docs/PRODUCCION.md).
   app.enableCors();
 
   const config = new DocumentBuilder()

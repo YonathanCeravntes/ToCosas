@@ -20,7 +20,19 @@ export class RetentionJob {
   async run(now: Date = new Date()): Promise<number> {
     const deleted = await this.purgeDayReadings(now);
     await this.ensureNextMonthPartition(now);
+    // FIN-009 (pendiente declarado en IMP-0007 §6): purgas de simulaciones,
+    // logs de notificación y recomendaciones descartadas.
+    await this.purgeAux(now);
     return deleted;
+  }
+
+  /** Purgas auxiliares: Simulation >12m · NotificationLog >90d · Recommendation dismissed >6m. */
+  async purgeAux(now: Date): Promise<void> {
+    const monthsAgo = (m: number) => { const d = new Date(now.getTime()); d.setUTCMonth(d.getUTCMonth() - m); return d; };
+    const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000);
+    await this.prisma.simulation.deleteMany({ where: { createdAt: { lt: monthsAgo(12) } } });
+    await this.prisma.notificationLog.deleteMany({ where: { sentAt: { lt: daysAgo(90) } } });
+    await this.prisma.recommendation.deleteMany({ where: { status: 'dismissed', createdAt: { lt: monthsAgo(6) } } });
   }
 
   async purgeDayReadings(now: Date): Promise<number> {

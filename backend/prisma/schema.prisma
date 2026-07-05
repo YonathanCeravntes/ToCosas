@@ -252,6 +252,21 @@ enum ChallengeStatus {
   failed
 }
 
+// ---------- FIN-009 · Monetización ----------
+
+enum SubscriptionStatus {
+  trial
+  active
+  canceled
+  expired
+}
+
+enum PaymentProviderKind {
+  manual
+  promo
+  revenuecat
+}
+
 // ---------- Modelos ----------
 
 model User {
@@ -267,6 +282,9 @@ model User {
   timezone       String   @default("America/Bogota")
   emailVerified  Boolean  @default(false) @map("email_verified")
   onboardingDone Boolean  @default(false) @map("onboarding_done")
+  // DEC-0009 §10.2: sin ruta de auto-escalación — solo modificable por
+  // operación manual del fundador en BD, nunca por un endpoint de la API.
+  isAdmin        Boolean  @default(false) @map("is_admin")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
   deletedAt      DateTime? @map("deleted_at")
@@ -295,6 +313,7 @@ model User {
   streaks         Streak[]
   achievements    Achievement[]
   challenges      Challenge[]
+  subscriptions   Subscription[]
   settings        UserSettings?
 
   @@map("users")
@@ -815,6 +834,56 @@ model NotificationLog {
 
   @@index([userId, sentAt])
   @@map("notification_logs")
+}
+
+// ---------- FIN-009 · Monetización (Millo+) ----------
+
+// Suscripción — FUENTE DE VERDAD del acceso premium (DEC-0009 §10.4: toda
+// autorización lee esta tabla; UserSettings.plan es solo caché de visualización).
+model Subscription {
+  id               String              @id @default(uuid()) @db.Uuid
+  userId           String              @map("user_id") @db.Uuid
+  plan             Plan                @default(premium)
+  status           SubscriptionStatus
+  provider         PaymentProviderKind
+  providerRef      String?             @map("provider_ref")
+  currentPeriodEnd DateTime?           @map("current_period_end")
+  trialEndsAt      DateTime?           @map("trial_ends_at")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("subscriptions")
+}
+
+// Código promocional (DEC-0009 §10.6: maxUses SIEMPRE obligatorio; §10.1: el
+// canje incrementa used_count de forma ATÓMICA — patrón del outbox).
+model PromoCode {
+  id           String    @id @default(uuid()) @db.Uuid
+  codeHash     String    @unique @map("code_hash")
+  durationDays Int       @default(30) @map("duration_days")
+  maxUses      Int       @map("max_uses")
+  usedCount    Int       @default(0) @map("used_count")
+  expiresAt    DateTime? @map("expires_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("promo_codes")
+}
+
+// Log INMUTABLE de acciones administrativas (DEC-0009 §10.2): solo inserción;
+// la API no expone update/delete sobre esta tabla.
+model AdminActionLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  adminUserId  String   @map("admin_user_id") @db.Uuid
+  targetUserId String   @map("target_user_id") @db.Uuid
+  action       String
+  reason       String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([adminUserId, createdAt])
+  @@map("admin_action_logs")
 }
 
 // ---------- FIN-008 · Gamificación ----------
