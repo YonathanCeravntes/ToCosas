@@ -5,6 +5,9 @@ import { colors, radius, spacing } from '../theme/colors';
 import { formatMoney } from '../utils/format';
 import { SimulationResult, SimulationType } from '../api/types';
 import { simulationsApi } from '../api/endpoints';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
 
 const SCENARIOS: Array<{ key: SimulationType; label: string; emoji: string; fields: Array<{ name: string; label: string; placeholder: string }> }> = [
   {
@@ -40,6 +43,7 @@ const SCENARIOS: Array<{ key: SimulationType; label: string; emoji: string; fiel
 const pct = (n: number) => `${Math.round(n * 1000) / 10}%`;
 
 export function SimulatorScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [scenario, setScenario] = useState(SCENARIOS[0]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [result, setResult] = useState<SimulationResult | null>(null);
@@ -102,7 +106,16 @@ export function SimulatorScreen() {
           placeholder={f.placeholder}
         />
       ))}
-      {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
+      {error ? (
+        <View style={{ marginBottom: 8 }}>
+          <Text style={{ color: colors.danger }}>{error}</Text>
+          {/(Millo+|simulaciones)/.test(error) ? (
+            <Pressable onPress={() => navigation.navigate('MilloPlus', { source: 'simulations_limit' })}>
+              <Text style={{ color: colors.primary, fontWeight: '700', marginTop: 4 }}>✨ Conocer Millo+ →</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
       <Button title="Simular" onPress={() => void run()} loading={loading} />
 
       {result ? <ResultCard result={result} /> : null}

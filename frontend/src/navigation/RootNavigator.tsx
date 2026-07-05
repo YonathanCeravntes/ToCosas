@@ -11,6 +11,7 @@ import { LinkTelegramScreen } from '../screens/telegram/LinkTelegramScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
 import { SimulatorScreen } from '../screens/SimulatorScreen';
 import { AchievementsScreen } from '../screens/AchievementsScreen';
+import { MilloPlusScreen } from '../screens/MilloPlusScreen';
 import { registerForPush } from '../notifications/push';
 import { RootStackParamList } from './types';
 

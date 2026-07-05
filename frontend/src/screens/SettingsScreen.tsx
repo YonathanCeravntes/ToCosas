@@ -5,7 +5,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, Card, Row } from '../components/ui';
 import { colors, spacing } from '../theme/colors';
 import { useAuthStore } from '../store/auth.store';
-import { copilotApi, insightsApi } from '../api/endpoints';
+import { billingApi, copilotApi, insightsApi } from '../api/endpoints';
+import { BillingStatus } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
 
 export function SettingsScreen() {
@@ -14,12 +15,14 @@ export function SettingsScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [aiAccepted, setAiAccepted] = useState<boolean | null>(null);
   const [proactive, setProactive] = useState<boolean | null>(null);
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
 
   useEffect(() => {
     void copilotApi
       .consentStatus()
       .then((s) => setAiAccepted(s.accepted))
       .catch(() => setAiAccepted(null));
+    void billingApi.me().then(setBilling).catch(() => undefined);
     void insightsApi
       .preferences()
       .then((p) => setProactive(p.proactiveEnabled))

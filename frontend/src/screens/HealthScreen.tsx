@@ -120,6 +120,7 @@ function IndicatorCard({ ind }: { ind: HealthIndicator }) {
 }
 
 function HistorySection() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [history, setHistory] = useState<ScoreHistoryPoint[] | null>(null);
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -152,9 +153,12 @@ function HistorySection() {
           <Text style={{ color: colors.text, textAlign: 'center', marginTop: 4 }}>
             El histórico de tu Score es una función de Millo+.
           </Text>
-          <View style={{ marginTop: spacing.sm, backgroundColor: colors.accent, borderRadius: radius.full, paddingVertical: 8, paddingHorizontal: 18 }}>
-            <Text style={{ fontWeight: '700', color: colors.text }}>Millo+ · próximamente</Text>
-          </View>
+          <Pressable
+            onPress={() => navigation.navigate('MilloPlus', { source: 'score_history' })}
+            style={{ marginTop: spacing.sm, backgroundColor: colors.accent, borderRadius: radius.full, paddingVertical: 8, paddingHorizontal: 18 }}
+          >
+            <Text style={{ fontWeight: '700', color: colors.text }}>Conocer Millo+ →</Text>
+          </Pressable>
         </View>
       ) : (
         <Pressable onPress={() => void load()}>

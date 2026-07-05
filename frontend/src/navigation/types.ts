@@ -29,4 +29,5 @@ export type RootStackParamList = {
   Accounts: undefined;
   Simulator: undefined;
   Achievements: undefined;
+  MilloPlus: { source?: string } | undefined;
 };

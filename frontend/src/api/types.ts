@@ -247,6 +247,18 @@ export interface Recommendation {
   status: 'new' | 'seen' | 'dismissed' | 'done';
 }
 
+// --- Monetización (FIN-009) ---
+
+export interface BillingStatus {
+  plan: 'free' | 'premium';
+  status: 'trial' | 'active' | 'canceled' | 'expired' | null;
+  provider: string | null;
+  until: string | null;
+  hadTrial: boolean;
+  simulationQuota: { used: number; limit: number | null; allowed: boolean };
+  priceCop: number | null;
+}
+
 // --- Gamificación (FIN-008) ---
 
 export interface GamificationProfile {

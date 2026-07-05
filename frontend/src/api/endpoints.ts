@@ -1,6 +1,7 @@
 import { api } from './client';
 import {
   AiConsentStatus,
+  BillingStatus,
   AmortizationEntry,
   Account,
   Asset,
@@ -57,6 +58,13 @@ export const transactionsApi = {
 export const categoriesApi = {
   list: (kind?: string) =>
     api.get<Category[]>(`/categories${kind ? `?kind=${kind}` : ''}`),
+};
+
+export const billingApi = {
+  me: () => api.get<BillingStatus>('/billing/me'),
+  redeem: (code: string) => api.post<{ redeemed: boolean; days: number }>('/billing/redeem', { code }),
+  funnel: (event: 'paywall_view' | 'upgrade_intent', source?: string) =>
+    api.post<void>('/billing/funnel', { event, source }),
 };
 
 export const gamificationApi = {
