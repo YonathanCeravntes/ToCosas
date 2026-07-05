@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, Card, Row } from '../components/ui';
 import { colors, spacing } from '../theme/colors';
 import { useAuthStore } from '../store/auth.store';
-import { copilotApi } from '../api/endpoints';
+import { copilotApi, insightsApi } from '../api/endpoints';
 import { RootStackParamList } from '../navigation/types';
 
 export function SettingsScreen() {
@@ -13,13 +13,24 @@ export function SettingsScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [aiAccepted, setAiAccepted] = useState<boolean | null>(null);
+  const [proactive, setProactive] = useState<boolean | null>(null);
 
   useEffect(() => {
     void copilotApi
       .consentStatus()
       .then((s) => setAiAccepted(s.accepted))
       .catch(() => setAiAccepted(null));
+    void insightsApi
+      .preferences()
+      .then((p) => setProactive(p.proactiveEnabled))
+      .catch(() => setProactive(null));
   }, []);
+
+  const toggleProactive = async () => {
+    const next = !(proactive ?? true);
+    setProactive(next);
+    await insightsApi.setProactive(next).catch(() => undefined);
+  };
 
   const revokeAi = async () => {
     await copilotApi.revokeConsent();
@@ -72,6 +83,22 @@ export function SettingsScreen() {
             </Text>
           </View>
           <Button title="Vincular" variant="secondary" onPress={() => navigation.navigate('LinkTelegram')} />
+        </Row>
+      </Card>
+
+      <Card>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, paddingRight: spacing.md }}>
+            <Text style={{ fontWeight: '700', color: colors.text }}>🔔 Avisos proactivos</Text>
+            <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13 }}>
+              Millo te avisa (máx. 1 al día) cuando detecta riesgos o logros.
+            </Text>
+          </View>
+          <Button
+            title={proactive === false ? 'Activar' : 'Desactivar'}
+            variant="secondary"
+            onPress={() => void toggleProactive()}
+          />
         </Row>
       </Card>
 

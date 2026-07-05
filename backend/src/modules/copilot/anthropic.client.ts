@@ -45,6 +45,12 @@ const TOOLS = [
       'Score Millo con pilares y variación por pilar. Úsala para preguntas sobre el Score.',
     input_schema: { type: 'object' as const, properties: {}, required: [] },
   },
+  {
+    name: 'get_memory_and_insights',
+    description:
+      'Hábitos y patrones detectados del usuario (recurrencias, fechas clave) y alertas/logros recientes. Úsala para dar contexto longitudinal ("suele gastar X", "su cuota vence el día D").',
+    input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
 ];
 
 /**

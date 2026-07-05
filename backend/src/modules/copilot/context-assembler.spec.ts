@@ -82,6 +82,29 @@ function buildPrisma() {
         },
       ]),
     },
+    // FIN-006: insight con PII deliberada en título/cuerpo/payload string —
+    // la vista debe dejar pasar SOLO números.
+    insight: {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          type: 'anomalia',
+          severity: 'warning',
+          title: `Gasto inusual en ${PII.categoryName}`,
+          body: `Tu gasto en ${PII.categoryName} se disparó (nota: ${PII.txNote})`,
+          payload: { zScore: 2.7, category: PII.categoryName, note: PII.txNote },
+          createdAt: now,
+        },
+      ]),
+    },
+    financialMemoryFact: {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          kind: 'recurrencia',
+          content: 'Gasto recurrente en categoría personalizada #1: ~$800.000 cerca del día 15.',
+          tags: ['gasto', 'recurrente', 'categoría personalizada #1'],
+        },
+      ]),
+    },
   } as never;
 }
 
@@ -89,16 +112,17 @@ describe('ContextAssembler — minimización (DEC-0005 §10.1)', () => {
   const assembler = new ContextAssembler(buildPrisma());
 
   async function allViewsSerialized(): Promise<string> {
-    const [ctx, snapshot, debts, score] = await Promise.all([
+    const [ctx, snapshot, debts, score, memory] = await Promise.all([
       assembler.buildInitialContext(PII.userId, now),
       assembler.buildSnapshotView(PII.userId, now),
       assembler.buildDebtsView(PII.userId),
       assembler.buildScoreView(PII.userId, now),
+      assembler.buildMemoryView(PII.userId, now), // 5ª vista (FIN-006)
     ]);
-    return JSON.stringify([ctx, snapshot, debts, score]);
+    return JSON.stringify([ctx, snapshot, debts, score, memory]);
   }
 
-  it('ninguna PII sembrada aparece en NINGUNA de las 4 vistas', async () => {
+  it('ninguna PII sembrada aparece en NINGUNA de las 5 vistas', async () => {
     const serialized = (await allViewsSerialized()).toLowerCase();
     for (const [field, value] of Object.entries(PII)) {
       // Se busca por fragmentos significativos de cada cadena sembrada.
@@ -137,5 +161,14 @@ describe('ContextAssembler — minimización (DEC-0005 §10.1)', () => {
 
   it('assertMinimized bloquea objetos de dominio crudos', () => {
     expect(() => assertMinimized({ name: PII.debtName } as never)).toThrow(/Bloqueado/);
+  });
+
+  it('vista de memoria (FIN-006): de los insights pasan SOLO números del payload', async () => {
+    const view = await assembler.buildMemoryView(PII.userId, now);
+    expect(view.insights).toHaveLength(1);
+    expect(view.insights[0].numbers).toEqual({ zScore: 2.7 }); // category/note (strings) filtrados
+    expect(view.insights[0].type).toBe('anomalia');
+    expect(JSON.stringify(view)).not.toContain('Luisa'); // PII del título/payload fuera
+    expect(view.facts[0].content).toContain('categoría personalizada #1');
   });
 });

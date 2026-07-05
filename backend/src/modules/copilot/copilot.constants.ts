@@ -86,6 +86,7 @@ export const ContextFieldGroup = {
   Budget: 'budget',
   NetWorth: 'net_worth',
   CategorySpend: 'category_spend',
+  Memory: 'memory',
 } as const;
 export type ContextFieldGroup =
   (typeof ContextFieldGroup)[keyof typeof ContextFieldGroup];

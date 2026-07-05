@@ -15,6 +15,7 @@ import {
   FixedItem,
   FixedKind,
   HealthScore,
+  Insight,
   MonthlyBudget,
   ScoreHistoryPoint,
   NetWorth,
@@ -52,6 +53,15 @@ export const transactionsApi = {
 export const categoriesApi = {
   list: (kind?: string) =>
     api.get<Category[]>(`/categories${kind ? `?kind=${kind}` : ''}`),
+};
+
+export const insightsApi = {
+  list: () => api.get<Insight[]>('/insights'),
+  setStatus: (id: string, status: 'seen' | 'dismissed') =>
+    api.patch<Insight>(`/insights/${id}`, { status }),
+  preferences: () => api.get<{ proactiveEnabled: boolean }>('/insights/preferences'),
+  setProactive: (enabled: boolean) =>
+    api.patch<{ proactiveEnabled: boolean }>('/insights/preferences', { proactiveEnabled: enabled }),
 };
 
 export const copilotApi = {

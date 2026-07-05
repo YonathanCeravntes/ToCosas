@@ -11,10 +11,16 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Button, Card } from '../components/ui';
+import { Button, Card, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
-import { AiConsentStatus, CopilotMessage } from '../api/types';
-import { copilotApi } from '../api/endpoints';
+import { AiConsentStatus, CopilotMessage, Insight, InsightSeverity } from '../api/types';
+import { copilotApi, insightsApi } from '../api/endpoints';
+
+const SEVERITY_COLOR: Record<InsightSeverity, string> = {
+  critical: colors.danger,
+  warning: colors.warning,
+  info: colors.success,
+};
 
 const STARTERS = [
   '¿Por qué está así mi Score?',
@@ -38,11 +44,23 @@ export function CopilotScreen() {
   const [consent, setConsent] = useState<AiConsentStatus | null>(null);
   const [showConsent, setShowConsent] = useState(false);
   const [aiRemaining, setAiRemaining] = useState<number | null>(null);
+  const [insights, setInsights] = useState<Insight[]>([]);
   const listRef = useRef<FlatList<ChatItem>>(null);
 
   useEffect(() => {
     void copilotApi.consentStatus().then(setConsent).catch(() => undefined);
+    void insightsApi.list().then(setInsights).catch(() => undefined);
   }, []);
+
+  const dismissInsight = async (id: string) => {
+    setInsights((prev) => prev.filter((i) => i.id !== id));
+    await insightsApi.setStatus(id, 'dismissed').catch(() => undefined);
+  };
+
+  const openInsight = (insight: Insight) => {
+    void insightsApi.setStatus(insight.id, 'seen').catch(() => undefined);
+    void send(`Cuéntame más sobre esto: "${insight.title}"`);
+  };
 
   const send = async (text: string) => {
     const content = text.trim();
@@ -106,6 +124,31 @@ export function CopilotScreen() {
         keyExtractor={(m) => m.id}
         ListEmptyComponent={
           <View>
+            {/* Novedades (FIN-006): insights como arrancadores con contexto */}
+            {insights.length > 0 ? (
+              <View style={{ marginBottom: spacing.sm }}>
+                <Text style={{ fontWeight: '700', color: colors.text, marginBottom: 6 }}>
+                  🔔 Novedades
+                </Text>
+                {insights.slice(0, 4).map((ins) => (
+                  <Pressable key={ins.id} onPress={() => openInsight(ins)}>
+                    <Card style={{ borderLeftWidth: 4, borderLeftColor: SEVERITY_COLOR[ins.severity], paddingVertical: spacing.sm }}>
+                      <Row style={{ justifyContent: 'space-between' }}>
+                        <Text style={{ fontWeight: '600', color: colors.text, flex: 1 }} numberOfLines={2}>
+                          {ins.title}
+                        </Text>
+                        <Pressable onPress={() => void dismissInsight(ins.id)} style={{ paddingLeft: spacing.sm }}>
+                          <Text style={{ color: colors.textMuted }}>✕</Text>
+                        </Pressable>
+                      </Row>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }} numberOfLines={2}>
+                        {ins.body}
+                      </Text>
+                    </Card>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             <Card>
               <Text style={{ fontWeight: '700', fontSize: 16, color: colors.text }}>
                 👋 Soy tu Copiloto Financiero

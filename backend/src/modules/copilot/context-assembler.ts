@@ -9,6 +9,7 @@ import {
   MinimizedContext,
   MinimizedDebt,
   MinimizedDebtsView,
+  MinimizedMemoryView,
   MinimizedScoreView,
   MinimizedSnapshotView,
 } from './minimized-views';
@@ -27,10 +28,11 @@ export class ContextAssembler {
   constructor(private readonly prisma: PrismaService) {}
 
   async buildInitialContext(userId: string, now = new Date()): Promise<MinimizedContext> {
-    const [snapshot, debts, score] = await Promise.all([
+    const [snapshot, debts, score, memory] = await Promise.all([
       this.buildSnapshotView(userId, now),
       this.buildDebtsView(userId),
       this.buildScoreView(userId, now),
+      this.buildMemoryView(userId, now),
     ]);
     return brand({
       period: snapshot.period,
@@ -40,6 +42,53 @@ export class ContextAssembler {
       budget: snapshot.budget,
       netWorth: snapshot.netWorth,
       categorySpend: await this.categorySpend(userId, now),
+      // Resumen acotado (FIN-006 §4.7): top 3 insights + 5 hechos.
+      memory: {
+        insights: memory.insights.slice(0, 3).map((i) => ({ type: i.type, severity: i.severity })),
+        facts: memory.facts.slice(0, 5).map((f) => f.content),
+      },
+    });
+  }
+
+  /**
+   * Vista de la tool `get_memory_and_insights` (FIN-006 §4.7). De los insights
+   * SOLO cruzan tipo/severidad/antigüedad y los valores NUMÉRICOS del payload
+   * (título/cuerpo/strings pueden contener nombres de categorías del usuario).
+   * Los `content` de memoria son plantillas del Motor: seguros por construcción.
+   */
+  async buildMemoryView(userId: string, now = new Date()): Promise<MinimizedMemoryView> {
+    const [insights, facts] = await Promise.all([
+      this.prisma.insight.findMany({
+        where: {
+          userId,
+          status: { not: 'dismissed' },
+          OR: [{ validUntil: null }, { validUntil: { gte: now } }],
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+      this.prisma.financialMemoryFact.findMany({
+        where: { userId, deletedAt: null, staleAt: null },
+        orderBy: [{ confidence: 'desc' }, { lastConfirmedAt: 'desc' }],
+        take: 12,
+      }),
+    ]);
+
+    return brand({
+      kind: 'memory_and_insights' as const,
+      facts: facts.map((f) => ({ kind: f.kind, content: f.content, tags: f.tags })),
+      insights: insights.map((i) => {
+        const numbers: Record<string, number> = {};
+        for (const [k, v] of Object.entries((i.payload as Record<string, unknown>) ?? {})) {
+          if (typeof v === 'number') numbers[k] = v;
+        }
+        return {
+          type: i.type,
+          severity: i.severity,
+          ageDays: Math.floor((now.getTime() - i.createdAt.getTime()) / 86_400_000),
+          numbers,
+        };
+      }),
     });
   }
 

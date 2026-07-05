@@ -191,6 +191,21 @@ export interface ScoreHistoryPoint {
   score: number;
 }
 
+// --- Insights y proactividad (FIN-006) ---
+
+export type InsightType = 'anomalia' | 'riesgo' | 'oportunidad' | 'logro' | 'cambio_tendencia';
+export type InsightSeverity = 'info' | 'warning' | 'critical';
+
+export interface Insight {
+  id: string;
+  type: InsightType;
+  severity: InsightSeverity;
+  title: string;
+  body: string;
+  status: 'new' | 'seen' | 'dismissed';
+  createdAt: string;
+}
+
 // --- Copiloto Financiero (FIN-005) ---
 
 export interface CopilotReply {

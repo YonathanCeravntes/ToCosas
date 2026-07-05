@@ -79,6 +79,7 @@ export class CopilotService {
         ContextFieldGroup.Budget,
         ContextFieldGroup.NetWorth,
         ContextFieldGroup.CategorySpend,
+        ContextFieldGroup.Memory,
       ];
       await this.prisma.aiInteractionLog.create({
         data: { userId, conversationId: conversation.id, direction: 'request', purpose: 'chat', contextFieldGroups: groups },
@@ -121,6 +122,8 @@ export class CopilotService {
         return this.assembler.buildDebtsView(userId);
       case 'get_score_breakdown':
         return this.assembler.buildScoreView(userId);
+      case 'get_memory_and_insights':
+        return this.assembler.buildMemoryView(userId);
       default:
         throw new ForbiddenException(`Tool desconocida: ${tool}`);
     }

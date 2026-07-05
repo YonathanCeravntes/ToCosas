@@ -176,6 +176,35 @@ enum AiLogDirection {
   response
 }
 
+// ---------- FIN-006 · Insights y memoria ----------
+
+enum InsightType {
+  anomalia
+  riesgo
+  oportunidad
+  logro
+  cambio_tendencia
+}
+
+enum InsightSeverity {
+  info
+  warning
+  critical
+}
+
+enum InsightStatus {
+  new
+  seen
+  dismissed
+}
+
+enum MemoryFactKind {
+  recurrencia
+  fecha_clave
+  habito
+  cambio
+}
+
 // ---------- Modelos ----------
 
 model User {
@@ -211,6 +240,8 @@ model User {
   metrics       MetricReading[]
   conversations Conversation[]
   aiLogs        AiInteractionLog[]
+  insights      Insight[]
+  memoryFacts   FinancialMemoryFact[]
   settings      UserSettings?
 
   @@map("users")
@@ -605,6 +636,8 @@ model UserSettings {
   // Consentimiento de IA (FIN-005, §4.2 del ARQ): opt-in versionado y revocable.
   aiConsentAt        DateTime? @map("ai_consent_at")
   aiConsentVersion   Int?      @map("ai_consent_version")
+  // Avisos proactivos (FIN-006 §4.5).
+  proactiveEnabled   Boolean  @default(true) @map("proactive_enabled")
   reminderDefaults   Int[]    @default([3, 1, 0]) @map("reminder_defaults")
   notifPush          Boolean  @default(true) @map("notif_push")
   notifWhatsapp      Boolean  @default(false) @map("notif_whatsapp")
@@ -616,6 +649,61 @@ model UserSettings {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
+}
+
+// ---------- FIN-006 · Insights y memoria financiera ----------
+
+// Conocimiento accionable detectado por el Motor (anomalía/riesgo/logro/…).
+// Idempotencia (DEC-0006 §10.3): `dedupeKey` es la clave natural documentada —
+// mensual para condiciones recurrentes (p. ej. "riesgo_dti:2026-07") y por
+// entidad para eventos únicos (p. ej. "logro_deuda_saldada:<debtId>").
+model Insight {
+  id                String          @id @default(uuid()) @db.Uuid
+  userId            String          @map("user_id") @db.Uuid
+  type              InsightType
+  severity          InsightSeverity @default(info)
+  title             String
+  body              String
+  metricKey         String?         @map("metric_key")
+  dedupeKey         String          @map("dedupe_key")
+  payload           Json?
+  status            InsightStatus   @default(new)
+  validUntil        DateTime?       @map("valid_until")
+  deliveredAt       DateTime?       @map("delivered_at")
+  deliveredChannels String[]        @map("delivered_channels")
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, status, createdAt])
+  @@map("insights")
+}
+
+// Hecho de memoria financiera (FIN-006 §4.4). `content` SIEMPRE es texto
+// generado por plantilla del Motor — nunca texto libre del usuario — lo que lo
+// hace seguro para la vista minimizada del Copiloto.
+model FinancialMemoryFact {
+  id              String         @id @default(uuid()) @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  kind            MemoryFactKind
+  content         String
+  tags            String[]
+  dedupeKey       String         @map("dedupe_key")
+  payload         Json?
+  confidence      Decimal        @default(0.8) @db.Decimal(4, 3)
+  observedAt      DateTime       @map("observed_at")
+  lastConfirmedAt DateTime       @map("last_confirmed_at")
+  staleAt         DateTime?      @map("stale_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  deletedAt       DateTime?      @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, kind])
+  @@map("financial_memory_facts")
 }
 
 // ---------- FIN-005 · Conversaciones del Copiloto ----------

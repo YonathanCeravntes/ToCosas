@@ -40,6 +40,11 @@ export interface MinimizedContext extends Branded {
     net: number;
   };
   categorySpend: Array<{ category: string; amount: number }>; // curadas o "categoría personalizada #N"
+  /** Resumen de memoria (FIN-006 §4.7): top insights + hechos, acotado. */
+  memory: {
+    insights: Array<{ type: string; severity: string }>;
+    facts: string[]; // contents templados
+  };
 }
 
 /** Deuda minimizada: identificador NO libre + datos numéricos (§4.3). */
@@ -72,10 +77,29 @@ export interface MinimizedScoreView extends Branded {
   deltaByPillar: Array<{ pillar: string; delta: number }>;
 }
 
+/**
+ * Memoria e insights (FIN-006 §4.7). Los `content` de los hechos son SIEMPRE
+ * plantillas del Motor (nunca texto libre). De los insights solo cruzan tipo,
+ * severidad, antigüedad y los valores NUMÉRICOS del payload — nunca título,
+ * cuerpo ni strings del payload (podrían contener nombres de categorías de
+ * usuario).
+ */
+export interface MinimizedMemoryView extends Branded {
+  kind: 'memory_and_insights';
+  facts: Array<{ kind: string; content: string; tags: string[] }>;
+  insights: Array<{
+    type: string;
+    severity: string;
+    ageDays: number;
+    numbers: Record<string, number>;
+  }>;
+}
+
 export type MinimizedToolView =
   | MinimizedSnapshotView
   | MinimizedDebtsView
-  | MinimizedScoreView;
+  | MinimizedScoreView
+  | MinimizedMemoryView;
 
 /** Validación en runtime (DEC-0005 §10.1): rechaza todo lo no marcado. */
 export function assertMinimized<T extends Branded>(value: T): T {

@@ -35,7 +35,7 @@ describe('AnthropicClient (§4.8)', () => {
     expect(url).toBe('https://api.anthropic.com/v1/messages');
     const body = JSON.parse(init.body);
     expect(body.system[0].cache_control).toEqual({ type: 'ephemeral' }); // prompt caching
-    expect(body.tools).toHaveLength(3);
+    expect(body.tools).toHaveLength(4); // snapshot, debts, score, memoria (FIN-006)
     expect(init.headers['x-api-key']).toBe('sk-test');
   });
 

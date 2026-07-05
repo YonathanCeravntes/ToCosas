@@ -24,6 +24,8 @@ import { AccountsModule } from './modules/accounts/accounts.module';
 import { FinancialEngineModule } from './modules/financial-engine/financial-engine.module';
 import { HealthModule } from './modules/health/health.module';
 import { CopilotModule } from './modules/copilot/copilot.module';
+import { InsightsModule } from './modules/insights/insights.module';
+import { MemoryModule } from './modules/memory/memory.module';
 
 @Module({
   imports: [
@@ -51,6 +53,8 @@ import { CopilotModule } from './modules/copilot/copilot.module';
     FinancialEngineModule,
     HealthModule,
     CopilotModule,
+    InsightsModule,
+    MemoryModule,
     // TODO (siguientes PRs): LLM fallback en el parser, OCR.
   ],
   controllers: [HealthController],

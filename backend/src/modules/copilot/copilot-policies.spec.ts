@@ -58,6 +58,7 @@ const ctx: MinimizedContext = brand({
   },
   netWorth: { totalAssets: 100_000_000, totalLiquid: 3_000_000, emergencyFund: 2_000_000, totalLiabilities: 82_000_000, net: 18_000_000 },
   categorySpend: [{ category: 'Mercado', amount: 800_000 }],
+  memory: { insights: [{ type: 'riesgo', severity: 'warning' }], facts: ['Ingreso mensual estable de ~$5.000.000.'] },
 });
 
 describe('consentimiento — elementos legales (DEC-0005 §14.1)', () => {
