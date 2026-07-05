@@ -27,4 +27,5 @@ export type RootStackParamList = {
   LinkWhatsApp: undefined;
   LinkTelegram: undefined;
   Accounts: undefined;
+  Simulator: undefined;
 };

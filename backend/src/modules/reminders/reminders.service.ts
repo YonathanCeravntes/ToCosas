@@ -1,7 +1,9 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationChannel } from '@prisma/client';
 import { WhatsAppSender } from './whatsapp-sender.interface';
 import { PushSender } from '../notifications/push-sender.interface';
+import { NotificationBudgetService } from '../notifications/notification-budget.service';
 import { TelegramSender } from '../telegram/telegram.provider';
 import { CreateReminderDto, UpdateReminderDto } from './dto/reminder.dto';
 import { addOneMonth, daysUntil, offsetLabel, shouldFireToday } from './reminder.util';
@@ -17,6 +19,7 @@ export class RemindersService {
     private readonly sender: WhatsAppSender,
     private readonly push: PushSender,
     private readonly telegram: TelegramSender,
+    private readonly budget: NotificationBudgetService,
   ) {}
 
   /**
@@ -108,12 +111,15 @@ export class RemindersService {
       if (!shouldFireToday(r.dueDate, r.offsetsDays, today)) continue;
       // Evitar reenviar el mismo día.
       if (r.lastSentAt && daysUntil(r.lastSentAt, today) === 0) continue;
+      // Presupuesto global (FIN-007 §4.5 / DEC-0007 §10.3): máx. 2 recordatorios/día.
+      if (!(await this.budget.canSend(r.userId, 'recordatorio', today))) continue;
 
       const remaining = daysUntil(r.dueDate, today);
       const when = offsetLabel(remaining);
       const amount = r.amount ? ` de ${fmt(Number(r.amount))}` : '';
       const message = `🔔 Recordatorio: ${when === 'hoy' ? 'hoy vence' : `${when} vence`} "${r.title}"${amount}.`;
 
+      const usedChannels: NotificationChannel[] = [];
       // Canal push (Expo/FCM) — envía a los dispositivos registrados del usuario.
       if (r.channels.includes('push')) {
         const tokens = (r.user?.devices ?? [])
@@ -124,6 +130,7 @@ export class RemindersService {
           body: `${when === 'hoy' ? 'Vence hoy' : `Vence ${when}`}${amount}.`,
           data: { reminderId: r.id, debtId: r.debtId },
         });
+        if (tokens.length > 0) usedChannels.push('push');
       }
       // Canal WhatsApp — usa el número verificado si existe y hay opt-in.
       if (r.channels.includes('whatsapp')) {
@@ -132,6 +139,7 @@ export class RemindersService {
         );
         if (link) {
           await this.sender.sendText(link.phoneE164, message);
+          usedChannels.push('whatsapp');
         }
       }
       // Canal Telegram — usa el chat verificado con opt-in.
@@ -141,8 +149,11 @@ export class RemindersService {
         );
         if (link?.chatId) {
           await this.telegram.sendText(link.chatId, message);
+          usedChannels.push('telegram');
         }
       }
+      // Presupuesto global: registra el EVENTO (timestamp propio por recordatorio).
+      await this.budget.record(r.userId, 'recordatorio', usedChannels, new Date());
 
       // Cuota recurrente: al llegar el día de vencimiento, avanza al mes siguiente
       // para que la próxima cuota vuelva a avisar automáticamente.

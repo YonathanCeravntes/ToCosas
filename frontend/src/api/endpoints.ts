@@ -17,6 +17,9 @@ import {
   HealthScore,
   Insight,
   MonthlyBudget,
+  Recommendation,
+  SimulationResult,
+  SimulationType,
   ScoreHistoryPoint,
   NetWorth,
   StartLinkResult,
@@ -53,6 +56,17 @@ export const transactionsApi = {
 export const categoriesApi = {
   list: (kind?: string) =>
     api.get<Category[]>(`/categories${kind ? `?kind=${kind}` : ''}`),
+};
+
+export const simulationsApi = {
+  run: (input: { type: SimulationType } & Record<string, number | string | undefined>) =>
+    api.post<SimulationResult>('/simulations', input),
+};
+
+export const recommendationsApi = {
+  list: () => api.get<Recommendation[]>('/recommendations'),
+  setStatus: (id: string, status: 'seen' | 'dismissed' | 'done') =>
+    api.patch<Recommendation>(`/recommendations/${id}`, { status }),
 };
 
 export const insightsApi = {

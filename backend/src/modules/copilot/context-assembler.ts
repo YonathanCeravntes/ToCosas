@@ -4,6 +4,7 @@ import { MetricKey } from '../financial-engine/engine.constants';
 import { monthStart, monthStartMinus } from '../financial-engine/metrics/series.util';
 import { computeNetWorth } from '../accounts/networth.util';
 import { PILLAR_WEIGHTS, PillarKey, scoreBand } from '../health/score.util';
+import { SimulationResult } from '../simulations/simulation-engine';
 import {
   brand,
   MinimizedContext,
@@ -11,8 +12,35 @@ import {
   MinimizedDebtsView,
   MinimizedMemoryView,
   MinimizedScoreView,
+  MinimizedSimulationView,
   MinimizedSnapshotView,
 } from './minimized-views';
+
+/** Strings permitidos (catálogo cerrado): fechas ISO, estrategias y bandas. */
+const SAFE_STRING = /^(\d{4}-\d{2}-\d{2}|avalanche|snowball|critico|fragil|estable|saludable|elite)$/;
+
+/**
+ * Mapper puro (FIN-007 §4.4): resultado de simulación → 6ª vista minimizada.
+ * Deja pasar solo números y strings del catálogo cerrado.
+ */
+export function toMinimizedSimulationView(result: SimulationResult): MinimizedSimulationView {
+  const filter = (obj: Record<string, unknown>) => {
+    const out: Record<string, number | string | null> = {};
+    for (const [k, v] of Object.entries(obj ?? {})) {
+      if (typeof v === 'number' || v === null) out[k] = v;
+      else if (typeof v === 'string' && SAFE_STRING.test(v)) out[k] = v;
+    }
+    return out;
+  };
+  return brand({
+    kind: 'simulation_result' as const,
+    simulationType: result.type,
+    before: filter(result.before as unknown as Record<string, unknown>),
+    after: filter(result.after as unknown as Record<string, unknown>),
+    delta: result.delta as unknown as Record<string, number>,
+    specifics: filter(result.specifics),
+  });
+}
 
 /**
  * ContextAssembler (FIN-005 §4.3/§4.3-A): el ÚNICO módulo que construye

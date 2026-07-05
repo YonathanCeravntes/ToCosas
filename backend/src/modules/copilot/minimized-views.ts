@@ -95,11 +95,26 @@ export interface MinimizedMemoryView extends Branded {
   }>;
 }
 
+/**
+ * Resultado de simulación (FIN-007 §4.4). Solo números y enums cruzan; los
+ * `specifics` se filtran a valores numéricos + strings de un catálogo cerrado
+ * (fechas ISO y nombres de estrategia), nunca texto libre.
+ */
+export interface MinimizedSimulationView extends Branded {
+  kind: 'simulation_result';
+  simulationType: string;
+  before: Record<string, number | string | null>;
+  after: Record<string, number | string | null>;
+  delta: Record<string, number>;
+  specifics: Record<string, number | string | null>;
+}
+
 export type MinimizedToolView =
   | MinimizedSnapshotView
   | MinimizedDebtsView
   | MinimizedScoreView
-  | MinimizedMemoryView;
+  | MinimizedMemoryView
+  | MinimizedSimulationView;
 
 /** Validación en runtime (DEC-0005 §10.1): rechaza todo lo no marcado. */
 export function assertMinimized<T extends Branded>(value: T): T {

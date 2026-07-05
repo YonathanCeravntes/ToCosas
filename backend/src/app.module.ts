@@ -26,6 +26,8 @@ import { HealthModule } from './modules/health/health.module';
 import { CopilotModule } from './modules/copilot/copilot.module';
 import { InsightsModule } from './modules/insights/insights.module';
 import { MemoryModule } from './modules/memory/memory.module';
+import { SimulationsModule } from './modules/simulations/simulations.module';
+import { RecommendationsModule } from './modules/recommendations/recommendations.module';
 
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { MemoryModule } from './modules/memory/memory.module';
     CopilotModule,
     InsightsModule,
     MemoryModule,
+    SimulationsModule,
+    RecommendationsModule,
     // TODO (siguientes PRs): LLM fallback en el parser, OCR.
   ],
   controllers: [HealthController],

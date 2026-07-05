@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
 import { Card, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import {
@@ -83,6 +85,7 @@ function ScoreCard({ data, loading }: { data: HealthScore | null; loading: boole
 function IndicatorCard({ ind }: { ind: HealthIndicator }) {
   const [open, setOpen] = useState(false);
   const color = LEVEL_COLOR[ind.level];
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
     <Pressable onPress={() => setOpen(!open)}>
       <Card style={{ borderLeftWidth: 4, borderLeftColor: color }}>
@@ -100,6 +103,13 @@ function IndicatorCard({ ind }: { ind: HealthIndicator }) {
                 ✅ {a}
               </Text>
             ))}
+            {ind.level === 'rojo' || ind.level === 'amarillo' ? (
+              <Pressable onPress={() => navigation.navigate('Simulator')} style={{ marginTop: 8 }}>
+                <Text style={{ color: colors.primary, fontWeight: '700' }}>
+                  🧪 Simular cómo mejorarlo →
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : (
           <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 6 }}>Toca para ver detalle</Text>

@@ -24,7 +24,10 @@ export interface ChatMessage {
 }
 
 /** Ejecutor de tools: SOLO puede devolver vistas minimizadas (§4.3-A). */
-export type ToolExecutor = (toolName: string) => Promise<MinimizedToolView>;
+export type ToolExecutor = (
+  toolName: string,
+  input: Record<string, unknown>,
+) => Promise<MinimizedToolView>;
 
 const TOOLS = [
   {
@@ -50,6 +53,31 @@ const TOOLS = [
     description:
       'Hábitos y patrones detectados del usuario (recurrencias, fechas clave) y alertas/logros recientes. Úsala para dar contexto longitudinal ("suele gastar X", "su cuota vence el día D").',
     input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
+  {
+    name: 'run_simulation',
+    description:
+      'Simula "¿qué pasa si…?" y devuelve el impacto antes/después en Score, DTI, flujo y patrimonio. Escenarios: abono_extra (debtRef+extraMonthly), nueva_deuda (amount+termMonths+ratePct), reducir_gastos (monthlyAmount), cambio_ingreso (newMonthlyIncome), estrategia_deudas (extraBudget), refinanciar (debtRef+newRatePct+newTermMonths). Las deudas se refieren como "deuda #N".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        scenario: {
+          type: 'string',
+          enum: ['abono_extra', 'nueva_deuda', 'reducir_gastos', 'cambio_ingreso', 'estrategia_deudas', 'refinanciar'],
+        },
+        debtRef: { type: 'string', description: 'p. ej. "deuda #1"' },
+        extraMonthly: { type: 'number' },
+        amount: { type: 'number' },
+        termMonths: { type: 'number' },
+        ratePct: { type: 'number' },
+        monthlyAmount: { type: 'number' },
+        newMonthlyIncome: { type: 'number' },
+        extraBudget: { type: 'number' },
+        newRatePct: { type: 'number' },
+        newTermMonths: { type: 'number' },
+      },
+      required: ['scenario'],
+    },
   },
 ];
 
@@ -131,7 +159,9 @@ export class AnthropicClient {
       const results: ContentBlock[] = [];
       for (const block of res.content as ContentBlock[]) {
         if (block.type !== 'tool_use') continue;
-        const view = assertMinimized(await executor(block.name));
+        const view = assertMinimized(
+          await executor(block.name, (block.input ?? {}) as Record<string, unknown>),
+        );
         results.push({
           type: 'tool_result',
           tool_use_id: block.id,

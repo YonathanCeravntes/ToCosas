@@ -1,5 +1,6 @@
-import { ContextAssembler } from './context-assembler';
+import { ContextAssembler, toMinimizedSimulationView } from './context-assembler';
 import { assertMinimized, MINIMIZED_BRAND } from './minimized-views';
+import { SimulationResult } from '../simulations/simulation-engine';
 
 /**
  * TEST DE REGRESIÓN DE MINIMIZACIÓN (DEC-0005 §10.1 / ARQ-0005 v2 §4.3-A).
@@ -161,6 +162,30 @@ describe('ContextAssembler — minimización (DEC-0005 §10.1)', () => {
 
   it('assertMinimized bloquea objetos de dominio crudos', () => {
     expect(() => assertMinimized({ name: PII.debtName } as never)).toThrow(/Bloqueado/);
+  });
+
+  it('6ª vista (FIN-007): el mapper de simulación filtra strings fuera del catálogo', () => {
+    const fake = {
+      type: 'abono_extra',
+      before: { score: 700, band: 'estable', dti: 0.1, note: PII.txNote },
+      after: { score: 720, band: 'saludable', dti: 0.1 },
+      delta: { score: 20, dti: 0, cashflow: -300000, netWorth: 0 },
+      specifics: {
+        interestSaved: 2_000_000,
+        newPayoffDate: '2028-01-01',
+        recommended: 'avalanche',
+        leakedName: PII.debtName, // string fuera de catálogo → debe filtrarse
+      },
+    } as unknown as SimulationResult;
+    const view = toMinimizedSimulationView(fake);
+    const s = JSON.stringify(view);
+    expect(s).not.toContain('Andrés');
+    expect(s).not.toContain('Restrepo');
+    expect(view.specifics.newPayoffDate).toBe('2028-01-01'); // catálogo: fecha ISO
+    expect(view.specifics.recommended).toBe('avalanche'); // catálogo: estrategia
+    expect(view.before.band).toBe('estable'); // catálogo: banda
+    expect(view.specifics.leakedName).toBeUndefined();
+    expect(() => assertMinimized(view)).not.toThrow();
   });
 
   it('vista de memoria (FIN-006): de los insights pasan SOLO números del payload', async () => {

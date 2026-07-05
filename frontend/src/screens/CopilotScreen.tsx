@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { Button, Card, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
-import { AiConsentStatus, CopilotMessage, Insight, InsightSeverity } from '../api/types';
-import { copilotApi, insightsApi } from '../api/endpoints';
+import { AiConsentStatus, CopilotMessage, Insight, InsightSeverity, Recommendation } from '../api/types';
+import { copilotApi, insightsApi, recommendationsApi } from '../api/endpoints';
 
 const SEVERITY_COLOR: Record<InsightSeverity, string> = {
   critical: colors.danger,
@@ -45,12 +45,24 @@ export function CopilotScreen() {
   const [showConsent, setShowConsent] = useState(false);
   const [aiRemaining, setAiRemaining] = useState<number | null>(null);
   const [insights, setInsights] = useState<Insight[]>([]);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const listRef = useRef<FlatList<ChatItem>>(null);
 
   useEffect(() => {
     void copilotApi.consentStatus().then(setConsent).catch(() => undefined);
     void insightsApi.list().then(setInsights).catch(() => undefined);
+    void recommendationsApi.list().then(setRecommendations).catch(() => undefined);
   }, []);
+
+  const dismissRecommendation = async (id: string) => {
+    setRecommendations((prev) => prev.filter((r) => r.id !== id));
+    await recommendationsApi.setStatus(id, 'dismissed').catch(() => undefined);
+  };
+
+  const markDone = async (id: string) => {
+    setRecommendations((prev) => prev.filter((r) => r.id !== id));
+    await recommendationsApi.setStatus(id, 'done').catch(() => undefined);
+  };
 
   const dismissInsight = async (id: string) => {
     setInsights((prev) => prev.filter((i) => i.id !== id));
@@ -124,6 +136,22 @@ export function CopilotScreen() {
         keyExtractor={(m) => m.id}
         ListEmptyComponent={
           <View>
+            {/* Recomendado para ti (FIN-007): acciones con beneficio cuantificado */}
+            {recommendations.length > 0 ? (
+              <View style={{ marginBottom: spacing.sm }}>
+                <Text style={{ fontWeight: '700', color: colors.text, marginBottom: 6 }}>
+                  ✨ Recomendado para ti
+                </Text>
+                {recommendations.map((rec) => (
+                  <RecommendationCard
+                    key={rec.id}
+                    rec={rec}
+                    onDismiss={() => void dismissRecommendation(rec.id)}
+                    onDone={() => void markDone(rec.id)}
+                  />
+                ))}
+              </View>
+            ) : null}
             {/* Novedades (FIN-006): insights como arrancadores con contexto */}
             {insights.length > 0 ? (
               <View style={{ marginBottom: spacing.sm }}>
@@ -211,6 +239,49 @@ export function CopilotScreen() {
         </View>
       </Modal>
     </KeyboardAvoidingView>
+  );
+}
+
+function RecommendationCard({
+  rec,
+  onDismiss,
+  onDone,
+}: {
+  rec: Recommendation;
+  onDismiss: () => void;
+  onDone: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Pressable onPress={() => setOpen(!open)}>
+      <Card style={{ borderLeftWidth: 4, borderLeftColor: colors.accent, paddingVertical: spacing.sm }}>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Text style={{ fontWeight: '700', color: colors.text, flex: 1 }} numberOfLines={2}>
+            {rec.title}
+          </Text>
+          <Pressable onPress={onDismiss} style={{ paddingLeft: spacing.sm }}>
+            <Text style={{ color: colors.textMuted }}>✕</Text>
+          </Pressable>
+        </Row>
+        <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 2 }} numberOfLines={open ? undefined : 2}>
+          {rec.body}
+        </Text>
+        {open ? (
+          <View style={{ marginTop: spacing.sm }}>
+            <Text style={{ color: colors.danger, fontSize: 12, marginBottom: 6 }}>
+              Si no lo haces: {rec.whatIfNot}
+            </Text>
+            <Row style={{ gap: spacing.sm }}>
+              <View style={{ flex: 1 }}>
+                <Button title="✓ Lo hice" variant="secondary" onPress={onDone} />
+              </View>
+            </Row>
+          </View>
+        ) : (
+          <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 4 }}>Toca para ver más</Text>
+        )}
+      </Card>
+    </Pressable>
   );
 }
 

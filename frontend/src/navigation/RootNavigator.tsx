@@ -9,6 +9,7 @@ import { MainTabs } from './MainTabs';
 import { LinkWhatsAppScreen } from '../screens/whatsapp/LinkWhatsAppScreen';
 import { LinkTelegramScreen } from '../screens/telegram/LinkTelegramScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
+import { SimulatorScreen } from '../screens/SimulatorScreen';
 import { registerForPush } from '../notifications/push';
 import { RootStackParamList } from './types';
 
@@ -54,6 +55,11 @@ export function RootNavigator() {
               name="Accounts"
               component={AccountsScreen}
               options={{ headerShown: true, title: 'Cuentas y patrimonio' }}
+            />
+            <Stack.Screen
+              name="Simulator"
+              component={SimulatorScreen}
+              options={{ headerShown: true, title: '¿Qué pasa si…?' }}
             />
           </>
         ) : (

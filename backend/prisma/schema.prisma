@@ -205,6 +205,41 @@ enum MemoryFactKind {
   cambio
 }
 
+// ---------- FIN-007 · Simulador y recomendaciones ----------
+
+enum SimulationType {
+  abono_extra
+  nueva_deuda
+  reducir_gastos
+  cambio_ingreso
+  estrategia_deudas
+  vender_activo
+  refinanciar
+}
+
+enum SimulationSource {
+  app
+  copilot
+}
+
+enum RecommendationStatus {
+  new
+  seen
+  dismissed
+  done
+}
+
+enum NotificationChannel {
+  push
+  whatsapp
+  telegram
+}
+
+enum NotificationKind {
+  recordatorio
+  proactivo
+}
+
 // ---------- Modelos ----------
 
 model User {
@@ -240,9 +275,12 @@ model User {
   metrics       MetricReading[]
   conversations Conversation[]
   aiLogs        AiInteractionLog[]
-  insights      Insight[]
-  memoryFacts   FinancialMemoryFact[]
-  settings      UserSettings?
+  insights        Insight[]
+  memoryFacts     FinancialMemoryFact[]
+  simulations     Simulation[]
+  recommendations Recommendation[]
+  notifLogs       NotificationLog[]
+  settings        UserSettings?
 
   @@map("users")
 }
@@ -704,6 +742,64 @@ model FinancialMemoryFact {
   @@unique([userId, dedupeKey])
   @@index([userId, kind])
   @@map("financial_memory_facts")
+}
+
+// ---------- FIN-007 · Simulaciones, recomendaciones y presupuesto de avisos ----------
+
+// Historial de simulaciones "¿qué pasa si…?" (nunca modifican datos reales).
+model Simulation {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      SimulationType
+  params    Json
+  result    Json
+  source    SimulationSource @default(app)
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("simulations")
+}
+
+// Recomendación cuantificada (FIN-007 §4.3). Regla de desplazamiento
+// (DEC-0007 §10.2): una nueva con prioridad estrictamente mayor desplaza a la
+// activa de menor prioridad (status=dismissed, dismissReason=superseded).
+model Recommendation {
+  id            String               @id @default(uuid()) @db.Uuid
+  userId        String               @map("user_id") @db.Uuid
+  kind          String
+  title         String
+  body          String
+  whatIfNot     String               @map("what_if_not")
+  priorityScore Decimal              @map("priority_score") @db.Decimal(6, 4)
+  impact        Json
+  status        RecommendationStatus @default(new)
+  dismissReason String?              @map("dismiss_reason")
+  dedupeKey     String               @map("dedupe_key")
+  validUntil    DateTime?            @map("valid_until")
+  createdAt     DateTime             @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, status])
+  @@map("recommendations")
+}
+
+// Registro de toda notificación saliente (recordatorios + proactivos), base del
+// presupuesto global (DEC-0007 §10.3: reparto FIJO 2+1, sin reasignación).
+model NotificationLog {
+  id      String              @id @default(uuid()) @db.Uuid
+  userId  String              @map("user_id") @db.Uuid
+  channel NotificationChannel
+  kind    NotificationKind
+  sentAt  DateTime            @default(now()) @map("sent_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sentAt])
+  @@map("notification_logs")
 }
 
 // ---------- FIN-005 · Conversaciones del Copiloto ----------

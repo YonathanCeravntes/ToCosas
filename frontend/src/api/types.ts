@@ -206,6 +206,47 @@ export interface Insight {
   createdAt: string;
 }
 
+// --- Simulador y recomendaciones (FIN-007) ---
+
+export type SimulationType =
+  | 'abono_extra'
+  | 'nueva_deuda'
+  | 'reducir_gastos'
+  | 'cambio_ingreso'
+  | 'estrategia_deudas'
+  | 'vender_activo'
+  | 'refinanciar';
+
+export interface MetricsSnapshot {
+  score: number;
+  band: string;
+  dti: number;
+  cashflow: number;
+  savingsRate: number;
+  liquidityRunway: number | null;
+  emergencyFundMonths: number | null;
+  netWorth: number;
+}
+
+export interface SimulationResult {
+  type: SimulationType;
+  before: MetricsSnapshot;
+  after: MetricsSnapshot;
+  delta: { score: number; dti: number; cashflow: number; netWorth: number };
+  specifics: Record<string, number | string | null>;
+}
+
+export interface Recommendation {
+  id: string;
+  kind: string;
+  title: string;
+  body: string;
+  whatIfNot: string;
+  priorityScore: string | number;
+  impact: Record<string, number | string | null>;
+  status: 'new' | 'seen' | 'dismissed' | 'done';
+}
+
 // --- Copiloto Financiero (FIN-005) ---
 
 export interface CopilotReply {

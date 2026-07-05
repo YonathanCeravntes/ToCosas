@@ -1,3 +1,4 @@
+import { SimulationResult } from '../simulations/simulation-engine';
 import { MinimizedContext } from './minimized-views';
 
 /**
@@ -116,6 +117,85 @@ function monthSummary(ctx: MinimizedContext): string {
   if (ctx.categorySpend.length > 0) {
     const top = [...ctx.categorySpend].sort((a, b) => b.amount - a.amount)[0];
     lines.push(`• Donde más gastaste: ${top.category} (${fmt(top.amount)})`);
+  }
+  return lines.join('\n');
+}
+
+// --- Simulaciones por plantilla (FIN-007 §4.4: sin LLM para lo común) ---
+
+/** Parsea montos tipo "200 mil", "1.5 millones", "300000", "$250.000". */
+export function parseAmount(raw: string): number | null {
+  const m = /\$?\s*([\d.,]+)\s*(mil(?:lones)?|millón|m|k)?/i.exec(raw);
+  if (!m) return null;
+  let n = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+  if (!isFinite(n) || n <= 0) return null;
+  const unit = (m[2] ?? '').toLowerCase();
+  if (unit === 'mil' || unit === 'k') n *= 1_000;
+  if (unit.startsWith('millon') || unit === 'millón' || unit === 'm') n *= 1_000_000;
+  return Math.round(n);
+}
+
+export type SimulationIntent =
+  | { intent: 'simular_abono'; extraMonthly: number }
+  | { intent: 'simular_deuda_nueva'; amount: number; termMonths: number; ratePct: number | null };
+
+/** Detecta "¿qué pasa si pago X más al mes?" / "¿si tomo un crédito de X a N meses?". */
+export function parseSimulationIntent(text: string): SimulationIntent | null {
+  const t = text.toLowerCase();
+  // Abono extra: "pago/abono X (más|extra) (al mes|mensual)"
+  const abono = /(?:pago|abono|aporto)\s+\$?\s*([\d.,]+\s*(?:mil(?:lones)?|millón|m|k)?)\s*(?:m[aá]s|extra|adicional)/i.exec(t);
+  if (abono && /(qu[eé] pasa|si\b|cu[aá]nto)/.test(t)) {
+    const extraMonthly = parseAmount(abono[1]);
+    if (extraMonthly) return { intent: 'simular_abono', extraMonthly };
+  }
+  // Deuda nueva: "crédito/préstamo de X a N meses/años (al R%)"
+  const deuda = /(?:cr[eé]dito|pr[eé]stamo|deuda)\s+de\s+\$?\s*([\d.,]+\s*(?:mil(?:lones)?|millón|m|k)?)\s+a\s+(\d+)\s*(meses|años|anos)/i.exec(t);
+  if (deuda && /(qu[eé] pasa|si\b|me conviene|cu[aá]nto)/.test(t)) {
+    const amount = parseAmount(deuda[1]);
+    const units = parseInt(deuda[2], 10);
+    const termMonths = /año/.test(deuda[3]) || deuda[3] === 'anos' ? units * 12 : units;
+    const rate = /al?\s+([\d.,]+)\s*%/.exec(t);
+    if (amount && termMonths > 0) {
+      return {
+        intent: 'simular_deuda_nueva',
+        amount,
+        termMonths,
+        ratePct: rate ? parseFloat(rate[1].replace(',', '.')) : null,
+      };
+    }
+  }
+  return null;
+}
+
+/** Render del resultado de una simulación (determinista, sin marcas). */
+export function renderSimulationResult(result: SimulationResult): string {
+  const lines: string[] = [];
+  const d = result.delta;
+  const arrow = (n: number) => (n > 0 ? '▲' : n < 0 ? '▼' : '＝');
+  switch (result.type) {
+    case 'abono_extra':
+      lines.push(
+        `💡 Si abonas ${fmt(Number(result.specifics.extraMonthly))} extra al mes:`,
+        `• Ahorras ${fmt(Number(result.specifics.interestSaved))} en intereses`,
+        `• Terminas ${result.specifics.monthsSaved} meses antes (${result.specifics.newPayoffDate})`,
+      );
+      break;
+    case 'nueva_deuda':
+      lines.push(
+        `💡 Ese crédito tendría una cuota de ${fmt(Number(result.specifics.monthlyPayment))}/mes:`,
+        `• Pagarías ${fmt(Number(result.specifics.totalInterest))} en intereses totales`,
+        `• Tu endeudamiento pasaría de ${pct(result.before.dti)} a ${pct(result.after.dti)}`,
+      );
+      break;
+    default:
+      lines.push(`💡 Resultado de la simulación (${result.type}):`);
+  }
+  lines.push(
+    `📊 Tu Score: ${result.before.score} → ${result.after.score} (${arrow(d.score)}${Math.abs(d.score)} pts)`,
+    `💵 Flujo mensual: ${fmt(result.before.cashflow)} → ${fmt(result.after.cashflow)}`,
+  );
+  if (result.after.band !== result.before.band) {
+    lines.push(`⚠️ Cambiarías de banda: ${result.before.band} → ${result.after.band}`);
   }
   return lines.join('\n');
 }

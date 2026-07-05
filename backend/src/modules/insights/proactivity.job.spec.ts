@@ -25,14 +25,18 @@ function build(pending: unknown[], alreadyDeliveredToday = 0) {
   const prisma = {
     insight: {
       findMany: jest.fn().mockResolvedValue(pending),
-      count: jest.fn().mockResolvedValue(alreadyDeliveredToday),
       update,
     },
   } as never;
   const push = { sendToTokens: jest.fn().mockResolvedValue(undefined) } as never;
   const wa = { sendText: jest.fn().mockResolvedValue(undefined) } as never;
   const tg = { sendText: jest.fn().mockResolvedValue(undefined) } as never;
-  return { job: new ProactivityJob(prisma, push, wa, tg), update, push };
+  // Presupuesto global (FIN-007): el tope 1/día ahora vive aquí.
+  const budget = {
+    canSend: jest.fn().mockResolvedValue(alreadyDeliveredToday === 0),
+    record: jest.fn().mockResolvedValue(undefined),
+  } as never;
+  return { job: new ProactivityJob(prisma, push, wa, tg, budget), update, push, budget };
 }
 
 describe('ProactivityJob (FIN-006 §4.5, anti-fatiga)', () => {

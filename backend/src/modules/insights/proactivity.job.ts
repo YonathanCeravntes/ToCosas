@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { NotificationChannel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ENGINE_TZ } from '../financial-engine/engine.constants';
+import { NotificationBudgetService } from '../notifications/notification-budget.service';
 import { PushSender } from '../notifications/push-sender.interface';
 import { WhatsAppSender } from '../reminders/whatsapp-sender.interface';
 import { TelegramSender } from '../telegram/telegram.provider';
@@ -14,12 +16,9 @@ const SEVERITY_ORDER = { critical: 3, warning: 2, info: 1 } as const;
  * queda visible en la app sin notificación). Respeta `proactiveEnabled` y
  * `quietHours`, y usa los canales ya consentidos (push / WhatsApp / Telegram).
  *
- * ⚠️ RIESGO PENDIENTE CONOCIDO (DEC-0006 §10.4): este tope es LOCAL a la
- * proactividad. No existe todavía un límite AGREGADO cross-canal que coordine
- * recordatorios de cuotas (RemindersScheduler, 8 AM) + estos avisos + mensajes
- * de WhatsApp/Telegram. Un usuario puede recibir hasta 2 notificaciones/día
- * (1 recordatorio + 1 proactiva). FIN-007/FIN-008 deben heredar este pendiente
- * y resolverlo (presupuesto global de notificaciones por usuario/día).
+ * PENDIENTE DE DEC-0006 §10.4 RESUELTO EN FIN-007 (DEC-0007 §10.3): el tope
+ * diario ahora lo gobierna `NotificationBudgetService` (presupuesto GLOBAL con
+ * reparto fijo: 2 recordatorios + 1 proactivo/día, sin reasignación de cupos).
  */
 @Injectable()
 export class ProactivityJob {
@@ -30,6 +29,7 @@ export class ProactivityJob {
     private readonly push: PushSender,
     private readonly whatsapp: WhatsAppSender,
     private readonly telegram: TelegramSender,
+    private readonly budget: NotificationBudgetService,
   ) {}
 
   @Cron('0 0 7 * * *', { timeZone: ENGINE_TZ })
@@ -64,19 +64,20 @@ export class ProactivityJob {
       const settings = insight.user?.settings;
       if (settings?.proactiveEnabled === false) continue;
       if (this.inQuietHours(settings?.quietHours, now)) continue;
-      // Tope 1/día por usuario: si ya se entregó una proactiva hoy, se omite.
-      const dayStart = new Date(now.getTime());
-      dayStart.setUTCHours(0, 0, 0, 0);
-      const already = await this.prisma.insight.count({
-        where: { userId: insight.userId, deliveredAt: { gte: dayStart } },
-      });
-      if (already > 0) continue;
+      // Presupuesto global (DEC-0007 §10.3): máx. 1 proactivo/día, reparto fijo.
+      if (!(await this.budget.canSend(insight.userId, 'proactivo', now))) continue;
 
       const channels = await this.deliver(insight);
       await this.prisma.insight.update({
         where: { id: insight.id },
         data: { deliveredAt: now, deliveredChannels: channels },
       });
+      await this.budget.record(
+        insight.userId,
+        'proactivo',
+        channels as NotificationChannel[],
+        now,
+      );
       delivered += 1;
     }
     this.logger.log(`Proactividad: ${delivered} aviso(s) entregado(s)`);

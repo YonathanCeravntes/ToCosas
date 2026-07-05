@@ -5,7 +5,7 @@ import { Button, Card, Field, Row } from '../../components/ui';
 import { colors, spacing } from '../../theme/colors';
 import { formatDate, formatMoney } from '../../utils/format';
 import { toNumber } from '../../api/types';
-import { debtsApi, SimulateResult } from '../../api/endpoints';
+import { debtsApi, simulationsApi, SimulateResult } from '../../api/endpoints';
 import { useApi } from '../../utils/useApi';
 import { DebtsStackParamList } from '../../navigation/types';
 
@@ -16,6 +16,7 @@ export function DebtDetailScreen({ route }: Props) {
   const { data, loading } = useApi(() => debtsApi.get(debtId), [debtId]);
   const [extra, setExtra] = useState('');
   const [sim, setSim] = useState<SimulateResult | null>(null);
+  const [scoreDelta, setScoreDelta] = useState<number | null>(null);
   const [simLoading, setSimLoading] = useState(false);
 
   const runSim = async () => {
@@ -24,6 +25,11 @@ export function DebtDetailScreen({ route }: Props) {
     setSimLoading(true);
     try {
       setSim(await debtsApi.simulateExtra(debtId, value));
+      // FIN-007: impacto en el Score vía el simulador unificado.
+      const impact = await simulationsApi
+        .run({ type: 'abono_extra', debtId, extraMonthly: value })
+        .catch(() => null);
+      setScoreDelta(impact ? impact.delta.score : null);
     } finally {
       setSimLoading(false);
     }
@@ -112,6 +118,14 @@ export function DebtDetailScreen({ route }: Props) {
             <Text style={{ color: colors.textMuted, marginTop: 4 }}>
               Nueva liquidación: {formatDate(sim.withExtra.payoffDate)}
             </Text>
+            {scoreDelta !== null ? (
+              <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
+                <Text style={{ color: colors.textMuted }}>Impacto en tu Score</Text>
+                <Text style={{ fontWeight: '800', color: scoreDelta >= 0 ? colors.success : colors.danger }}>
+                  {scoreDelta >= 0 ? '+' : ''}{scoreDelta} pts
+                </Text>
+              </Row>
+            ) : null}
           </View>
         ) : null}
       </Card>

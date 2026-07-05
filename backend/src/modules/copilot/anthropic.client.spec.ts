@@ -35,7 +35,7 @@ describe('AnthropicClient (§4.8)', () => {
     expect(url).toBe('https://api.anthropic.com/v1/messages');
     const body = JSON.parse(init.body);
     expect(body.system[0].cache_control).toEqual({ type: 'ephemeral' }); // prompt caching
-    expect(body.tools).toHaveLength(4); // snapshot, debts, score, memoria (FIN-006)
+    expect(body.tools).toHaveLength(5); // snapshot, debts, score, memoria, simulación (FIN-007)
     expect(init.headers['x-api-key']).toBe('sk-test');
   });
 
@@ -56,7 +56,7 @@ describe('AnthropicClient (§4.8)', () => {
     const client = buildClient();
     const result = await client.chat('{}', [{ role: 'user', content: 'deudas' }], executor);
 
-    expect(executor).toHaveBeenCalledWith('get_debts');
+    expect(executor).toHaveBeenCalledWith('get_debts', {}); // recibe el input de la tool
     expect(result.text).toBe('Con tus deudas…');
     expect(result.inputTokens).toBe(180); // suma de ambas rondas
   });

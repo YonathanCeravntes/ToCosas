@@ -1,9 +1,16 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SimulationsService } from '../simulations/simulations.service';
+import { ScenarioParams } from '../simulations/simulation-engine';
 import { AnthropicClient } from './anthropic.client';
 import { ConsentService } from './consent.service';
-import { ContextAssembler } from './context-assembler';
-import { detectIntent, renderTemplate } from './templates';
+import { ContextAssembler, toMinimizedSimulationView } from './context-assembler';
+import {
+  detectIntent,
+  parseSimulationIntent,
+  renderSimulationResult,
+  renderTemplate,
+} from './templates';
 import {
   AI_DAILY_LIMIT_FREE,
   AI_DAILY_LIMIT_PREMIUM,
@@ -33,6 +40,7 @@ export class CopilotService {
     private readonly consent: ConsentService,
     private readonly assembler: ContextAssembler,
     private readonly llm: AnthropicClient,
+    private readonly simulations: SimulationsService,
   ) {}
 
   async sendMessage(userId: string, content: string, conversationId?: string): Promise<CopilotReply> {
@@ -45,6 +53,38 @@ export class CopilotService {
     const context = await this.assembler.buildInitialContext(userId);
 
     // 1) Plantilla-primero (costo 0, disponible siempre).
+    // 1a) Simulaciones comunes por plantilla (FIN-007 §4.4: sin LLM).
+    const simIntent = parseSimulationIntent(content);
+    if (simIntent) {
+      try {
+        const params: ScenarioParams | null =
+          simIntent.intent === 'simular_abono'
+            ? context.debts.length > 0
+              ? {
+                  type: 'abono_extra',
+                  debtId: await this.simulations.resolveDebtRef(userId, this.worstDebtRef(context)),
+                  extraMonthly: simIntent.extraMonthly,
+                }
+              : null
+            : {
+                type: 'nueva_deuda',
+                amount: simIntent.amount,
+                termMonths: simIntent.termMonths,
+                ratePct: simIntent.ratePct ?? 20, // supuesto declarado en la respuesta
+                rateBasis: 'EA',
+              };
+        if (params) {
+          const result = await this.simulations.run(userId, params, 'copilot');
+          let reply = renderSimulationResult(result);
+          if (simIntent.intent === 'simular_deuda_nueva' && simIntent.ratePct === null) {
+            reply += '\n(Supuse una tasa de 20% EA; dime la tasa real para afinar el cálculo.)';
+          }
+          return this.persistReply(userId, conversation.id, reply, 'template', hasConsent);
+        }
+      } catch (e) {
+        this.logger.warn(`Simulación por plantilla falló: ${(e as Error).message}`);
+      }
+    }
     const intent = detectIntent(content);
     if (intent) {
       const reply = renderTemplate(intent, context, content);
@@ -84,8 +124,8 @@ export class CopilotService {
       await this.prisma.aiInteractionLog.create({
         data: { userId, conversationId: conversation.id, direction: 'request', purpose: 'chat', contextFieldGroups: groups },
       });
-      const result = await this.llm.chat(JSON.stringify(context), history, (tool) =>
-        this.executeTool(userId, tool),
+      const result = await this.llm.chat(JSON.stringify(context), history, (tool, input) =>
+        this.executeTool(userId, tool, input),
       );
       await this.prisma.aiInteractionLog.create({
         data: {
@@ -114,7 +154,7 @@ export class CopilotService {
   }
 
   /** Ejecutor de tools: mapea nombre → vista minimizada (única vía, §4.3-A). */
-  private executeTool(userId: string, tool: string) {
+  private async executeTool(userId: string, tool: string, input: Record<string, unknown>) {
     switch (tool) {
       case 'get_financial_snapshot':
         return this.assembler.buildSnapshotView(userId);
@@ -124,9 +164,64 @@ export class CopilotService {
         return this.assembler.buildScoreView(userId);
       case 'get_memory_and_insights':
         return this.assembler.buildMemoryView(userId);
+      case 'run_simulation': {
+        // FIN-007 §4.4: entrada tipada; refs "deuda #N" se resuelven en servidor.
+        const params = await this.toScenarioParams(userId, input);
+        const result = await this.simulations.run(userId, params, 'copilot');
+        return toMinimizedSimulationView(result);
+      }
       default:
         throw new ForbiddenException(`Tool desconocida: ${tool}`);
     }
+  }
+
+  private async toScenarioParams(
+    userId: string,
+    input: Record<string, unknown>,
+  ): Promise<ScenarioParams> {
+    const num = (k: string): number => {
+      const v = input[k];
+      if (typeof v !== 'number' || !isFinite(v)) {
+        throw new BadRequestException(`Parámetro numérico inválido: ${k}`);
+      }
+      return v;
+    };
+    const debtId = async () =>
+      this.simulations.resolveDebtRef(userId, String(input.debtRef ?? 'deuda #1'));
+
+    switch (input.scenario) {
+      case 'abono_extra':
+        return { type: 'abono_extra', debtId: await debtId(), extraMonthly: num('extraMonthly') };
+      case 'nueva_deuda':
+        return {
+          type: 'nueva_deuda',
+          amount: num('amount'),
+          termMonths: num('termMonths'),
+          ratePct: num('ratePct'),
+          rateBasis: 'EA',
+        };
+      case 'reducir_gastos':
+        return { type: 'reducir_gastos', monthlyAmount: num('monthlyAmount') };
+      case 'cambio_ingreso':
+        return { type: 'cambio_ingreso', newMonthlyIncome: num('newMonthlyIncome') };
+      case 'estrategia_deudas':
+        return { type: 'estrategia_deudas', extraBudget: num('extraBudget') };
+      case 'refinanciar':
+        return {
+          type: 'refinanciar',
+          debtId: await debtId(),
+          newRatePct: num('newRatePct'),
+          newRateBasis: 'EA',
+          newTermMonths: num('newTermMonths'),
+        };
+      default:
+        throw new BadRequestException('Escenario de simulación desconocido');
+    }
+  }
+
+  /** Ref de la deuda de mayor tasa (para el default del abono por plantilla). */
+  private worstDebtRef(context: { debts: Array<{ ref: string; ratePct: number }> }): string {
+    return [...context.debts].sort((a, b) => b.ratePct - a.ratePct)[0].ref;
   }
 
   async listConversations(userId: string) {
