@@ -1,17 +1,27 @@
-# ARQ-0005 · Copiloto Financiero (v2 — evolución de "Consejos")
+# ARQ-0005 · Copiloto Financiero (evolución de "Consejos") — **versión 2**
 
 - **Módulo/Feature:** FIN-005
 - **Autor:** Agente de Arquitectura
-- **Fecha:** 2026-07-05
-- **Estado:** Propuesto — en espera de AUD-0005 y DEC-0005
-- **Documentos base:** `ARQ-0001` · `DEC-0001` · `DEC-0003` · `DEC-0004` · `IMP-0004` (FIN-004 cerrado contra `c85117e`)
+- **Fecha:** 2026-07-05 (v2 — reenvío tras DEC-0005 RECHAZADO)
+- **Estado:** Propuesto v2 — en espera de AUD-0005 v2 y nuevo DEC-0005
+- **Documentos base:** `ARQ-0001` · `DEC-0001` · `DEC-0003` · `DEC-0004` · `IMP-0004` (`c85117e`) · **`AUD-0005` · `DEC-0005` (RECHAZADO)**
 - **Producto:** Millo
 
-> Autorizado por la validación del CTO que cierra FIN-004, **con condiciones de bloqueo
-> explícitas para el DEC**: por DEC-0001 §10.6/§10.7, el DEC-0005 no se emitirá hasta que
-> este ARQ especifique consentimiento/minimización hacia el LLM (lo hace en **§4.2–§4.4**,
-> núcleo del documento) y hasta que exista **validación legal** del encuadre (acción
-> externa del CTO — ver §17 "Bloqueos del DEC"). Trazabilidad en §16.
+> **Registro de cambios v2** (cierra los 4 cambios obligatorios de DEC-0005 §10):
+> 1. *Segunda vía de contexto (tools)* → cerrada en **§4.3-A**: las tools consumen
+>    exclusivamente las **vistas minimizadas** del `ContextAssembler`; el test de
+>    regresión cubre también las salidas de cada tool.
+> 2. *`Debt.name`/`FixedItem.name` (texto libre)* → **retirados del allowlist** (§4.3);
+>    sustituidos por identificadores no libres ("tu deuda #1 (hipotecario)"). Se extiende
+>    el mismo principio a nombres de **categorías creadas por el usuario** (§4.3-B).
+> 3. *Retención de `Conversation`/`Message`* → política explícita en **§4.7**, incluida
+>    la decisión sobre revocación de consentimiento.
+> 4. *Timeout/reintentos del cliente fetch* → especificados en **§4.8**.
+>
+> El marco ratificado por DEC-0005 §4 (opt-in real, allowlist, log sin texto, modo sin
+> IA como base, tools solo lectura, Haiku + plantilla-primero, gate de producción) se
+> mantiene sin cambios. El **bloqueo por validación legal** (DEC-0001 §10.7) sigue
+> vigente e independiente — ver §17.
 
 ---
 
@@ -80,25 +90,56 @@ Usuario escribe → CopilotService
   Copiloto cae a modo plantillas.
 - Endpoints: `POST /copilot/consent` (acepta, con versión) · `DELETE /copilot/consent`.
 
-### 4.3 Minimización de datos (mandato DEC-0001 §10.6 — parte 2)
+### 4.3 Minimización de datos (mandato DEC-0001 §10.6 — parte 2) — *v2*
 **Principio: allowlist, no blocklist.** El `ContextAssembler` es **el único módulo** que
-puede construir contexto para el LLM, y solo puede emitir los campos de esta tabla:
+puede construir estructuras destinadas al LLM (incluidas las respuestas de tools, §4.3-A),
+y solo puede emitir los campos de esta tabla:
 
 | Grupo | Campos permitidos (exactos) | Justificación |
 |---|---|---|
 | Identidad | — ninguno — (userId nunca; se usa "el usuario") | innecesario para interpretar |
 | Score | score, banda, versión, pilares (clave, valor 0–100, status), delta por pilar | núcleo del propósito |
 | Métricas | las 7 core + tendencias (valores numéricos del mes) | núcleo del propósito |
-| Deudas | nombre dado por el usuario, tipo, saldo, tasa+base, cuota, fecha fin proyectada | necesarios para explicar deuda |
-| Presupuesto | ingresos fijos (total), gastos fijos (total y top 3 por nombre+monto), disponible | necesarios para explicar flujo |
+| Deudas | **identificador no libre "deuda #N" (orden por fecha de creación)**, tipo (`DebtType`, enum), saldo, tasa+base, cuota, fecha fin proyectada | DEC-0005 §10.2: `Debt.name` es texto libre (mismo riesgo que `note`) → **excluido** |
+| Presupuesto | ingresos fijos (total), gastos fijos (total y top 3 como **"gasto fijo #N" + monto**), disponible | DEC-0005 §10.2: `FixedItem.name` **excluido** por texto libre |
 | Patrimonio | totales (activos, líquidos, fondo emergencia, pasivos, neto) | necesarios |
-| Transacciones | SOLO agregados por categoría del mes (nombre categoría + monto). Nunca movimientos individuales ni notas | las notas son texto libre del usuario (PII potencial) |
+| Transacciones | SOLO agregados por categoría del mes (**nombre solo si la categoría es global/curada; si es creada por el usuario → "categoría personalizada #N"**) + monto. Nunca movimientos individuales ni notas | extiende el mismo principio del texto libre (§4.3-B) |
 
 **Prohibido enviar (verificado por test):** email, teléfono, nombre completo,
-`userId`/ids internos, tokens, `note`/`rawMessage` de transacciones, números/nombres de
-cuenta bancaria, chatIds de Telegram, mensajes de WhatsApp. El spec del ContextAssembler
-incluye un test que serializa el contexto y **asegura que ninguno de estos campos
-aparece** (regresión automática de minimización).
+`userId`/ids internos, tokens, `note`/`rawMessage` de transacciones, **`Debt.name`,
+`FixedItem.name`, `Category.name` de categorías de usuario, `Account.name`,
+`Asset.name`**, números de cuenta, chatIds de Telegram, mensajes de WhatsApp.
+
+**Mapeo interno reversible:** el `ContextAssembler` mantiene por conversación el mapa
+`"deuda #1" → debtId` (solo en servidor, nunca enviado), de modo que la UI puede mostrar
+al usuario el nombre real que él escribió aunque el LLM solo haya visto "deuda #1
+(hipotecario)". La utilidad explicativa se preserva sin exponer texto libre a terceros.
+
+### 4.3-A Una sola vía de contexto — tools cubiertas (DEC-0005 §10.1) — *v2*
+Las tool-use **no llaman a los servicios de dominio directamente**. El `ContextAssembler`
+expone **vistas minimizadas tipadas** — las únicas estructuras que pueden cruzar hacia el
+LLM:
+
+```
+ContextAssembler
+  ├─ buildInitialContext(userId)  → MinimizedContext      (contexto del turno)
+  ├─ buildSnapshotView(userId)    → MinimizedSnapshotView (tool get_financial_snapshot)
+  ├─ buildDebtsView(userId)       → MinimizedDebtsView    (tool get_debts)
+  └─ buildScoreView(userId)       → MinimizedScoreView    (tool get_score_breakdown)
+```
+- El ejecutor de tools del `anthropic.client` **solo acepta** estos tipos de vista
+  (restricción de tipos + validación en runtime): no existe camino de código por el que
+  un objeto de `EngineService`/`HealthService`/`DebtsService` crudo llegue al LLM.
+- **El test de regresión de minimización serializa las 4 vistas** (contexto inicial + las
+  3 tools) sobre datos sembrados con PII deliberada en todos los campos libres (nombres,
+  notas, emails) y **asegura que ningún campo prohibido aparece** en ninguna de ellas.
+  Cumple DEC-0005 §10.1: la prueba cubre demostrablemente también lo que devuelven las tools.
+
+### 4.3-B Extensión del principio (no exigida, coherencia)
+`Category.name` de categorías **creadas por el usuario** es texto libre con el mismo
+perfil; se sustituye por "categoría personalizada #N". Las categorías **globales**
+(sembradas por Millo: "Arriendo", "Mercado"…) son texto curado del sistema y sí se
+envían por nombre — sin ellas, las explicaciones de gasto perderían casi toda utilidad.
 
 ### 4.4 Auditoría (hace la minimización *demostrable*)
 - Tabla `AiInteractionLog`: `id, userId, conversationId?, direction (request|response),
@@ -121,8 +162,9 @@ aparece** (regresión automática de minimización).
 - **Contexto compacto:** JSON estructurado ≤ ~1.5 KB (solo §4.3), historial acotado a los
   últimos N=10 mensajes.
 - **Tool-use SOLO LECTURA:** `get_financial_snapshot`, `get_debts`, `get_score_breakdown`
-  — resuelven en proceso contra los servicios existentes (Motor/Salud); ninguna tool
-  escribe ni dispara acciones.
+  — resuelven en proceso **exclusivamente a través de las vistas minimizadas del
+  `ContextAssembler`** (§4.3-A); ninguna tool escribe, dispara acciones ni accede a
+  servicios de dominio crudos.
 - **Límites:** free = 10 mensajes IA/día (plantillas ilimitadas); premium = 100/día.
   Al agotar: respuesta plantilla + CTA Millo+ (misma señal de monetización de FIN-004).
 - **System prompt con encuadre:** instrucciones fijas de tono educativo, "no eres asesor
@@ -133,6 +175,34 @@ aparece** (regresión automática de minimización).
 `COPILOT_PRODUCTION_ENABLED` (default `false`) con guard 503 en producción — mismo patrón
 ya aprobado y testeado en DEC-0004 §10.3. Independiente del flag de Salud (se activan por
 separado tras validación legal).
+
+### 4.7 Retención de `Conversation`/`Message` (DEC-0005 §10.3) — *v2*
+Decisión propuesta (explícita, no abierta):
+- **Revocación de consentimiento ≠ borrado del historial.** El consentimiento de §4.2
+  cubre el **envío de datos al LLM externo**, no el almacenamiento del chat en Millo (que
+  se rige por los términos generales de la app, igual que las transacciones que el propio
+  usuario escribe). Al revocar: (a) cesa de inmediato cualquier llamada futura al LLM,
+  (b) el historial **se conserva** y sigue visible para el usuario, (c) se registra
+  `consent_revoked` en el log.
+- **Control del usuario, independiente del consentimiento:** botón permanente **"Borrar
+  historial del Copiloto"** en Ajustes (elimina `Conversation`/`Message` del usuario de
+  forma inmediata e irreversible). El borrado es un derecho autónomo, no un efecto
+  secundario de la revocación.
+- **Retención general:** conversaciones sin actividad por **24 meses** se purgan por job
+  nocturno (mismo patrón cron aprobado). Eliminación de cuenta → cascade ya existente.
+- Racional: acoplar revocación con borrado destruiría datos que el usuario puede querer
+  conservar y le quitaría una decisión que le pertenece; separarlos da ambos controles.
+
+### 4.8 Resiliencia del cliente Anthropic (DEC-0005 §10.4) — *v2*
+- **Timeout:** 30 s por request (`AbortController`).
+- **Reintentos:** 1 reintento solo ante error de red o 5xx, con backoff de 1 s (la
+  request es sin estado; reintentarla es seguro). **429** (rate limit) → sin reintento.
+- **Fallo definitivo** (timeout agotado, 2º intento fallido, 4xx): respuesta por
+  **plantilla** con nota amable ("te respondo en modo básico") + `llm_error` en
+  `AiInteractionLog`.
+- **Circuit breaker simple:** 5 fallos consecutivos → la vía LLM se desactiva 5 minutos
+  (en memoria); durante ese lapso todo se responde por plantilla. Evita colas de
+  reintentos y costo en incidentes del proveedor.
 
 ## 5. Componentes involucrados
 **Nuevos (backend, módulo `copilot/`):** `consent.service.ts`, `context-assembler.ts`
@@ -206,8 +276,14 @@ central de la visión (ARQ-0001 Capa 3). Habilita FIN-006 (memoria/proactividad)
   (verificable en `AiInteractionLog` vacío).
 - Consentimiento: opt-in versionado registrado; revocación de un toque; re-consentimiento
   al subir la versión.
-- **Test de minimización en verde**: el contexto serializado no contiene ninguno de los
-  campos prohibidos (§4.3).
+- **Test de minimización en verde sobre las 4 vistas** (contexto inicial + 3 tools), con
+  datos sembrados con PII deliberada: ningún campo prohibido aparece (§4.3/§4.3-A).
+- Deudas/gastos fijos referidos como "deuda #N"/"gasto fijo #N" en el contexto LLM,
+  mientras la UI muestra el nombre real (mapeo servidor, §4.3).
+- Revocación conserva historial + "Borrar historial del Copiloto" funciona de forma
+  independiente; purga de conversaciones inactivas >24 meses (§4.7).
+- Cliente Anthropic: timeout 30s, 1 reintento (red/5xx), 429 sin reintento, circuit
+  breaker 5 fallos/5 min, fallback a plantilla (§4.8) — cubierto por tests con fetch mock.
 - Pregunta estándar → plantilla (sin tokens); pregunta abierta (con consentimiento y API
   key) → respuesta LLM anclada en números reales, con log de grupos de campos y tokens.
 - Límite free alcanzado → plantilla + CTA (y log del intento).
@@ -218,10 +294,13 @@ central de la visión (ARQ-0001 Capa 3). Habilita FIN-006 (memoria/proactividad)
 ## 14. Plan de implementación (tras DEC-0005)
 1. Migración: `Conversation`, `Message`, `AiInteractionLog`, columnas de consentimiento.
 2. `consent.service` + endpoints + tests (opt-in/versión/revocación).
-3. `context-assembler` + **spec de minimización** (allowlist/prohibidos).
+3. `context-assembler` con las **4 vistas minimizadas** (§4.3-A) + **spec de minimización
+   sobre las 4 vistas con PII sembrada** + mapeo "deuda #N"→id en servidor.
 4. `templates.ts` (score-delta, resumen del mes, glosario) + router + tests.
-5. `anthropic.client` (fetch, tool-use, caching, fallback) + tests con fetch mockeado.
-6. `copilot.service/controller` + límites por plan + guard de producción + purga del log.
+5. `anthropic.client` (fetch, tool-use restringido a vistas, caching, **timeout 30s +
+   1 retry + circuit breaker**, fallback) + tests con fetch mockeado.
+6. `copilot.service/controller` + límites por plan + guard de producción + purga del log
+   + **purga de conversaciones a 24 meses + endpoint "borrar historial"** (§4.7).
 7. Frontend: chat, onboarding de consentimiento, toggle en Ajustes, contador/CTA.
 8. E2E (modo plantillas sin key; modo IA con key si está disponible) + bundle.
 9. Commit + `IMP-0005-Copiloto-Financiero.md` con SHA + BACKLOG.
@@ -245,14 +324,21 @@ reutilizando FIN-004, y patrones ya aprobados (guard, jobs, gates de plan).
 | Gate técnico de producción (patrón) | DEC-0004 §10.3 | §4.6 (flag propio + guard 503) |
 | Referencia inmutable en IMP | GOBERNANZA | §13/§14.9 |
 | La IA interpreta, no calcula | ARQ-0001 (DEC-0001 §4.2) | §4.5/§9 (tools deterministas de solo lectura; instrucción de sistema) |
+| **Tools por la misma vía minimizada + test que las cubre** | **DEC-0005 §10.1** | **§4.3-A (vistas tipadas del ContextAssembler; test sobre las 4 vistas)** |
+| **Sin `Debt.name`/`FixedItem.name` en el contexto** | **DEC-0005 §10.2** | **§4.3 (identificadores no libres + mapeo servidor); §4.3-B extiende a categorías de usuario** |
+| **Política de retención de conversaciones** | **DEC-0005 §10.3** | **§4.7 (revocación conserva; borrado autónomo; purga 24 meses)** |
+| **Timeout/reintentos del cliente** | **DEC-0005 §10.4** | **§4.8 (30s, 1 retry, 429 sin retry, circuit breaker)** |
 
-## 17. Bloqueos del DEC-0005 (declarados, no resueltos por este ARQ)
-1. **Validación legal del encuadre regulatorio** (DEC-0001 §10.7): acción externa del CTO.
-   Este ARQ aporta el material a revisar: disclaimers (§4.5/§8), encuadre "información/
-   educación" en system prompt, gates técnicos (§4.6), consentimiento y minimización
-   (§4.2–§4.4). **Sin esa validación, el DEC-0005 no debe emitirse.**
+## 17. Bloqueos del nuevo DEC-0005 (declarados, no resueltos por este ARQ)
+1. **Validación legal del encuadre regulatorio** (DEC-0001 §10.7): acción externa del CTO,
+   **independiente de las correcciones v2** (así lo reitera DEC-0005 §11). Este ARQ aporta
+   el material a revisar: disclaimers (§4.5/§8), encuadre "información/educación" en system
+   prompt, gates técnicos (§4.6), consentimiento, minimización y retención (§4.2–§4.4, §4.7).
+   **Sin esa validación, el nuevo DEC-0005 no debe emitirse.**
 2. Ratificación de: proveedor sin SDK (fetch) vs SDK oficial; límites free/premium (10/100);
-   retención del log (12 meses); versión inicial del texto de consentimiento.
+   retención del log (12 meses) y de conversaciones (24 meses, §4.7); versión inicial del
+   texto de consentimiento; extensión de §4.3-B (categorías de usuario) que va más allá
+   del mandato literal de DEC-0005 §10.2.
 
 ---
 *Documento sujeto a gobernanza — ver [../GOBERNANZA.md](../GOBERNANZA.md). En espera de
