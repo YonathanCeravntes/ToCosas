@@ -1,9 +1,13 @@
 import { api } from './client';
 import {
+  AiConsentStatus,
   AmortizationEntry,
   Account,
   Asset,
   AuthResult,
+  CopilotConversation,
+  CopilotMessage,
+  CopilotReply,
   Category,
   Dashboard,
   Debt,
@@ -48,6 +52,17 @@ export const transactionsApi = {
 export const categoriesApi = {
   list: (kind?: string) =>
     api.get<Category[]>(`/categories${kind ? `?kind=${kind}` : ''}`),
+};
+
+export const copilotApi = {
+  send: (content: string, conversationId?: string) =>
+    api.post<CopilotReply>('/copilot/messages', { content, conversationId }),
+  conversations: () => api.get<CopilotConversation[]>('/copilot/conversations'),
+  messages: (id: string) => api.get<CopilotMessage[]>(`/copilot/conversations/${id}/messages`),
+  deleteHistory: () => api.delete<{ deletedConversations: number }>('/copilot/history'),
+  consentStatus: () => api.get<AiConsentStatus>('/copilot/consent'),
+  grantConsent: () => api.post<{ accepted: boolean }>('/copilot/consent'),
+  revokeConsent: () => api.delete<{ accepted: boolean }>('/copilot/consent'),
 };
 
 export const healthApi = {

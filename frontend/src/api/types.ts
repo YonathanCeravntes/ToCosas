@@ -191,6 +191,36 @@ export interface ScoreHistoryPoint {
   score: number;
 }
 
+// --- Copiloto Financiero (FIN-005) ---
+
+export interface CopilotReply {
+  conversationId: string;
+  reply: string;
+  source: 'template' | 'llm';
+  aiRemainingToday: number | null;
+}
+
+export interface CopilotMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  source: 'template' | 'llm';
+  createdAt: string;
+}
+
+export interface CopilotConversation {
+  id: string;
+  title: string | null;
+  updatedAt: string;
+}
+
+export interface AiConsentStatus {
+  accepted: boolean;
+  acceptedAt: string | null;
+  currentVersion: number;
+  consentText: string;
+}
+
 export type FixedKind = 'ingreso' | 'gasto';
 
 export interface FixedItem {

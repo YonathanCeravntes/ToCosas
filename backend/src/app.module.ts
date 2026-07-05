@@ -23,6 +23,7 @@ import { EventsModule } from './modules/events/events.module';
 import { AccountsModule } from './modules/accounts/accounts.module';
 import { FinancialEngineModule } from './modules/financial-engine/financial-engine.module';
 import { HealthModule } from './modules/health/health.module';
+import { CopilotModule } from './modules/copilot/copilot.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { HealthModule } from './modules/health/health.module';
     AccountsModule,
     FinancialEngineModule,
     HealthModule,
+    CopilotModule,
     // TODO (siguientes PRs): LLM fallback en el parser, OCR.
   ],
   controllers: [HealthController],

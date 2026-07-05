@@ -158,6 +158,24 @@ enum Plan {
   premium
 }
 
+// ---------- FIN-005 · Copiloto Financiero ----------
+
+enum MessageRole {
+  user
+  assistant
+}
+
+// Origen de la respuesta: plantilla determinista (costo 0) o LLM.
+enum MessageSource {
+  template
+  llm
+}
+
+enum AiLogDirection {
+  request
+  response
+}
+
 // ---------- Modelos ----------
 
 model User {
@@ -185,13 +203,15 @@ model User {
   devices      Device[]
   suggestions  Suggestion[]
   waLinks      WhatsappLink[]
-  fixedItems   FixedItem[]
-  tgLinks      TelegramLink[]
-  accounts     Account[]
-  assets       Asset[]
-  snapshots    FinancialSnapshot[]
-  metrics      MetricReading[]
-  settings     UserSettings?
+  fixedItems    FixedItem[]
+  tgLinks       TelegramLink[]
+  accounts      Account[]
+  assets        Asset[]
+  snapshots     FinancialSnapshot[]
+  metrics       MetricReading[]
+  conversations Conversation[]
+  aiLogs        AiInteractionLog[]
+  settings      UserSettings?
 
   @@map("users")
 }
@@ -582,6 +602,9 @@ model MetricReading {
 model UserSettings {
   userId             String   @id @map("user_id") @db.Uuid
   plan               Plan     @default(free)
+  // Consentimiento de IA (FIN-005, §4.2 del ARQ): opt-in versionado y revocable.
+  aiConsentAt        DateTime? @map("ai_consent_at")
+  aiConsentVersion   Int?      @map("ai_consent_version")
   reminderDefaults   Int[]    @default([3, 1, 0]) @map("reminder_defaults")
   notifPush          Boolean  @default(true) @map("notif_push")
   notifWhatsapp      Boolean  @default(false) @map("notif_whatsapp")
@@ -593,6 +616,57 @@ model UserSettings {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
+}
+
+// ---------- FIN-005 · Conversaciones del Copiloto ----------
+
+model Conversation {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  title     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([userId, updatedAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String        @id @default(uuid()) @db.Uuid
+  conversationId String        @map("conversation_id") @db.Uuid
+  role           MessageRole
+  content        String
+  source         MessageSource @default(template)
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+// Log de auditoría de interacciones con IA (§4.4 del ARQ): registra QUÉ grupos
+// de campos se enviaron y tokens/costo — NUNCA el texto (minimiza también el log).
+model AiInteractionLog {
+  id                 String         @id @default(uuid()) @db.Uuid
+  userId             String         @map("user_id") @db.Uuid
+  conversationId     String?        @map("conversation_id") @db.Uuid
+  direction          AiLogDirection
+  model              String?
+  purpose            String // chat | explain_indicator | consent_granted | consent_revoked | llm_error | premium_intent
+  contextFieldGroups String[]       @map("context_field_groups")
+  inputTokens        Int?           @map("input_tokens")
+  outputTokens       Int?           @map("output_tokens")
+  costEstimate       Decimal?       @map("cost_estimate") @db.Decimal(10, 6)
+  createdAt          DateTime       @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("ai_interaction_logs")
 }
 
 model WebhookEvent {

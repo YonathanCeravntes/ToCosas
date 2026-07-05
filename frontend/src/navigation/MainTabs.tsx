@@ -7,7 +7,7 @@ import { HealthScreen } from '../screens/HealthScreen';
 import { DebtsNavigator } from './DebtsNavigator';
 import { AddTransactionScreen } from '../screens/transactions/AddTransactionScreen';
 import { BudgetScreen } from '../screens/BudgetScreen';
-import { InsightsScreen } from '../screens/InsightsScreen';
+import { CopilotScreen } from '../screens/CopilotScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { MainTabsParamList } from './types';
 
@@ -58,8 +58,8 @@ export function MainTabs() {
       />
       <Tab.Screen
         name="Insights"
-        component={InsightsScreen}
-        options={{ title: 'Consejos', tabBarIcon: icon('💡') }}
+        component={CopilotScreen}
+        options={{ title: 'Copiloto', tabBarIcon: icon('🤖') }}
       />
       <Tab.Screen
         name="Settings"
