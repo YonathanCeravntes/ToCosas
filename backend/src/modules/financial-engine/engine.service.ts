@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { computeNetWorth } from '../accounts/networth.util';
+import { computeScore, SCORE_VERSION } from '../health/score.util';
 import { computeCoreMetrics, MetricValue } from './metrics/core-metrics';
 import { daysBetween, monthStart } from './metrics/series.util';
-import { COLD_START_DAYS } from './engine.constants';
+import { COLD_START_DAYS, MetricKey } from './engine.constants';
 
 /**
  * Núcleo del Motor Financiero (FIN-003). `recompute(userId)` es una función de
@@ -79,7 +80,47 @@ export class EngineService {
     });
 
     await this.upsertReadings(userId, metrics, from, 'month');
+
+    // Score Millo v1 (FIN-004, integración aditiva DEC-0004 §11.3): función pura
+    // sobre las métricas recién calculadas + tendencia de patrimonio si existe.
+    await this.recomputeScore(userId, metrics, from);
     return metrics;
+  }
+
+  /** Calcula y persiste el Score y sus pilares como lecturas de la serie. */
+  private async recomputeScore(
+    userId: string,
+    metrics: MetricValue[],
+    capturedAt: Date,
+  ): Promise<void> {
+    const get = (key: string) => metrics.find((m) => m.metricKey === key)?.value ?? null;
+    const trend = await this.prisma.metricReading.findFirst({
+      where: {
+        userId,
+        metricKey: MetricKey.TrendNetWorth,
+        period: 'month',
+        capturedAt,
+      },
+    });
+
+    const result = computeScore({
+      liquidityRunway: get(MetricKey.LiquidityRunway),
+      dti: get(MetricKey.Dti),
+      savingsRate: get(MetricKey.SavingsRate),
+      emergencyFundMonths: get(MetricKey.EmergencyFundMonths),
+      netWorth: get(MetricKey.NetWorth),
+      netWorthTrend: trend ? Number(trend.value) : null,
+      essentialExpense: get(MetricKey.EssentialExpense),
+    });
+
+    const readings: MetricValue[] = [
+      { metricKey: 'score', value: result.score },
+      { metricKey: 'score.version', value: SCORE_VERSION },
+      ...result.pillars
+        .filter((p) => p.value !== null)
+        .map((p) => ({ metricKey: `score.${p.key}`, value: p.value as number })),
+    ];
+    await this.upsertReadings(userId, readings, capturedAt, 'month');
   }
 
   /** Upsert idempotente de lecturas en la serie. */

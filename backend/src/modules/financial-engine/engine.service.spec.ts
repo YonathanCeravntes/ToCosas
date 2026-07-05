@@ -24,7 +24,11 @@ function buildPrisma(overrides: Partial<Record<string, unknown>> = {}) {
       ]),
     },
     asset: { findMany: jest.fn().mockResolvedValue([]) },
-    metricReading: { upsert: jest.fn().mockResolvedValue({}) },
+    metricReading: {
+      upsert: jest.fn().mockResolvedValue({}),
+      // Usado por la integración del Score (FIN-004) para leer trend.net_worth.
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
     ...overrides,
   } as never;
 }
@@ -42,10 +46,16 @@ describe('EngineService', () => {
     expect(get(MetricKey.Dti)).toBe(0.125); // 500k / max(0, 4M)
     expect(get(MetricKey.NetWorth)).toBe(-7_000_000); // 3M − 10M
 
-    // Upsert idempotente: ancla del mes + clave compuesta única.
+    // Upsert idempotente: ancla del mes + clave compuesta única. Además de las
+    // métricas core, el ciclo persiste el Score y sus pilares (FIN-004).
     const upsert = (prisma as never as { metricReading: { upsert: jest.Mock } })
       .metricReading.upsert;
-    expect(upsert).toHaveBeenCalledTimes(metrics.length);
+    const keys = upsert.mock.calls.map(
+      (c) => c[0].where.userId_metricKey_period_capturedAt.metricKey as string,
+    );
+    expect(keys.filter((k) => !k.startsWith('score'))).toHaveLength(metrics.length);
+    expect(keys).toContain('score');
+    expect(keys).toContain('score.version');
     const call = upsert.mock.calls[0][0];
     expect(call.where.userId_metricKey_period_capturedAt.capturedAt.toISOString()).toBe(
       '2026-07-01T00:00:00.000Z',

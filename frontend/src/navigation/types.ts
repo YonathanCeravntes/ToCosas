@@ -13,6 +13,7 @@ export type DebtsStackParamList = {
 
 export type MainTabsParamList = {
   Dashboard: undefined;
+  Health: undefined;
   Debts: NavigatorScreenParams<DebtsStackParamList>;
   Budget: undefined;
   Add: undefined;

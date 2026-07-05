@@ -3,6 +3,7 @@ import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { colors } from '../theme/colors';
 import { DashboardScreen } from '../screens/DashboardScreen';
+import { HealthScreen } from '../screens/HealthScreen';
 import { DebtsNavigator } from './DebtsNavigator';
 import { AddTransactionScreen } from '../screens/transactions/AddTransactionScreen';
 import { BudgetScreen } from '../screens/BudgetScreen';
@@ -34,6 +35,11 @@ export function MainTabs() {
         name="Dashboard"
         component={DashboardScreen}
         options={{ title: 'Inicio', tabBarIcon: icon('🏠') }}
+      />
+      <Tab.Screen
+        name="Health"
+        component={HealthScreen}
+        options={{ title: 'Salud', tabBarIcon: icon('🩺') }}
       />
       <Tab.Screen
         name="Debts"

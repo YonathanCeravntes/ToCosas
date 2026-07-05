@@ -10,7 +10,9 @@ import {
   DebtsSummary,
   FixedItem,
   FixedKind,
+  HealthScore,
   MonthlyBudget,
+  ScoreHistoryPoint,
   NetWorth,
   StartLinkResult,
   StartTelegramLinkResult,
@@ -46,6 +48,11 @@ export const transactionsApi = {
 export const categoriesApi = {
   list: (kind?: string) =>
     api.get<Category[]>(`/categories${kind ? `?kind=${kind}` : ''}`),
+};
+
+export const healthApi = {
+  score: () => api.get<HealthScore>('/health/score'),
+  history: () => api.get<ScoreHistoryPoint[]>('/health/score/history'),
 };
 
 export const accountsApi = {

@@ -151,6 +151,13 @@ enum BalanceEntrySource {
   import
 }
 
+// Plan del usuario (señal de monetización FIN-004, DEC-0001 §10.8). Sin billing
+// real todavía: el flag se activa manualmente para testing.
+enum Plan {
+  free
+  premium
+}
+
 // ---------- Modelos ----------
 
 model User {
@@ -574,6 +581,7 @@ model MetricReading {
 
 model UserSettings {
   userId             String   @id @map("user_id") @db.Uuid
+  plan               Plan     @default(free)
   reminderDefaults   Int[]    @default([3, 1, 0]) @map("reminder_defaults")
   notifPush          Boolean  @default(true) @map("notif_push")
   notifWhatsapp      Boolean  @default(false) @map("notif_whatsapp")

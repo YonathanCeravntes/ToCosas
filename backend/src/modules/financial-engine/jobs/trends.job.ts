@@ -50,6 +50,9 @@ export class TrendsJob {
       try {
         await this.computeTrends(userId, now);
         anomalies += await this.computeAnomalies(userId, now);
+        // La tendencia alimenta el pilar Patrimonio del Score (FIN-004):
+        // recompute refresca score.* con la tendencia recién calculada.
+        await this.engine.recompute(userId, now);
       } catch (e) {
         this.logger.error(`trends(${userId}) falló: ${(e as Error).message}`);
       }

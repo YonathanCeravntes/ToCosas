@@ -147,6 +147,50 @@ export interface NetWorth {
   liabilities: Array<{ id: string; name: string; currentBalance: number }>;
 }
 
+// --- Salud Financiera (FIN-004) ---
+
+export type ScoreBand = 'critico' | 'fragil' | 'estable' | 'saludable' | 'elite';
+export type IndicatorLevel = 'verde' | 'amarillo' | 'rojo' | 'sin_datos';
+
+export interface ScorePillar {
+  key: 'liquidity' | 'debt' | 'savings' | 'wealth';
+  label: string;
+  weight: number;
+  value: number | null;
+  status: string;
+  delta: number | null;
+}
+
+export interface HealthIndicator {
+  key: string;
+  title: string;
+  value: number | null;
+  display: string;
+  level: IndicatorLevel;
+  meaning: string;
+  howComputed: string;
+  ranges: string;
+  actions: string[];
+}
+
+export interface HealthScore {
+  period: string;
+  score: number | null;
+  band: ScoreBand | null;
+  version: number;
+  delta: number | null;
+  deltaByPillar: Array<{ pillar: string; delta: number }>;
+  pillars: ScorePillar[];
+  coldStart: { historyDays: number; requiredDays: number; enabled: boolean; remainingDays: number };
+  indicators: HealthIndicator[];
+  disclaimer: string;
+}
+
+export interface ScoreHistoryPoint {
+  period: string;
+  score: number;
+}
+
 export type FixedKind = 'ingreso' | 'gasto';
 
 export interface FixedItem {
