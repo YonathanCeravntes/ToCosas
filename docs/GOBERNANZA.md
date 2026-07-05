@@ -43,3 +43,14 @@ sin commitear). Todo `IMP-XXXX` debe declarar el **SHA de commit** exacto sobre 
 se hicieron las pruebas reportadas (`git log -1 --format=%H` de la punta entregada). El
 CTO valida contra ese commit (`git show`/checkout aislado), nunca contra un working tree
 sin commitear. Un IMP sin SHA de commit verificable se rechaza sin excepción.
+
+## Vistas minimizadas obligatorias para toda tool de LLM
+Añadida tras el ciclo de FIN-005 (ARQ-0005 v1, rechazado por DEC-0005: las tool-use de
+un LLM eran una segunda vía de contexto no cubierta por el allowlist de minimización).
+Toda tool expuesta a un modelo de lenguaje (presente o futura, cualquier ARQ que la
+introduzca) debe construir su resultado a través de las mismas vistas minimizadas del
+módulo responsable (equivalente al `ContextAssembler` de FIN-005), nunca llamando
+directamente a servicios de dominio crudos. El ARQ correspondiente debe incluir un test
+de regresión que serialice cada vista con PII sembrada deliberadamente y verifique que
+ningún campo prohibido aparece. Un ARQ que introduzca una tool de LLM sin este patrón se
+rechaza sin excepción.
