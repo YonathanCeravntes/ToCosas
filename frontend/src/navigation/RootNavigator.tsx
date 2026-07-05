@@ -10,6 +10,7 @@ import { LinkWhatsAppScreen } from '../screens/whatsapp/LinkWhatsAppScreen';
 import { LinkTelegramScreen } from '../screens/telegram/LinkTelegramScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
 import { SimulatorScreen } from '../screens/SimulatorScreen';
+import { AchievementsScreen } from '../screens/AchievementsScreen';
 import { registerForPush } from '../notifications/push';
 import { RootStackParamList } from './types';
 
@@ -60,6 +61,11 @@ export function RootNavigator() {
               name="Simulator"
               component={SimulatorScreen}
               options={{ headerShown: true, title: '¿Qué pasa si…?' }}
+            />
+            <Stack.Screen
+              name="Achievements"
+              component={AchievementsScreen}
+              options={{ headerShown: true, title: 'Tu progreso' }}
             />
           </>
         ) : (

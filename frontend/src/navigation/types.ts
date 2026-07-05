@@ -28,4 +28,5 @@ export type RootStackParamList = {
   LinkTelegram: undefined;
   Accounts: undefined;
   Simulator: undefined;
+  Achievements: undefined;
 };

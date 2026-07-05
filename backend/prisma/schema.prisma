@@ -240,6 +240,18 @@ enum NotificationKind {
   proactivo
 }
 
+// ---------- FIN-008 · Gamificación ----------
+
+enum StreakKind {
+  registro_semanal
+}
+
+enum ChallengeStatus {
+  active
+  completed
+  failed
+}
+
 // ---------- Modelos ----------
 
 model User {
@@ -280,6 +292,9 @@ model User {
   simulations     Simulation[]
   recommendations Recommendation[]
   notifLogs       NotificationLog[]
+  streaks         Streak[]
+  achievements    Achievement[]
+  challenges      Challenge[]
   settings        UserSettings?
 
   @@map("users")
@@ -800,6 +815,57 @@ model NotificationLog {
 
   @@index([userId, sentAt])
   @@map("notification_logs")
+}
+
+// ---------- FIN-008 · Gamificación ----------
+
+// Racha de constancia (semanas ISO consecutivas con ≥1 movimiento).
+model Streak {
+  id         String     @id @default(uuid()) @db.Uuid
+  userId     String     @map("user_id") @db.Uuid
+  kind       StreakKind @default(registro_semanal)
+  current    Int        @default(0)
+  best       Int        @default(0)
+  lastPeriod String?    @map("last_period") // YYYY-Www (ISO)
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind])
+  @@map("streaks")
+}
+
+// Logro desbloqueado (catálogo curado en código; se gana una sola vez).
+model Achievement {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  code       String
+  unlockedAt DateTime  @default(now()) @map("unlocked_at")
+  seenAt     DateTime? @map("seen_at") // para la celebración in-app
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, code])
+  @@map("achievements")
+}
+
+// Reto mensual (1 por usuario/mes, asignado por elegibilidad DEC-0008 §10.2).
+model Challenge {
+  id        String          @id @default(uuid()) @db.Uuid
+  userId    String          @map("user_id") @db.Uuid
+  code      String
+  month     String // YYYY-MM
+  target    Json?
+  progress  Json?
+  status    ChallengeStatus @default(active)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, code, month])
+  @@index([userId, month])
+  @@map("challenges")
 }
 
 // ---------- FIN-005 · Conversaciones del Copiloto ----------

@@ -28,6 +28,7 @@ import { InsightsModule } from './modules/insights/insights.module';
 import { MemoryModule } from './modules/memory/memory.module';
 import { SimulationsModule } from './modules/simulations/simulations.module';
 import { RecommendationsModule } from './modules/recommendations/recommendations.module';
+import { GamificationModule } from './modules/gamification/gamification.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { RecommendationsModule } from './modules/recommendations/recommendations
     MemoryModule,
     SimulationsModule,
     RecommendationsModule,
+    GamificationModule,
     // TODO (siguientes PRs): LLM fallback en el parser, OCR.
   ],
   controllers: [HealthController],

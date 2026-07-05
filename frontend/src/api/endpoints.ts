@@ -14,6 +14,7 @@ import {
   DebtsSummary,
   FixedItem,
   FixedKind,
+  GamificationProfile,
   HealthScore,
   Insight,
   MonthlyBudget,
@@ -56,6 +57,11 @@ export const transactionsApi = {
 export const categoriesApi = {
   list: (kind?: string) =>
     api.get<Category[]>(`/categories${kind ? `?kind=${kind}` : ''}`),
+};
+
+export const gamificationApi = {
+  profile: () => api.get<GamificationProfile>('/gamification/profile'),
+  markSeen: () => api.post<{ ok: boolean }>('/gamification/achievements/seen'),
 };
 
 export const simulationsApi = {

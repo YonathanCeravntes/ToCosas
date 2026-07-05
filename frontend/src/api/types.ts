@@ -247,6 +247,29 @@ export interface Recommendation {
   status: 'new' | 'seen' | 'dismissed' | 'done';
 }
 
+// --- Gamificación (FIN-008) ---
+
+export interface GamificationProfile {
+  xp: number;
+  level: { number: number; name: string; nextAt: number | null };
+  streak: { current: number; best: number };
+  achievements: Array<{
+    code: string;
+    title: string;
+    condition: string;
+    xp: number;
+    unlockedAt: string | null;
+    seenAt: string | null;
+  }>;
+  challenge: {
+    code: string;
+    title: string;
+    body: string;
+    status: 'active' | 'completed' | 'failed';
+    progress: Record<string, number> | null;
+  } | null;
+}
+
 // --- Copiloto Financiero (FIN-005) ---
 
 export interface CopilotReply {
