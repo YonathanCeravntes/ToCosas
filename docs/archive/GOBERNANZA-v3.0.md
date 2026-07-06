@@ -1,10 +1,12 @@
 # Gobernanza oficial del proyecto Milla
 
-- **Versión:** 3.2
+- **Versión:** 3.0
 - **Fecha de adopción:** 2026-07-06
-- **Autor:** CTO, directriz del Fundador (Yonathan Cervantes) tras la validación de
-  FIN-012
-- **Estado:** Vigente
+- **Autor:** CTO (propuesta consolidada), aprobada por el Fundador (Yonathan Cervantes)
+- **Estado:** ARCHIVADA 2026-07-06 — reemplazada por v3.1 (`docs/GOBERNANZA.md`), que
+  añade el proceso de incorporación de nuevos agentes de IA y `AI_REGISTRY.md`.
+  Conservada por la regla de archivo histórico (sección 20). No se elimina
+  documentación oficial.
 - **Historial de cambios:**
   - v1.0 (2026-07-04) — flujo original `ARQ → AUD → DEC → IMP`, backlog, numeración.
   - v2.0 (2026-07-06) — organigrama formal (Fundador/CPO/CTO/Arquitecto/Auditor),
@@ -12,18 +14,12 @@
     fecha (referencia inmutable, vistas minimizadas, un FIN a la vez, documentación
     como única fuente de verdad, estado por artefactos verificables, acciones
     correctivas, regularización extraordinaria FIN-013–016).
-  - v3.0 (2026-07-06) — añade la Gobernanza Estratégica del Producto (CPSAO,
-    laboratorio de ideas, `docs/producto/`) como capa previa al Backlog, y cuatro
-    principios transversales nuevos: independencia de roles, trazabilidad completa
-    por referencias cruzadas, versionado documental, y archivo histórico
-    (`docs/archive/`). Archivada en `docs/archive/GOBERNANZA-v3.0.md`.
-  - **v3.1 (2026-07-06) — esta versión.** Añade el proceso de incorporación de nuevos
-    agentes de IA al ecosistema (sección 22) y el registro `AI_REGISTRY.md` (sección
-    23), con los 3 refinamientos del CTO ratificados por el Fundador: revisión del
-    Auditor sobre acceso a datos/privacidad, cierre formal no automático a cargo del
-    CTO, y administración exclusiva del registro por el CTO. Añade además el
-    principio "Prioridad de ejecución sobre documentación" (sección 24), por
-    directriz expresa del Fundador. No modifica ninguna regla permanente de v3.0.
+  - **v3.0 (2026-07-06) — esta versión.** Añade la Gobernanza Estratégica del
+    Producto (CPSAO, laboratorio de ideas, `docs/producto/`) como capa previa al
+    Backlog, y cuatro principios transversales nuevos: independencia de roles,
+    trazabilidad completa por referencias cruzadas, versionado documental, y
+    archivo histórico (`docs/archive/`). No modifica ninguna regla permanente de
+    v2.0 ni el flujo de desarrollo vigente.
 
 Todo cambio que afecte **lógica de negocio, arquitectura, base de datos, seguridad,
 IA, APIs, permisos, integraciones, monetización o experiencia funcional** sigue este
@@ -349,52 +345,6 @@ el CTO lo consideran necesario) para garantizar que continúa siendo adecuada co
 evolucione Milla. Toda modificación sigue el mismo flujo de aprobación ya establecido:
 propuesta documentada del CTO → revisión y ajustes del Fundador → autorización expresa
 antes de entrar en vigor.
-
-## 22. Incorporación de nuevos agentes de IA al ecosistema (nueva en v3.1)
-
-Propuesta original del CPSAO, ratificada por el Fundador con 3 refinamientos del CTO.
-**Ninguna IA pertenece oficialmente al proyecto solo por haber sido creada.** Flujo
-obligatorio para incorporar un nuevo agente estratégico:
-
-1. El CPSAO presenta la propuesta estratégica del nuevo agente (valor, objetivo,
-   alcance).
-2. El CTO evalúa: valor para el producto, prioridad, riesgos, impacto, conveniencia.
-   Puede aprobar, rechazar o pedir ajustes.
-3. Si el CTO aprueba, el CPSAO diseña el Prompt Maestro del agente.
-4. El Fundador crea el nuevo Chat IA con ese Prompt Maestro.
-5. El Arquitecto define cómo el agente interactúa con la gobernanza documental: qué
-   documentos consulta, cuáles genera, cuándo interviene. Si el agente tendrá acceso a
-   datos de usuario o funcionará como tool de un LLM, aplica la regla permanente de
-   "vistas minimizadas obligatorias para toda tool de LLM" sin excepción.
-6. **El Auditor revisa** los aspectos de acceso a datos, privacidad y cumplimiento de
-   vistas minimizadas antes de la incorporación oficial (cuando corresponda — no
-   aplica a agentes sin acceso a datos de usuario).
-7. **Cierre formal, no automático:** el agente no queda incorporado por el solo hecho
-   de completar los pasos 1-6. El CTO emite un registro de cierre en `AI_REGISTRY.md`
-   (sección 23), equivalente al `DEC` que cierra un `FIN`. Solo entonces el agente
-   forma parte oficial del ecosistema de Milla.
-
-## 23. Registro de agentes de IA — `AI_REGISTRY.md` (nueva en v3.1)
-
-`docs/producto/AI_REGISTRY.md` registra todos los agentes oficiales del proyecto.
-**Administrado exclusivamente por el CTO** (mismo patrón que `BACKLOG.md` y
-`LAB.md` — ningún otro rol lo edita directamente). Campos mínimos por agente:
-Identificador único · Nombre · Objetivo · Estado (`propuesto` / `aprobado` /
-`oficial` / `retirado`) · Fecha de incorporación · Responsable del Prompt Maestro ·
-Documentos que puede consultar · Documentos que puede generar · Restricciones ·
-**Cumple vistas minimizadas: Sí / No / No aplica** · Historial de versiones.
-
-## 24. Prioridad de ejecución sobre documentación (nueva en v3.1)
-
-Directriz expresa del Fundador (2026-07-06): la fase de definición de la gobernanza
-alcanzó madurez suficiente; el foco principal del proyecto pasa a ser la ejecución.
-Consecuencias operativas: (1) toda propuesta busca convertirse en valor real para
-Milla lo antes posible; (2) las interacciones CPSAO-CTO se orientan a responder "¿cuál
-es la siguiente acción concreta que más valor aporta al producto?"; (3) no se genera
-documentación por generar documentación — la documentación sigue existiendo cuando es
-necesaria para calidad y trazabilidad, pero deja de ser un fin en sí mismo. Esta regla
-no elimina ninguna fase obligatoria del ciclo `ARQ→AUD→DEC→IMP→VALIDACIÓN→CERRADO` ni
-las reglas permanentes existentes — regula el criterio de priorización, no el proceso.
 
 ---
 
