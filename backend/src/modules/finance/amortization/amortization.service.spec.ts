@@ -182,3 +182,66 @@ describe('AmortizationService', () => {
     });
   });
 });
+
+describe('FIN-012 · abono único a capital (DEC-0012 §10 — 3 tests obligatorios)', () => {
+  const svc = new AmortizationService();
+  const from = new Date(Date.UTC(2026, 6, 1));
+  const i = 0.01; // 1% mensual (ancla oficial del DEC)
+  const cuota = svc.computeMonthlyPayment(10_000_000, i, 24); // 470.734,72
+
+  it('obligatorio #1a — ancla a mano: reducir_plazo con abono de 2M → 19 cuotas restantes (antes 24)', () => {
+    const r = svc.prepaymentReceipt(10_000_000, i, cuota, 24, 2_000_000, 'reducir_plazo', from);
+    expect(cuota).toBe(470_734.72);
+    expect(r.before.months).toBe(24);
+    expect(r.after.months).toBe(19); // n = −ln(1−80.000/470.734,72)/ln(1,01) ≈ 18,72 → 19
+    expect(r.newMonthlyPayment).toBe(cuota); // la cuota NO cambia
+    expect(r.interestSaved).toBeGreaterThan(0);
+    expect(r.newBalance).toBe(8_000_000);
+  });
+
+  it('obligatorio #1b — ancla a mano: reducir_cuota con abono de 2M → nueva cuota 376.587,78 (fórmula cerrada)', () => {
+    const r = svc.prepaymentReceipt(10_000_000, i, cuota, 24, 2_000_000, 'reducir_cuota', from);
+    // Verificado a mano por el Auditor como ≈376.587,79 (proporcionalidad 0,8×cuota);
+    // el valor exacto por fórmula cerrada redondeado a centavos es 376.587,78 —
+    // diferencia de 1 centavo por cadena de redondeo, declarada en IMP-0012.
+    expect(r.newMonthlyPayment).toBe(svc.computeMonthlyPayment(8_000_000, i, 24));
+    expect(r.newMonthlyPayment).toBeCloseTo(376_587.79, 0);
+    expect(r.newMonthlyPayment).toBe(376_587.78);
+    expect(r.after.months).toBe(24); // el plazo NO cambia
+    expect(r.paymentSaved).toBeCloseTo(cuota - 376_587.78, 2);
+  });
+
+  it('obligatorio #2 — NO-inflación: el ahorro del abono ÚNICO es estrictamente MENOR que el de simulateExtraPayment (recurrente)', () => {
+    // Esta es la confusión que originó el bloqueo de FIN-012 en DEC-0011:
+    // simulateExtraPayment modela 2M EXTRA CADA MES, no un abono único de 2M.
+    const unico = svc.prepaymentReceipt(10_000_000, i, cuota, 24, 2_000_000, 'reducir_plazo', from);
+    const recurrente = svc.simulateExtraPayment(
+      { principal: 10_000_000, interestRate: 12.6825, rateBasis: 'NMV', termMonths: 24, startDate: from },
+      2_000_000,
+    );
+    expect(unico.interestSaved).toBeLessThan(recurrente.interestSaved);
+  });
+
+  it('obligatorio #3 — regresión de semántica: simulateExtraPayment devuelve EXACTAMENTE lo mismo que antes de este ciclo (snapshot de valores)', () => {
+    const r = svc.simulateExtraPayment(
+      { principal: 10_000_000, interestRate: 24, rateBasis: 'EA', termMonths: 36, startDate: from },
+      300_000,
+    );
+    expect(r.baseline).toEqual({ months: 36, totalInterest: 3_693_701.88, payoffDate: '2029-07-01' });
+    expect(r.withExtra).toEqual({ months: 18, totalInterest: 1_730_564.42, payoffDate: '2028-01-01' });
+    expect(r.interestSaved).toBe(1_963_137.46);
+    expect(r.monthsSaved).toBe(18);
+  });
+
+  it('remainingSchedule: valida cuota insuficiente y absorbe residuo de redondeo ≤ $1 en la última cuota', () => {
+    expect(() => svc.remainingSchedule(1_000_000, 0.02, 20_000, from)).toThrow(/no cubre/);
+    const plan = svc.remainingSchedule(10_000_000, i, cuota, from);
+    expect(plan.months).toBe(24); // sin "cuota fantasma" de centavos
+    expect(plan.entries[plan.entries.length - 1].closingBalance).toBe(0);
+  });
+
+  it('prepaymentReceipt: rechaza abono ≥ saldo (debe usarse payoff) y abono no positivo', () => {
+    expect(() => svc.prepaymentReceipt(1_000_000, i, 100_000, 12, 1_000_000, 'reducir_plazo', from)).toThrow(/pago total/);
+    expect(() => svc.prepaymentReceipt(1_000_000, i, 100_000, 12, 0, 'reducir_plazo', from)).toThrow(/mayor a 0/);
+  });
+});

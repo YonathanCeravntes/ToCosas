@@ -53,20 +53,24 @@ export class TransactionsService {
 
     return this.prisma.$transaction(async (tx) => {
       if (dto.kind === 'pago_deuda' && dto.debtId) {
-        const debt = await tx.debt.findFirst({
-          where: { id: dto.debtId, userId, deletedAt: null },
-        });
-        if (!debt) throw new NotFoundException('Deuda no encontrada');
-
-        const newBalance = Number(debt.currentBalance) - dto.amount;
-        const clamped = newBalance < 0 ? 0 : newBalance;
-        await tx.debt.update({
-          where: { id: debt.id },
-          data: {
-            currentBalance: clamped,
-            status: clamped === 0 ? 'pagada' : debt.status,
-          },
-        });
+        // FIN-012 (DEC-0012 §4.3, cambio obligatorio #2): una sola sentencia
+        // atómica condicional — cierra la condición de carrera del antiguo
+        // findFirst + update calculado en memoria ("última escritura gana").
+        // El clamp a 0 y la marca 'pagada' pasan a la BD: mismo comportamiento
+        // funcional de siempre, ahora sin ventana entre lectura y escritura.
+        const rows = await tx.$queryRaw<{ id: string }[]>`
+          UPDATE debts
+             SET current_balance = GREATEST(current_balance - ${dto.amount}, 0),
+                 status = CASE
+                   WHEN current_balance - ${dto.amount} <= 0.005 THEN 'pagada'::"DebtStatus"
+                   ELSE status
+                 END,
+                 updated_at = now()
+           WHERE id = ${dto.debtId}::uuid
+             AND user_id = ${userId}::uuid
+             AND deleted_at IS NULL
+          RETURNING id`;
+        if (rows.length === 0) throw new NotFoundException('Deuda no encontrada');
       }
 
       const created = await tx.transaction.create({

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Card, Field, Row } from '../../components/ui';
 import { colors, radius, spacing } from '../../theme/colors';
 import { formatDate, formatMoney } from '../../utils/format';
-import { DebtInsurance, PaymentBreakdown, toNumber } from '../../api/types';
+import { DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, toNumber } from '../../api/types';
 import { debtsApi, simulationsApi, SimulateResult } from '../../api/endpoints';
 import { useApi } from '../../utils/useApi';
 import { DebtsStackParamList } from '../../navigation/types';
@@ -90,6 +90,11 @@ export function DebtDetailScreen({ route }: Props) {
         </Card>
       ) : null}
 
+      {/* FIN-012: abono a capital y pago total anticipado (REALES) */}
+      {data.status === 'activa' ? (
+        <PrepaySection debtId={debtId} balance={toNumber(data.currentBalance)} onChanged={() => void reload()} />
+      ) : null}
+
       {/* FIN-013: seguros del crédito y desglose de cuota real */}
       <InsuranceSection
         debtId={debtId}
@@ -164,6 +169,164 @@ export function DebtDetailScreen({ route }: Props) {
         </Text>
       ) : null}
     </ScrollView>
+  );
+}
+
+/** FIN-012: abono a capital con preview=recibo (misma función pura en backend). */
+function PrepaySection({
+  debtId,
+  balance,
+  onChanged,
+}: {
+  debtId: string;
+  balance: number;
+  onChanged: () => void;
+}) {
+  const [amount, setAmount] = useState('');
+  const [effect, setEffect] = useState<PrepayEffect>('reducir_plazo');
+  const [receipt, setReceipt] = useState<PrepayReceipt | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const parsed = () => parseFloat(amount.replace(/\D/g, ''));
+
+  const preview = async () => {
+    const value = parsed();
+    if (!value) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setReceipt(await debtsApi.prepayPreview(debtId, value, effect));
+    } catch (e) {
+      setError((e as Error).message);
+      setReceipt(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirm = async () => {
+    const value = parsed();
+    if (!value) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await debtsApi.prepay(debtId, value, effect);
+      setAmount('');
+      setReceipt(null);
+      onChanged();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const payoff = () => {
+    Alert.alert(
+      'Pagar totalmente',
+      `Se registrará un pago por ${formatMoney(balance)} y la deuda quedará saldada. ¿Continuar?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Pagar todo',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              try {
+                await debtsApi.payoff(debtId);
+                onChanged();
+              } catch (e) {
+                setError((e as Error).message);
+              }
+            })();
+          },
+        },
+      ],
+    );
+  };
+
+  return (
+    <Card>
+      <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
+        💸 Abonar a capital
+      </Text>
+      <Field
+        label="¿Cuánto quieres abonar?"
+        value={amount}
+        onChangeText={(t) => {
+          setAmount(t);
+          setReceipt(null);
+        }}
+        keyboardType="numeric"
+        placeholder="2000000"
+      />
+      <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
+        {(
+          [
+            { v: 'reducir_plazo', label: 'Terminar antes' },
+            { v: 'reducir_cuota', label: 'Bajar la cuota' },
+          ] as Array<{ v: PrepayEffect; label: string }>
+        ).map((opt) => (
+          <Pressable
+            key={opt.v}
+            onPress={() => {
+              setEffect(opt.v);
+              setReceipt(null);
+            }}
+            style={{
+              flex: 1,
+              padding: spacing.sm,
+              borderRadius: radius.md,
+              alignItems: 'center',
+              backgroundColor: effect === opt.v ? colors.primary : colors.surface,
+              borderWidth: 1,
+              borderColor: effect === opt.v ? colors.primary : colors.border,
+            }}
+          >
+            <Text style={{ color: effect === opt.v ? colors.textInverse : colors.text, fontSize: 13 }}>
+              {opt.label}
+            </Text>
+          </Pressable>
+        ))}
+      </Row>
+
+      {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
+
+      {receipt ? (
+        <View style={{ marginBottom: spacing.sm }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text style={{ color: colors.textMuted }}>Intereses que te ahorras</Text>
+            <Text style={{ fontWeight: '800', color: colors.success }}>
+              {formatMoney(receipt.interestSaved)}
+            </Text>
+          </Row>
+          {receipt.effect === 'reducir_plazo' ? (
+            <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
+              <Text style={{ color: colors.textMuted }}>Cuotas restantes</Text>
+              <Text style={{ fontWeight: '700', color: colors.text }}>
+                {receipt.before.months} → {receipt.after.months}
+              </Text>
+            </Row>
+          ) : (
+            <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
+              <Text style={{ color: colors.textMuted }}>Nueva cuota</Text>
+              <Text style={{ fontWeight: '700', color: colors.text }}>
+                {formatMoney(receipt.newMonthlyPayment)} (−{formatMoney(receipt.paymentSaved)})
+              </Text>
+            </Row>
+          )}
+          <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
+            Nueva liquidación: {formatDate(receipt.after.payoffDate)} · saldo {formatMoney(receipt.newBalance)}
+          </Text>
+          <Button title="✅ Confirmar abono" onPress={() => void confirm()} loading={busy} />
+        </View>
+      ) : (
+        <Button title="Ver efecto del abono" variant="secondary" onPress={() => void preview()} loading={busy} />
+      )}
+
+      <Button title={`Pagar totalmente (${formatMoney(balance)})`} variant="secondary" onPress={payoff} />
+    </Card>
   );
 }
 

@@ -13,7 +13,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 import { DebtsService } from './debts.service';
 import { DebtInsuranceService } from './debt-insurance.service';
-import { CreateDebtDto, SimulateExtraDto, UpdateDebtDto } from './dto/debt.dto';
+import { DebtPrepaymentService } from './debt-prepayment.service';
+import { CreateDebtDto, PrepayDto, SimulateExtraDto, UpdateDebtDto } from './dto/debt.dto';
 import {
   CreateDebtInsuranceDto,
   UpdateDebtInsuranceDto,
@@ -27,6 +28,7 @@ export class DebtsController {
   constructor(
     private readonly debts: DebtsService,
     private readonly insurance: DebtInsuranceService,
+    private readonly prepayment: DebtPrepaymentService,
   ) {}
 
   @Get('summary')
@@ -82,6 +84,34 @@ export class DebtsController {
   @Get(':id/amortization')
   amortization(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.debts.getAmortization(user.id, id);
+  }
+
+  // --- FIN-012 · Abono a capital y pago total anticipado (DEC-0012) ---
+
+  /** Preview del abono — misma función pura que el recibo persistido. */
+  @Post(':id/prepay-preview')
+  prepayPreview(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: PrepayDto,
+  ) {
+    return this.prepayment.preview(user.id, id, dto.amount, dto.effect);
+  }
+
+  /** Abono único a capital REAL: persiste y recalcula plazo o cuota. */
+  @Post(':id/prepay')
+  prepay(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: PrepayDto,
+  ) {
+    return this.prepayment.prepay(user.id, id, dto.amount, dto.effect);
+  }
+
+  /** Pago total anticipado: liquida por el saldo actual (DEC-0012 §4.5). */
+  @Post(':id/payoff')
+  payoff(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.prepayment.payoff(user.id, id);
   }
 
   @Post(':id/simulate-extra')

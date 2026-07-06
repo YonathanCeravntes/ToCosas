@@ -458,10 +458,19 @@ model AmortizationEntry {
   @@map("amortization_entries")
 }
 
+// FIN-012 (DEC-0012 §11.1): tipo de pago de deuda para trazabilidad.
+enum PaymentType {
+  cuota
+  abono_capital
+  pago_total
+}
+
 model Transaction {
   id              String    @id @default(uuid()) @db.Uuid
   userId          String    @map("user_id") @db.Uuid
   kind            TxKind
+  // Solo relevante cuando kind = pago_deuda; default retrocompatible.
+  paymentType     PaymentType @default(cuota) @map("payment_type")
   amount          Decimal   @db.Decimal(18, 2)
   currency        String    @default("COP") @db.Char(3)
   occurredAt      DateTime  @map("occurred_at")

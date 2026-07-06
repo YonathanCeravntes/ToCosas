@@ -103,3 +103,21 @@ export class SimulateExtraDto {
   @IsPositive()
   extraMonthly!: number;
 }
+
+/** FIN-012 · Abono único a capital (DEC-0012 §4.2). */
+export enum PrepayEffectDto {
+  reducir_plazo = 'reducir_plazo',
+  reducir_cuota = 'reducir_cuota',
+}
+
+export class PrepayDto {
+  @ApiProperty({ example: 2000000, description: 'Monto del abono a capital' })
+  @IsNumber()
+  @IsPositive()
+  amount!: number;
+
+  @ApiProperty({ enum: PrepayEffectDto, default: PrepayEffectDto.reducir_plazo })
+  @IsOptional()
+  @IsEnum(PrepayEffectDto)
+  effect: 'reducir_plazo' | 'reducir_cuota' = 'reducir_plazo';
+}

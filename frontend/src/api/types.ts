@@ -56,6 +56,23 @@ export interface Debt {
   projection?: DebtProjection;
 }
 
+// --- FIN-012: abono a capital y pago total anticipado (reales) ---
+
+export type PrepayEffect = 'reducir_plazo' | 'reducir_cuota';
+
+/** Recibo del abono único: el preview y lo persistido usan el mismo cálculo. */
+export interface PrepayReceipt {
+  effect: PrepayEffect;
+  amount: number;
+  newBalance: number;
+  newMonthlyPayment: number;
+  before: { months: number; totalInterest: number; payoffDate: string };
+  after: { months: number; totalInterest: number; payoffDate: string };
+  interestSaved: number;
+  monthsSaved: number;
+  paymentSaved: number;
+}
+
 // --- FIN-013: seguros asociados al crédito ---
 
 export type DebtInsuranceKind =

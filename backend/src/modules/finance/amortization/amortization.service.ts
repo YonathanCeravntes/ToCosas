@@ -157,6 +157,101 @@ export class AmortizationService {
     };
   }
 
+  // --- FIN-012 (DEC-0012 §4.1): abono ÚNICO a capital — métodos ADITIVOS ---
+  // NUNCA usan extraMonthly/simulateExtraPayment (esa función modela una cuota
+  // extra RECURRENTE mensual; usarla para un abono único infla el ahorro).
+
+  /**
+   * Plan restante real de una deuda viva: camina el cronograma con CUOTA FIJA
+   * dada sobre un saldo dado, hasta liquidar. No recalcula la cuota, la respeta.
+   */
+  remainingSchedule(
+    balance: number,
+    monthlyRate: number,
+    payment: number,
+    from: Date,
+  ): { months: number; totalInterest: number; payoffDate: string; entries: AmortizationEntry[] } {
+    if (balance <= 0) throw new Error('balance debe ser > 0');
+    if (payment <= round2(balance * monthlyRate)) {
+      throw new Error('La cuota no cubre ni el interés del periodo: el saldo nunca bajaría');
+    }
+    const entries: AmortizationEntry[] = [];
+    let bal = round2(balance);
+    let period = 0;
+    while (bal > 0.005 && period < AmortizationService.MAX_PERIODS) {
+      period += 1;
+      const interestPart = round2(bal * monthlyRate);
+      let principalPart = round2(payment - interestPart);
+      let pay = payment;
+      // Última cuota: se liquida el saldo. Un residuo de redondeo ≤ $1 (la cuota
+      // redondeada a centavos deja centavos vivos) se absorbe aquí, como hace la
+      // banca — evita una "cuota fantasma" de centavos al final del plan.
+      if (principalPart >= bal || round2(bal - principalPart) <= 1) {
+        principalPart = bal;
+        pay = round2(bal + interestPart);
+      }
+      const closing = round2(bal - principalPart);
+      entries.push({
+        periodNo: period,
+        dueDate: this.addMonths(from, period),
+        openingBalance: bal,
+        payment: pay,
+        interestPart,
+        principalPart,
+        extraPayment: 0,
+        closingBalance: closing,
+      });
+      bal = closing;
+    }
+    return {
+      months: entries.length,
+      totalInterest: sumMoney(entries.map((e) => e.interestPart)),
+      payoffDate: entries.length ? entries[entries.length - 1].dueDate : this.addMonths(from, 0),
+      entries,
+    };
+  }
+
+  /**
+   * Recibo de un abono único a capital: plan restante ANTES vs. DESPUÉS.
+   *  - reducir_plazo: misma cuota sobre (balance − amount) → menos cuotas.
+   *  - reducir_cuota: mismo plazo restante, nueva cuota exacta por fórmula
+   *    cerrada (computeMonthlyPayment).
+   * El preview y el recibo persistido usan ESTA misma función (DEC-0012 §4.4).
+   */
+  prepaymentReceipt(
+    balance: number,
+    monthlyRate: number,
+    payment: number,
+    remainingMonths: number,
+    amount: number,
+    effect: 'reducir_plazo' | 'reducir_cuota',
+    from: Date,
+  ) {
+    if (amount <= 0) throw new Error('El abono debe ser mayor a 0');
+    if (amount >= balance) {
+      throw new Error('El abono cubre todo el saldo: usa el pago total anticipado');
+    }
+    const before = this.remainingSchedule(balance, monthlyRate, payment, from);
+    const newBalance = round2(balance - amount);
+    const newPayment =
+      effect === 'reducir_cuota'
+        ? this.computeMonthlyPayment(newBalance, monthlyRate, remainingMonths)
+        : payment;
+    const after = this.remainingSchedule(newBalance, monthlyRate, newPayment, from);
+    return {
+      effect,
+      amount: round2(amount),
+      newBalance,
+      newMonthlyPayment: newPayment,
+      before: { months: before.months, totalInterest: before.totalInterest, payoffDate: before.payoffDate },
+      after: { months: after.months, totalInterest: after.totalInterest, payoffDate: after.payoffDate },
+      interestSaved: round2(before.totalInterest - after.totalInterest),
+      monthsSaved: before.months - after.months,
+      paymentSaved: round2(payment - newPayment),
+      afterEntries: after.entries,
+    };
+  }
+
   // --- helpers ---
 
   private extraBuffer(extraMonthly: number): number {

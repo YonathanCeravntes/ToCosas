@@ -16,6 +16,8 @@ import {
   DebtsSummary,
   HomeDashboard,
   PaymentBreakdown,
+  PrepayEffect,
+  PrepayReceipt,
   FixedItem,
   FixedKind,
   GamificationProfile,
@@ -56,6 +58,13 @@ export const debtsApi = {
   create: (input: CreateDebtInput) => api.post<{ debt: Debt }>('/debts', input),
   simulateExtra: (id: string, extraMonthly: number) =>
     api.post<SimulateResult>(`/debts/${id}/simulate-extra`, { extraMonthly }),
+  // FIN-012: abono a capital y pago total anticipado (reales).
+  prepayPreview: (id: string, amount: number, effect: PrepayEffect) =>
+    api.post<PrepayReceipt>(`/debts/${id}/prepay-preview`, { amount, effect }),
+  prepay: (id: string, amount: number, effect: PrepayEffect) =>
+    api.post<PrepayReceipt & { transactionId: string }>(`/debts/${id}/prepay`, { amount, effect }),
+  payoff: (id: string) =>
+    api.post<{ paidAmount: number; status: string; transactionId: string }>(`/debts/${id}/payoff`, {}),
   // FIN-013: seguros del crédito.
   listInsurances: (id: string) => api.get<DebtInsurance[]>(`/debts/${id}/insurances`),
   createInsurance: (id: string, input: CreateDebtInsuranceInput) =>
