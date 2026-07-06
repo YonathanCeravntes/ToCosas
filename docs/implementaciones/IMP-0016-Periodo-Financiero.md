@@ -1,7 +1,7 @@
 # IMP-0016 · Periodo financiero / día de corte (Presupuesto y Dashboard)
 
 - **Módulo/Feature:** FIN-016
-- **Documentos base:** `ARQ-0011` §4.6/§13 · `AUD-0011` · `DEC-0011` §4.6 (autorizado, con parámetros ratificados en §4)
+- **Documentos base:** `ARQ-0016-Periodo-Financiero.md` (derivado de `ARQ-0011`)  · umbrella `ARQ-0011` §4.6/§13 · `AUD-0011` · `DEC-0011` §4.6 (autorizado, con parámetros ratificados en §4)
 - **Autor:** Agente Desarrollador · **Fecha:** 2026-07-05
 - **Referencia inmutable:** commit **`40700bcc36ea5e9edcf3a28ca283f8536a10fd70`**
 - **Estado:** Entregado — a la espera de validación del CTO

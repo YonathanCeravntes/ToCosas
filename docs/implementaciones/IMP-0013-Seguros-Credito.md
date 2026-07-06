@@ -1,7 +1,7 @@
 # IMP-0013 · Seguros asociados al crédito (financiados, endosables)
 
 - **Módulo/Feature:** FIN-013
-- **Documentos base:** `ARQ-0011` §4.2/§13 · `AUD-0011` · `DEC-0011` §4.1/§4.2 (autorizado)
+- **Documentos base:** `ARQ-0013-Seguros-Credito.md` (derivado de `ARQ-0011`)  · umbrella `ARQ-0011` §4.2/§13 · `AUD-0011` · `DEC-0011` §4.1/§4.2 (autorizado)
 - **Autor:** Agente Desarrollador · **Fecha:** 2026-07-05
 - **Referencia inmutable:** commit **`9607c3f664fee36c7aac9f0ed57ecef379164a50`**
 - **Estado:** Entregado — a la espera de validación del CTO

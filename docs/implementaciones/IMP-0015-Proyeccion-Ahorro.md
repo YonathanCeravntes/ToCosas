@@ -1,7 +1,7 @@
 # IMP-0015 · Proyección de ahorro con interés compuesto (ilustrativa)
 
 - **Módulo/Feature:** FIN-015
-- **Documentos base:** `ARQ-0011` §4.4/§13 · `AUD-0011` · `DEC-0011` §4.4/§4.5 (autorizado)
+- **Documentos base:** `ARQ-0015-Proyeccion-Ahorro.md` (derivado de `ARQ-0011`)  · umbrella `ARQ-0011` §4.4/§13 · `AUD-0011` · `DEC-0011` §4.4/§4.5 (autorizado)
 - **Autor:** Agente Desarrollador · **Fecha:** 2026-07-05
 - **Referencia inmutable:** commit **`6f622e31bce5da6d803421bf38fa0a1285f74513`**
 - **Estado:** Entregado — a la espera de validación del CTO

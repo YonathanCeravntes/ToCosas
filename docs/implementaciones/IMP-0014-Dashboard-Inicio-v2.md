@@ -1,7 +1,7 @@
 # IMP-0014 · Dashboard de Inicio v2
 
 - **Módulo/Feature:** FIN-014
-- **Documentos base:** `ARQ-0011` §4.3/§13 · `AUD-0011` · `DEC-0011` §4.3 (autorizado)
+- **Documentos base:** `ARQ-0014-Dashboard-Inicio-v2.md` (derivado de `ARQ-0011`)  · umbrella `ARQ-0011` §4.3/§13 · `AUD-0011` · `DEC-0011` §4.3 (autorizado)
 - **Autor:** Agente Desarrollador · **Fecha:** 2026-07-05
 - **Referencia inmutable:** commit **`1af29b1650cacc3d346f105bba39d1a6fb94dcf1`**
 - **Estado:** Entregado — a la espera de validación del CTO
