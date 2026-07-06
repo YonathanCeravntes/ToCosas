@@ -54,3 +54,20 @@ directamente a servicios de dominio crudos. El ARQ correspondiente debe incluir 
 de regresión que serialice cada vista con PII sembrada deliberadamente y verifique que
 ningún campo prohibido aparece. Un ARQ que introduzca una tool de LLM sin este patrón se
 rechaza sin excepción.
+
+## Un FIN a la vez — ciclo de gobernanza estrictamente secuencial
+Añadida por comunicado oficial del fundador (2026-07-05) tras el ciclo de FIN-011: un
+ARQ **umbrella** (análogo a ARQ-0001) puede definir el alcance y la relación entre
+varias funcionalidades futuras, pero **no puede contener el diseño técnico detallado**
+de más de una funcionalidad a la vez (endpoints, modelos de datos, algoritmos). Cada
+`FIN-XXXX` es una iniciativa independiente y debe completar su propio ciclo completo
+(`ARQ → AUD → DEC → IMP → Validación del CTO → Cerrado`) antes de que el Arquitecto
+inicie el diseño detallado del siguiente `FIN`. Queda prohibido, sin excepción expresa
+del CTO: diseñar varias funcionalidades por adelantado, auditar varias funcionalidades
+en un solo documento, emitir una única decisión (`DEC`) para múltiples funcionalidades,
+o implementar una funcionalidad cuyo `DEC` propio no exista. El CTO es responsable de
+detener el proceso y devolver la iniciativa al estado correcto si detecta que un agente
+avanza una fase sin haber cerrado la anterior. Cualquier excepción a esta regla (p. ej.
+paralelizar el diseño de dos módulos independientes por razones estratégicas) requiere
+autorización expresa y documentada del CTO, nunca iniciativa propia del Arquitecto o el
+Auditor.

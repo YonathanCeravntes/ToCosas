@@ -36,8 +36,10 @@ real. Endoso = pausar el seguro del banco (`active=false`) + crear la póliza pr
 
 ## 5. Componentes
 `DebtInsuranceService` (CRUD con ownership vía deuda + `paymentBreakdown` puro),
-DTOs, rutas en `DebtsController` (**`insurances/` declaradas antes de `:id`** para no
-colisionar), `findOne` de deuda incluye seguros + desglose.
+DTOs, rutas en `DebtsController` (`insurances/` declaradas antes de `:id` como
+práctica defensiva de orden — al tener distinto número de segmentos no colisionarían
+en ningún orden; precisión señalada por AUD-0013), `findOne` de deuda incluye
+seguros + desglose.
 
 ## 6. Base de datos
 Migración `fin013_seguros_credito`: enum `DebtInsuranceKind` + tabla `debt_insurances`
