@@ -12,7 +12,9 @@ import {
   Category,
   Dashboard,
   Debt,
+  DebtInsurance,
   DebtsSummary,
+  PaymentBreakdown,
   FixedItem,
   FixedKind,
   GamificationProfile,
@@ -41,11 +43,26 @@ export const authApi = {
 export const debtsApi = {
   list: () => api.get<Debt[]>('/debts'),
   summary: () => api.get<DebtsSummary>('/debts/summary'),
-  get: (id: string) => api.get<Debt & { amortization: AmortizationEntry[] }>(`/debts/${id}`),
+  get: (id: string) =>
+    api.get<
+      Debt & {
+        amortization: AmortizationEntry[];
+        insurances: DebtInsurance[];
+        paymentBreakdown: PaymentBreakdown;
+      }
+    >(`/debts/${id}`),
   amortization: (id: string) => api.get<AmortizationEntry[]>(`/debts/${id}/amortization`),
   create: (input: CreateDebtInput) => api.post<{ debt: Debt }>('/debts', input),
   simulateExtra: (id: string, extraMonthly: number) =>
     api.post<SimulateResult>(`/debts/${id}/simulate-extra`, { extraMonthly }),
+  // FIN-013: seguros del crédito.
+  listInsurances: (id: string) => api.get<DebtInsurance[]>(`/debts/${id}/insurances`),
+  createInsurance: (id: string, input: CreateDebtInsuranceInput) =>
+    api.post<DebtInsurance>(`/debts/${id}/insurances`, input),
+  updateInsurance: (insuranceId: string, input: Partial<CreateDebtInsuranceInput> & { active?: boolean }) =>
+    api.patch<DebtInsurance>(`/debts/insurances/${insuranceId}`, input),
+  removeInsurance: (insuranceId: string) =>
+    api.delete<{ deleted: boolean }>(`/debts/insurances/${insuranceId}`),
 };
 
 export const transactionsApi = {
@@ -202,6 +219,16 @@ export interface CreateTransactionInput {
   debtId?: string;
   categoryId?: string;
   note?: string;
+}
+
+export interface CreateDebtInsuranceInput {
+  kind?: string;
+  name: string;
+  monthlyPremium: number;
+  financed?: boolean;
+  endorsed?: boolean;
+  insurer?: string;
+  notes?: string;
 }
 
 export interface SimulateResult {

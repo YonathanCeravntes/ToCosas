@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Card, Field, Row } from '../../components/ui';
-import { colors, spacing } from '../../theme/colors';
+import { colors, radius, spacing } from '../../theme/colors';
 import { formatDate, formatMoney } from '../../utils/format';
-import { toNumber } from '../../api/types';
+import { DebtInsurance, PaymentBreakdown, toNumber } from '../../api/types';
 import { debtsApi, simulationsApi, SimulateResult } from '../../api/endpoints';
 import { useApi } from '../../utils/useApi';
 import { DebtsStackParamList } from '../../navigation/types';
@@ -13,7 +13,7 @@ type Props = NativeStackScreenProps<DebtsStackParamList, 'DebtDetail'>;
 
 export function DebtDetailScreen({ route }: Props) {
   const { debtId } = route.params;
-  const { data, loading } = useApi(() => debtsApi.get(debtId), [debtId]);
+  const { data, loading, reload } = useApi(() => debtsApi.get(debtId), [debtId]);
   const [extra, setExtra] = useState('');
   const [sim, setSim] = useState<SimulateResult | null>(null);
   const [scoreDelta, setScoreDelta] = useState<number | null>(null);
@@ -90,6 +90,14 @@ export function DebtDetailScreen({ route }: Props) {
         </Card>
       ) : null}
 
+      {/* FIN-013: seguros del crédito y desglose de cuota real */}
+      <InsuranceSection
+        debtId={debtId}
+        insurances={data.insurances ?? []}
+        breakdown={data.paymentBreakdown}
+        onChanged={() => void reload()}
+      />
+
       {/* Simulador de abono extra */}
       <Card>
         <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
@@ -156,5 +164,164 @@ export function DebtDetailScreen({ route }: Props) {
         </Text>
       ) : null}
     </ScrollView>
+  );
+}
+
+const INSURANCE_KIND_LABEL: Record<string, string> = {
+  vida_deudor: 'Vida deudor',
+  incendio_terremoto: 'Incendio/terremoto',
+  todo_riesgo: 'Todo riesgo',
+  desempleo: 'Desempleo',
+  otro: 'Otro',
+};
+
+function InsuranceSection({
+  debtId,
+  insurances,
+  breakdown,
+  onChanged,
+}: {
+  debtId: string;
+  insurances: DebtInsurance[];
+  breakdown?: PaymentBreakdown;
+  onChanged: () => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [premium, setPremium] = useState('');
+  const [financed, setFinanced] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const add = async () => {
+    const value = parseFloat(premium.replace(/\D/g, ''));
+    if (!name.trim() || !value) return;
+    setSaving(true);
+    try {
+      await debtsApi.createInsurance(debtId, {
+        name: name.trim(),
+        monthlyPremium: value,
+        financed,
+      });
+      setName('');
+      setPremium('');
+      setShowForm(false);
+      onChanged();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleActive = async (ins: DebtInsurance) => {
+    await debtsApi.updateInsurance(ins.id, { active: !ins.active });
+    onChanged();
+  };
+
+  const remove = async (ins: DebtInsurance) => {
+    await debtsApi.removeInsurance(ins.id);
+    onChanged();
+  };
+
+  return (
+    <Card>
+      <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
+        🛡️ Seguros del crédito
+      </Text>
+
+      {breakdown && breakdown.insuranceMonthlyTotal > 0 ? (
+        <View style={{ marginBottom: spacing.sm }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text style={{ color: colors.textMuted }}>Cuota del crédito</Text>
+            <Text style={{ color: colors.text }}>{formatMoney(breakdown.basePayment)}</Text>
+          </Row>
+          {breakdown.insuranceFinanced > 0 ? (
+            <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
+              <Text style={{ color: colors.textMuted }}>Seguros dentro de la cuota</Text>
+              <Text style={{ color: colors.textMuted }}>{formatMoney(breakdown.insuranceFinanced)}</Text>
+            </Row>
+          ) : null}
+          {breakdown.insuranceSeparate > 0 ? (
+            <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
+              <Text style={{ color: colors.textMuted }}>+ Seguros aparte</Text>
+              <Text style={{ color: colors.text }}>{formatMoney(breakdown.insuranceSeparate)}</Text>
+            </Row>
+          ) : null}
+          <Row style={{ justifyContent: 'space-between', marginTop: 6 }}>
+            <Text style={{ fontWeight: '700', color: colors.text }}>Desembolso mensual real</Text>
+            <Text style={{ fontWeight: '800', color: colors.text }}>
+              {formatMoney(breakdown.totalMonthlyOutlay)}
+            </Text>
+          </Row>
+        </View>
+      ) : null}
+
+      {insurances.map((ins) => (
+        <Row key={ins.id} style={{ justifyContent: 'space-between', marginBottom: 6, opacity: ins.active ? 1 : 0.45 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontWeight: '600' }}>{ins.name}</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+              {INSURANCE_KIND_LABEL[ins.kind] ?? ins.kind} · {ins.financed ? 'en la cuota' : 'aparte'}
+              {ins.endorsed ? ' · endosado' : ''}
+              {!ins.active ? ' · inactivo' : ''}
+            </Text>
+          </View>
+          <Text style={{ fontWeight: '700', color: colors.text, marginRight: spacing.sm }}>
+            {formatMoney(toNumber(ins.monthlyPremium))}
+          </Text>
+          <Pressable onPress={() => void toggleActive(ins)} style={{ marginRight: spacing.sm }}>
+            <Text style={{ fontSize: 16 }}>{ins.active ? '⏸️' : '▶️'}</Text>
+          </Pressable>
+          <Pressable onPress={() => void remove(ins)}>
+            <Text style={{ color: colors.textMuted, fontSize: 16 }}>🗑️</Text>
+          </Pressable>
+        </Row>
+      ))}
+
+      {insurances.length === 0 && !showForm ? (
+        <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm }}>
+          Registra los seguros del crédito (vida, incendio…) para ver tu cuota real. Si aportas tu
+          propia póliza (endoso), aquí ves cuánto te ahorras.
+        </Text>
+      ) : null}
+
+      {showForm ? (
+        <View style={{ marginTop: spacing.sm }}>
+          <Field label="Nombre del seguro" value={name} onChangeText={setName} placeholder="Seguro de vida deudor" />
+          <Field
+            label="Prima mensual"
+            value={premium}
+            onChangeText={setPremium}
+            keyboardType="numeric"
+            placeholder="45000"
+          />
+          <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
+            {[
+              { v: true, label: 'Va dentro de la cuota' },
+              { v: false, label: 'Se paga aparte' },
+            ].map((opt) => (
+              <Pressable
+                key={String(opt.v)}
+                onPress={() => setFinanced(opt.v)}
+                style={{
+                  flex: 1,
+                  padding: spacing.sm,
+                  borderRadius: radius.md,
+                  alignItems: 'center',
+                  backgroundColor: financed === opt.v ? colors.primary : colors.surface,
+                  borderWidth: 1,
+                  borderColor: financed === opt.v ? colors.primary : colors.border,
+                }}
+              >
+                <Text style={{ color: financed === opt.v ? colors.textInverse : colors.text, fontSize: 12 }}>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            ))}
+          </Row>
+          <Button title="Guardar seguro" onPress={() => void add()} loading={saving} />
+        </View>
+      ) : (
+        <Button title="➕ Agregar seguro" variant="secondary" onPress={() => setShowForm(true)} />
+      )}
+    </Card>
   );
 }

@@ -8,6 +8,7 @@ import { RemindersService } from '../reminders/reminders.service';
 import { OutboxService } from '../events/outbox.service';
 import { DomainEventType } from '../events/domain-events';
 import { debtToAmortizationInput } from './debt-amortization.mapper';
+import { DebtInsuranceService } from './debt-insurance.service';
 import { CreateDebtDto, UpdateDebtDto } from './dto/debt.dto';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class DebtsService {
     private readonly amortization: AmortizationService,
     private readonly reminders: RemindersService,
     private readonly outbox: OutboxService,
+    private readonly insurance: DebtInsuranceService,
   ) {}
 
   async create(userId: string, dto: CreateDebtDto) {
@@ -106,10 +108,22 @@ export class DebtsService {
   async findOne(userId: string, id: string) {
     const debt = await this.prisma.debt.findFirst({
       where: { id, userId, deletedAt: null },
-      include: { amortization: { orderBy: { periodNo: 'asc' } } },
+      include: {
+        amortization: { orderBy: { periodNo: 'asc' } },
+        // FIN-013: seguros activos para el desglose de cuota real (solo display).
+        insurances: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' } },
+      },
     });
     if (!debt) throw new NotFoundException('Deuda no encontrada');
-    return { ...debt, projection: this.projectionFromEntries(debt.amortization) };
+    return {
+      ...debt,
+      projection: this.projectionFromEntries(debt.amortization),
+      // Desglose de cuota real con seguros (FIN-013, solo display).
+      paymentBreakdown: this.insurance.paymentBreakdown(
+        Number(debt.monthlyPayment ?? 0),
+        debt.insurances,
+      ),
+    };
   }
 
   /** Proyección (intereses, total, cuotas, fecha fin) a partir de la tabla guardada. */

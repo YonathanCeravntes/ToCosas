@@ -393,10 +393,47 @@ model Debt {
   amortization AmortizationEntry[]
   transactions Transaction[]
   reminders    Reminder[]
+  insurances   DebtInsurance[]
 
   @@index([userId])
   @@index([nextDueDate])
   @@map("debts")
+}
+
+// ---------- FIN-013 · Seguros asociados al crédito ----------
+
+enum DebtInsuranceKind {
+  vida_deudor
+  incendio_terremoto
+  todo_riesgo
+  desempleo
+  otro
+}
+
+// Modelo mínimo (DEC-0011 §8: prima mensual plana, sin cálculo actuarial).
+// Las primas NO impactan el Motor (DTI/gasto esencial) en este ciclo — solo
+// display de cuota total real y costo total del crédito (DEC-0011 §4.2).
+model DebtInsurance {
+  id             String            @id @default(uuid()) @db.Uuid
+  debtId         String            @map("debt_id") @db.Uuid
+  kind           DebtInsuranceKind @default(otro)
+  name           String
+  monthlyPremium Decimal           @map("monthly_premium") @db.Decimal(18, 2)
+  // financiado = la prima va DENTRO de la cuota del crédito.
+  financed       Boolean           @default(true)
+  // endosado = póliza propia del usuario (típico ahorro en libranzas).
+  endorsed       Boolean           @default(false)
+  insurer        String?
+  notes          String?
+  active         Boolean           @default(true)
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  deletedAt      DateTime?         @map("deleted_at")
+
+  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@index([debtId, active])
+  @@map("debt_insurances")
 }
 
 model AmortizationEntry {

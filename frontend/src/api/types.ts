@@ -56,6 +56,38 @@ export interface Debt {
   projection?: DebtProjection;
 }
 
+// --- FIN-013: seguros asociados al crédito ---
+
+export type DebtInsuranceKind =
+  | 'vida_deudor'
+  | 'incendio_terremoto'
+  | 'todo_riesgo'
+  | 'desempleo'
+  | 'otro';
+
+export interface DebtInsurance {
+  id: string;
+  kind: DebtInsuranceKind;
+  name: string;
+  monthlyPremium: string | number;
+  /** true = la prima va dentro de la cuota del crédito. */
+  financed: boolean;
+  /** true = póliza propia endosada al banco. */
+  endorsed: boolean;
+  insurer: string | null;
+  notes: string | null;
+  active: boolean;
+}
+
+/** Desglose de la cuota real con seguros (solo display; no toca el Motor). */
+export interface PaymentBreakdown {
+  basePayment: number;
+  insuranceFinanced: number;
+  insuranceSeparate: number;
+  insuranceMonthlyTotal: number;
+  totalMonthlyOutlay: number;
+}
+
 export interface AmortizationEntry {
   periodNo: number;
   dueDate: string;
