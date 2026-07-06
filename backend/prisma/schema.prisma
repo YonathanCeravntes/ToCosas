@@ -215,6 +215,7 @@ enum SimulationType {
   estrategia_deudas
   vender_activo
   refinanciar
+  proyeccion_ahorro
 }
 
 enum SimulationSource {

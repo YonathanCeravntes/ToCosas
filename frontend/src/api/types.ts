@@ -287,7 +287,8 @@ export type SimulationType =
   | 'cambio_ingreso'
   | 'estrategia_deudas'
   | 'vender_activo'
-  | 'refinanciar';
+  | 'refinanciar'
+  | 'proyeccion_ahorro';
 
 export interface MetricsSnapshot {
   score: number;

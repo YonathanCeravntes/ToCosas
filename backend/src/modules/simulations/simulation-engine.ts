@@ -48,7 +48,13 @@ export type ScenarioParams =
   | { type: 'cambio_ingreso'; newMonthlyIncome: number }
   | { type: 'estrategia_deudas'; extraBudget: number }
   | { type: 'vender_activo'; assetValue: number; salePrice: number; applyToDebtId?: string }
-  | { type: 'refinanciar'; debtId: string; newRatePct: number; newRateBasis: RateBasis; newTermMonths: number };
+  | { type: 'refinanciar'; debtId: string; newRatePct: number; newRateBasis: RateBasis; newTermMonths: number }
+  // FIN-015 (DEC-0011 §4.4): proyección ILUSTRATIVA de ahorro con interés compuesto.
+  | { type: 'proyeccion_ahorro'; monthlyContribution: number; annualRatePct: number; months: number; initialAmount?: number };
+
+/** Disclaimer fijo no removible (DEC-0011 §4.4 — decisión (a) del fundador). */
+export const SAVINGS_PROJECTION_DISCLAIMER =
+  'Proyección ilustrativa — Millo no ofrece productos de inversión ni garantiza rendimientos. La tasa la eliges tú.';
 
 export interface MetricsSnapshot {
   score: number;
@@ -110,6 +116,8 @@ export function snapshotOf(state: FinancialState): MetricsSnapshot {
     netWorth,
   };
 }
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 const clone = (s: FinancialState): FinancialState => ({
   ...s,
@@ -247,6 +255,38 @@ export function project(state: FinancialState, params: ScenarioParams): Simulati
       specifics.paymentDelta = proposed.monthlyPayment - current.monthlyPayment;
       specifics.interestDelta = proposed.totalInterest - current.totalInterest;
       specifics.newPayoffDate = proposed.payoffDate;
+      break;
+    }
+    case 'proyeccion_ahorro': {
+      // Interés compuesto estándar con capitalización mensual, misma conversión
+      // de tasa EA→mensual que usa el motor de amortización (consistencia).
+      // FV = inicial·(1+i)^n + aporte·((1+i)^n − 1)/i   (aportes a fin de mes)
+      const i = toMonthlyEffectiveRate(params.annualRatePct, 'EA');
+      const n = params.months;
+      const initial = params.initialAmount ?? 0;
+      const growth = Math.pow(1 + i, n);
+      const futureValue =
+        i === 0
+          ? initial + params.monthlyContribution * n
+          : initial * growth + (params.monthlyContribution * (growth - 1)) / i;
+      const totalContributed = initial + params.monthlyContribution * n;
+
+      specifics.futureValue = round2(futureValue);
+      specifics.totalContributed = round2(totalContributed);
+      specifics.interestEarned = round2(futureValue - totalContributed);
+      specifics.months = n;
+      specifics.annualRatePct = params.annualRatePct;
+      // Serie anual para graficar (y el valor final si el horizonte no es exacto).
+      for (let y = 1; y * 12 <= n; y++) {
+        const g = Math.pow(1 + i, y * 12);
+        const v = i === 0
+          ? initial + params.monthlyContribution * y * 12
+          : initial * g + (params.monthlyContribution * (g - 1)) / i;
+        specifics[`valueYear${y}`] = round2(v);
+      }
+      specifics.disclaimer = SAVINGS_PROJECTION_DISCLAIMER;
+      // ILUSTRATIVO: el estado financiero NO cambia (before === after en métricas);
+      // no se toca liquidez ni patrimonio presentes — es una foto del futuro, no un delta de hoy.
       break;
     }
   }

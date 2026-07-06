@@ -8,9 +8,9 @@ import { ScenarioParams } from './simulation-engine';
 
 class RunSimulationDto {
   @ApiProperty({
-    enum: ['abono_extra', 'nueva_deuda', 'reducir_gastos', 'cambio_ingreso', 'estrategia_deudas', 'vender_activo', 'refinanciar'],
+    enum: ['abono_extra', 'nueva_deuda', 'reducir_gastos', 'cambio_ingreso', 'estrategia_deudas', 'vender_activo', 'refinanciar', 'proyeccion_ahorro'],
   })
-  @IsEnum(['abono_extra', 'nueva_deuda', 'reducir_gastos', 'cambio_ingreso', 'estrategia_deudas', 'vender_activo', 'refinanciar'])
+  @IsEnum(['abono_extra', 'nueva_deuda', 'reducir_gastos', 'cambio_ingreso', 'estrategia_deudas', 'vender_activo', 'refinanciar', 'proyeccion_ahorro'])
   type!: ScenarioParams['type'];
 
   @ApiPropertyOptional() @IsOptional() @IsString() debtId?: string;
@@ -28,6 +28,11 @@ class RunSimulationDto {
   @ApiPropertyOptional() @IsOptional() @IsNumber() newRatePct?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() newRateBasis?: string;
   @ApiPropertyOptional() @IsOptional() @IsNumber() newTermMonths?: number;
+  // FIN-015: proyección de ahorro con interés compuesto (ilustrativa).
+  @ApiPropertyOptional() @IsOptional() @IsNumber() monthlyContribution?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() annualRatePct?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() months?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() initialAmount?: number;
 }
 
 @ApiTags('simulations')

@@ -173,6 +173,18 @@ export class SimulationsService {
       case 'refinanciar':
         positive.push(['newRatePct', params.newRatePct], ['newTermMonths', params.newTermMonths]);
         break;
+      case 'proyeccion_ahorro':
+        positive.push(['monthlyContribution', params.monthlyContribution]);
+        if (typeof params.annualRatePct !== 'number' || !isFinite(params.annualRatePct) || params.annualRatePct < 0 || params.annualRatePct > 100) {
+          throw new BadRequestException('Parámetro inválido: annualRatePct (0–100)');
+        }
+        if (!Number.isInteger(params.months) || params.months < 1 || params.months > 600) {
+          throw new BadRequestException('Parámetro inválido: months (1–600)');
+        }
+        if (params.initialAmount != null && (typeof params.initialAmount !== 'number' || params.initialAmount < 0)) {
+          throw new BadRequestException('Parámetro inválido: initialAmount');
+        }
+        break;
     }
     for (const [name, value] of positive) {
       if (typeof value !== 'number' || !isFinite(value) || value <= 0) {

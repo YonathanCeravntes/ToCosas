@@ -5,7 +5,7 @@ import { colors, radius, spacing } from '../theme/colors';
 import { formatMoney } from '../utils/format';
 import { SimulationResult, SimulationType } from '../api/types';
 import { simulationsApi } from '../api/endpoints';
-import { useNavigation } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 
@@ -38,13 +38,26 @@ const SCENARIOS: Array<{ key: SimulationType; label: string; emoji: string; fiel
     emoji: '🏔️',
     fields: [{ name: 'extraBudget', label: 'Extra mensual para deudas', placeholder: '200000' }],
   },
+  {
+    key: 'proyeccion_ahorro',
+    label: '¿Cuánto tendría ahorrando?',
+    emoji: '🐷',
+    fields: [
+      { name: 'monthlyContribution', label: 'Aporte mensual', placeholder: '200000' },
+      { name: 'annualRatePct', label: 'Tasa % EA (tú la eliges, p. ej. 8)', placeholder: '8' },
+      { name: 'months', label: 'Horizonte (meses)', placeholder: '36' },
+    ],
+  },
 ];
 
 const pct = (n: number) => `${Math.round(n * 1000) / 10}%`;
 
 export function SimulatorScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [scenario, setScenario] = useState(SCENARIOS[0]);
+  const route = useRoute<RouteProp<RootStackParamList, 'Simulator'>>();
+  const [scenario, setScenario] = useState(
+    SCENARIOS.find((s) => s.key === route.params?.scenario) ?? SCENARIOS[0],
+  );
   const [values, setValues] = useState<Record<string, string>>({});
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -125,6 +138,38 @@ export function SimulatorScreen() {
 
 function ResultCard({ result }: { result: SimulationResult }) {
   const d = result.delta;
+  // FIN-015: la proyección de ahorro es ilustrativa (no cambia tus métricas de hoy).
+  if (result.type === 'proyeccion_ahorro') {
+    const s = result.specifics;
+    const years = Object.keys(s)
+      .filter((k) => k.startsWith('valueYear'))
+      .sort((a, b) => Number(a.slice(9)) - Number(b.slice(9)));
+    return (
+      <Card style={{ marginTop: spacing.md }}>
+        <Text style={{ fontWeight: '700', fontSize: 16 }}>🐷 Tu ahorro proyectado</Text>
+        <Text style={{ fontSize: 30, fontWeight: '800', color: colors.success, marginTop: 4 }}>
+          {formatMoney(Number(s.futureValue))}
+        </Text>
+        <Row style={{ justifyContent: 'space-between', marginTop: spacing.sm }}>
+          <Text style={{ color: colors.textMuted }}>Aportarías</Text>
+          <Text style={{ color: colors.text, fontWeight: '600' }}>{formatMoney(Number(s.totalContributed))}</Text>
+        </Row>
+        <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
+          <Text style={{ color: colors.textMuted }}>Interés ganado</Text>
+          <Text style={{ color: colors.success, fontWeight: '700' }}>{formatMoney(Number(s.interestEarned))}</Text>
+        </Row>
+        {years.map((k) => (
+          <Row key={k} style={{ justifyContent: 'space-between', marginTop: 4 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>Año {k.slice(9)}</Text>
+            <Text style={{ color: colors.text, fontSize: 12 }}>{formatMoney(Number(s[k]))}</Text>
+          </Row>
+        ))}
+        <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: spacing.sm, lineHeight: 15 }}>
+          ⚖️ {String(s.disclaimer)}
+        </Text>
+      </Card>
+    );
+  }
   const rows: Array<{ label: string; before: string; after: string; good: boolean }> = [
     {
       label: 'Score Millo',

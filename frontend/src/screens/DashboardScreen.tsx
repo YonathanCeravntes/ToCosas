@@ -21,6 +21,7 @@ const KIND_META: Record<string, { emoji: string; sign: string; color: string }> 
 };
 
 export function DashboardScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = useAuthStore((s) => s.user);
   const dashboard = useApi(() => dashboardApi.home(), []);
   const summary = useApi(() => debtsApi.summary(), []);
@@ -91,17 +92,20 @@ export function DashboardScreen() {
             {formatMoney(dashboard.data?.netWorth.netWorth ?? 0)}
           </Text>
         </Card>
-        <Card style={{ flex: 1 }}>
-          <Text style={{ color: colors.textMuted }}>🐷 Ahorro total</Text>
-          <Text style={{ fontSize: 20, fontWeight: '800', color: colors.success }}>
-            {formatMoney(dashboard.data?.savings.total ?? 0)}
-          </Text>
-          {dashboard.data && dashboard.data.savings.emergencyFund > 0 ? (
-            <Text style={{ color: colors.textMuted, fontSize: 11 }}>
-              {formatMoney(dashboard.data.savings.emergencyFund)} en emergencias
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={() => navigation.navigate('Simulator', { scenario: 'proyeccion_ahorro' })}
+        >
+          <Card style={{ flex: 1 }}>
+            <Text style={{ color: colors.textMuted }}>🐷 Ahorro total</Text>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.success }}>
+              {formatMoney(dashboard.data?.savings.total ?? 0)}
             </Text>
-          ) : null}
-        </Card>
+            <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '600' }}>
+              ¿Cuánto tendrías en unos años? →
+            </Text>
+          </Card>
+        </Pressable>
       </Row>
 
       {/* Deuda total — tarjeta destacada */}

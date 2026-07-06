@@ -106,3 +106,70 @@ describe('snapshotOf', () => {
     expect(s.netWorth).toBe(-4_000_000); // 6M líquido − 10M deuda
   });
 });
+
+describe('proyeccion_ahorro (FIN-015, DEC-0011 §4.4) — puro e ilustrativo', () => {
+  it('ancla exacta: 1M inicial al 8% EA sin aportes = 1.080.000 en 12 meses (definición de EA)', () => {
+    const r = project(base, {
+      type: 'proyeccion_ahorro',
+      monthlyContribution: 0.01, // mínimo técnico; el aporte relevante es el inicial
+      annualRatePct: 8,
+      months: 12,
+      initialAmount: 1_000_000,
+    });
+    // 1M·1.08 = 1.080.000 (+ el aporte simbólico y su rendimiento marginal)
+    expect(Number(r.specifics.futureValue)).toBeGreaterThan(1_080_000);
+    expect(Number(r.specifics.futureValue)).toBeLessThan(1_080_001);
+    expect(Number(r.specifics.valueYear1)).toBe(Number(r.specifics.futureValue));
+  });
+
+  it('ancla exacta: tasa 0% = suma aritmética de aportes (sin interés)', () => {
+    const r = project(base, {
+      type: 'proyeccion_ahorro',
+      monthlyContribution: 100_000,
+      annualRatePct: 0,
+      months: 24,
+    });
+    expect(Number(r.specifics.futureValue)).toBe(2_400_000);
+    expect(Number(r.specifics.interestEarned)).toBe(0);
+  });
+
+  it('con tasa positiva el interés ganado es positivo y acotado por la EA', () => {
+    const r = project(base, {
+      type: 'proyeccion_ahorro',
+      monthlyContribution: 100_000,
+      annualRatePct: 8,
+      months: 12,
+    });
+    const fv = Number(r.specifics.futureValue);
+    expect(fv).toBeGreaterThan(1_200_000); // más que los aportes
+    expect(fv).toBeLessThan(1_200_000 * 1.08); // menos que si TODO rindiera el año completo
+    expect(Number(r.specifics.interestEarned)).toBeCloseTo(fv - 1_200_000, 2);
+  });
+
+  it('NO altera las métricas presentes (before === after) — es ilustrativo, no un delta de hoy', () => {
+    const r = project(base, {
+      type: 'proyeccion_ahorro',
+      monthlyContribution: 500_000,
+      annualRatePct: 10,
+      months: 60,
+    });
+    expect(r.delta.score).toBe(0);
+    expect(r.delta.cashflow).toBe(0);
+    expect(r.delta.netWorth).toBe(0);
+  });
+
+  it('lleva el disclaimer fijo y la serie anual', () => {
+    const r = project(base, {
+      type: 'proyeccion_ahorro',
+      monthlyContribution: 100_000,
+      annualRatePct: 8,
+      months: 36,
+    });
+    expect(String(r.specifics.disclaimer)).toMatch(/ilustrativa/i);
+    expect(String(r.specifics.disclaimer)).toMatch(/no ofrece productos de inversión/i);
+    expect(r.specifics.valueYear1).toBeDefined();
+    expect(r.specifics.valueYear2).toBeDefined();
+    expect(r.specifics.valueYear3).toBeDefined();
+    expect(Number(r.specifics.valueYear3)).toBeGreaterThan(Number(r.specifics.valueYear1));
+  });
+});
