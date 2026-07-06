@@ -12,7 +12,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 import { BudgetService } from './budget.service';
-import { CreateFixedItemDto, UpdateFixedItemDto } from './dto/fixed-item.dto';
+import { CreateFixedItemDto, SetCyclePeriodDto, UpdateFixedItemDto } from './dto/fixed-item.dto';
 
 @ApiTags('budget')
 @ApiBearerAuth()
@@ -24,6 +24,12 @@ export class BudgetController {
   @Get('monthly')
   monthly(@CurrentUser() user: AuthUser) {
     return this.budget.monthlySummary(user.id);
+  }
+
+  /** FIN-016: día de inicio del ciclo financiero (1–28). */
+  @Patch('period')
+  setPeriod(@CurrentUser() user: AuthUser, @Body() dto: SetCyclePeriodDto) {
+    return this.budget.setCycleStartDay(user.id, dto.cycleStartDay);
   }
 
   @Post('fixed-items')

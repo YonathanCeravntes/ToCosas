@@ -159,7 +159,9 @@ function BudgetHeader({ data, loading }: { data: MonthlyBudget | null; loading: 
   const ratio = Math.min(100, Math.max(0, data.committedRatio));
   return (
     <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-      <Text style={{ color: colors.textInverse, opacity: 0.85 }}>Te queda este mes</Text>
+      <Text style={{ color: colors.textInverse, opacity: 0.85 }}>
+        Te queda este ciclo{data.period ? ` · ${data.period.label}` : ''}
+      </Text>
       <Text style={{ color: negative ? colors.accent : colors.textInverse, fontSize: 34, fontWeight: '800' }}>
         {formatMoney(data.available)}
       </Text>

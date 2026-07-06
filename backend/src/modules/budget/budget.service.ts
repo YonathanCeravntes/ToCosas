@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OutboxService } from '../events/outbox.service';
 import { DomainEventType } from '../events/domain-events';
 import { CreateFixedItemDto, UpdateFixedItemDto } from './dto/fixed-item.dto';
+import { clampCycleDay, financialPeriod } from './financial-period.util';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -78,14 +79,17 @@ export class BudgetService {
    *   disponible = ingresos fijos − gastos fijos − cuotas de deuda
    */
   async monthlySummary(userId: string) {
-    const [fixedItems, debts] = await Promise.all([
+    const [fixedItems, debts, settings] = await Promise.all([
       this.prisma.fixedItem.findMany({
         where: { userId, deletedAt: null, isActive: true },
       }),
       this.prisma.debt.findMany({
         where: { userId, deletedAt: null, status: 'activa' },
       }),
+      this.prisma.userSettings.findUnique({ where: { userId } }),
     ]);
+    // FIN-016: ciclo financiero activo (con día 1 = mes calendario, sin cambio).
+    const period = financialPeriod(new Date(), settings?.cycleStartDay ?? 1);
 
     const fixedIncome = fixedItems
       .filter((i) => i.kind === 'ingreso')
@@ -102,6 +106,12 @@ export class BudgetService {
     const available = fixedIncome - committed;
 
     return {
+      period: {
+        start: period.start.toISOString(),
+        end: period.end.toISOString(),
+        label: period.label,
+        cycleStartDay: settings?.cycleStartDay ?? 1,
+      },
       fixedIncome: round2(fixedIncome),
       fixedExpense: round2(fixedExpense),
       debtPayments: round2(debtPayments),
@@ -122,6 +132,17 @@ export class BudgetService {
         .filter((i) => i.kind === 'ingreso')
         .map((i) => ({ id: i.id, name: i.name, amount: Number(i.amount), dayOfMonth: i.dayOfMonth })),
     };
+  }
+
+  /** FIN-016: fija el día de inicio del ciclo (1–28, validado también por CHECK en BD). */
+  async setCycleStartDay(userId: string, day: number) {
+    const clamped = clampCycleDay(day);
+    const settings = await this.prisma.userSettings.upsert({
+      where: { userId },
+      create: { userId, cycleStartDay: clamped },
+      update: { cycleStartDay: clamped },
+    });
+    return { cycleStartDay: settings.cycleStartDay };
   }
 
   private async ensureOwned(userId: string, id: string) {

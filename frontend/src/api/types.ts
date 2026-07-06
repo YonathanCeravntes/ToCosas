@@ -328,7 +328,16 @@ export interface FixedItem {
   notes: string | null;
 }
 
+// FIN-016: ciclo financiero activo (día de corte configurable 1–28).
+export interface FinancialPeriodInfo {
+  start: string;
+  end: string;
+  label: string;
+  cycleStartDay: number;
+}
+
 export interface MonthlyBudget {
+  period: FinancialPeriodInfo;
   fixedIncome: number;
   fixedExpense: number;
   debtPayments: number;

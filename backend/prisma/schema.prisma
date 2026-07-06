@@ -715,6 +715,9 @@ model UserSettings {
   notifWhatsapp      Boolean  @default(false) @map("notif_whatsapp")
   quietHours         Json?    @map("quiet_hours")
   suggestionStrategy String   @default("avalanche") @map("suggestion_strategy")
+  // FIN-016: día de inicio del ciclo financiero (1–28). SOLO lo consumen
+  // Presupuesto y Dashboard; Score/Motor/Gamificación siguen en mes calendario.
+  cycleStartDay      Int      @default(1) @map("cycle_start_day")
   dataConsentAt      DateTime? @map("data_consent_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 

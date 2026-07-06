@@ -70,3 +70,12 @@ export class UpdateFixedItemDto extends PartialType(CreateFixedItemDto) {
   @IsBoolean()
   isActive?: boolean;
 }
+
+/** FIN-016 · Día de inicio del ciclo financiero (DEC-0011 §4.6: rango 1–28). */
+export class SetCyclePeriodDto {
+  @ApiProperty({ minimum: 1, maximum: 28, example: 15 })
+  @IsInt()
+  @Min(1)
+  @Max(28)
+  cycleStartDay!: number;
+}

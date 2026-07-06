@@ -126,6 +126,8 @@ export const budgetApi = {
   createFixed: (input: CreateFixedItemInput) =>
     api.post<FixedItem>('/budget/fixed-items', input),
   removeFixed: (id: string) => api.delete<{ deleted: boolean }>(`/budget/fixed-items/${id}`),
+  setCycleDay: (cycleStartDay: number) =>
+    api.patch<{ cycleStartDay: number }>('/budget/period', { cycleStartDay }),
 };
 
 export const suggestionsApi = {
