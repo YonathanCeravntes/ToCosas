@@ -14,6 +14,7 @@ import {
   Debt,
   DebtInsurance,
   DebtsSummary,
+  HomeDashboard,
   PaymentBreakdown,
   FixedItem,
   FixedKind,
@@ -75,6 +76,11 @@ export const transactionsApi = {
 export const categoriesApi = {
   list: (kind?: string) =>
     api.get<Category[]>(`/categories${kind ? `?kind=${kind}` : ''}`),
+};
+
+// FIN-014: Dashboard de Inicio v2 (el endpoint clásico se conserva).
+export const dashboardApi = {
+  home: () => api.get<HomeDashboard>('/dashboard/home'),
 };
 
 export const billingApi = {

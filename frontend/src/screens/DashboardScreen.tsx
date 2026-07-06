@@ -7,8 +7,8 @@ import { Button, Card, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { formatDate, formatMoney } from '../utils/format';
 import { useApi } from '../utils/useApi';
-import { debtsApi, gamificationApi, transactionsApi } from '../api/endpoints';
-import { GamificationProfile } from '../api/types';
+import { dashboardApi, debtsApi, gamificationApi } from '../api/endpoints';
+import { FlowSection, GamificationProfile } from '../api/types';
 import { useAuthStore } from '../store/auth.store';
 import { useSync } from '../offline/useSync';
 import { LocalTransaction, transactionsRepo } from '../offline/transactionsRepo';
@@ -22,7 +22,7 @@ const KIND_META: Record<string, { emoji: string; sign: string; color: string }> 
 
 export function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
-  const dashboard = useApi(() => transactionsApi.dashboard(), []);
+  const dashboard = useApi(() => dashboardApi.home(), []);
   const summary = useApi(() => debtsApi.summary(), []);
   const gamification = useApi(() => gamificationApi.profile(), []);
   const sync = useSync();
@@ -83,6 +83,27 @@ export function DashboardScreen() {
         </Pressable>
       ) : null}
 
+      {/* FIN-014: patrimonio + ahorro total */}
+      <Row style={{ gap: spacing.md }}>
+        <Card style={{ flex: 1, backgroundColor: colors.primaryDark, borderColor: colors.primaryDark }}>
+          <Text style={{ color: colors.textInverse, opacity: 0.8 }}>🏛️ Patrimonio</Text>
+          <Text style={{ color: colors.textInverse, fontSize: 20, fontWeight: '800' }}>
+            {formatMoney(dashboard.data?.netWorth.netWorth ?? 0)}
+          </Text>
+        </Card>
+        <Card style={{ flex: 1 }}>
+          <Text style={{ color: colors.textMuted }}>🐷 Ahorro total</Text>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: colors.success }}>
+            {formatMoney(dashboard.data?.savings.total ?? 0)}
+          </Text>
+          {dashboard.data && dashboard.data.savings.emergencyFund > 0 ? (
+            <Text style={{ color: colors.textMuted, fontSize: 11 }}>
+              {formatMoney(dashboard.data.savings.emergencyFund)} en emergencias
+            </Text>
+          ) : null}
+        </Card>
+      </Row>
+
       {/* Deuda total — tarjeta destacada */}
       <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
         <Text style={{ color: colors.textInverse, opacity: 0.8 }}>Deuda total</Text>
@@ -95,13 +116,15 @@ export function DashboardScreen() {
         </Text>
       </Card>
 
-      {/* Flujo del mes */}
+      {/* Flujo del ciclo (FIN-016): fijo + variable diferenciados */}
       <Row style={{ gap: spacing.md }}>
-        <Stat label="Ingresos" value={dashboard.data?.income ?? 0} color={colors.success} />
-        <Stat label="Gastos" value={dashboard.data?.expense ?? 0} color={colors.danger} />
+        <FlowStat label="Ingresos" flow={dashboard.data?.income} color={colors.success} />
+        <FlowStat label="Gastos" flow={dashboard.data?.expense} color={colors.danger} />
       </Row>
       <Card>
-        <Text style={{ color: colors.textMuted }}>Flujo estimado del mes</Text>
+        <Text style={{ color: colors.textMuted }}>
+          Flujo estimado{dashboard.data ? ` · ${dashboard.data.period.label}` : ' del mes'}
+        </Text>
         <Text
           style={{
             fontSize: 24,
@@ -132,46 +155,78 @@ export function DashboardScreen() {
         <Text style={{ color: colors.textMuted }}>Sin pagos próximos registrados.</Text>
       )}
 
-      {/* Gastos por categoría (barras visuales) */}
-      {dashboard.data?.byCategory?.length ? (
+      {/* Gastos: fijo + variable por categoría */}
+      {dashboard.data && (dashboard.data.expense.total > 0 || dashboard.data.expense.byCategory.length > 0) ? (
         <>
           <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
             ¿En qué se te va la plata?
           </Text>
           <Card>
-            {dashboard.data.byCategory.map((c) => (
-              <View key={c.name} style={{ marginBottom: spacing.sm }}>
-                <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Row style={{ gap: 6 }}>
-                    <Text style={{ fontSize: 16 }}>{c.icon}</Text>
-                    <Text style={{ color: colors.text, fontWeight: '600' }}>{c.name}</Text>
-                  </Row>
-                  <Text style={{ color: colors.textMuted }}>
-                    {formatMoney(c.amount)} · {c.percent}%
-                  </Text>
-                </Row>
-                {/* Barra de progreso proporcional al gasto */}
-                <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: 'hidden' }}>
-                  <View
-                    style={{
-                      height: 8,
-                      width: `${Math.max(c.percent, 3)}%`,
-                      backgroundColor: c.color,
-                      borderRadius: 4,
-                    }}
-                  />
-                </View>
-              </View>
+            {dashboard.data.expense.fixed > 0 ? (
+              <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm }}>
+                <Text style={{ color: colors.text, fontWeight: '600' }}>📌 Gastos fijos</Text>
+                <Text style={{ color: colors.textMuted }}>{formatMoney(dashboard.data.expense.fixed)}</Text>
+              </Row>
+            ) : null}
+            {dashboard.data.expense.byCategory.map((c) => (
+              <CategoryBar key={c.name} c={c} />
             ))}
           </Card>
         </>
       ) : null}
 
-      {/* Movimientos recientes (desde la caché local: visible offline) */}
+      {/* Ingresos: fijo + variable por categoría (FIN-014) */}
+      {dashboard.data && dashboard.data.income.total > 0 ? (
+        <>
+          <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
+            ¿De dónde llega la plata?
+          </Text>
+          <Card>
+            {dashboard.data.income.fixed > 0 ? (
+              <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm }}>
+                <Text style={{ color: colors.text, fontWeight: '600' }}>📌 Ingresos fijos</Text>
+                <Text style={{ color: colors.textMuted }}>{formatMoney(dashboard.data.income.fixed)}</Text>
+              </Row>
+            ) : null}
+            {dashboard.data.income.byCategory.map((c) => (
+              <CategoryBar key={c.name} c={c} />
+            ))}
+          </Card>
+        </>
+      ) : null}
+
+      {/* Movimientos recientes: completos desde el servidor (FIN-014);
+          caché local como respaldo offline */}
       <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
         Movimientos recientes
       </Text>
-      {recent.length ? (
+      {dashboard.data?.recentTransactions.length ? (
+        dashboard.data.recentTransactions.map((t) => {
+          const meta = KIND_META[t.kind] ?? KIND_META.transferencia;
+          return (
+            <Card key={t.id} style={{ paddingVertical: spacing.sm }}>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Row style={{ gap: spacing.sm, flex: 1 }}>
+                  <Text style={{ fontSize: 18 }}>{t.category?.icon ?? meta.emoji}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: '600', color: colors.text }} numberOfLines={1}>
+                      {t.note || t.category?.name || t.debtName || t.kind}
+                    </Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                      {formatDate(t.occurredAt)}
+                      {t.debtName ? ` · ${t.debtName}` : ''}
+                    </Text>
+                  </View>
+                </Row>
+                <Text style={{ fontWeight: '700', color: meta.color }}>
+                  {meta.sign}
+                  {formatMoney(t.amount)}
+                </Text>
+              </Row>
+            </Card>
+          );
+        })
+      ) : recent.length ? (
         recent.map((t) => {
           const meta = KIND_META[t.kind] ?? KIND_META.transferencia;
           return (
@@ -212,12 +267,44 @@ export function DashboardScreen() {
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: number; color: string }) {
+/** FIN-014: total con desglose fijo/variable. */
+function FlowStat({ label, flow, color }: { label: string; flow?: FlowSection; color: string }) {
   return (
     <Card style={{ flex: 1 }}>
       <Text style={{ color: colors.textMuted }}>{label}</Text>
-      <Text style={{ fontSize: 18, fontWeight: '800', color }}>{formatMoney(value)}</Text>
+      <Text style={{ fontSize: 18, fontWeight: '800', color }}>{formatMoney(flow?.total ?? 0)}</Text>
+      {flow && flow.total > 0 ? (
+        <Text style={{ color: colors.textMuted, fontSize: 11 }}>
+          {formatMoney(flow.fixed)} fijo · {formatMoney(flow.variable)} variable
+        </Text>
+      ) : null}
     </Card>
+  );
+}
+
+function CategoryBar({ c }: { c: { name: string; icon: string; color: string; amount: number; percent: number } }) {
+  return (
+    <View style={{ marginBottom: spacing.sm }}>
+      <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+        <Row style={{ gap: 6 }}>
+          <Text style={{ fontSize: 16 }}>{c.icon}</Text>
+          <Text style={{ color: colors.text, fontWeight: '600' }}>{c.name}</Text>
+        </Row>
+        <Text style={{ color: colors.textMuted }}>
+          {formatMoney(c.amount)} · {c.percent}%
+        </Text>
+      </Row>
+      <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: 'hidden' }}>
+        <View
+          style={{
+            height: 8,
+            width: `${Math.max(c.percent, 3)}%`,
+            backgroundColor: c.color,
+            borderRadius: 4,
+          }}
+        />
+      </View>
+    </View>
   );
 }
 

@@ -134,6 +134,46 @@ export interface Dashboard {
   byCategory: CategorySpend[];
 }
 
+// --- FIN-014: Dashboard de Inicio v2 ---
+
+export interface FlowSection {
+  fixed: number;
+  variable: number;
+  total: number;
+  byCategory: CategorySpend[];
+}
+
+export interface HomeDashboard {
+  period: FinancialPeriodInfo;
+  netWorth: {
+    netWorth: number;
+    totalAssets: number;
+    totalLiquid: number;
+    totalEmergencyFund: number;
+    totalAccounts: number;
+    totalAssetsOnly: number;
+    totalLiabilities: number;
+  };
+  savings: {
+    total: number;
+    emergencyFund: number;
+    accounts: Array<{ id: string; name: string; balance: number; isEmergencyFund: boolean }>;
+  };
+  income: FlowSection;
+  expense: FlowSection;
+  debtPayments: number;
+  estimatedCashflow: number;
+  recentTransactions: Array<{
+    id: string;
+    kind: TxKind;
+    amount: number;
+    occurredAt: string;
+    note: string | null;
+    category: { name: string; icon: string; color: string } | null;
+    debtName: string | null;
+  }>;
+}
+
 export interface Category {
   id: string;
   name: string;
