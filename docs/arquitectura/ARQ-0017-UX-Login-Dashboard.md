@@ -1,8 +1,17 @@
 # ARQ-0017 · Mejora de UX — Login y Dashboard
 
-- **Módulo/Feature:** FIN-017 · **Origen (Gobernanza v3.5 §27):** Mejora de revisión de producto (`PRODUCT_REVIEW_001` / Lote 01 de capturas)
-- **Autor:** Agente Arquitecto · **Fecha:** 2026-07-11
+- **Versión:** 1.1
+- **Fecha:** 2026-07-11
+- **Autor:** Agente Arquitecto
 - **Estado:** Propuesto — en espera de AUD-017 y DEC-017
+- **Historial de cambios:**
+  - v1.0 (2026-07-11) — 4 prioridades con ≥2 alternativas cada una.
+  - v1.1 (2026-07-11) — por directriz del CTO ("diseñar la mejor evolución, no
+    implementar mecánicamente las observaciones"): se añade la composición integrada
+    de ambas pantallas (§4.6) y se explicita una decisión importante que estaba
+    implícita — el tratamiento del bloque de gamificación (§4.5). Sin cambios de
+    alcance.
+- **Módulo/Feature:** FIN-017 · **Origen (Gobernanza v3.5 §27):** Mejora de revisión de producto (`PRODUCT_REVIEW_001` / Lote 01 de capturas)
 - **Referencia visual del estado actual:** `docs/producto/capturas/lote-01/` (capturas reales, commit `0bfa154`)
 
 ---
@@ -72,6 +81,71 @@ Glosario propuesto (aplica según la alternativa que apruebe el DEC): `Flujo est
 → Te queda este ciclo` · `Patrimonio → Patrimonio — lo tuyo, menos deudas` · `fijo ·
 variable → fijos del mes · del día a día` · `% comprometido → de tu ingreso ya está
 apartado`.
+
+### 4.5 — Decisión implícita explicitada: el bloque de gamificación
+
+Compite por la atención en la parte más valiosa de la pantalla (arriba, junto al
+saludo) sin ser un dato financiero. Cualquier jerarquía nueva debe decidir qué hacer
+con él:
+
+| | **Alt A — Compactar a una línea (recomendada)** | **Alt B — Sacarlo del Inicio (vive solo en Logros)** |
+|---|---|---|
+| Qué es | `🔥 1 sem · Nivel 2 · 60 XP →` en una sola línea tocable, sin barra de progreso, debajo del hero | El bloque desaparece del Inicio; racha/nivel/reto solo en la pantalla Logros |
+| Ventajas | La racha vive de VERSE a diario (FIN-008 la diseñó como hábito); pierde peso visual sin perder presencia | Máxima limpieza; el Inicio queda 100% financiero |
+| Desventajas | Sigue ocupando una línea arriba | Mata el mecanismo de hábito de FIN-008 (una racha que no se ve no sostiene constancia); contradice la celebración diseñada para el Inicio |
+
+### 4.6 — Composición integrada propuesta (la evolución completa, no 4 parches)
+
+Cómo quedan las DOS pantallas si el DEC aprueba las recomendadas (1-A · 2-A · 3-A ·
+4-B · 4.5-A). Este es el diseño objetivo contra el que se tomarán las capturas de
+cierre:
+
+**Login (evolución):**
+```
+                 🪈  Millo
+   Tus deudas, tu plata y tu mes — claros
+            en un solo lugar.
+
+   💳  Sal de tus deudas con un plan
+   🩺  Tu salud financiera en un número
+   🤖  Un copiloto que te explica
+
+   Correo    [____________________]
+   Contraseña[____________________]
+   [           Ingresar           ]
+   [         Crear cuenta         ]
+
+     "Cuida tus millos, sal de deudas
+      con calma."   ← el tagline actual
+      baja a firma emocional, no intenta
+      explicar el producto
+```
+
+**Dashboard (evolución):**
+```
+   Hola, Laura 👋
+   ┌──────────── HERO (único) ────────────┐
+   │ Te queda este ciclo · jul            │
+   │ $ 6.240.000                          │
+   │ 🟢 Vas bien: puedes apartar hasta    │
+   │    $X sin apretarte                  │
+   └──────────────────────────────────────┘
+   🔥 1 sem · Nivel 2 · 60 XP →            ← una línea, tocable
+   [ Deuda total  $11.207.000 ]            ← tarjeta normal +
+     "Tus cuotas pesan 9,9% de tu            interpretación
+      ingreso — nivel sano"
+   [ Patrimonio ][ Ahorro ]                ← par del mismo peso,
+     con coletillas del glosario              sin tarjeta oscura
+   [ Ingresos ][ Gastos ]                  ← "fijos del mes ·
+                                              del día a día"
+   Próximos pagos / categorías /
+   movimientos                             ← sin cambios
+```
+
+Principios que amarran la composición (alineados con el Principio de Claridad
+Radical): un solo elemento dominante por pantalla; toda cifra clave lleva su "qué
+significa para mí" visible; ningún término técnico sin traducción; nada nuevo — solo
+reordenar, compactar y traducir lo que ya existe.
 
 ## 5. Componentes
 Solo `LoginScreen.tsx` y `DashboardScreen.tsx` (+ `dashboard.service.ts` si el DEC
