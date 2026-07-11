@@ -75,5 +75,29 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
 
     // Con cycleStartDay=1 la etiqueta es el mes calendario (FIN-016 integrado).
     expect(home.period.cycleStartDay).toBe(1);
+
+    // FIN-017 §4.7.3: interpretaciones con cifras PROPIAS del home (ruta (a)).
+    // cashflow 2.25M ≥ 10% del ingreso (450k) → verde, monto en pesos sin decimales.
+    expect(home.interpretation.cashflow).toEqual({
+      level: 'verde',
+      text: 'Te alcanza: puedes guardar hasta $2.250.000 este ciclo',
+    });
+    // ahorro 3.5M / fijos 1.5M = 2,33 meses → amarillo (1–3).
+    expect(home.interpretation.savings?.level).toBe('amarillo');
+    expect(home.interpretation.savings?.text).toContain('~2 mes');
+  });
+
+  it('interpretación: se OMITE si falta el dato (nunca un texto que genere una pregunta)', async () => {
+    const empty = {
+      userSettings: { findUnique: jest.fn().mockResolvedValue(null) },
+      account: { findMany: jest.fn().mockResolvedValue([]) },
+      asset: { findMany: jest.fn().mockResolvedValue([]) },
+      debt: { findMany: jest.fn().mockResolvedValue([]) },
+      fixedItem: { findMany: jest.fn().mockResolvedValue([]) },
+      transaction: { findMany: jest.fn().mockResolvedValue([]) },
+    } as never;
+    const home = await new DashboardService(empty).home('u2');
+    expect(home.interpretation.cashflow).toBeNull(); // sin ingreso → sin línea
+    expect(home.interpretation.savings).toBeNull(); // sin gastos fijos → sin línea
   });
 });

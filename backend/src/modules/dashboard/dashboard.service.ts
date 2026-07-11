@@ -96,6 +96,7 @@ export class DashboardService {
 
     const incomeTotal = fixedIncome + variableIncome;
     const expenseTotal = fixedExpense + variableExpense;
+    const estimatedCashflow = round2(incomeTotal - expenseTotal - debtPayments);
 
     return {
       period: {
@@ -128,7 +129,14 @@ export class DashboardService {
         byCategory: toSorted(expenseByCat, variableExpense),
       },
       debtPayments: round2(debtPayments),
-      estimatedCashflow: round2(incomeTotal - expenseTotal - debtPayments),
+      estimatedCashflow,
+      // FIN-017 (DEC-0017 §5.1, ARQ-0017 §4.7.3): interpretación server-side con
+      // cifras PROPIAS del home — sin llamadas al Score (ruta (a)). La de deuda
+      // queda pendiente de la confirmación puntual del CTO.
+      interpretation: {
+        cashflow: interpretCashflow(estimatedCashflow, round2(incomeTotal)),
+        savings: interpretSavings(round2(totalSavings), round2(fixedExpense)),
+      },
       recentTransactions: recent.map((t) => ({
         id: t.id,
         kind: t.kind,
@@ -142,6 +150,43 @@ export class DashboardService {
       })),
     };
   }
+}
+
+export type InterpretationLevel = 'verde' | 'amarillo' | 'rojo';
+export interface Interpretation {
+  level: InterpretationLevel;
+  text: string;
+}
+
+const money = (n: number) => `$${Math.round(n).toLocaleString('es-CO')}`;
+
+/**
+ * FIN-017 §4.7.3 — reglas transversales: montos en pesos sin decimales, cero
+ * jerga, sin referencias a calendario/ciclo/DTI en el texto visible, y si falta
+ * el dato la línea SE OMITE (null) — nunca un texto que genere una pregunta.
+ */
+function interpretCashflow(cashflow: number, incomeTotal: number): Interpretation | null {
+  if (incomeTotal <= 0) return null;
+  if (cashflow < 0) {
+    return { level: 'rojo', text: 'Estás gastando más de lo que entra' };
+  }
+  if (cashflow < incomeTotal * 0.1) {
+    return { level: 'amarillo', text: 'Vas justa: te queda poco margen este ciclo' };
+  }
+  return { level: 'verde', text: `Te alcanza: puedes guardar hasta ${money(cashflow)} este ciclo` };
+}
+
+function interpretSavings(totalSavings: number, fixedExpense: number): Interpretation | null {
+  if (fixedExpense <= 0) return null;
+  const months = totalSavings / fixedExpense;
+  if (months >= 3) {
+    return { level: 'verde', text: `Con esto cubres ~${Math.round(months)} meses de tus gastos fijos` };
+  }
+  if (months >= 1) {
+    const n = Math.round(months);
+    return { level: 'amarillo', text: `Cubres ~${n} mes${n === 1 ? '' : 'es'} de tus fijos — vas construyendo` };
+  }
+  return { level: 'rojo', text: 'Aún no cubre un mes de tus fijos — cada aporte cuenta' };
 }
 
 function sumFixed(items: Array<{ kind: string; amount: unknown }>, kind: string): number {

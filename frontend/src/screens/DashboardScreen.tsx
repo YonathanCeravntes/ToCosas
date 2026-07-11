@@ -59,8 +59,24 @@ export function DashboardScreen() {
         Hola{user?.fullName ? `, ${user.fullName.split(' ')[0]}` : ''} 👋
       </Text>
 
-      {/* Progreso (FIN-008): racha + nivel + reto del mes */}
-      {gamification.data ? <ProgressBlock profile={gamification.data} /> : null}
+      {/* FIN-017 P2: hero ÚNICO — el dato accionable del ciclo, con interpretación */}
+      <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
+        <Text style={{ color: colors.textInverse, opacity: 0.85 }}>
+          Te queda este ciclo{dashboard.data ? ` · ${dashboard.data.period.label}` : ''}
+        </Text>
+        <Text style={{ color: colors.textInverse, fontSize: 36, fontWeight: '800' }}>
+          {formatMoney(dashboard.data?.estimatedCashflow ?? 0)}
+        </Text>
+        {dashboard.data?.interpretation.cashflow ? (
+          <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 4 }}>
+            {LEVEL_EMOJI[dashboard.data.interpretation.cashflow.level]}{' '}
+            {dashboard.data.interpretation.cashflow.text}
+          </Text>
+        ) : null}
+      </Card>
+
+      {/* FIN-017 §4.5: gamificación compactada a UNA línea tocable (FIN-008 vive) */}
+      {gamification.data ? <ProgressLine profile={gamification.data} /> : null}
       {gamification.data ? <CelebrationModal profile={gamification.data} onClosed={() => void gamification.reload()} /> : null}
 
       {sync.pending > 0 ? (
@@ -84,13 +100,32 @@ export function DashboardScreen() {
         </Pressable>
       ) : null}
 
-      {/* FIN-014: patrimonio + ahorro total */}
+      {/* FIN-017 P2: Deuda total pasa a tarjeta normal (el hero es único) */}
+      <Card>
+        <Text style={{ color: colors.textMuted }}>💳 Deuda total</Text>
+        <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text }}>
+          {formatMoney(summary.data?.totalDebt ?? 0)}
+        </Text>
+        <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13 }}>
+          {summary.data?.debtsCount ?? 0} deuda(s) · cuotas del mes{' '}
+          {formatMoney(summary.data?.monthlyPaymentsTotal ?? 0)}
+        </Text>
+        {dashboard.data?.interpretation.debt ? (
+          <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13 }}>
+            {LEVEL_EMOJI[dashboard.data.interpretation.debt.level]}{' '}
+            {dashboard.data.interpretation.debt.text}
+          </Text>
+        ) : null}
+      </Card>
+
+      {/* Patrimonio + ahorro: par del mismo peso (sin tarjeta oscura) */}
       <Row style={{ gap: spacing.md }}>
-        <Card style={{ flex: 1, backgroundColor: colors.primaryDark, borderColor: colors.primaryDark }}>
-          <Text style={{ color: colors.textInverse, opacity: 0.8 }}>🏛️ Patrimonio</Text>
-          <Text style={{ color: colors.textInverse, fontSize: 20, fontWeight: '800' }}>
+        <Card style={{ flex: 1 }}>
+          <Text style={{ color: colors.textMuted }}>🏛️ Patrimonio</Text>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>
             {formatMoney(dashboard.data?.netWorth.netWorth ?? 0)}
           </Text>
+          <Text style={{ color: colors.textMuted, fontSize: 11 }}>lo tuyo, menos deudas</Text>
         </Card>
         <Pressable
           style={{ flex: 1 }}
@@ -101,44 +136,23 @@ export function DashboardScreen() {
             <Text style={{ fontSize: 20, fontWeight: '800', color: colors.success }}>
               {formatMoney(dashboard.data?.savings.total ?? 0)}
             </Text>
-            <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '600' }}>
+            {dashboard.data?.interpretation.savings ? (
+              <Text style={{ color: colors.textMuted, fontSize: 11 }}>
+                {dashboard.data.interpretation.savings.text}
+              </Text>
+            ) : null}
+            <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '600', marginTop: 2 }}>
               ¿Cuánto tendrías en unos años? →
             </Text>
           </Card>
         </Pressable>
       </Row>
 
-      {/* Deuda total — tarjeta destacada */}
-      <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-        <Text style={{ color: colors.textInverse, opacity: 0.8 }}>Deuda total</Text>
-        <Text style={{ color: colors.textInverse, fontSize: 32, fontWeight: '800' }}>
-          {formatMoney(summary.data?.totalDebt ?? 0)}
-        </Text>
-        <Text style={{ color: colors.textInverse, opacity: 0.8, marginTop: 4 }}>
-          {summary.data?.debtsCount ?? 0} deuda(s) · cuotas del mes{' '}
-          {formatMoney(summary.data?.monthlyPaymentsTotal ?? 0)}
-        </Text>
-      </Card>
-
-      {/* Flujo del ciclo (FIN-016): fijo + variable diferenciados */}
+      {/* Ingresos y gastos del ciclo (glosario FIN-017 P4) */}
       <Row style={{ gap: spacing.md }}>
         <FlowStat label="Ingresos" flow={dashboard.data?.income} color={colors.success} />
         <FlowStat label="Gastos" flow={dashboard.data?.expense} color={colors.danger} />
       </Row>
-      <Card>
-        <Text style={{ color: colors.textMuted }}>
-          Flujo estimado{dashboard.data ? ` · ${dashboard.data.period.label}` : ' del mes'}
-        </Text>
-        <Text
-          style={{
-            fontSize: 24,
-            fontWeight: '800',
-            color: (dashboard.data?.estimatedCashflow ?? 0) >= 0 ? colors.success : colors.danger,
-          }}
-        >
-          {formatMoney(dashboard.data?.estimatedCashflow ?? 0)}
-        </Text>
-      </Card>
 
       {/* Próximos pagos */}
       <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
@@ -271,7 +285,9 @@ export function DashboardScreen() {
   );
 }
 
-/** FIN-014: total con desglose fijo/variable. */
+const LEVEL_EMOJI: Record<string, string> = { verde: '🟢', amarillo: '🟡', rojo: '🔴' };
+
+/** FIN-014 + glosario FIN-017 P4: total con desglose en lenguaje cotidiano. */
 function FlowStat({ label, flow, color }: { label: string; flow?: FlowSection; color: string }) {
   return (
     <Card style={{ flex: 1 }}>
@@ -279,10 +295,29 @@ function FlowStat({ label, flow, color }: { label: string; flow?: FlowSection; c
       <Text style={{ fontSize: 18, fontWeight: '800', color }}>{formatMoney(flow?.total ?? 0)}</Text>
       {flow && flow.total > 0 ? (
         <Text style={{ color: colors.textMuted, fontSize: 11 }}>
-          {formatMoney(flow.fixed)} fijo · {formatMoney(flow.variable)} variable
+          {formatMoney(flow.fixed)} fijos del mes · {formatMoney(flow.variable)} del día a día
         </Text>
       ) : null}
     </Card>
+  );
+}
+
+/** FIN-017 §4.5: la racha vive de verse — una sola línea tocable, sin barra. */
+function ProgressLine({ profile }: { profile: GamificationProfile }) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return (
+    <Pressable onPress={() => navigation.navigate('Achievements')}>
+      <Card style={{ paddingVertical: spacing.sm }}>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Text style={{ color: colors.text, fontSize: 13 }}>
+            🔥 {profile.streak.current} sem · Nivel {profile.level.number} ({profile.level.name})
+          </Text>
+          <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
+            {profile.xp} XP →
+          </Text>
+        </Row>
+      </Card>
+    </Pressable>
   );
 }
 
@@ -309,43 +344,6 @@ function CategoryBar({ c }: { c: { name: string; icon: string; color: string; am
         />
       </View>
     </View>
-  );
-}
-
-/** Bloque de progreso (FIN-008 §8): racha + nivel + reto, tono sobrio. */
-function ProgressBlock({ profile }: { profile: GamificationProfile }) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const pct =
-    profile.level.nextAt && profile.level.nextAt > 0
-      ? Math.min(100, Math.round((profile.xp / profile.level.nextAt) * 100))
-      : 100;
-  const ch = profile.challenge;
-  return (
-    <Pressable onPress={() => navigation.navigate('Achievements')}>
-      <Card style={{ paddingVertical: spacing.sm }}>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Text style={{ fontWeight: '700', color: colors.text }}>
-            🔥 {profile.streak.current} sem · Nivel {profile.level.number} ({profile.level.name})
-          </Text>
-          <Text style={{ color: colors.primary, fontWeight: '700' }}>{profile.xp} XP →</Text>
-        </Row>
-        <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.border, marginTop: 8, overflow: 'hidden' }}>
-          <View style={{ width: `${pct}%`, height: 6, backgroundColor: colors.primary }} />
-        </View>
-        {ch && ch.status === 'active' ? (
-          <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 8 }}>
-            🎯 Reto del mes: {ch.title}
-            {ch.progress && 'covered' in ch.progress
-              ? ` (${ch.progress.covered}/${ch.progress.required} semanas)`
-              : ''}
-          </Text>
-        ) : ch?.status === 'completed' ? (
-          <Text style={{ color: colors.success, fontSize: 12, marginTop: 8 }}>
-            ✅ Reto del mes completado: {ch.title}
-          </Text>
-        ) : null}
-      </Card>
-    </Pressable>
   );
 }
 

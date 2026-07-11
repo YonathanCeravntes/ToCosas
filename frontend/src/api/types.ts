@@ -160,8 +160,19 @@ export interface FlowSection {
   byCategory: CategorySpend[];
 }
 
+// FIN-017: interpretación server-side ("¿qué significa esto para mí?").
+export interface Interpretation {
+  level: 'verde' | 'amarillo' | 'rojo';
+  text: string;
+}
+
 export interface HomeDashboard {
   period: FinancialPeriodInfo;
+  interpretation: {
+    cashflow: Interpretation | null;
+    savings: Interpretation | null;
+    debt?: Interpretation | null;
+  };
   netWorth: {
     netWorth: number;
     totalAssets: number;
