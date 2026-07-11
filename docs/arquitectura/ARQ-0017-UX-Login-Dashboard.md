@@ -1,6 +1,6 @@
 # ARQ-0017 · Mejora de UX — Login y Dashboard
 
-- **Versión:** 1.2
+- **Versión:** 1.3
 - **Fecha:** 2026-07-11
 - **Autor:** Agente Arquitecto
 - **Estado:** Corregido según DEC-0017 §5/§6.1 — en espera de confirmación puntual del CTO (sin nueva vuelta de auditoría, DEC-0017 §7.2)
@@ -17,6 +17,14 @@
     interpretaciones bajo los criterios §29 del CPSAO) y §11 corregido (precisión de
     dependencias, Hallazgo 3). Los wireframes de §4.6 quedan superseded en esas
     piezas por §4.7.
+  - v1.3 (2026-07-11) — hallazgo del CTO en la confirmación: la tarjeta de Deuda
+    total mostraba 'cuotas del mes' (programadas, del resumen de deudas) junto a la
+    interpretación basada en pagado-del-ciclo — misma mezcla del Hallazgo 1+2 en otro
+    sitio. Resuelto por la ruta preferida (§4.7.5): UNA sola cifra de cuota en la
+    tarjeta, la pagada del ciclo. Además se corrige una imprecisión de v1.2: los
+    cortes REALES del indicador de FIN-004 son 0,20/0,35 (health.service.ts:129), no
+    '30/45' — la implementación usa los reales vía la constante exportada
+    DEBT_RATIO_CUTS.
 - **Módulo/Feature:** FIN-017 · **Origen (Gobernanza v3.5 §27):** Mejora de revisión de producto (`PRODUCT_REVIEW_001` / Lote 01 de capturas)
 - **Referencia visual del estado actual:** `docs/producto/capturas/lote-01/` (capturas reales, commit `0bfa154`)
 
@@ -181,8 +189,7 @@ no hay mezcla de cadencias que explicar, y por tanto la interpretación **no
 introduce ninguna pregunta nueva** (criterio §29.1 — la ruta (b) queda descartada:
 no encontré redacción que evite exigir la comprensión mes calendario vs ciclo).
 
-Los cortes de nivel (30% / 45%) se toman de los MISMOS rangos ya ratificados para el
-indicador de endeudamiento de FIN-004, aplicados a la razón propia del Dashboard —
+Los cortes de nivel (**0,20 / 0,35 — los valores REALES del indicador de FIN-004**, corregido en v1.3) se toman de los mismos rangos ya ratificados, aplicados a la razón propia del Dashboard —
 constantes compartidas en tiempo de compilación, no una llamada al Score.
 
 #### 4.7.3 Textos definitivos de las 3 interpretaciones (criterio §29.2 aplicado)
@@ -198,6 +205,16 @@ en el texto); sin términos financieros sin traducir; ninguna referencia a
 "calendario", "ciclo financiero" ni "DTI" en el texto visible; si falta el dato
 (p. ej. ingreso 0), la línea interpretativa se omite — nunca se muestra un texto
 que obligue a preguntar.
+
+#### 4.7.5 Una sola cifra de cuota en la tarjeta de Deuda total (hallazgo del CTO, v1.3)
+
+La tarjeta mostraba 'cuotas del mes' con la suma de cuotas PROGRAMADAS
+( del resumen de deudas) — al activar la interpretación basada
+en cuotas PAGADAS del ciclo, convivirían dos cifras de 'cuota' de naturaleza distinta
+sin explicación (la misma mezcla del Hallazgo 1+2, reaparecida). Se adopta la ruta
+preferida del CTO: la tarjeta muestra UNA sola cifra — ' pagado este ciclo'
+(, el MISMO dato de la interpretación). La cuota programada de cada
+deuda sigue visible donde corresponde: en Mis deudas y en el detalle.
 
 #### 4.7.4 Efecto en §11 (Hallazgo 3)
 
@@ -234,8 +251,7 @@ Prioridades 1, 2, 4 y §4.5: datos ya expuestos por `GET /dashboard/home` (FIN-0
 ninguna dependencia nueva. Prioridad 3 **por la ruta (a) adoptada en §4.7.2**:
 ninguna dependencia nueva en tiempo de ejecución — las interpretaciones se componen
 dentro de `dashboard.service.ts` desde sus propios agregados; solo se comparten las
-constantes de corte del indicador de endeudamiento de FIN-004 (import en tiempo de
-compilación, sin llamadas a `HealthService`/`EngineService`).
+constante exportada `DEBT_RATIO_CUTS` (0,20/0,35) del indicador de endeudamiento de FIN-004 (import en tiempo de compilación, sin llamadas a `HealthService`/`EngineService`).
 
 ## 12. Impacto
 2 pantallas; el resto de la app intacta. Sin migraciones, sin contratos rotos

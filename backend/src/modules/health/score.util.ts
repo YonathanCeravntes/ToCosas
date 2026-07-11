@@ -78,6 +78,13 @@ export function liquidityPillar(runway: number): number {
   return r1(piecewise([[0, 0], [3, 60], [6, 100]], runway));
 }
 
+/**
+ * Cortes del indicador de endeudamiento (FIN-004): verde < 0.20 ≤ amarillo ≤ 0.35 < rojo.
+ * Exportados para FIN-017 (interpretación del Dashboard) — constante compartida en
+ * compilación, misma fuente de verdad que el indicador de salud.
+ */
+export const DEBT_RATIO_CUTS = { verde: 0.2, amarillo: 0.35 } as const;
+
 /** Endeudamiento: DTI (fracción) → 0=100 · 0.20=80 · 0.35=50 · ≥0.60=0. */
 export function debtPillar(dti: number): number {
   return r1(piecewise([[0, 100], [0.2, 80], [0.35, 50], [0.6, 0]], dti));

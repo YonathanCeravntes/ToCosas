@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { computeNetWorth } from '../accounts/networth.util';
 import { financialPeriod } from '../budget/financial-period.util';
+import { DEBT_RATIO_CUTS } from '../health/score.util';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -135,6 +136,7 @@ export class DashboardService {
       // queda pendiente de la confirmación puntual del CTO.
       interpretation: {
         cashflow: interpretCashflow(estimatedCashflow, round2(incomeTotal)),
+        debt: interpretDebt(round2(debtPayments), round2(incomeTotal)),
         savings: interpretSavings(round2(totalSavings), round2(fixedExpense)),
       },
       recentTransactions: recent.map((t) => ({
@@ -174,6 +176,24 @@ function interpretCashflow(cashflow: number, incomeTotal: number): Interpretatio
     return { level: 'amarillo', text: 'Vas justa: te queda poco margen este ciclo' };
   }
   return { level: 'verde', text: `Te alcanza: puedes guardar hasta ${money(cashflow)} este ciclo` };
+}
+
+/**
+ * FIN-017 ruta (a) (DEC-0017 §5.1): cuotas PAGADAS del ciclo / ingreso DEL CICLO —
+ * las mismas cifras que la tarjeta muestra. Cortes compartidos con el indicador de
+ * endeudamiento de FIN-004 (DEBT_RATIO_CUTS, constante de compilación — cero
+ * llamadas al Score). Sin pagos aún en el ciclo, la línea se omite (§29.1).
+ */
+function interpretDebt(debtPayments: number, incomeTotal: number): Interpretation | null {
+  if (incomeTotal <= 0 || debtPayments <= 0) return null;
+  const ratio = debtPayments / incomeTotal;
+  const n = Math.round(ratio * 100);
+  const base = `De cada $100 que te entraron, $${n} se fueron en cuotas`;
+  if (ratio < DEBT_RATIO_CUTS.verde) return { level: 'verde', text: `${base} — vas bien` };
+  if (ratio <= DEBT_RATIO_CUTS.amarillo) {
+    return { level: 'amarillo', text: `${base} — ya pesan bastante` };
+  }
+  return { level: 'rojo', text: `${base} — se están comiendo tu ingreso` };
 }
 
 function interpretSavings(totalSavings: number, fixedExpense: number): Interpretation | null {

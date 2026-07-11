@@ -106,9 +106,11 @@ export function DashboardScreen() {
         <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text }}>
           {formatMoney(summary.data?.totalDebt ?? 0)}
         </Text>
+        {/* FIN-017: UNA sola cifra de cuota — la misma pagada-del-ciclo que usa la
+            interpretación (hallazgo del CTO: no mezclar programado con pagado). */}
         <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13 }}>
-          {summary.data?.debtsCount ?? 0} deuda(s) · cuotas del mes{' '}
-          {formatMoney(summary.data?.monthlyPaymentsTotal ?? 0)}
+          {summary.data?.debtsCount ?? 0} deuda(s) ·{' '}
+          {formatMoney(dashboard.data?.debtPayments ?? 0)} pagado este ciclo
         </Text>
         {dashboard.data?.interpretation.debt ? (
           <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13 }}>

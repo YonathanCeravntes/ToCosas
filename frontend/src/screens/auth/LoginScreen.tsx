@@ -27,14 +27,23 @@ export function LoginScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1, justifyContent: 'center' }}
       >
-        <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
+        {/* FIN-017 P1 (DEC-0017 §4.1 + confirmación del CTO): propuesta de valor
+            compacta — qué hace Milla, entendible en ≤5 segundos, 4 pilares. */}
+        <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
           <Text style={{ fontSize: 40 }}>🪈</Text>
           <Text style={{ fontSize: 28, fontWeight: '800', color: colors.primary }}>
             Millo
           </Text>
-          <Text style={{ color: colors.textMuted, marginTop: 4 }}>
-            Cuida tus millos, sal de deudas con calma.
+          <Text style={{ color: colors.text, marginTop: 4, fontWeight: '600', textAlign: 'center' }}>
+            Tus deudas, tu plata y tu mes — claros en un solo lugar.
           </Text>
+        </View>
+
+        <View style={{ marginBottom: spacing.lg, gap: 6, alignSelf: 'center' }}>
+          <Text style={{ color: colors.textMuted, fontSize: 14 }}>💳  Sal de tus deudas con un plan</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 14 }}>💰  Cuánto puedes gastar, siempre claro</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 14 }}>🩺  Tu salud financiera en un número</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 14 }}>🤖  Un copiloto que te explica</Text>
         </View>
 
         <Field
@@ -61,6 +70,11 @@ export function LoginScreen({ navigation }: Props) {
           variant="secondary"
           onPress={() => navigation.navigate('Register')}
         />
+
+        {/* El tagline baja a firma emocional: no intenta explicar el producto. */}
+        <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: spacing.lg }}>
+          "Cuida tus millos, sal de deudas con calma."
+        </Text>
       </KeyboardAvoidingView>
     </Screen>
   );

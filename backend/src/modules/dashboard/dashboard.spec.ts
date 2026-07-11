@@ -85,6 +85,11 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     // ahorro 3.5M / fijos 1.5M = 2,33 meses → amarillo (1–3).
     expect(home.interpretation.savings?.level).toBe('amarillo');
     expect(home.interpretation.savings?.text).toContain('~2 mes');
+    // deuda (ruta a): pagado 450k / ingreso 4.5M = 10% < corte verde 20% (FIN-004).
+    expect(home.interpretation.debt).toEqual({
+      level: 'verde',
+      text: 'De cada $100 que te entraron, $10 se fueron en cuotas — vas bien',
+    });
   });
 
   it('interpretación: se OMITE si falta el dato (nunca un texto que genere una pregunta)', async () => {
@@ -99,5 +104,6 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     const home = await new DashboardService(empty).home('u2');
     expect(home.interpretation.cashflow).toBeNull(); // sin ingreso → sin línea
     expect(home.interpretation.savings).toBeNull(); // sin gastos fijos → sin línea
+    expect(home.interpretation.debt).toBeNull(); // sin pagos en el ciclo → sin línea
   });
 });
