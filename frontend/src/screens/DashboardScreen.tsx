@@ -120,8 +120,9 @@ export function DashboardScreen() {
         ) : null}
       </Card>
 
-      {/* Patrimonio + ahorro: par del mismo peso (sin tarjeta oscura) */}
-      <Row style={{ gap: spacing.md }}>
+      {/* Patrimonio + ahorro: par del mismo peso (sin tarjeta oscura).
+          D4 (corrección trivial autorizada): stretch para alturas iguales. */}
+      <Row style={{ gap: spacing.md, alignItems: 'stretch' }}>
         <Card style={{ flex: 1 }}>
           <Text style={{ color: colors.textMuted }}>🏛️ Patrimonio</Text>
           <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>

@@ -39,11 +39,20 @@ export function LoginScreen({ navigation }: Props) {
           </Text>
         </View>
 
+        {/* L2 (corrección trivial autorizada): columna de íconos fija para
+            alineación limpia de las 4 líneas. */}
         <View style={{ marginBottom: spacing.lg, gap: 6, alignSelf: 'center' }}>
-          <Text style={{ color: colors.textMuted, fontSize: 14 }}>💳  Sal de tus deudas con un plan</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 14 }}>💰  Cuánto puedes gastar, siempre claro</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 14 }}>🩺  Tu salud financiera en un número</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 14 }}>🤖  Un copiloto que te explica</Text>
+          {[
+            ['💳', 'Sal de tus deudas con un plan'],
+            ['💰', 'Cuánto puedes gastar, siempre claro'],
+            ['🩺', 'Tu salud financiera en un número'],
+            ['🤖', 'Un copiloto que te explica'],
+          ].map(([icon, label]) => (
+            <View key={label} style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 14, width: 28 }}>{icon}</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 14 }}>{label}</Text>
+            </View>
+          ))}
         </View>
 
         <Field
