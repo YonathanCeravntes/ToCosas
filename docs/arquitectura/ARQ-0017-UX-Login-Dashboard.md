@@ -1,9 +1,9 @@
 # ARQ-0017 · Mejora de UX — Login y Dashboard
 
-- **Versión:** 1.1
+- **Versión:** 1.2
 - **Fecha:** 2026-07-11
 - **Autor:** Agente Arquitecto
-- **Estado:** Propuesto — en espera de AUD-017 y DEC-017
+- **Estado:** Corregido según DEC-0017 §5/§6.1 — en espera de confirmación puntual del CTO (sin nueva vuelta de auditoría, DEC-0017 §7.2)
 - **Historial de cambios:**
   - v1.0 (2026-07-11) — 4 prioridades con ≥2 alternativas cada una.
   - v1.1 (2026-07-11) — por directriz del CTO ("diseñar la mejor evolución, no
@@ -11,6 +11,12 @@
     de ambas pantallas (§4.6) y se explicita una decisión importante que estaba
     implícita — el tratamiento del bloque de gamificación (§4.5). Sin cambios de
     alcance.
+  - v1.2 (2026-07-11) — correcciones puntuales de DEC-0017: §4.7 (Login a 4
+    micro-líneas, Hallazgo 4; interpretación de "Deuda total" por la ruta (a) con
+    cifras propias del Dashboard, Hallazgo 1+2; textos definitivos de las 3
+    interpretaciones bajo los criterios §29 del CPSAO) y §11 corregido (precisión de
+    dependencias, Hallazgo 3). Los wireframes de §4.6 quedan superseded en esas
+    piezas por §4.7.
 - **Módulo/Feature:** FIN-017 · **Origen (Gobernanza v3.5 §27):** Mejora de revisión de producto (`PRODUCT_REVIEW_001` / Lote 01 de capturas)
 - **Referencia visual del estado actual:** `docs/producto/capturas/lote-01/` (capturas reales, commit `0bfa154`)
 
@@ -147,6 +153,59 @@ Radical): un solo elemento dominante por pantalla; toda cifra clave lleva su "qu
 significa para mí" visible; ningún término técnico sin traducción; nada nuevo — solo
 reordenar, compactar y traducir lo que ya existe.
 
+### 4.7 — Correcciones de DEC-0017 (§5 y §6.1) — v1.2
+
+#### 4.7.1 Prioridad 1 · Login a 4 micro-líneas (Hallazgo 4)
+
+Se amplía a los 4 pilares del diagnóstico (§2.1) — la omisión de Presupuesto no tenía
+justificación y no se defiende. Textos definitivos, cada uno pasado por la prueba
+§29.2 ("¿una persona sin conocimientos financieros lo entiende a la primera?"):
+
+```
+   💳  Sal de tus deudas con un plan
+   💰  Cuánto puedes gastar, siempre claro
+   🩺  Tu salud financiera en un número
+   🤖  Un copiloto que te explica
+```
+
+Cuatro líneas siguen siendo escaneables en ≤5 segundos (una por pilar, ≤6 palabras
+cada una). El wireframe del Login de §4.6 queda actualizado con esta lista.
+
+#### 4.7.2 Prioridad 3 · Interpretación de "Deuda total" — ruta (a) (Hallazgo 1+2)
+
+**Se adopta la ruta (a) de DEC-0017 §5.1**: la interpretación se calcula con las
+MISMAS cifras que el Dashboard ya muestra — cuotas de deuda **pagadas en el ciclo**
+(`debtPayments`, ya en la respuesta del home) sobre el ingreso **del ciclo**
+(`income.total`, también ya en la respuesta). Cero reutilización del DTI del Score:
+no hay mezcla de cadencias que explicar, y por tanto la interpretación **no
+introduce ninguna pregunta nueva** (criterio §29.1 — la ruta (b) queda descartada:
+no encontré redacción que evite exigir la comprensión mes calendario vs ciclo).
+
+Los cortes de nivel (30% / 45%) se toman de los MISMOS rangos ya ratificados para el
+indicador de endeudamiento de FIN-004, aplicados a la razón propia del Dashboard —
+constantes compartidas en tiempo de compilación, no una llamada al Score.
+
+#### 4.7.3 Textos definitivos de las 3 interpretaciones (criterio §29.2 aplicado)
+
+| Sección | Fórmula (cifras propias del home) | Texto (nivel verde / amarillo / rojo) |
+|---|---|---|
+| Hero (flujo) | `estimatedCashflow` vs 0 y vs `income.total` | 🟢 "Te alcanza: puedes guardar hasta $X este ciclo" · 🟡 "Vas justa: te queda poco margen este ciclo" · 🔴 "Estás gastando más de lo que entra" |
+| Deuda total | `debtPayments / income.total` del ciclo | 🟢 "De cada $100 que te entraron, $N se fueron en cuotas — vas bien" · 🟡 "…$N se fueron en cuotas — ya pesan bastante" · 🔴 "…$N se fueron en cuotas — se están comiendo tu ingreso" |
+| Ahorro total | `savings.total / expense.fixed` (meses de gastos fijos cubiertos) | 🟢 (≥3) "Con esto cubres ~N meses de tus gastos fijos" · 🟡 (1–3) "Cubres ~N mes(es) de tus fijos — vas construyendo" · 🔴 (<1) "Aún no cubre un mes de tus fijos — cada aporte cuenta" |
+
+Reglas transversales: montos en pesos redondeados (nunca porcentajes con decimales
+en el texto); sin términos financieros sin traducir; ninguna referencia a
+"calendario", "ciclo financiero" ni "DTI" en el texto visible; si falta el dato
+(p. ej. ingreso 0), la línea interpretativa se omite — nunca se muestra un texto
+que obligue a preguntar.
+
+#### 4.7.4 Efecto en §11 (Hallazgo 3)
+
+Con la ruta (a): **la Prioridad 3 no introduce ninguna dependencia nueva en tiempo
+de ejecución** — `dashboard.service.ts` compone las interpretaciones desde sus
+propios agregados; lo único compartido con FIN-004 son las constantes de corte
+(30/45), importadas en tiempo de compilación. §11 queda corregido en ese sentido.
+
 ## 5. Componentes
 Solo `LoginScreen.tsx` y `DashboardScreen.tsx` (+ `dashboard.service.ts` si el DEC
 aprueba 3-A). Cero componentes nuevos.
@@ -170,9 +229,13 @@ Ninguno.
 - Cambio de jerarquía puede desorientar a usuarios ya habituados → mitigado por ser
   reordenamiento de tarjetas existentes, no eliminación de información.
 
-## 11. Dependencias
-Datos ya expuestos por `GET /dashboard/home` (FIN-014) y umbrales de indicadores
-(FIN-004). Ninguna dependencia nueva.
+## 11. Dependencias (corregido en v1.2 — DEC-0017 §5.2)
+Prioridades 1, 2, 4 y §4.5: datos ya expuestos por `GET /dashboard/home` (FIN-014);
+ninguna dependencia nueva. Prioridad 3 **por la ruta (a) adoptada en §4.7.2**:
+ninguna dependencia nueva en tiempo de ejecución — las interpretaciones se componen
+dentro de `dashboard.service.ts` desde sus propios agregados; solo se comparten las
+constantes de corte del indicador de endeudamiento de FIN-004 (import en tiempo de
+compilación, sin llamadas a `HealthService`/`EngineService`).
 
 ## 12. Impacto
 2 pantallas; el resto de la app intacta. Sin migraciones, sin contratos rotos
