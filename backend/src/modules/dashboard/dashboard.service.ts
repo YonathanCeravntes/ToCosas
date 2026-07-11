@@ -175,7 +175,11 @@ function interpretCashflow(cashflow: number, incomeTotal: number): Interpretatio
   if (cashflow < incomeTotal * 0.1) {
     return { level: 'amarillo', text: 'Vas justa: te queda poco margen este ciclo' };
   }
-  return { level: 'verde', text: `Te alcanza: puedes guardar hasta ${money(cashflow)} este ciclo` };
+  // FIN-018 D1-A (DEC-018): en verde, información NUEVA en vez de repetir el monto
+  // del hero — proporción en el mismo formato "$ de cada $100" de la interpretación
+  // de deuda (familia coherente, §29.2).
+  const free = Math.round((cashflow / incomeTotal) * 100);
+  return { level: 'verde', text: `De cada $100 que te entraron, aún tienes $${free} libres` };
 }
 
 /**

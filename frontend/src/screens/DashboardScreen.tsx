@@ -118,6 +118,15 @@ export function DashboardScreen() {
             {dashboard.data.interpretation.debt.text}
           </Text>
         ) : null}
+        {/* FIN-018 D3-B (DEC-018): TODA la deuda vive en un solo bloque — el próximo
+            pago (con fecha, absorbe D6) va aquí; la lista completa, en Deudas. */}
+        {summary.data?.upcoming?.[0] ? (
+          <Text style={{ color: colors.text, marginTop: 6, fontSize: 13, fontWeight: '600' }}>
+            📅 Próximo: {summary.data.upcoming[0].name} ·{' '}
+            {formatMoney(summary.data.upcoming[0].amount)} · vence{' '}
+            {shortDate(summary.data.upcoming[0].dueDate)}
+          </Text>
+        ) : null}
       </Card>
 
       {/* Patrimonio + ahorro: par del mismo peso (sin tarjeta oscura).
@@ -157,38 +166,17 @@ export function DashboardScreen() {
         <FlowStat label="Gastos" flow={dashboard.data?.expense} color={colors.danger} />
       </Row>
 
-      {/* Próximos pagos */}
-      <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
-        Próximos pagos
-      </Text>
-      {summary.data?.upcoming?.length ? (
-        summary.data.upcoming.map((u) => (
-          <Card key={u.debtId}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ fontWeight: '600', color: colors.text }}>{u.name}</Text>
-              <Text style={{ fontWeight: '700', color: colors.primary }}>
-                {formatMoney(u.amount)}
-              </Text>
-            </Row>
-          </Card>
-        ))
-      ) : (
-        <Text style={{ color: colors.textMuted }}>Sin pagos próximos registrados.</Text>
-      )}
+      {/* FIN-018 D3-B: la sección "Próximos pagos" desaparece — el próximo pago
+          vive en la tarjeta de Deuda total; la lista completa, en la pestaña Deudas. */}
 
-      {/* Gastos: fijo + variable por categoría */}
-      {dashboard.data && (dashboard.data.expense.total > 0 || dashboard.data.expense.byCategory.length > 0) ? (
+      {/* Gastos del día a día por categoría (D5-A: el total fijo ya está en la
+          tarjeta Gastos; el título aclara el alcance) */}
+      {dashboard.data && dashboard.data.expense.byCategory.length > 0 ? (
         <>
           <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
-            ¿En qué se te va la plata?
+            ¿En qué se te va la plata? · día a día
           </Text>
           <Card>
-            {dashboard.data.expense.fixed > 0 ? (
-              <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm }}>
-                <Text style={{ color: colors.text, fontWeight: '600' }}>📌 Gastos fijos</Text>
-                <Text style={{ color: colors.textMuted }}>{formatMoney(dashboard.data.expense.fixed)}</Text>
-              </Row>
-            ) : null}
             {dashboard.data.expense.byCategory.map((c) => (
               <CategoryBar key={c.name} c={c} />
             ))}
@@ -196,22 +184,24 @@ export function DashboardScreen() {
         </>
       ) : null}
 
-      {/* Ingresos: fijo + variable por categoría (FIN-014) */}
-      {dashboard.data && dashboard.data.income.total > 0 ? (
+      {/* Ingresos del día a día por categoría (D5-A + D7-B) */}
+      {dashboard.data && dashboard.data.income.variable > 0 ? (
         <>
           <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
-            ¿De dónde llega la plata?
+            ¿De dónde llega la plata? · día a día
           </Text>
           <Card>
-            {dashboard.data.income.fixed > 0 ? (
-              <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm }}>
-                <Text style={{ color: colors.text, fontWeight: '600' }}>📌 Ingresos fijos</Text>
-                <Text style={{ color: colors.textMuted }}>{formatMoney(dashboard.data.income.fixed)}</Text>
-              </Row>
-            ) : null}
-            {dashboard.data.income.byCategory.map((c) => (
-              <CategoryBar key={c.name} c={c} />
-            ))}
+            {dashboard.data.income.byCategory.every((c) => c.name === 'Sin categoría') ? (
+              /* FIN-018 D7-B: sin categorías reales la lista no informa nada —
+                 se convierte en invitación accionable (sección estable). */
+              <Pressable onPress={() => navigation.navigate('Main', { screen: 'Add' } as never)}>
+                <Text style={{ color: colors.primary, fontWeight: '600' }}>
+                  🏷️ Tus ingresos aún no tienen categoría — toca para organizarlos →
+                </Text>
+              </Pressable>
+            ) : (
+              dashboard.data.income.byCategory.map((c) => <CategoryBar key={c.name} c={c} />)
+            )}
           </Card>
         </>
       ) : null}
@@ -289,6 +279,12 @@ export function DashboardScreen() {
 }
 
 const LEVEL_EMOJI: Record<string, string> = { verde: '🟢', amarillo: '🟡', rojo: '🔴' };
+
+/** FIN-018 D3-B: fecha corta para la línea de próximo pago ("28 jul"). */
+function shortDate(iso: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
 
 /** FIN-014 + glosario FIN-017 P4: total con desglose en lenguaje cotidiano. */
 function FlowStat({ label, flow, color }: { label: string; flow?: FlowSection; color: string }) {

@@ -73,12 +73,10 @@ export function LoginScreen({ navigation }: Props) {
 
         {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
 
-        <Button title="Ingresar" onPress={onSubmit} loading={loading} />
-        <Button
-          title="Crear cuenta"
-          variant="secondary"
-          onPress={() => navigation.navigate('Register')}
-        />
+        {/* FIN-018 L1-A (DEC-018): la sesión persiste, así que esta pantalla la ve
+            casi siempre un usuario NUEVO — su acción va como primaria. */}
+        <Button title="Crear cuenta" onPress={() => navigation.navigate('Register')} />
+        <Button title="Ingresar" variant="secondary" onPress={onSubmit} loading={loading} />
 
         {/* El tagline baja a firma emocional: no intenta explicar el producto. */}
         <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: spacing.lg }}>

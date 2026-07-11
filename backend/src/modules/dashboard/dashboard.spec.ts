@@ -76,11 +76,12 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     // Con cycleStartDay=1 la etiqueta es el mes calendario (FIN-016 integrado).
     expect(home.period.cycleStartDay).toBe(1);
 
-    // FIN-017 §4.7.3: interpretaciones con cifras PROPIAS del home (ruta (a)).
-    // cashflow 2.25M ≥ 10% del ingreso (450k) → verde, monto en pesos sin decimales.
+    // FIN-017 §4.7.3 + FIN-018 D1-A: interpretaciones con cifras PROPIAS del home.
+    // cashflow 2.25M / ingreso 4.5M = 50% → verde, formato "$ de cada $100"
+    // (información NUEVA, no repite el monto del hero — DEC-018).
     expect(home.interpretation.cashflow).toEqual({
       level: 'verde',
-      text: 'Te alcanza: puedes guardar hasta $2.250.000 este ciclo',
+      text: 'De cada $100 que te entraron, aún tienes $50 libres',
     });
     // ahorro 3.5M / fijos 1.5M = 2,33 meses → amarillo (1–3).
     expect(home.interpretation.savings?.level).toBe('amarillo');

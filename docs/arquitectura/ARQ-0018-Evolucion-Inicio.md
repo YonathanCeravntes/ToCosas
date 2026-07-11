@@ -1,13 +1,16 @@
 # ARQ-0018 · Evolución de la experiencia Inicio (segunda iteración)
 
-- **Versión:** 1.0
+- **Versión:** 1.1
 - **Fecha:** 2026-07-11
 - **Autor:** Agente Arquitecto
-- **Estado:** Propuesto — en espera de AUD-018 y DEC-018
+- **Estado:** Decidido (DEC-018: 5 piezas autorizadas; propuesta §5 en consulta al CPSAO) — corrección §10 aplicada, en confirmación directa del CTO
 - **Historial de cambios:**
   - v1.0 (2026-07-11) — emisión con el alcance aprobado por el CPSAO (L1, D1, D3,
     D5, D6, D7) + análisis amplio de la mitad inferior (D2/D8/D9) exigido como
     acompañamiento.
+  - v1.1 (2026-07-11) — corrección de redacción del riesgo D3-B en §10 (hallazgo de
+    AUD-018 confirmado por el CTO): la lista de Deudas muestra `payoffDate`, no
+    `nextDueDate`; se registra la mejora futura fuera de ciclo.
 - **Módulo/Feature:** FIN-018 · **Origen (v3.5 §27):** Mejora de revisión de producto (`RECORRIDO-INICIO-001`, commit `1b74f41`)
 - **Referencia visual:** `docs/producto/capturas/revision-inicio/` (scroll completo real)
 
@@ -120,8 +123,14 @@ $100"), con actualización del test exacto. Nada más.
 Ninguno.
 
 ## 10. Riesgos
-- D3-B reduce visibilidad de pagos múltiples en Inicio → mitigado: pestaña Deudas a
-  un tap y línea del más urgente siempre visible.
+- D3-B reduce visibilidad de pagos múltiples en Inicio → mitigación (redacción
+  corregida en v1.1 por hallazgo de AUD-018/CTO): la línea del pago MÁS URGENTE
+  queda siempre visible en Inicio, y la pestaña Deudas está a un tap — aunque la
+  lista de Deudas hoy muestra la fecha de TÉRMINO (`payoffDate`) por deuda, no la
+  fecha del próximo pago (`nextDueDate`); el detalle de cada deuda sí muestra su
+  plan con fechas. Añadir `nextDueDate` a la lista de Deudas queda registrado como
+  **mejora futura fuera de este ciclo** (tocaría una tercera pantalla, fuera del
+  alcance de FIN-018).
 - Cambios de copy (D1) requieren pasar §29.2 — textos definitivos en este ARQ.
 - L1-A degrada al recurrente post-logout → caso raro y deliberado; reversible.
 
