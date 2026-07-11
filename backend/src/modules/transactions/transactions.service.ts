@@ -58,12 +58,25 @@ export class TransactionsService {
         // findFirst + update calculado en memoria ("última escritura gana").
         // El clamp a 0 y la marca 'pagada' pasan a la BD: mismo comportamiento
         // funcional de siempre, ahora sin ventana entre lectura y escritura.
+        //
+        // FIN-018 (incidencia elevada por el CPSAO): el pago también AVANZA
+        // next_due_date — hasta la PRÓXIMA ocurrencia futura conservando el día
+        // ancla (avanzar solo +1 mes desde una fecha ya vencida seguiría
+        // vencida). Si la deuda queda saldada, la fecha se limpia.
         const rows = await tx.$queryRaw<{ id: string }[]>`
           UPDATE debts
              SET current_balance = GREATEST(current_balance - ${dto.amount}, 0),
                  status = CASE
                    WHEN current_balance - ${dto.amount} <= 0.005 THEN 'pagada'::"DebtStatus"
                    ELSE status
+                 END,
+                 next_due_date = CASE
+                   WHEN current_balance - ${dto.amount} <= 0.005 THEN NULL
+                   WHEN next_due_date IS NULL THEN NULL
+                   ELSE (next_due_date + make_interval(months =>
+                     GREATEST(1,
+                       (EXTRACT(YEAR FROM age(now(), next_due_date)) * 12
+                        + EXTRACT(MONTH FROM age(now(), next_due_date)))::int + 1)))::date
                  END,
                  updated_at = now()
            WHERE id = ${dto.debtId}::uuid

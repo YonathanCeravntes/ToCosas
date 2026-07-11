@@ -15,6 +15,11 @@
     (compactación de Movimientos recientes) como **pieza 7** del alcance (DEC-018
     §6.1); se documenta su diseño final en §4.8, incluidos los dos criterios de
     producto del CPSAO y el texto exacto del enlace.
+  - v1.3 (2026-07-11) — tercera entrega pedida por el CTO/CPSAO antes del cierre:
+    (a) la incidencia de `nextDueDate` entra al alcance como **pieza 8** (§4.9) —
+    corrección acotada implementada con la misma familia de sentencia atómica;
+    (b) **análisis narrativo** "¿qué debería hacer ahora?" documentado en §5.1,
+    con una propuesta mínima para decisión del equipo.
 - **Módulo/Feature:** FIN-018 · **Origen (v3.5 §27):** Mejora de revisión de producto (`RECORRIDO-INICIO-001`, commit `1b74f41`)
 - **Referencia visual:** `docs/producto/capturas/revision-inicio/` (scroll completo real)
 
@@ -108,6 +113,26 @@ Diseño final conforme a los dos criterios de producto del CPSAO:
   se valida y documenta como juicio razonado en IMP-0018, sobre la captura de scroll
   completo final.
 
+### 4.9 — Pieza 8: avance de `nextDueDate` al registrar pagos (incorporada por el CTO/CPSAO, v1.3)
+
+La incidencia destapada por D3-B/D6 (fecha vencida mostrada como "Próximo") se
+elevó a riesgo de experiencia y entró al alcance. Corrección acotada, misma familia
+de sentencia atómica de FIN-012 (todo dentro del mismo `UPDATE` del manejador de
+`pago_deuda`):
+
+- Un pago **avanza `next_due_date` hasta la próxima ocurrencia FUTURA conservando el
+  día ancla** — no "+1 mes" a secas: desde una fecha ya vencida por k meses, +1 la
+  dejaría vencida; la sentencia calcula los meses de atraso con `age()` y salta
+  k+1 meses (Postgres ajusta fines de mes solo).
+- Si el pago salda la deuda, `next_due_date` queda `NULL` (no hay próximo pago).
+- Semántica declarada: con cuotas atrasadas acumuladas, UN pago normaliza la fecha
+  visible a la próxima ocurrencia (no reconstruye el histórico de atrasos — eso
+  pertenece al dominio de mora, fuera de alcance).
+- Las rutas de FIN-012 ya eran correctas (prepay regenera el plan y toma la fecha
+  del cronograma nuevo; payoff limpia) — solo faltaba el manejador de pago normal.
+- Evidencia: `test/fin018-next-due-date.e2e-spec.ts` (3 casos contra BD real:
+  vencida→futura con día ancla, futura→+1 mes exacto, saldada→NULL).
+
 ## 5. Análisis amplio de la mitad inferior (requisito del CPSAO — acompaña, no compromete)
 
 **Pregunta guía:** ¿la mitad inferior sigue ayudando a DECIDIR o se convierte en
@@ -129,6 +154,39 @@ pestaña Registrar) — la consulta se degrada a resumen con salida explícita, 
 "Ver todos" funciona de cierre natural del recorrido, haciendo innecesario un cierre
 artificial (D9). Si el equipo la aprueba, cabe en esta misma FIN (es la misma
 pantalla y reduce, no añade); si no, el recorrido igual mejora con las 6 comprometidas.
+
+### 5.1 — Análisis narrativo (v1.3): ¿el recorrido también guía hacia "¿qué debería hacer ahora?"
+
+Evaluación bloque por bloque sobre la captura final: qué pregunta RESPONDE
+("¿cómo estoy?") y qué decisión EMPUJA ("¿qué hago ahora?"):
+
+| Bloque | Responde | Empuja | Lectura |
+|---|---|---|---|
+| Hero "Te queda este ciclo" | ✓ cuánto queda + margen | ✗ | **Gap principal**: el protagonista informa el margen pero no propone qué hacer con él |
+| Gamificación (1 línea) | ✓ hábito | ✓ registrar hoy (tocable → Logros) | Cumple |
+| Deuda total (unificada) | ✓ total, pagado, interpretación, próximo | ✗ directo | **Gap secundario**: la acción de mayor valor que Milla ya construyó (abono a capital, FIN-012) está a 2 taps sin puente desde aquí |
+| Patrimonio | ✓ | — | Correcto: no todo bloque necesita acción |
+| Ahorro | ✓ | ✓ CTA proyección | Cumple |
+| Ingresos/Gastos + categorías | ✓ | ✓ implícito (las barras jerarquizan dónde recortar) | Cumple |
+| Invitación a categorizar (D7-B) | — | ✓ | Cumple |
+| Movimientos + enlace de detalle | ✓ registro al día | ✓ transición explícita | Cumple |
+
+**Conclusión:** el ORDEN ya guía bien (urgencia correcta, cada bloque con salida);
+el hueco es mínimo y está localizado exactamente en los DOS bloques de mayor
+jerarquía: hero y deuda **responden pero no proponen**. La combinación es
+elocuente: la pantalla le dice al usuario "te quedan $71 libres de cada $100" y
+"tu tarjeta está al 26% EA" — y no conecta ambas frases.
+
+**Propuesta mínima (para decisión del equipo — NO implementada):** una sola línea
+condicional en la tarjeta de Deuda, visible solo cuando hay margen verde Y deudas
+activas: `"Tienes margen este ciclo — simula un abono a tu deuda →"` (navega al
+detalle de la deuda de mayor tasa, donde el simulador de abono de FIN-012 ya
+existe; cero lógica financiera nueva, reutiliza pantallas construidas). Alternativa
+igualmente válida: **no añadir nada** — los empujes periféricos ya existen y cada
+elemento extra compite con la limpieza recién ganada; si se elige esta, el gap
+queda registrado como semilla de una futura iteración de "recomendación en Inicio"
+(que conectaría con el motor de recomendaciones de FIN-007, hoy visible solo en
+Copiloto). La decisión es de producto (CPSAO/CTO), no técnica.
 
 ## 6. Componentes
 `LoginScreen.tsx`, `DashboardScreen.tsx`; `dashboard.service.ts` SOLO para el texto
