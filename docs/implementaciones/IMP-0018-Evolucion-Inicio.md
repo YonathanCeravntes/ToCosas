@@ -1,22 +1,26 @@
 # IMP-0018 · Evolución de la experiencia Inicio (segunda iteración)
 
-- **Versión:** 1.1
+- **Versión:** 1.2
 - **Fecha:** 2026-07-11
 - **Autor:** Agente Arquitecto/Desarrollador
-- **Estado:** Entregado (v1.1, tercera entrega incluida) — a la espera de la Revisión de Comprensión (Auditor) y cierre del CTO
+- **Estado:** Entregado (v1.2, cuarta iteración incluida) — a la espera de la validación del CTO para programar la sesión real de Revisión de Comprensión
 - **Historial de cambios:**
   - v1.0 (2026-07-11) — emisión con el alcance COMPLETO de DEC-018 (+ adendo §6.1).
   - v1.1 (2026-07-11) — tercera entrega pedida por CTO/CPSAO tras validar v1.0:
     **pieza 8** (avance de `nextDueDate` al registrar pagos, ARQ §4.9) implementada
     con E2E versionado, y **análisis narrativo** documentado en ARQ §5.1. Captura
     del Dashboard retomada con la fecha ya corregida en datos reales.
+  - v1.2 (2026-07-11) — **cuarta iteración** (última antes de la RC real, autorizada
+    por el CPSAO): D2 resuelto (gamificación al cierre), puente narrativo
+    implementado, "ciclo" eliminado del vocabulario visible, "abono a capital" en
+    beneficio-primero (ARQ §4.10). Capturas finales retomadas.
 - **Módulo/Feature:** FIN-018 · **Origen (v3.5 §27):** Mejora de revisión de producto
-- **Documentos base:** `ARQ-0018-Evolucion-Inicio.md` v1.3 · `AUD-0018` · `DEC-0018` (+ adendo §6.1) · instrucción CTO/CPSAO de tercera entrega
-- **Referencia inmutable (regla GOBERNANZA):** commit **`8c42edf5cc2118e3ca71a7f2614532a1be4df8d7`**
-  - Código en 3 commits: `3fb4072` (5 piezas: L1-A, D1-A, D3-B+D6, D5-A, D7-B),
-    `82caa0d` (pieza 7: Movimientos compactados) y `8c42edf` (pieza 8: nextDueDate
-    + ARQ v1.3). Correcciones triviales L2/D4 previas en `4223e11` (fuera de este
-    ciclo, ya verificadas por el CTO).
+- **Documentos base:** `ARQ-0018-Evolucion-Inicio.md` v1.4 · `AUD-0018` · `DEC-0018` (+ adendo §6.1) · RC-0001 v1.1 · instrucciones CTO/CPSAO de 3ª y 4ª iteración
+- **Referencia inmutable (regla GOBERNANZA):** commit **`8016bfd26a22861791c78f993ca9321fe13ef7bb`**
+  - Código en 4 commits: `3fb4072` (5 piezas: L1-A, D1-A, D3-B+D6, D5-A, D7-B),
+    `82caa0d` (pieza 7: Movimientos compactados), `8c42edf` (pieza 8: nextDueDate +
+    ARQ v1.3) y `8016bfd` (4ª iteración). Correcciones triviales L2/D4 previas en
+    `4223e11` (fuera de este ciclo, ya verificadas por el CTO).
 
 ## 1. Resumen
 Las **8 piezas** de FIN-018 implementadas (7 de DEC-018 + la corrección de
@@ -40,6 +44,29 @@ fecha visible; la gestión de mora acumulada queda fuera de alcance.
 hueco está localizado en hero y deuda ("responden pero no proponen"). Propuesta
 mínima documentada SIN implementar (línea condicional "Tienes margen — simula un
 abono →") junto a la alternativa de no añadir nada — decisión de producto.
+
+**Cuarta iteración (v1.2, ARQ §4.10):** (1) **D2** — la gamificación pasa al CIERRE
+del recorrido (decidido por el recorrido mental: la racha no responde "¿cómo estoy?",
+refuerza el hábito que sostiene las respuestas; desaparece la interrupción
+hero→deuda); orden final: … movimientos → "Ver el detalle completo →" → 🔥 racha.
+(2) **Puente narrativo aprobado e implementado**: "💡 Tienes margen: adelanta un
+pago y ahorra intereses →" — condicional (margen verde + deuda activa), navega al
+detalle de la deuda del próximo pago (simulador FIN-012); verificada la navegación
+en vivo. (3) **"Ciclo" eliminado** del vocabulario visible: "Te queda para gastar ·
+hasta el 31 de jul" / "pagado desde el 1 de jul" / amarillo sin "ciclo" — las fechas
+concretas explican el periodo sin exigir el término; verificado: la pantalla
+completa no contiene la palabra. (4) **"Abono a capital" beneficio-primero**: nota
+nueva "Adelanto a tu deuda (terminas antes / baja tu cuota)", payoff "Pagaste toda
+tu deuda"; en el detalle el término se conserva por precisión con subtítulo llano.
+Nota: las filas históricas de movimientos conservan la nota vieja (son DATO escrito
+al momento del pago, no plantilla) — los pagos nuevos usan la redacción nueva.
+
+**Criterio rector del CPSAO, aplicado al recorrido completo** (ARQ §4.10): con la
+captura final a la vista — si esta fuera la única pantalla de Milla, el usuario
+entiende QUÉ pasa (cuánto le queda y hasta cuándo, cuánto debe y cuánto ya pagó
+desde cuándo, qué tiene guardado) en pesos y fechas concretas sin un solo término
+interno, y QUÉ HACER (adelantar un pago si hay margen, organizar ingresos, ver el
+detalle, sostener la racha). El único conocimiento que exige es leer pesos.
 
 ## 2. Archivos modificados
 - **Backend** — `dashboard.service.ts`: texto verde de `interpretCashflow` en formato
