@@ -212,31 +212,44 @@ export function DashboardScreen() {
         Movimientos recientes
       </Text>
       {dashboard.data?.recentTransactions.length ? (
-        dashboard.data.recentTransactions.map((t) => {
-          const meta = KIND_META[t.kind] ?? KIND_META.transferencia;
-          return (
-            <Card key={t.id} style={{ paddingVertical: spacing.sm }}>
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Row style={{ gap: spacing.sm, flex: 1 }}>
-                  <Text style={{ fontSize: 18 }}>{t.category?.icon ?? meta.emoji}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: '600', color: colors.text }} numberOfLines={1}>
-                      {t.note || t.category?.name || t.debtName || t.kind}
-                    </Text>
-                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                      {formatDate(t.occurredAt)}
-                      {t.debtName ? ` · ${t.debtName}` : ''}
-                    </Text>
-                  </View>
+        /* FIN-018 pieza 7 (DEC-018 §6.1): vista EJECUTIVA — 4 filas densas en una
+           sola tarjeta; el enlace comunica el paso a la vista de DETALLE. */
+        <Card>
+          {dashboard.data.recentTransactions.slice(0, 4).map((t, i) => {
+            const meta = KIND_META[t.kind] ?? KIND_META.transferencia;
+            return (
+              <Row
+                key={t.id}
+                style={{
+                  justifyContent: 'space-between',
+                  paddingVertical: 7,
+                  borderTopWidth: i === 0 ? 0 : 1,
+                  borderTopColor: colors.border,
+                }}
+              >
+                <Row style={{ gap: 8, flex: 1 }}>
+                  <Text style={{ fontSize: 15 }}>{t.category?.icon ?? meta.emoji}</Text>
+                  <Text style={{ color: colors.text, flex: 1, fontSize: 13 }} numberOfLines={1}>
+                    {t.note || t.category?.name || t.debtName || t.kind}
+                    <Text style={{ color: colors.textMuted }}> · {shortDate(t.occurredAt)}</Text>
+                  </Text>
                 </Row>
-                <Text style={{ fontWeight: '700', color: meta.color }}>
+                <Text style={{ fontWeight: '700', color: meta.color, fontSize: 13 }}>
                   {meta.sign}
                   {formatMoney(t.amount)}
                 </Text>
               </Row>
-            </Card>
-          );
-        })
+            );
+          })}
+          <Pressable
+            onPress={() => navigation.navigate('Main', { screen: 'Add' } as never)}
+            style={{ marginTop: spacing.sm }}
+          >
+            <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>
+              Ver el detalle completo de tus movimientos →
+            </Text>
+          </Pressable>
+        </Card>
       ) : recent.length ? (
         recent.map((t) => {
           const meta = KIND_META[t.kind] ?? KIND_META.transferencia;

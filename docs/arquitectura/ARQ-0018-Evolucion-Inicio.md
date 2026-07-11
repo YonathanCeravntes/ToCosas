@@ -11,6 +11,10 @@
   - v1.1 (2026-07-11) — corrección de redacción del riesgo D3-B en §10 (hallazgo de
     AUD-018 confirmado por el CTO): la lista de Deudas muestra `payoffDate`, no
     `nextDueDate`; se registra la mejora futura fuera de ciclo.
+  - v1.2 (2026-07-11) — el CPSAO aprobó incorporar la propuesta analítica de §5
+    (compactación de Movimientos recientes) como **pieza 7** del alcance (DEC-018
+    §6.1); se documenta su diseño final en §4.8, incluidos los dos criterios de
+    producto del CPSAO y el texto exacto del enlace.
 - **Módulo/Feature:** FIN-018 · **Origen (v3.5 §27):** Mejora de revisión de producto (`RECORRIDO-INICIO-001`, commit `1b74f41`)
 - **Referencia visual:** `docs/producto/capturas/revision-inicio/` (scroll completo real)
 
@@ -85,6 +89,24 @@ línea "Próximo: … · vence 28 jul" y esta pieza no requiere trabajo aparte.
 | Qué es | Si el 100% del ingreso variable está sin categoría, la sección no se muestra | La fila "Sin categoría · 100%" se reemplaza por: "Tus ingresos aún no tienen categoría — toca para organizarlos", navegando a la lista de movimientos existente |
 | Ventajas | Quita el ruido con cero costo | Convierte el ruido en una acción con retorno (mejores desgloses después); la sección es estable (no aparece/desaparece) |
 | Desventajas | La sección aparece y desaparece entre ciclos → inconsistencia que puede generar la pregunta "¿dónde quedó?" | Requiere el tap a la lista (pantalla ya existente — costo bajo, no nulo) |
+
+### 4.8 — Pieza 7: compactación de "Movimientos recientes" (incorporada por DEC-018 §6.1, v1.2)
+
+Diseño final conforme a los dos criterios de producto del CPSAO:
+
+- **4 filas densas** (elegido dentro del rango 3–4: con 4 caben, con los datos
+  típicos, al menos un ingreso, un gasto y un pago de deuda — la muestra ejecutiva
+  conserva variedad) en UNA sola tarjeta: ícono + concepto + fecha corta + monto,
+  una línea por movimiento, separadas por filete.
+- **Texto del enlace (criterio 1, pasado por §29.2):**
+  `"Ver el detalle completo de tus movimientos →"` — comunica explícitamente el paso
+  de la vista ejecutiva ("recientes") a la vista de detalle ("el detalle completo"),
+  sin jerga y entendible a la primera; navega a la pestaña Registrar, donde vive la
+  lista completa. Alternativa descartada: "Ver todos →" (genérico — no dice a QUÉ
+  se pasa, justo lo que el criterio prohíbe).
+- **Criterio 2** (¿el usuario termina el recorrido entendiendo mejor su situación?):
+  se valida y documenta como juicio razonado en IMP-0018, sobre la captura de scroll
+  completo final.
 
 ## 5. Análisis amplio de la mitad inferior (requisito del CPSAO — acompaña, no compromete)
 
