@@ -1,24 +1,45 @@
 # IMP-0018 · Evolución de la experiencia Inicio (segunda iteración)
 
-- **Versión:** 1.0
+- **Versión:** 1.1
 - **Fecha:** 2026-07-11
 - **Autor:** Agente Arquitecto/Desarrollador
-- **Estado:** Entregado — a la espera de VALIDACIÓN (Auditor) y cierre del CTO
+- **Estado:** Entregado (v1.1, tercera entrega incluida) — a la espera de la Revisión de Comprensión (Auditor) y cierre del CTO
 - **Historial de cambios:**
   - v1.0 (2026-07-11) — emisión con el alcance COMPLETO de DEC-018 (+ adendo §6.1).
+  - v1.1 (2026-07-11) — tercera entrega pedida por CTO/CPSAO tras validar v1.0:
+    **pieza 8** (avance de `nextDueDate` al registrar pagos, ARQ §4.9) implementada
+    con E2E versionado, y **análisis narrativo** documentado en ARQ §5.1. Captura
+    del Dashboard retomada con la fecha ya corregida en datos reales.
 - **Módulo/Feature:** FIN-018 · **Origen (v3.5 §27):** Mejora de revisión de producto
-- **Documentos base:** `ARQ-0018-Evolucion-Inicio.md` v1.2 · `AUD-0018` · `DEC-0018` (+ adendo §6.1: pieza 7 incorporada por el CPSAO)
-- **Referencia inmutable (regla GOBERNANZA):** commit **`82caa0d332b918562fe7be6aaf8deccdeee57a94`**
-  - Código en 2 commits: `3fb4072` (5 piezas: L1-A, D1-A, D3-B+D6, D5-A, D7-B) y
-    `82caa0d` (pieza 7: Movimientos compactados). Correcciones triviales L2/D4
-    previas en `4223e11` (fuera de este ciclo, ya verificadas por el CTO).
+- **Documentos base:** `ARQ-0018-Evolucion-Inicio.md` v1.3 · `AUD-0018` · `DEC-0018` (+ adendo §6.1) · instrucción CTO/CPSAO de tercera entrega
+- **Referencia inmutable (regla GOBERNANZA):** commit **`8c42edf5cc2118e3ca71a7f2614532a1be4df8d7`**
+  - Código en 3 commits: `3fb4072` (5 piezas: L1-A, D1-A, D3-B+D6, D5-A, D7-B),
+    `82caa0d` (pieza 7: Movimientos compactados) y `8c42edf` (pieza 8: nextDueDate
+    + ARQ v1.3). Correcciones triviales L2/D4 previas en `4223e11` (fuera de este
+    ciclo, ya verificadas por el CTO).
 
 ## 1. Resumen
-Las 7 piezas de DEC-018 implementadas. El recorrido completo de Inicio pasó de
-**2020px a 1490px lógicos (−26%)** eliminando una sección entera (Próximos pagos,
-absorbida con fecha en la tarjeta de deuda), las filas duplicadas de fijos, el ruido
-de "Sin categoría · 100%" y la cola de 8 tarjetas de movimientos — sin perder ningún
-dato (todo lo removido vive a un tap, con transición explícita).
+Las **8 piezas** de FIN-018 implementadas (7 de DEC-018 + la corrección de
+`nextDueDate` incorporada por el CPSAO tras validar v1.0). El recorrido completo de
+Inicio pasó de **2020px a 1490px lógicos (−26%)** eliminando una sección entera
+(Próximos pagos, absorbida con fecha en la tarjeta de deuda), las filas duplicadas
+de fijos, el ruido de "Sin categoría · 100%" y la cola de 8 tarjetas de movimientos
+— sin perder ningún dato. Y el dato más visible de la tarjeta de deuda (el próximo
+pago) ya no puede quedar vencido tras un pago.
+
+**Pieza 8 — `nextDueDate` (v1.1):** el `UPDATE` atómico del pago normal ahora
+avanza la fecha hasta la próxima ocurrencia FUTURA conservando el día ancla (con
+atraso de k meses salta k+1 — "+1 mes" a secas seguiría vencida) y la limpia al
+saldar. E2E versionado `test/fin018-next-due-date.e2e-spec.ts` (3/3 contra BD
+real). Verificado además con los datos reales de la demo: la tarjeta pasó de
+"vence 28 de abr" (vencida) a "vence 28 de jul" al registrar la cuota — la captura
+final refleja este estado. Semántica declarada en ARQ §4.9: un pago normaliza la
+fecha visible; la gestión de mora acumulada queda fuera de alcance.
+
+**Análisis narrativo (v1.1, ARQ §5.1):** el orden del recorrido ya guía bien; el
+hueco está localizado en hero y deuda ("responden pero no proponen"). Propuesta
+mínima documentada SIN implementar (línea condicional "Tienes margen — simula un
+abono →") junto a la alternativa de no añadir nada — decisión de producto.
 
 ## 2. Archivos modificados
 - **Backend** — `dashboard.service.ts`: texto verde de `interpretCashflow` en formato
@@ -67,13 +88,14 @@ sin valor, y el cierre es una transición deliberada, no un final por agotamient
 El usuario que llega al fondo tiene más comprensión, no solo más datos — la pantalla
 ahora es ejecutiva de punta a punta.
 
-**Reservas (documentadas, fuera de mi alcance de decisión):** (1) la fecha vencida
-del "Próximo" pago cuando una deuda no registra pagos (§5, `nextDueDate` estático)
-es hoy el único texto de la pantalla que puede generar una pregunta en vez de
-responderla; (2) la línea de gamificación entre el hero y la deuda (D2) sigue
-pendiente de la decisión de narrativa del CPSAO. Ninguna de las dos impide el
-veredicto positivo; ambas marcan el borde exacto donde una siguiente iteración
-tendría tracción real.
+**Reservas (actualizadas en v1.1):** (1) ~~la fecha vencida del "Próximo" pago~~ —
+**resuelta por la pieza 8**: tras un pago la fecha siempre queda futura (verificado
+en datos reales); persiste solo el caso de una deuda que NUNCA registra pagos, cuyo
+tratamiento pertenece al dominio de mora (fuera de alcance, declarado en ARQ §4.9);
+(2) la línea de gamificación entre el hero y la deuda (D2) sigue pendiente de la
+decisión de narrativa del CPSAO; (3) nueva, del análisis §5.1: hero y deuda
+responden pero no proponen — el puente hacia "¿qué hago ahora?" queda propuesto
+para decisión de producto. Ninguna impide el veredicto positivo.
 
 ## 5. Incidencias
 - **Destapada por D3-B/D6 y reportada al equipo (no auto-corregida):** `nextDueDate`
