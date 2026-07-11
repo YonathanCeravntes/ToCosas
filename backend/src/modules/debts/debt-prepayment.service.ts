@@ -119,7 +119,8 @@ export class DebtPrepaymentService {
           amount,
           occurredAt: new Date(),
           debtId,
-          note: `Abono a capital (${effect === 'reducir_plazo' ? 'reduce plazo' : 'reduce cuota'})`,
+          // FIN-018 4ª iteración (CPSAO): beneficio antes que término técnico.
+          note: `Adelanto a tu deuda (${effect === 'reducir_plazo' ? 'terminas antes' : 'baja tu cuota'})`,
           source: 'app',
           status: 'confirmada',
         },
@@ -157,7 +158,7 @@ export class DebtPrepaymentService {
           amount: balance,
           occurredAt: new Date(),
           debtId,
-          note: 'Pago total anticipado',
+          note: 'Pagaste toda tu deuda',
           source: 'app',
           status: 'confirmada',
         },

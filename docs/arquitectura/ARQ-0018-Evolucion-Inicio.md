@@ -20,6 +20,10 @@
     corrección acotada implementada con la misma familia de sentencia atómica;
     (b) **análisis narrativo** "¿qué debería hacer ahora?" documentado en §5.1,
     con una propuesta mínima para decisión del equipo.
+  - v1.4 (2026-07-11) — **cuarta iteración** autorizada por el CPSAO (última antes
+    de la sesión real de Revisión de Comprensión): D2 resuelto por recorrido
+    mental, puente narrativo aprobado e implementado, "ciclo" eliminado del
+    vocabulario visible, y "abono a capital" en beneficio-primero (§4.10).
 - **Módulo/Feature:** FIN-018 · **Origen (v3.5 §27):** Mejora de revisión de producto (`RECORRIDO-INICIO-001`, commit `1b74f41`)
 - **Referencia visual:** `docs/producto/capturas/revision-inicio/` (scroll completo real)
 
@@ -132,6 +136,47 @@ de sentencia atómica de FIN-012 (todo dentro del mismo `UPDATE` del manejador d
   del cronograma nuevo; payoff limpia) — solo faltaba el manejador de pago normal.
 - Evidencia: `test/fin018-next-due-date.e2e-spec.ts` (3 casos contra BD real:
   vencida→futura con día ancla, futura→+1 mes exacto, saldada→NULL).
+
+### 4.10 — Cuarta iteración (v1.4): los 4 puntos del CPSAO
+
+**1 · D2 resuelto — la gamificación cierra el recorrido.** Decidido por el
+recorrido mental del usuario, no por inercia: quien abre Milla pregunta "¿cómo
+estoy?"; la racha no responde esa pregunta — refuerza el hábito que SOSTIENE las
+respuestas. Entre el hero y la deuda interrumpía la narrativa financiera; como
+último elemento funciona de cierre motivacional ("todo lo que acabas de ver existe
+porque llevas 1 semana registrando") y la salida al detalle deja de competir con
+ella. Orden final: … movimientos → "Ver el detalle completo →" → 🔥 racha/nivel.
+
+**2 · Puente narrativo (aprobado) — implementado.** En la tarjeta de Deuda, SOLO
+cuando el margen es verde Y hay deuda activa:
+`"💡 Tienes margen: adelanta un pago y ahorra intereses →"` — breve, contextual
+(usa el estado real del usuario), beneficio-primero (sin "abono a capital"), y no
+invasivo (una línea, condicional, dentro de la tarjeta que ya habla de deuda).
+Navega al detalle de la deuda del próximo pago, donde vive el simulador de FIN-012.
+
+**3 · "Ciclo" eliminado del vocabulario visible — el rango se explica solo.** En
+vez de exigir aprender el término, la interfaz muestra las fechas concretas:
+hero → `"Te queda para gastar · hasta el 31 de jul"`; deuda → `"pagado desde el
+1 de jul"`; interpretación amarilla → sin "ciclo". Con día de corte 15, esas
+mismas plantillas producen "hasta el 14 ago" / "desde el 15 jul" — el concepto de
+periodo queda evidente sin nombrarlo. Verificable: la pantalla completa no
+contiene la palabra "ciclo".
+
+**4 · "Abono a capital" — beneficio antes que término.** Nota del movimiento:
+`"Adelanto a tu deuda (terminas antes)"` / `"(baja tu cuota)"`; pago total:
+`"Pagaste toda tu deuda"`; el puente del punto 2 tampoco usa el término. En el
+detalle de deuda el término SE CONSERVA por precisión (es el nombre correcto de la
+operación bancaria) acompañado de su explicación llana: "Adelanta plata a tu
+deuda: pagas menos intereses y terminas antes (o bajas tu cuota)."
+
+**Criterio rector aplicado al recorrido completo** ("si esta fuera la primera y
+única pantalla que alguien ve de Milla, ¿entendería qué está pasando y qué debería
+hacer después?"): tras esta iteración, la pantalla responde QUÉ pasa (te quedan
+$6M hasta el 31 jul, debes $11M y ya pagaste $590k desde el 1 jul, tienes $5,7M
+guardados) en fechas y pesos concretos sin un solo término interno, y propone QUÉ
+HACER (adelantar un pago si hay margen, organizar ingresos sin categoría, ver el
+detalle, sostener la racha). El único conocimiento previo que exige es leer pesos
+colombianos.
 
 ## 5. Análisis amplio de la mitad inferior (requisito del CPSAO — acompaña, no compromete)
 

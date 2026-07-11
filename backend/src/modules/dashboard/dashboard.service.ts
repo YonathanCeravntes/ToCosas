@@ -173,7 +173,8 @@ function interpretCashflow(cashflow: number, incomeTotal: number): Interpretatio
     return { level: 'rojo', text: 'Estás gastando más de lo que entra' };
   }
   if (cashflow < incomeTotal * 0.1) {
-    return { level: 'amarillo', text: 'Vas justa: te queda poco margen este ciclo' };
+    // FIN-018 4ª iteración: sin vocabulario interno ("ciclo") en texto visible.
+    return { level: 'amarillo', text: 'Vas justa: te queda poco margen' };
   }
   // FIN-018 D1-A (DEC-018): en verde, información NUEVA en vez de repetir el monto
   // del hero — proporción en el mismo formato "$ de cada $100" de la interpretación

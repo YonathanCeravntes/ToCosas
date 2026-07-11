@@ -59,10 +59,12 @@ export function DashboardScreen() {
         Hola{user?.fullName ? `, ${user.fullName.split(' ')[0]}` : ''} 👋
       </Text>
 
-      {/* FIN-017 P2: hero ÚNICO — el dato accionable del ciclo, con interpretación */}
+      {/* FIN-017 P2 + FIN-018 4ª iteración: hero ÚNICO con fecha CONCRETA en vez
+          de "ciclo" — el rango se explica solo, sin vocabulario interno. */}
       <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
         <Text style={{ color: colors.textInverse, opacity: 0.85 }}>
-          Te queda este ciclo{dashboard.data ? ` · ${dashboard.data.period.label}` : ''}
+          Te queda para gastar
+          {dashboard.data ? ` · hasta el ${shortDate(dayBefore(dashboard.data.period.end))}` : ''}
         </Text>
         <Text style={{ color: colors.textInverse, fontSize: 36, fontWeight: '800' }}>
           {formatMoney(dashboard.data?.estimatedCashflow ?? 0)}
@@ -75,8 +77,6 @@ export function DashboardScreen() {
         ) : null}
       </Card>
 
-      {/* FIN-017 §4.5: gamificación compactada a UNA línea tocable (FIN-008 vive) */}
-      {gamification.data ? <ProgressLine profile={gamification.data} /> : null}
       {gamification.data ? <CelebrationModal profile={gamification.data} onClosed={() => void gamification.reload()} /> : null}
 
       {sync.pending > 0 ? (
@@ -107,10 +107,11 @@ export function DashboardScreen() {
           {formatMoney(summary.data?.totalDebt ?? 0)}
         </Text>
         {/* FIN-017: UNA sola cifra de cuota — la misma pagada-del-ciclo que usa la
-            interpretación (hallazgo del CTO: no mezclar programado con pagado). */}
+            interpretación. FIN-018 4ª iteración: fecha concreta en vez de "ciclo". */}
         <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13 }}>
           {summary.data?.debtsCount ?? 0} deuda(s) ·{' '}
-          {formatMoney(dashboard.data?.debtPayments ?? 0)} pagado este ciclo
+          {formatMoney(dashboard.data?.debtPayments ?? 0)} pagado desde el{' '}
+          {dashboard.data ? shortDate(dashboard.data.period.start) : '—'}
         </Text>
         {dashboard.data?.interpretation.debt ? (
           <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13 }}>
@@ -126,6 +127,31 @@ export function DashboardScreen() {
             {formatMoney(summary.data.upcoming[0].amount)} · vence{' '}
             {shortDate(summary.data.upcoming[0].dueDate)}
           </Text>
+        ) : null}
+        {/* FIN-018 4ª iteración — puente narrativo (aprobado por el CPSAO):
+            conecta el margen del hero con la acción de mayor valor (FIN-012).
+            Beneficio antes que término técnico; solo con margen verde y deuda viva. */}
+        {dashboard.data?.interpretation.cashflow?.level === 'verde' && summary.data?.upcoming?.[0] ? (
+          <Pressable
+            onPress={() =>
+              // Navegación al stack hermano dentro de las tabs (Deudas → detalle).
+              (navigation as unknown as { navigate: (name: string, params: unknown) => void }).navigate(
+                'Debts',
+                {
+                  screen: 'DebtDetail',
+                  params: {
+                    debtId: summary.data!.upcoming[0].debtId,
+                    name: summary.data!.upcoming[0].name,
+                  },
+                },
+              )
+            }
+            style={{ marginTop: spacing.sm }}
+          >
+            <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>
+              💡 Tienes margen: adelanta un pago y ahorra intereses →
+            </Text>
+          </Pressable>
         ) : null}
       </Card>
 
@@ -282,6 +308,11 @@ export function DashboardScreen() {
         </Text>
       )}
 
+      {/* FIN-018 4ª iteración (D2): la gamificación cierra el recorrido — tras
+          revisar sus respuestas, el usuario termina con el refuerzo del hábito
+          que las sostiene, sin interrumpir la narrativa financiera de arriba. */}
+      {gamification.data ? <ProgressLine profile={gamification.data} /> : null}
+
       {summary.error ? (
         <Text style={{ color: colors.danger, marginTop: spacing.md }}>
           Sin conexión con el backend. Tus datos locales siguen disponibles.
@@ -297,6 +328,11 @@ const LEVEL_EMOJI: Record<string, string> = { verde: '🟢', amarillo: '🟡', r
 function shortDate(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+/** FIN-018 4ª iteración: último día visible del periodo (end es exclusivo). */
+function dayBefore(isoEnd: string): string {
+  return new Date(new Date(isoEnd).getTime() - 24 * 3600 * 1000).toISOString();
 }
 
 /** FIN-014 + glosario FIN-017 P4: total con desglose en lenguaje cotidiano. */

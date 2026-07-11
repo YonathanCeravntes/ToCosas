@@ -248,8 +248,11 @@ function PrepaySection({
 
   return (
     <Card>
-      <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
-        💸 Abonar a capital
+      <Text style={{ fontWeight: '700', fontSize: 16 }}>💸 Abonar a capital</Text>
+      {/* FIN-018 4ª iteración (CPSAO): el término se mantiene por precisión,
+          acompañado del beneficio en lenguaje llano. */}
+      <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 2, marginBottom: spacing.sm }}>
+        Adelanta plata a tu deuda: pagas menos intereses y terminas antes (o bajas tu cuota).
       </Text>
       <Field
         label="¿Cuánto quieres abonar?"
