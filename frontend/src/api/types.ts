@@ -166,6 +166,27 @@ export interface Interpretation {
   text: string;
 }
 
+// FIN-020 (§32): LA definición oficial de "Te queda" — fuente única del backend
+// (SpendableService). Presupuesto e Inicio muestran ESTE objeto, nunca recalculan.
+export interface PendingCommitment {
+  name: string;
+  amount: number;
+  kind: 'fijo' | 'cuota';
+  date: string | null;
+  /** Etiqueta NEUTRA (§4.1-bis): "ya pasó su fecha", nunca "pagado". */
+  datePassed: boolean;
+}
+
+export interface TeQueda {
+  amount: number;
+  perDay: number | null;
+  daysLeft: number;
+  until: string;
+  protectedTotal: number;
+  pendingCommitments: PendingCommitment[];
+  receivedIncome: number;
+}
+
 export interface HomeDashboard {
   period: FinancialPeriodInfo;
   interpretation: {
@@ -191,6 +212,7 @@ export interface HomeDashboard {
   expense: FlowSection;
   debtPayments: number;
   estimatedCashflow: number;
+  teQueda: TeQueda;
   recentTransactions: Array<{
     id: string;
     kind: TxKind;
@@ -439,6 +461,7 @@ export interface FinancialPeriodInfo {
 
 export interface MonthlyBudget {
   period: FinancialPeriodInfo;
+  teQueda: TeQueda;
   fixedIncome: number;
   fixedExpense: number;
   debtPayments: number;

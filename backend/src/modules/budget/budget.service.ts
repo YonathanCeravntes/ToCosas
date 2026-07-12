@@ -4,6 +4,7 @@ import { OutboxService } from '../events/outbox.service';
 import { DomainEventType } from '../events/domain-events';
 import { CreateFixedItemDto, UpdateFixedItemDto } from './dto/fixed-item.dto';
 import { clampCycleDay, financialPeriod } from './financial-period.util';
+import { SpendableService } from './spendable.service';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -12,6 +13,7 @@ export class BudgetService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly outbox: OutboxService,
+    private readonly spendable: SpendableService,
   ) {}
 
   async create(userId: string, dto: CreateFixedItemDto) {
@@ -79,7 +81,7 @@ export class BudgetService {
    *   disponible = ingresos fijos − gastos fijos − cuotas de deuda
    */
   async monthlySummary(userId: string) {
-    const [fixedItems, debts, settings] = await Promise.all([
+    const [fixedItems, debts, settings, teQueda] = await Promise.all([
       this.prisma.fixedItem.findMany({
         where: { userId, deletedAt: null, isActive: true },
       }),
@@ -87,6 +89,8 @@ export class BudgetService {
         where: { userId, deletedAt: null, status: 'activa' },
       }),
       this.prisma.userSettings.findUnique({ where: { userId } }),
+      // FIN-020: "Te queda" oficial — misma fuente que el Inicio (§32).
+      this.spendable.compute(userId),
     ]);
     // FIN-016: ciclo financiero activo (con día 1 = mes calendario, sin cambio).
     const period = financialPeriod(new Date(), settings?.cycleStartDay ?? 1);
@@ -112,6 +116,9 @@ export class BudgetService {
         label: period.label,
         cycleStartDay: settings?.cycleStartDay ?? 1,
       },
+      // FIN-020: LA definición oficial de "Te queda" (Alt A). `available` (abajo)
+      // es el balance ESTRUCTURAL fijos-vs-fijos y no puede etiquetarse "te queda".
+      teQueda,
       fixedIncome: round2(fixedIncome),
       fixedExpense: round2(fixedExpense),
       debtPayments: round2(debtPayments),

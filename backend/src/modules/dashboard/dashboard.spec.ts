@@ -43,8 +43,23 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     },
   } as never;
 
+  // FIN-020: SpendableService se stubbea COHERENTE con el escenario bajo Alt A —
+  // ingresos reales 500k (el fijo de 4M aún no se recibe), salidas reales 750k,
+  // fijos de gasto comprometidos 1.5M ⇒ teQueda = −1.75M. El cálculo en sí se
+  // prueba en spendable.service.spec.ts; aquí se prueba el CONSUMO (§32).
+  const teQuedaStub = {
+    amount: -1_750_000,
+    perDay: null,
+    daysLeft: 20,
+    until: '2026-07-31T00:00:00.000Z',
+    protectedTotal: 1_500_000,
+    pendingCommitments: [],
+    receivedIncome: 500_000,
+  };
+  const spendable = { compute: jest.fn().mockResolvedValue(teQuedaStub) } as never;
+
   it('compone patrimonio, ahorro, fijo+variable y flujo de forma consistente con las fuentes', async () => {
-    const svc = new DashboardService(prisma);
+    const svc = new DashboardService(prisma, spendable);
     const home = await svc.home('u1');
 
     // Patrimonio idéntico al util auditado de FIN-002 (misma entrada, misma salida).
@@ -76,12 +91,16 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     // Con cycleStartDay=1 la etiqueta es el mes calendario (FIN-016 integrado).
     expect(home.period.cycleStartDay).toBe(1);
 
-    // FIN-017 §4.7.3 + FIN-018 D1-A: interpretaciones con cifras PROPIAS del home.
-    // cashflow 2.25M / ingreso 4.5M = 50% → verde, formato "$ de cada $100"
-    // (información NUEVA, no repite el monto del hero — DEC-018).
+    // FIN-020 (§32): el "Te queda" del home ES el del SpendableService, sin
+    // recalcular — y la interpretación de flujo se deriva de ÉL, no del
+    // estimatedCashflow estructural. Bajo Alt A este escenario es ROJO
+    // (−1.75M) aunque la proyección estructural diera verde: no mentimos
+    // hacia arriba. Texto §4.1-ter: el rojo no culpa (hay compromisos aún
+    // no vencidos dentro del monto).
+    expect(home.teQueda).toBe(teQuedaStub);
     expect(home.interpretation.cashflow).toEqual({
-      level: 'verde',
-      text: 'De cada $100 que te entraron, aún tienes $50 libres',
+      level: 'rojo',
+      text: 'Lo que viene comprometido supera lo que te queda — mira qué puedes mover',
     });
     // ahorro 3.5M / fijos 1.5M = 2,33 meses → amarillo (1–3).
     expect(home.interpretation.savings?.level).toBe('amarillo');
@@ -102,8 +121,19 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
       fixedItem: { findMany: jest.fn().mockResolvedValue([]) },
       transaction: { findMany: jest.fn().mockResolvedValue([]) },
     } as never;
-    const home = await new DashboardService(empty).home('u2');
-    expect(home.interpretation.cashflow).toBeNull(); // sin ingreso → sin línea
+    const emptySpendable = {
+      compute: jest.fn().mockResolvedValue({
+        amount: 0,
+        perDay: null,
+        daysLeft: 20,
+        until: '2026-07-31T00:00:00.000Z',
+        protectedTotal: 0,
+        pendingCommitments: [],
+        receivedIncome: 0,
+      }),
+    } as never;
+    const home = await new DashboardService(empty, emptySpendable).home('u2');
+    expect(home.interpretation.cashflow).toBeNull(); // sin ingreso recibido → sin línea
     expect(home.interpretation.savings).toBeNull(); // sin gastos fijos → sin línea
     expect(home.interpretation.debt).toBeNull(); // sin pagos en el ciclo → sin línea
   });

@@ -60,14 +60,15 @@ export function DashboardScreen() {
       </Text>
 
       {/* FIN-017 P2 + FIN-018 4ª iteración: hero ÚNICO con fecha CONCRETA en vez
-          de "ciclo" — el rango se explica solo, sin vocabulario interno. */}
+          de "ciclo". FIN-020 (§32): la cifra viene del servicio único de
+          Presupuesto — ya descuenta lo comprometido pendiente (Alt A). */}
       <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
         <Text style={{ color: colors.textInverse, opacity: 0.85 }}>
           Te queda para gastar
-          {dashboard.data ? ` · hasta el ${shortDate(dayBefore(dashboard.data.period.end))}` : ''}
+          {dashboard.data ? ` · hasta el ${shortDate(dashboard.data.teQueda.until)}` : ''}
         </Text>
         <Text style={{ color: colors.textInverse, fontSize: 36, fontWeight: '800' }}>
-          {formatMoney(dashboard.data?.estimatedCashflow ?? 0)}
+          {formatMoney(dashboard.data?.teQueda.amount ?? 0)}
         </Text>
         {dashboard.data?.interpretation.cashflow ? (
           <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 4 }}>
@@ -328,11 +329,6 @@ const LEVEL_EMOJI: Record<string, string> = { verde: '🟢', amarillo: '🟡', r
 function shortDate(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
-}
-
-/** FIN-018 4ª iteración: último día visible del periodo (end es exclusivo). */
-function dayBefore(isoEnd: string): string {
-  return new Date(new Date(isoEnd).getTime() - 24 * 3600 * 1000).toISOString();
 }
 
 /** FIN-014 + glosario FIN-017 P4: total con desglose en lenguaje cotidiano. */

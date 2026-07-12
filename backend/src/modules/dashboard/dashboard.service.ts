@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { computeNetWorth } from '../accounts/networth.util';
 import { financialPeriod } from '../budget/financial-period.util';
+import { SpendableService } from '../budget/spendable.service';
 import { DEBT_RATIO_CUTS } from '../health/score.util';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -23,14 +24,18 @@ export interface CategoryBucket {
  */
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // FIN-020 (§32): "Te queda" viene de la MISMA fuente que Presupuesto.
+    private readonly spendable: SpendableService,
+  ) {}
 
   async home(userId: string) {
     const settings = await this.prisma.userSettings.findUnique({ where: { userId } });
     // FIN-016: el Inicio respeta el ciclo financiero del usuario.
     const period = financialPeriod(new Date(), settings?.cycleStartDay ?? 1);
 
-    const [accounts, assets, debts, fixedItems, periodTxs, recent] = await Promise.all([
+    const [accounts, assets, debts, fixedItems, periodTxs, recent, teQueda] = await Promise.all([
       this.prisma.account.findMany({ where: { userId, deletedAt: null } }),
       this.prisma.asset.findMany({ where: { userId, deletedAt: null } }),
       this.prisma.debt.findMany({ where: { userId, deletedAt: null, status: 'activa' } }),
@@ -50,6 +55,7 @@ export class DashboardService {
         take: 10,
         include: { category: true, debt: true },
       }),
+      this.spendable.compute(userId),
     ]);
 
     // Patrimonio (util pura de FIN-002, misma fuente que /net-worth).
@@ -130,12 +136,15 @@ export class DashboardService {
         byCategory: toSorted(expenseByCat, variableExpense),
       },
       debtPayments: round2(debtPayments),
+      // FIN-020: `estimatedCashflow` (proyección estructural) se conserva en el
+      // contrato, pero el hero del Inicio pasa a mostrar `teQueda` (§32, Alt A).
       estimatedCashflow,
+      teQueda,
       // FIN-017 (DEC-0017 §5.1, ARQ-0017 §4.7.3): interpretación server-side con
-      // cifras PROPIAS del home — sin llamadas al Score (ruta (a)). La de deuda
-      // queda pendiente de la confirmación puntual del CTO.
+      // cifras PROPIAS del home — sin llamadas al Score (ruta (a)).
       interpretation: {
-        cashflow: interpretCashflow(estimatedCashflow, round2(incomeTotal)),
+        // §4.1-ter: recalibrada para Alt A — base = ingresos REALES recibidos.
+        cashflow: interpretCashflow(teQueda.amount, teQueda.receivedIncome),
         debt: interpretDebt(round2(debtPayments), round2(incomeTotal)),
         savings: interpretSavings(round2(totalSavings), round2(fixedExpense)),
       },
@@ -166,21 +175,32 @@ const money = (n: number) => `$${Math.round(n).toLocaleString('es-CO')}`;
  * FIN-017 §4.7.3 — reglas transversales: montos en pesos sin decimales, cero
  * jerga, sin referencias a calendario/ciclo/DTI en el texto visible, y si falta
  * el dato la línea SE OMITE (null) — nunca un texto que genere una pregunta.
+ *
+ * FIN-020 §4.1-ter: recalibrada para Alt A. La base es el ingreso REALMENTE
+ * recibido y el monto ya descuenta compromisos pendientes, así que un valor
+ * negativo NO implica sobregasto — el rojo no puede culpar. El corte del 10%
+ * se mantiene (holgura relativa, independiente de la composición de la base);
+ * compromiso §13: revisarlo con datos reales tras la RC integral.
  */
-function interpretCashflow(cashflow: number, incomeTotal: number): Interpretation | null {
-  if (incomeTotal <= 0) return null;
-  if (cashflow < 0) {
-    return { level: 'rojo', text: 'Estás gastando más de lo que entra' };
+function interpretCashflow(teQueda: number, receivedIncome: number): Interpretation | null {
+  if (receivedIncome <= 0) return null;
+  if (teQueda < 0) {
+    return {
+      level: 'rojo',
+      text: 'Lo que viene comprometido supera lo que te queda — mira qué puedes mover',
+    };
   }
-  if (cashflow < incomeTotal * 0.1) {
-    // FIN-018 4ª iteración: sin vocabulario interno ("ciclo") en texto visible.
-    return { level: 'amarillo', text: 'Vas justa: te queda poco margen' };
+  if (teQueda < receivedIncome * 0.1) {
+    return { level: 'amarillo', text: 'Vas justa: después de apartar lo que viene, queda poco' };
   }
   // FIN-018 D1-A (DEC-018): en verde, información NUEVA en vez de repetir el monto
   // del hero — proporción en el mismo formato "$ de cada $100" de la interpretación
   // de deuda (familia coherente, §29.2).
-  const free = Math.round((cashflow / incomeTotal) * 100);
-  return { level: 'verde', text: `De cada $100 que te entraron, aún tienes $${free} libres` };
+  const free = Math.round((teQueda / receivedIncome) * 100);
+  return {
+    level: 'verde',
+    text: `De cada $100 que te entraron, $${free} quedan libres después de apartar lo que viene`,
+  };
 }
 
 /**
