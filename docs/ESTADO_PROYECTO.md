@@ -1,6 +1,6 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-12 (FIN-020 Aprobada en producto · FIN-021 abierta) · por: CTO
+- **Actualizado:** 2026-07-12 (DEC-0021 emitido, IMP-0021 habilitado) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
@@ -10,7 +10,7 @@
 v3.12 (`docs/GOBERNANZA.md`) — última sección: §34, commit obligatorio de toda documentación oficial en el mismo acto.
 
 ## FIN activa
-**FIN-021 — Única definición del fondo de emergencia (§32).** Deuda técnica de prioridad inmediata (decisión del CPSAO, antes que Deudas). Fase actual: en espera de `ARQ-0021`. Pregunta de producto abierta del CPSAO para el ARQ: meta única de 6 meses (como Salud) o 3 (como la recomendación de Presupuesto). Detalle: `docs/correspondencia/FIN-021-Fondo-de-Emergencia.md`.
+**FIN-021 — Única definición del fondo de emergencia (§32).** Deuda técnica de prioridad inmediata (decisión del CPSAO, antes que Deudas). Fase actual: `DEC-0021` emitido — P1/P2/P3(Alt C, dos hitos nombrados 3/6)/P4 aprobados, 1 cambio obligatorio (Recomendaciones debe consumir la fuente/constantes oficiales, no solo la meta). `IMP-0021` habilitado. Detalle: `docs/correspondencia/FIN-021-Fondo-de-Emergencia.md`.
 
 ## Últimas FIN cerradas
 - FIN-020 — Experiencia de Presupuesto — **Cerrado técnico + producto.** `DEC-0020` +adendo §8, `VALIDACION-0020` APROBADO, verificación independiente del CTO en checkout aislado contra `125c5c6` y contra `614ef81` (ajustes post-revisión CPSAO): código + suites reejecutadas en vivo — unit 303/303, e2e 9/9, tsc limpio. "Te queda" con fuente única (§32) garantizada por construcción (`SpendableService`). CPSAO declaró Aprobada en producto el 2026-07-12
@@ -55,7 +55,7 @@ Ninguna.
 Ninguno.
 
 ## Próxima acción esperada
-1. **Arquitectura:** iniciar `ARQ-0021` (Única definición del fondo de emergencia) — presentar alternativas de meta única (6 vs 3 meses) para que el CPSAO revise antes del `DEC`.
+1. **Arquitectura:** implementar `FIN-021` según `DEC-0021` — módulo de constantes → `dashboard.service`/`recommendations.service`/`templates.ts` (verificando el cambio obligatorio §5) → tests → capturas de las 3 pantallas co-visibles → `IMP-0021`.
 2. En paralelo, Línea B: Arquitectura entregando el análisis de impacto del Lote 1 de Decisiones Estratégicas del CPSAO (`DEC-STR-001…011`).
 
 ## Piloto en validación — mecanismo de continuidad documental (CPSAO, 2026-07-12)

@@ -104,3 +104,21 @@ Ninguno técnico. Solo tu decisión de P3.
 MENSAJE PARA CPSAO
 
 ---
+
+## 2026-07-12 — De: CPSAO — Para: CTO — CC: Arquitecto, Auditor, Fundador
+
+**Decisión P3: Alt C.** Dos hitos nombrados (colchón inicial 3 / fondo completo 6), misma fórmula canónica, misma escala de logros ya existente. Convierte la contradicción en progreso — Claridad Radical mejor servida por un hito nombrado que por un número seco, y no reabre Consistencia porque sigue siendo una sola fórmula, solo con dos lecturas narrativas del mismo dato.
+
+Habilita `DEC-0021`.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: CTO — Para: Arquitecto — CC: Auditor, CPSAO, Fundador
+
+`DEC-0021` emitido (`docs/oficial/DEC-0021-Fondo-de-Emergencia.md`). P1/P2/P3(Alt C)/P4 aprobados. **1 cambio obligatorio:** `recommendations.service.ts` debe consumir la fuente/constantes oficiales, no solo alinear la meta a 3/6 (DEC §5.1). `IMP-0021` habilitado — procede según el Plan `ARQ-0021` §14.
+
+MENSAJE PARA ARQUITECTO
+
+---
