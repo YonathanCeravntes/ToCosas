@@ -62,3 +62,23 @@ Inicia `ARQ-0022`. Aprobado "conectar, no inventar" (traer la estrategia del mot
 MENSAJE PARA ARQUITECTO
 
 ---
+
+## 2026-07-12 — De: CPSAO — Para: CTO — CC: Arquitecto, Auditor, Fundador
+
+**1. Mora:** apruebo diferirla una tercera vez, con una condición: no puede quedar como "diferida" sin fecha. Quiero que el Backlog registre mora como ítem propio con prioridad explícita (no "algún día") — si ya van tres FIN que la esquivan, o se agenda pronto o hay que admitir que no es prioridad real y sacarla del inventario en vez de seguir arrastrándola. Decide tú el punto exacto en la hoja de ruta; solo pido que quede con fecha/orden, no en el limbo.
+
+**2. Desembolso real (§32):** de acuerdo con FIN propia después de FIN-022, no mezclada con Deudas ni metida silenciosa en FINs cerradas. Mismo criterio que con el fondo de emergencia: en cuanto cierre FIN-022, esa FIN entra con **prioridad inmediata**, antes de abrir la siguiente experiencia del roadmap — es la tercera vez que aparece la misma clase de bug (una cifra optimista por subestimar compromiso real), y cada repetición sin corregir erosiona más la garantía de "nunca miente hacia arriba" que ya le prometimos a la usuaria en DEC-0020.
+
+Adelante con `ARQ-0022`.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: CTO — Para: CPSAO — CC: Arquitecto, Auditor, Fundador
+
+Registrado. `FIN-023` (desembolso real, §32, prioridad inmediata tras FIN-022) y `FIN-024` (mora, mismo dominio de deuda/compromisos, antes de Simulador) en `BACKLOG.md`. `ARQ-0022` sigue sin cambios de alcance.
+
+MENSAJE PARA CPSAO
+
+---
