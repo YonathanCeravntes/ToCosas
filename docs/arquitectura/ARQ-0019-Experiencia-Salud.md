@@ -1,12 +1,17 @@
 # ARQ-0019 · Experiencia de Salud (Score Millo)
 
-- **Versión:** 1.0
+- **Versión:** 1.1
 - **Fecha:** 2026-07-11
 - **Autor:** Agente Arquitecto
-- **Estado:** Propuesto — en espera de AUD-019 y DEC-019
+- **Estado:** Decidido (DEC-019: P2–P7 autorizadas; P1 corregida por ruta (b)) — en confirmación puntual del CTO para habilitar IMP-0019
 - **Historial de cambios:**
   - v1.0 (2026-07-11) — emisión con la intención aprobada por el CPSAO como §0 y la
     directriz de acción de mayor impacto incorporada.
+  - v1.1 (2026-07-11) — corrección de P1 según DEC-019: se adopta la **ruta (b)**
+    (barras de progreso 0–100 SIN semáforo por pilar — §4.1-bis); consecuencia
+    derivada corregida: "Lo que más te frena" se deriva del peor INDICADOR (niveles
+    auditados), no de comparar pilares. El resto de P1 (nombres llanos, "715 de
+    1.000", retiro de "v1") se conserva tal como fue aprobado.
 - **Módulo/Feature:** FIN-019 · **Origen (v3.5 §27):** Mejora de revisión de producto
 - **Insumos:** `RECORRIDO-SALUD-001.md` (9 observaciones S1–S9 + 3 fortalezas, commit `6e5b002`) · respuesta de intención aprobada · directriz CTO/CPSAO de acción de mayor impacto
 
@@ -68,6 +73,33 @@ Nombres llanos de pilares (§29.2): Liquidez → "Tu colchón" · Endeudamiento 
 deudas" · Ahorro → "Tu ahorro" · Patrimonio → "Lo que tienes". "v1" sale de la
 vista (S2); el disclaimer corto "No es un puntaje crediticio" se conserva.
 
+#### 4.1-bis — Corrección de DEC-019 (v1.1): pilares SIN semáforo — ruta (b)
+
+El semáforo por pilar de la v1.0 **no tenía sustento** (hallazgo del Auditor
+confirmado por el CTO contra el código): `ScorePillar` expone `value` y `status`
+(disponibilidad, no salud) sin umbrales de color auditados, y `wealthPillar()` es
+cuasi-binario (≈70 para cualquier patrimonio positivo — riesgo diferido aceptado en
+DEC-0004 precisamente porque el pilar no se mostraba). Colorearlo habría fabricado
+exactamente la calificación sin fundamento que la intención §0 prohíbe.
+
+**Diseño corregido:**
+- Cada pilar se muestra como **barra de progreso 0–100 en color neutro** (el relleno
+  en el verde institucional de Milla sobre pista gris — el MISMO tratamiento para
+  los 4, sin juicio relativo entre ellos) + su nombre llano + su delta mensual si
+  existe. El valor comunica magnitud; el color no afirma nada que el Motor no haya
+  calculado.
+- **El semáforo queda reservado a los INDICADORES** (P3), que sí tienen niveles
+  verde/amarillo/rojo calculados y auditados desde FIN-004.
+- **Consecuencia derivada, también corregida:** la línea "Lo que más te frena: …"
+  ya no compara pilares (habría heredado el mismo problema — comparar curvas de
+  naturaleza distinta, una de ellas cuasi-binaria). Se deriva del **peor indicador**
+  (rojo primero, luego amarillo, con sus niveles auditados); si todos los
+  indicadores están en verde, la línea SE OMITE (patrón §29.1 — nunca un juicio
+  fabricado para llenar el espacio).
+- Se registra como **mejora futura fuera de este ciclo**: refinar la curva de
+  `wealthPillar()` (el riesgo diferido de DEC-0004 sigue vigente; ahora el pilar
+  será visible pero como magnitud neutra, no como juicio).
+
 ### P2 — "Tu jugada de mayor impacto" (directriz del CPSAO): responder "¿qué hago?"
 
 | | **Alt A — Recomendación top del motor FIN-007 (recomendada)** | **Alt B — Heurística del pilar más débil** | **Alt C — Des-esconder todas las acciones** |
@@ -126,11 +158,12 @@ la jugada se deriva del indicador más débil con su primera acción).
 ┌─ Score (verde Millo) ─────────────────────┐
 │ Score Millo                 715 de 1.000  │
 │ [chip: Estable]            ▲ +12 este mes │
-│ Tu colchón      ▓░░░  rojo                │
-│ Tus deudas      ▓▓▓░  verde               │
-│ Tu ahorro       ▓▓▓░  verde               │
-│ Lo que tienes   ▓▓░░  amarillo            │
-│ Lo que más te frena: tu colchón           │
+│ Tu colchón      ▓░░░░░░░░░  (barra neutra)│
+│ Tus deudas      ▓▓▓▓▓▓▓▓░░       0–100    │
+│ Tu ahorro       ▓▓▓▓▓▓▓░░░  sin semáforo  │
+│ Lo que tienes   ▓▓▓▓▓▓▓░░░  (ruta b)      │
+│ Lo que más te frena: tu fondo de          │
+│ emergencia        ← del peor INDICADOR    │
 └───────────────────────────────────────────┘
 ┌─ ⭐ Tu jugada de mayor impacto ────────────┐
 │ Aparta $X al mes para tu fondo: pasarías  │
@@ -184,6 +217,9 @@ Todas existentes: Score/pilares (FIN-004), indicadores (FIN-004), recomendacione
 ## 13. Criterios de aceptación
 1. Las 3 preguntas obligatorias respondidas SIN interacción, verificables en la
    captura de scroll completo (score con escala y causas; interpretaciones; jugada).
+   **1-bis (ruta b):** los 4 pilares con barra neutra idéntica en tratamiento (cero
+   semáforo por pilar, verificable en captura); "Lo que más te frena" presente solo
+   si existe un indicador amarillo/rojo.
 2. **UNA** acción de mayor impacto visible y nombrada, con CTA funcional (navegación
    verificada) y fallback probado con el motor vacío.
 3. Cero "v1" y cero porcentajes secos en la vista (grep + captura); lenguaje
