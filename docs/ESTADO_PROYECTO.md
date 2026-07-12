@@ -1,6 +1,6 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-12 (hallazgo §32 en fondo de emergencia — ver Riesgos abiertos) · por: CTO
+- **Actualizado:** 2026-07-12 (FIN-020 Aprobada en producto · FIN-021 abierta) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
@@ -10,17 +10,17 @@
 v3.12 (`docs/GOBERNANZA.md`) — última sección: §34, commit obligatorio de toda documentación oficial en el mismo acto.
 
 ## FIN activa
-Ninguna abierta técnicamente. `FIN-020` **CERRADA** (ciclo `ARQ→AUD→DEC→IMP→VALIDACIÓN` completo y verificado) pero su ciclo de **producto** sigue en "Ajustes" — el CPSAO no la declara "Aprobada" hasta resolver 2 hallazgos menores + 1 hallazgo nuevo serio (fórmulas divergentes de fondo de emergencia, ver Riesgos abiertos). No se abre la siguiente experiencia (Deudas) hasta resolver esto — instrucción del CPSAO en `docs/correspondencia/FIN-020-Experiencia-de-Presupuesto.md`.
+**FIN-021 — Única definición del fondo de emergencia (§32).** Deuda técnica de prioridad inmediata (decisión del CPSAO, antes que Deudas). Fase actual: en espera de `ARQ-0021`. Pregunta de producto abierta del CPSAO para el ARQ: meta única de 6 meses (como Salud) o 3 (como la recomendación de Presupuesto). Detalle: `docs/correspondencia/FIN-021-Fondo-de-Emergencia.md`.
 
 ## Últimas FIN cerradas
-- FIN-020 — Experiencia de Presupuesto — Cerrado técnicamente (`DEC-0020` +adendo §8, `VALIDACION-0020` APROBADO, verificación independiente del CTO en checkout aislado contra `125c5c6`: código + 3 suites reejecutadas en vivo — unit 303/303, e2e 9/9, tsc limpio). "Te queda" con fuente única (§32) garantizada por construcción (`SpendableService`). **Ciclo de producto sin cerrar** — ver "FIN activa" arriba
+- FIN-020 — Experiencia de Presupuesto — **Cerrado técnico + producto.** `DEC-0020` +adendo §8, `VALIDACION-0020` APROBADO, verificación independiente del CTO en checkout aislado contra `125c5c6` y contra `614ef81` (ajustes post-revisión CPSAO): código + suites reejecutadas en vivo — unit 303/303, e2e 9/9, tsc limpio. "Te queda" con fuente única (§32) garantizada por construcción (`SpendableService`). CPSAO declaró Aprobada en producto el 2026-07-12
 - FIN-019 — Experiencia de Salud — Cerrado (`DEC-0019` §8, `VALIDACIÓN-0019` APROBADO)
 - FIN-018 — Evolución de Inicio — Cerrado (`DEC-0018` §14)
 - FIN-017 — UX Login/Dashboard — Cerrado (`DEC-0017`)
 - FIN-016 — Periodo financiero — Cerrado
 
 ## Hoja de ruta de experiencias UX (posición actual)
-Inicio ✅ · Salud ✅ · **Presupuesto 🔄 (FIN-020 cerrada técnicamente, ciclo de producto en Ajustes)** · Deudas ⏳ (no se abre hasta resolver Presupuesto) · Simulador ⏳ · Copiloto ⏳ (nota registrada: `context-assembler.ts` deberá consumir `SpendableService`, §32).
+Inicio ✅ · Salud ✅ · **Presupuesto ✅ (FIN-020 Aprobada en producto, 2026-07-12)** · Deudas ⏳ (no se abre hasta cerrar `FIN-021`) · Simulador ⏳ · Copiloto ⏳ (nota registrada: `context-assembler.ts` deberá consumir `SpendableService`, §32). **`FIN-021` (fondo de emergencia, §32) intercalada antes de Deudas por decisión del CPSAO.**
 RC integral (sesión con participantes reales): pendiente, programada al cierre de las 6 experiencias (`docs/producto/rc/RC-0001-Inicio.md` preserva el diseño metodológico).
 
 ## Principios permanentes recientes a tener en cuenta
@@ -46,18 +46,17 @@ Planificación completa: `ALPHA-001`…`ALPHA-008` aprobadas. En **fase de ejecu
 - **`wealthPillar()` binario** (`score.util.ts`): riesgo diferido desde `DEC-0004`, mitigado en pantalla desde `DEC-0019` (ruta b, sin semáforo por pilar) — no resuelto a nivel de cálculo, sigue como mejora futura.
 - **Limitación de sandbox — SUPERADA (2026-07-12):** el precedente desde FIN-012 ("no se puede ejecutar Postgres embebido real") ya no aplica en este entorno — Docker con Postgres real está disponible y operativo; el CTO ejecutó la suite e2e completa (9/9) contra él durante la validación de FIN-020. Corregir el precedente si se cita en FIN futuras.
 - **Documentación oficial sin commitear — RESUELTO (2026-07-12):** el hallazgo del CTO (`GOBERNANZA.md` sin commitear desde 2026-07-05, ~30 documentos oficiales sin trackear) fue regularizado en 7 commits temáticos (`fd63e51`…`85bff76`) tras la autorización del Fundador. Nueva regla permanente `GOBERNANZA.md` §34 (v3.12) evita que se repita: toda documentación oficial se commitea en el mismo acto de su creación/modificación.
-- **NUEVO — tres fórmulas divergentes de "meses de fondo de emergencia" (violación real de §32, hallazgo del CPSAO/CTO, 2026-07-12):** `dashboard.service.ts` (Inicio), `health.service.ts` (Salud) y `recommendations.service.ts` (motor FIN-007, usado en Salud y ahora en Presupuesto) calculan el concepto con 3 fórmulas, 3 bases y 2 metas distintas. Preexistente desde FIN-004/007/019; FIN-020 lo hizo visible en la misma sesión de usuario. Detalle completo en `BACKLOG.md` → Historial y en `docs/correspondencia/FIN-020-Experiencia-de-Presupuesto.md`. Propuesto al CPSAO abrir una `FIN` dedicada en vez de parchear (toca 2 FIN ya cerradas, fuera de alcance de Acción Correctiva). Pendiente respuesta del CPSAO sobre secuenciación.
+- **`FIN-021` abierta — tres fórmulas divergentes de "meses de fondo de emergencia" (violación real de §32):** `dashboard.service.ts` (Inicio), `health.service.ts` (Salud) y `recommendations.service.ts` (motor FIN-007) calculan el concepto con 3 fórmulas, 3 bases y 2 metas distintas. Preexistente desde FIN-004/007/019; FIN-020 lo hizo visible en la misma sesión de usuario. Detalle en `docs/correspondencia/FIN-021-Fondo-de-Emergencia.md`. Prioridad inmediata (antes de Deudas), decisión del CPSAO.
 
 ## Decisiones del Fundador pendientes de ejecutar
 Ninguna.
 
 ## Bloqueos abiertos
-Ninguno técnico. Sí de producto: no se abre la Experiencia de Deudas hasta que el CPSAO declare Presupuesto "Aprobada" (instrucción explícita del CPSAO).
+Ninguno.
 
 ## Próxima acción esperada
-1. **CPSAO:** responder si la nueva `FIN` de fondo de emergencia entra como deuda técnica de prioridad inmediata (§27) o compite en el Backlog con Deudas — ver pregunta abierta en `docs/correspondencia/FIN-020-Experiencia-de-Presupuesto.md`.
-2. **Arquitectura:** implementar los 2 ajustes menores de Presupuesto (copy "por qué" en protegido; fecha visible de "Crédito libre inversión") sin reabrir `FIN-020` técnicamente.
-3. En paralelo, Línea B: Arquitectura entregando el análisis de impacto del Lote 1 de Decisiones Estratégicas del CPSAO (`DEC-STR-001…011`).
+1. **Arquitectura:** iniciar `ARQ-0021` (Única definición del fondo de emergencia) — presentar alternativas de meta única (6 vs 3 meses) para que el CPSAO revise antes del `DEC`.
+2. En paralelo, Línea B: Arquitectura entregando el análisis de impacto del Lote 1 de Decisiones Estratégicas del CPSAO (`DEC-STR-001…011`).
 
 ## Piloto en validación — mecanismo de continuidad documental (CPSAO, 2026-07-12)
 

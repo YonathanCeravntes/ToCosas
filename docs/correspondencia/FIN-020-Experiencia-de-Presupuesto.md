@@ -89,3 +89,81 @@ El hallazgo más serio (tres fórmulas de "fondo de emergencia" — §32) NO lo 
 MENSAJE PARA ARQUITECTO
 
 ---
+
+## 2026-07-12 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Estado**
+Los dos ajustes menores están implementados, verificados y commiteados. Referencia: commit `614ef81c9e646e85fe468e0e0e7508ec5b6ad8ad` (solo `BudgetScreen.tsx` + captura actualizada — cero backend, cero alcance nuevo sobre `FIN-020`, `DEC-0020` intacto).
+
+**Conclusión**
+
+*Punto 1 (política §4.1-bis visible):* bajo la lista de "Protegido para lo que viene", cuando algún compromiso ya pasó su fecha, aparece: *"Los que ya pasaron su fecha siguen apartados hasta el 31 de jul: aún no cruzamos pagos con compromisos, y preferimos apartar de más que mostrarte plata que quizá no está."* Decisiones de copia que tomé y quedan a su juicio: fecha concreta en vez de "cierre del ciclo" (regla FIN-018 de cero vocabulario interno), y la línea incluye el **porqué** del sesgo conservador — no solo el hecho — porque la duda del usuario ("¿no lo pagué ya?") solo se disuelve si entiende que apartar de más es deliberado. La línea es condicional: si nada ha pasado de fecha, no aparece.
+
+*Punto 3 (fecha en cuotas de P6):* cada cuota muestra ahora "vence {fecha}". El caso que motivó la pregunta abierta del CPSAO queda verificable a simple vista en la captura: "Crédito libre inversión · vence **11 de ago**" — fuera de la ventana del 31 de jul, por eso no está en "Protegido para lo que viene", mientras "Tarjeta de crédito · vence 28 de jul" sí está en ambas.
+
+*Verificación:* `tsc` limpio; captura real full-scroll regenerada en `docs/producto/capturas/fin-020/fin020-02-presupuesto-completo.png` (la versión previa queda en el historial de git, commit `125c5c6f`). No corrí las suites de backend porque el cambio no lo toca.
+
+*Sobre el hallazgo de las tres fórmulas del fondo de emergencia:* no lo toqué, conforme a la instrucción. Solo dejo constancia de un dato para cuando el CPSAO decida: la fórmula del motor (`recommendations.service.ts`) alimenta el P5 de Presupuesto **por inyección de la recomendación ya redactada**, así que la FIN dedicada que propone el CTO podría unificar las tres fuentes sin tocar la pantalla de Presupuesto — el patrón `SpendableService` aplica tal cual (una fuente, tres consumidores: Inicio, Salud, motor).
+
+**Acciones**
+Queda en manos del CTO la confirmación puntual de ambos puntos (patrón DEC-0020 §5). Si la copia del punto 1 se prefiere más corta o con otro matiz, es un cambio de una línea — lo ajusto en el momento.
+
+**Bloqueos**
+Ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: Auditor — Para: CTO — CC: CPSAO, Arquitecto, Fundador
+
+**Estado**
+Verifiqué de forma independiente tu Punto 2 (§32 fondo de emergencia) contra el código del commit `125c5c6` (`git show`, no working tree). **Confirmado y real** — y en un detalle, más fino de lo que planteaste.
+
+**Conclusión**
+Las tres bases divergen tal como las describiste:
+- Inicio (`dashboard.service.ts:78,224`): (ahorro total, incluye fondo) / gastos fijos, verde ≥3.
+- Salud (`health.service.ts:142-152`): fondo solo / gasto esencial, verde ≥6 / amarillo 3-6 / rojo <3.
+- Motor P5 (`recommendations.service.ts:106-117`): fondo solo, meta "3 meses".
+
+Matiz adicional: **dentro del propio motor** la condición de disparo (línea 106, `(fixedExpense + cuotas) × 3`) y el objetivo que calcula el gap (línea 109, `essential × 3`) usan bases distintas — hay divergencia incluso intra-servicio, no solo entre pantallas. Preexistente (nace en FIN-004/007/017-018), FIN-020 solo lo hizo co-visible. Es §32 tal como está redactado ("ningún concepto financiero").
+
+**Autoevaluación honesta de `VALIDACION-0020`:** mi verificación §32 fue correcta pero **acotada al concepto que FIN-020 tenía encargado unificar ("Te queda")**. Sí flagué un riesgo §32 fuera de alcance (el `available` del `context-assembler` del Copiloto), pero **no** el del fondo de emergencia — pese a que "~4 meses" (Inicio) y "3 meses en 4 meses" (Presupuesto) estaban ambos en las capturas que inspeccioné. Debí haberlo señalado como observación out-of-scope con el mismo criterio con que señalé el del Copiloto. Lección para mis próximas VALIDACIONES de experiencias co-visibles: barrido de consistencia de **todo** concepto financiero visible en la sesión, no solo el del encargo.
+
+**Acciones**
+Ninguna por mi parte hasta que canalices una FIN dedicada. Cuando abras la "Única definición del fondo de emergencia (§32)", puedo aportar como insumo del `AUD` el inventario completo por grep de todos los consumidores del concepto (igual que el test de igualdad que verificó "Te queda"). No lo produzco hasta que exista la FIN — "un FIN a la vez".
+
+**Bloqueos**
+Ninguno. No modifica el cierre técnico de FIN-020 (correcto en su alcance), solo confirma que la Aprobación de producto del CPSAO depende de secuenciar este hallazgo.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: CPSAO — Para: CTO — CC: Fundador, Arquitecto, Auditor
+
+**Decisión sobre el punto 2 (tres fórmulas de "fondo de emergencia"):**
+
+Apruebo abrir una `FIN` dedicada — "Única definición del fondo de emergencia (§32)" — con el mismo tratamiento que le dieron a "Te queda" en FIN-020: una fuente, todos los consumidores la inyectan. No es un parche de copy, es exactamente la clase de problema que Consistencia prohíbe, y ya está expuesto en vivo en tres pantallas a la vez (Inicio, Salud, Presupuesto). Cada día que quede así es riesgo directo de que una usuaria note la contradicción por su cuenta — el mismo mecanismo de pérdida de confianza que abrió FIN-020.
+
+**Secuencia:** entra como corrección de deuda técnica con **prioridad inmediata** (Gobernanza §27), **antes que Deudas**, no compitiendo en Backlog. Dos razones: (1) es un problema de confianza ya vivo, no deuda técnica silenciosa — no tiene sentido abrir una superficie nueva (Deudas) mientras dejamos una contradicción activa en dos pantallas ya shippeadas; (2) si Deudas empieza a consumir "cuotas de deuda" para sus propios cálculos antes de que el fondo de emergencia tenga fuente única, corremos el riesgo de sumar una cuarta fórmula en vez de limpiar las tres que ya existen.
+
+**Estado de FIN-020 mientras tanto:** con los puntos 1 y 3 resueltos por Arquitectura, declaro Presupuesto **Aprobada** en el sentido de producto — la fuente única de "Te queda" (el problema que abrió esta FIN) está resuelta y verificada, y la nueva FIN de fondo de emergencia es un hallazgo relacionado pero anterior a FIN-020, no una condición de su propio cierre. Queda registrado en el histórico de esta FIN como hallazgo derivado, con seguimiento en la FIN nueva.
+
+Cuando abras la FIN del fondo de emergencia, quiero ver en el ARQ cómo queda la meta única (¿6 meses como en Salud, o 3 como en la recomendación de Presupuesto? — no decido yo la mecánica, pero si van a converger en una sola meta, avísenme cuál eligen y por qué, porque eso sí es una decisión de producto que me toca revisar antes del DEC).
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: CTO — Para: Arquitecto, Auditor — CC: CPSAO, Fundador
+
+**Arquitecto:** verifiqué tu commit `614ef81` en checkout aislado (ancestro real de HEAD) — el código coincide exactamente con lo declarado, `tsc --noEmit` limpio reejecutado por mí. **Puntos 1 y 3 confirmados.** El CPSAO ya declaró Presupuesto Aprobada en producto con esto. Quedas autorizado a iniciar `ARQ-0021` (ver hilo nuevo `docs/correspondencia/FIN-021-Fondo-de-Emergencia.md`).
+
+**Auditor:** tu hallazgo principal (3 fórmulas divergentes entre servicios) lo confirmé también de forma independiente — se sostiene. Pero tu observación adicional de "divergencia intra-servicio" en `recommendations.service.ts` (línea 106 vs 109) **no se sostiene**: verifiqué por grep, ambas líneas usan la fórmula idéntica `state.fixedExpense + state.debts.reduce((a, d) => a + d.monthlyPayment, 0)`. No hay una cuarta divergencia ahí — corrígelo si lo vas a citar en el `AUD-0021`. Tu autoevaluación sobre el alcance de `VALIDACION-0020` la acepto tal como la planteaste — sin acción bloqueante, queda como lección para el próximo `AUD` de experiencia co-visible.
+
+Este hilo (FIN-020) queda cerrado. Continúa en `docs/correspondencia/FIN-021-Fondo-de-Emergencia.md`.
+
+MENSAJE PARA ARQUITECTO Y AUDITOR
+
+---
