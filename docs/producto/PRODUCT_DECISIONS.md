@@ -1,13 +1,15 @@
 # Decisiones Estratégicas de Producto — Millo
 
-- **Versión:** 1.0
+- **Versión:** 1.1
 - **Fecha:** 2026-07-06
-- **Autor:** CTO (scaffold inicial, poblado retroactivamente con decisiones ya tomadas)
+- **Autor:** CTO
 - **Estado:** Vigente — registro histórico append-only
 - **Historial de cambios:**
   - v1.0 (2026-07-06) — creación del documento; se registran retroactivamente las
     decisiones estratégicas de producto ya tomadas durante el roadmap técnico
     (FIN-001 a FIN-016), para no perder ese contexto fuera de `docs/roadmap/BACKLOG.md`.
+  - v1.1 (2026-07-06) — se registran 4 decisiones ratificadas por el Fundador tras el
+    análisis conjunto CPSAO-CTO sobre la Alpha Cerrada (ver `IDEA-0002`).
 
 ---
 
@@ -41,3 +43,23 @@
   sea solo ilustrativa, sin que Millo capte ni ofrezca rendimiento real.** Motivo:
   evitar convertir a Millo en un producto financiero regulado (equivalente a captación)
   sin pasar por una revisión legal de fondo — decisión de riesgo, no solo de producto.
+- **2026-07-06 — Se decidió que la siguiente gran meta de producto, antes de la salida
+  completa a producción (FIN-010), sea una Alpha Cerrada con ~20 usuarios reales**
+  (`IDEA-0002`), en vez de continuar desarrollando funcionalidades nuevas. Motivo:
+  Milla tiene 13 funcionalidades cerradas que ningún usuario real ha usado todavía;
+  antes de comprometerse a un lanzamiento general, se prioriza aprender de un grupo
+  reducido y controlado.
+- **2026-07-06 — Se adoptó el principio de que la Alpha Cerrada valida cambio de
+  comportamiento financiero real del usuario, no solo el funcionamiento de la
+  aplicación.** Motivo: evitar que el éxito del piloto se mida por uso superficial
+  (aperturas, registros) en vez de por evidencia de que el producto influye en
+  decisiones financieras reales.
+- **2026-07-06 — Se adoptó la confianza como indicador principal de éxito de la
+  Alpha: que el usuario decida consultar Milla antes de tomar una decisión
+  financiera importante**, no solo que use la aplicación o registre gastos. Motivo:
+  es el indicador más exigente y más alineado con la obsesión de producto ("claridad
+  antes que cobertura", `PRODUCT_VISION.md` §9).
+- **2026-07-06 — Se decidió que el Copiloto opere en modo plantillas (sin IA
+  generativa) durante la Alpha Cerrada**, dejando la IA real fuera de su alcance
+  inicial. Motivo: reducir complejidad técnica y legal — evita el gate de DPA con
+  Anthropic mientras se valida el resto del producto con usuarios reales.

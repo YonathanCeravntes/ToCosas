@@ -1,9 +1,10 @@
 # PRODUCT_VISION.md — Constitución del Producto Milla
 
-- **Versión:** 1.2 — **OFICIAL**
+- **Versión:** 1.3 — **OFICIAL**
 - **Fecha:** 2026-07-06
 - **Autor:** CTO — v1.1 redactada siguiendo la estructura de 12 secciones propuesta por
-  el CPSAO; v1.2 incorpora los 7 ajustes solicitados por el CPSAO tras revisar v1.1.
+  el CPSAO; v1.2 incorpora los 7 ajustes solicitados por el CPSAO tras revisar v1.1;
+  v1.3 añade el principio permanente de protección de datos ratificado por el Fundador.
 - **Estado:** **Vigente.** Ratificada expresamente por el Fundador el 2026-07-06, previa
   evaluación conceptual del CPSAO y evaluación técnica/documental del CTO. Es la
   Constitución del Producto Milla — referencia estratégica principal del proyecto, con
@@ -27,6 +28,9 @@
   - **v1.2 — OFICIALIZADA el 2026-07-06** por decisión expresa del Fundador, tras
     recomendación del CPSAO y evaluación del CTO. Pasa de borrador a documento
     fundacional vigente.
+  - v1.3 (2026-07-06) — se añade a la sección 8 (Principios del producto) el
+    principio permanente de protección de datos, ratificado por el Fundador junto
+    con la decisión de la Alpha Cerrada (`IDEA-0002`, `PRODUCT_DECISIONS.md`).
 - **Referencias cruzadas:** `ARQ-0001`, `DEC-0004`, `DEC-0008`, `DEC-0009`,
   `docs/producto/PRODUCT_DECISIONS.md`, `docs/producto/COMPETITIVE_ANALYSIS.md`,
   `docs/producto/MONETIZATION.md`, `docs/GOBERNANZA.md` (Parte II §10-16).
@@ -151,6 +155,12 @@ aquí como principios permanentes del producto:
 - Ninguna funcionalidad se implementa solo porque sea técnicamente posible; debe
   demostrar valor real antes de convertirse en `FIN` (`docs/GOBERNANZA.md`, Parte II
   §16).
+- **Protección de datos como principio permanente** (ratificado por el Fundador el
+  2026-07-06, `PRODUCT_DECISIONS.md`): los datos del usuario se almacenan de forma
+  segura y se usan exclusivamente para prestar los servicios de Milla. Nunca se
+  venden, comparten o usan con fines distintos a los autorizados por el usuario,
+  salvo obligación legal. Este principio debe incorporarse también, cuando exista,
+  a la documentación oficial de privacidad y protección de datos.
 
 ## 9. La obsesión de Milla
 
