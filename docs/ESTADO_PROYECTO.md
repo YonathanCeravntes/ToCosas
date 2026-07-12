@@ -1,6 +1,6 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-12 (FIN-021 Aprobada en producto · FIN-022 Deudas autorizada) · por: CTO
+- **Actualizado:** 2026-07-12 (FIN-022 en comprensión · ARQ-0022 autorizado · nuevo hallazgo §32) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
@@ -10,7 +10,7 @@
 v3.12 (`docs/GOBERNANZA.md`) — última sección: §34, commit obligatorio de toda documentación oficial en el mismo acto.
 
 ## FIN activa
-**FIN-022 — Experiencia de Deudas.** Autorizada por el CPSAO (2026-07-12), no iniciada. Detalle: `docs/correspondencia/FIN-022-Experiencia-de-Deudas.md`.
+**FIN-022 — Experiencia de Deudas.** `COMPRENSION-FIN022-Deudas.md` entregado y evaluado; `ARQ-0022` autorizado a iniciar (alcance por defecto: mora diferida, "conectar no inventar"). Pendiente respuesta del CPSAO sobre mora y sobre la secuencia del nuevo hallazgo §32 (ver Riesgos abiertos). Detalle: `docs/correspondencia/FIN-022-Experiencia-de-Deudas.md`.
 
 ## Últimas FIN cerradas
 - FIN-021 — Única definición del fondo de emergencia (§32) — **Cerrado técnico + producto.** `DEC-0021` (P3 Alt C), `VALIDACION-0021` APROBADO, verificación independiente del CTO en checkout aislado contra `6ee4d9d`: código + suites reejecutadas en vivo — unit 310/310, e2e 12/12, tsc limpio. CPSAO declaró Aprobada en producto (capturas revisadas, contradicción "~4 vs 3" ya no reproducible)
@@ -48,6 +48,7 @@ Planificación completa: `ALPHA-001`…`ALPHA-008` aprobadas. En **fase de ejecu
 - **Limitación de sandbox — SUPERADA (2026-07-12):** el precedente desde FIN-012 ("no se puede ejecutar Postgres embebido real") ya no aplica en este entorno — Docker con Postgres real está disponible y operativo; el CTO ejecutó la suite e2e completa (9/9) contra él durante la validación de FIN-020. Corregir el precedente si se cita en FIN futuras.
 - **Documentación oficial sin commitear — RESUELTO (2026-07-12):** el hallazgo del CTO (`GOBERNANZA.md` sin commitear desde 2026-07-05, ~30 documentos oficiales sin trackear) fue regularizado en 7 commits temáticos (`fd63e51`…`85bff76`) tras la autorización del Fundador. Nueva regla permanente `GOBERNANZA.md` §34 (v3.12) evita que se repita: toda documentación oficial se commitea en el mismo acto de su creación/modificación.
 - **Fórmulas divergentes de "meses de fondo de emergencia" — RESUELTO (2026-07-12):** `FIN-021` cerrada. Única fuente (`EmergencyFundMonths` del Motor + `emergency-fund.constants.ts` para los hitos) consumida por construcción por Inicio, Salud y Recomendaciones. Detalle en `docs/correspondencia/FIN-021-Fondo-de-Emergencia.md`.
+- **NUEVO — "lo comprometido" subestimado para usuarios con seguros aparte (violación §32, hallazgo de Arquitectura/CTO, 2026-07-12):** `debt-insurance.spec.ts:29-33` confirma que el desembolso mensual real de una deuda con seguro aparte es mayor que `monthlyPayment` (545.000 vs 500.000). `spendable.service.ts:109` (Presupuesto, FIN-020) y `engine.service.ts:53` (DTI del Motor, FIN-004, y vía `essential` el fondo de emergencia de FIN-021) usan `monthlyPayment` a secas — tercer concepto de esta clase. Propuesto al CPSAO: FIN propia posterior a FIN-022. Detalle en `docs/correspondencia/FIN-022-Experiencia-de-Deudas.md`.
 
 ## Decisiones del Fundador pendientes de ejecutar
 Ninguna.
