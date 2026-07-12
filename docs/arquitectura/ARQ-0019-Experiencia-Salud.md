@@ -205,7 +205,9 @@ Ninguno nuevo (P7 solo navega a la pestaña Copiloto existente).
 - Más contenido siempre-visible alarga tarjetas → mitigado: solo interpretación
   (1 línea) es incondicional; fórmulas siguen tras tap anunciado.
 - Cambio de color del Score puede leerse como pérdida de "semáforo global" →
-  el semáforo vive en pilares/indicadores, más granular y menos judicial.
+  el semáforo vive en los INDICADORES (única fuente con niveles auditados; los
+  pilares son barras neutras por la ruta (b) — frase corregida en v1.1 conforme
+  al detalle señalado en la confirmación del CTO).
 
 ## 11. Dependencias
 Todas existentes: Score/pilares (FIN-004), indicadores (FIN-004), recomendaciones
