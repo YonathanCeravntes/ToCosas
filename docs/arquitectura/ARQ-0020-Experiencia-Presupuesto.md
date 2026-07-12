@@ -1,13 +1,16 @@
 # ARQ-0020 · Experiencia de Presupuesto
 
-- **Versión:** 1.0
+- **Versión:** 1.1
 - **Fecha:** 2026-07-12
 - **Autor:** Agente Arquitecto
-- **Estado:** Propuesto — en espera de AUD-020 y DEC-020
+- **Estado:** Corregido según DEC-0020 §5 — en confirmación puntual del CTO para habilitar IMP-0020
 - **Historial de cambios:**
   - v1.0 (2026-07-12) — emisión conforme a la autorización del CTO/CPSAO: alcance
     de objetivos implícitos + las dos condiciones de diseño (§32 definición única
     de "Te queda"; la experiencia ayuda a decidir QUÉ HACER con el dinero).
+  - v1.1 (2026-07-12) — corrección de P1 según DEC-0020 §5: política explícita de
+    fijos sin transacción vinculada (§4.1-bis) y rejustificación documentada del
+    umbral de `interpretCashflow` con textos recalibrados (§4.1-ter).
 - **Módulo/Feature:** FIN-020 · **Origen (v3.5 §27):** Mejora de revisión de producto
 - **Insumos:** `COMPRENSION-FIN020-Presupuesto.md` (commit `5b5c3b1`) · GOBERNANZA §32 · precisión del CPSAO sobre "objetivos"
 
@@ -59,6 +62,57 @@ descuenta lo que ya tiene dueño sin contar lo que aún no existe. B responde OT
 pregunta legítima ("¿cómo cierro el ciclo?") — si el DEC la quiere, debe vivir como
 concepto distinto con nombre distinto ("proyección de cierre"), nunca como segundo
 "Te queda" (§32).
+
+#### 4.1-bis — Política de fijos sin transacción vinculada (Hallazgo 1, DEC-0020 §5.1)
+
+`Transaction` no tiene `fixedItemId` (verificado): es imposible saber con certeza si
+un fijo se pagó. La política se decide contra el MISMO criterio que eligió Alt A —
+**nunca mentir hacia arriba**:
+
+| Política | Sesgo | Veredicto |
+|---|---|---|
+| (i) Fecha pasada ⇒ se asume PAGADO (sale del comprometido) | Si el usuario NO pagó, el disponible se INFLA por el monto del fijo — miente hacia arriba | ❌ Rechazada: viola el criterio rector |
+| (ii) **Comprometido hasta el CIERRE del ciclo, se pague o no (ADOPTADA)** | Si el usuario pagó Y registró el pago como gasto, se resta dos veces (gasto real + compromiso) — el número baja de más | ✅ El sesgo posible apunta SIEMPRE hacia abajo (seguro); y en el caso más común (fijo declarado que no se registra además como transacción) no hay sesgo alguno |
+| (iii) Preguntar al usuario ("¿ya lo pagaste?") | Sin sesgo | ❌ Para v1: añade fricción e interfaz nueva — candidata a iteración futura junto con el vínculo |
+
+**Política adoptada (ii), formalmente:** todo compromiso fijo activo del ciclo
+cuenta como PENDIENTE desde el inicio hasta el cierre del ciclo, tenga o no fecha
+(`dayOfMonth`) y haya pasado o no esa fecha. La fecha se usa SOLO para ordenar la
+línea de tiempo de P4 (con etiqueta neutra "ya pasó su fecha" en vez de "✓ pagado",
+que afirmaba lo que no podemos saber — corrige de paso la aproximación declarada en
+P4-A v1.0). Las cuotas de deuda NO necesitan esta política: su pago sí es
+observable (`pago_deuda` + avance de `nextDueDate`, FIN-018) — una cuota cuenta
+como pendiente solo si su `nextDueDate` cae en lo que resta del ciclo.
+
+**Mejora futura registrada (fuera de este ciclo):** vínculo `fixedItemId` en
+`Transaction` (modelo + UI de conciliación) — eliminaría el doble descuento sin
+introducir el sesgo optimista.
+
+#### 4.1-ter — Umbral de `interpretCashflow` bajo Alt A (Hallazgo 2, DEC-0020 §5.2)
+
+Se toma la **ruta (b)** del DEC: rejustificar el corte del 10% — con recalibración
+de TEXTOS, porque la semántica del valor cambió (de "flujo no gastado" a "libre
+después de apartar lo comprometido"):
+
+- **Por qué 10% sigue siendo válido:** el corte no depende de la composición de la
+  base — expresa "margen menor a la décima parte de lo que te entró", una heurística
+  de holgura relativa. Bajo Alt A el valor es menor por construcción, así que el
+  amarillo se activará ANTES: esa mayor sensibilidad es la dirección CORRECTA para
+  una definición conservadora (avisar temprano nunca miente hacia arriba; avisar
+  tarde sí). Recalibrar el número hoy sería inventarlo: no hay datos de uso reales
+  bajo la definición nueva — queda **compromiso explícito en §13 de revisar el corte
+  con datos reales tras la RC integral**.
+- **Textos recalibrados** (los actuales describirían mal el valor nuevo):
+
+| Nivel | Condición (sin cambio) | Texto nuevo |
+|---|---|---|
+| 🔴 | teQueda < 0 | "Lo que viene comprometido supera lo que te queda — mira qué puedes mover" |
+| 🟡 | teQueda < 10% del ingreso recibido | "Vas justa: después de apartar lo que viene, queda poco" |
+| 🟢 | resto | "De cada $100 que te entraron, $N quedan libres después de apartar lo que viene" |
+
+(El rojo actual — "estás gastando más de lo que entra" — sería falso bajo Alt A: un
+teQueda negativo puede ocurrir sin sobregasto, solo por compromisos aún no
+vencidos. El texto nuevo describe exactamente eso, sin culpar.)
 
 ### P2 — Fuente única (§32, condición 3)
 
