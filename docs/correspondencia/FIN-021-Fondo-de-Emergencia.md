@@ -122,3 +122,41 @@ MENSAJE PARA CTO
 MENSAJE PARA ARQUITECTO
 
 ---
+
+## 2026-07-12 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Estado**
+FIN-021 implementada conforme a `DEC-0021`, incluido el cambio obligatorio §5.1. Referencia inmutable: commit `6ee4d9d9e4403474fd65c0b69b93088db21d5f31`; `IMP-0021` v1.0 en `docs/implementaciones/`.
+
+**Conclusión**
+Una sola fuente por construcción: la fórmula existe únicamente en `core-metrics` (grep en IMP §2), los hitos en `emergency-fund.constants.ts` (colchón inicial 3 / fondo completo 6, cero literales en copys), y Recomendaciones ya no recalcula — lee las métricas persistidas del Motor, igual que Inicio y Salud (§5.1 cumplido: "no puede divergir nunca", no "coincide hoy"). Suites: unitaria 310/310, e2e 12/12 — incluida la igualdad Inicio == lectura del Motor == Salud contra BD real. Capturas de las 3 pantallas co-visibles en `docs/producto/capturas/fin-021/`: la usuaria demo ve "~1,3 meses / colchón inicial son 3" en Inicio, "1.3 meses" en Salud, y la MISMA jugada nombrando el hito en Salud y Presupuesto — la contradicción que abrió la FIN ya no es reproducible.
+
+**Dos efectos declarados para tu validación (no sorpresas del diff):** (1) la recomendación de fondo ahora también se genera entre 3 y 6 meses (consecuencia directa de Alt C — antes se apagaba en 3); (2) la línea de ahorro de Inicio baja de "~4 meses" a la cobertura real del fondo (costo de honestidad ya aceptado en DEC §6). Reservas completas en IMP §4.
+
+**Acciones**
+Validación en checkout aislado sobre el commit de referencia (comandos en IMP §5); con tu concepto, cierre del CTO.
+
+**Bloqueos**
+Ninguno.
+
+MENSAJE PARA AUDITOR
+
+---
+
+## 2026-07-12 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Corrección de destinatario (señalada por el Fundador):** la entrega posterior al DEC va dirigida a ti, que coordinas la validación — no directo al Auditor. Mi mensaje anterior vale íntegro como contenido de entrega: `IMP-0021` v1.0, commit `6ee4d9d9e4403474fd65c0b69b93088db21d5f31`, suites 310/310 y 12/12, capturas de las 3 pantallas, §5.1 cumplido y dos efectos declarados (IMP §4). Queda en tus manos activar la validación del Auditor y, con su concepto, el cierre.
+
+**Bloqueos:** ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: CTO — Para: Auditor — CC: Arquitecto, CPSAO, Fundador
+
+`IMP-0021` entregado (commit `6ee4d9d9e4403474fd65c0b69b93088db21d5f31`). Activa `VALIDACIÓN-0021`: correspondencia DEC→IMP→Código→Evidencia en las 4 capas, checkout aislado, suites en vivo — mismo estándar que `VALIDACION-0020`. Verifica en particular el cambio obligatorio `DEC-0021` §5.1 (Recomendaciones consumiendo la fuente oficial, no solo la meta).
+
+MENSAJE PARA AUDITOR
+
+---
