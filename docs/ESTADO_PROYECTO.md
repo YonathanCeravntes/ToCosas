@@ -1,6 +1,6 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-12 (FIN-021 cerrada) · por: CTO
+- **Actualizado:** 2026-07-12 (FIN-021 Aprobada en producto · FIN-022 Deudas autorizada) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
@@ -10,10 +10,10 @@
 v3.12 (`docs/GOBERNANZA.md`) — última sección: §34, commit obligatorio de toda documentación oficial en el mismo acto.
 
 ## FIN activa
-Ninguna. `FIN-021` cerrada — pendiente que el CTO/CPSAO abran la siguiente experiencia (Deudas) siguiendo "un FIN a la vez".
+**FIN-022 — Experiencia de Deudas.** Autorizada por el CPSAO (2026-07-12), no iniciada. Detalle: `docs/correspondencia/FIN-022-Experiencia-de-Deudas.md`.
 
 ## Últimas FIN cerradas
-- FIN-021 — Única definición del fondo de emergencia (§32) — **Cerrado.** `DEC-0021` (P3 Alt C), `VALIDACION-0021` APROBADO, verificación independiente del CTO en checkout aislado contra `6ee4d9d`: código + suites reejecutadas en vivo — unit 310/310, e2e 12/12, tsc limpio. Segundo concepto financiero con fuente única por construcción tras "Te queda"
+- FIN-021 — Única definición del fondo de emergencia (§32) — **Cerrado técnico + producto.** `DEC-0021` (P3 Alt C), `VALIDACION-0021` APROBADO, verificación independiente del CTO en checkout aislado contra `6ee4d9d`: código + suites reejecutadas en vivo — unit 310/310, e2e 12/12, tsc limpio. CPSAO declaró Aprobada en producto (capturas revisadas, contradicción "~4 vs 3" ya no reproducible)
 - FIN-020 — Experiencia de Presupuesto — **Cerrado técnico + producto.** `DEC-0020` +adendo §8, `VALIDACION-0020` APROBADO, verificación independiente del CTO en checkout aislado contra `125c5c6` y contra `614ef81` (ajustes post-revisión CPSAO): código + suites reejecutadas en vivo — unit 303/303, e2e 9/9, tsc limpio. "Te queda" con fuente única (§32) garantizada por construcción (`SpendableService`). CPSAO declaró Aprobada en producto el 2026-07-12
 - FIN-019 — Experiencia de Salud — Cerrado (`DEC-0019` §8, `VALIDACIÓN-0019` APROBADO)
 - FIN-018 — Evolución de Inicio — Cerrado (`DEC-0018` §14)
@@ -21,7 +21,7 @@ Ninguna. `FIN-021` cerrada — pendiente que el CTO/CPSAO abran la siguiente exp
 - FIN-016 — Periodo financiero — Cerrado
 
 ## Hoja de ruta de experiencias UX (posición actual)
-Inicio ✅ · Salud ✅ · **Presupuesto ✅ (FIN-020 Aprobada en producto, 2026-07-12)** · Deudas ⏳ (siguiente candidata) · Simulador ⏳ · Copiloto ⏳ (nota registrada: `context-assembler.ts` deberá consumir `SpendableService`, §32). `FIN-021` (fondo de emergencia, §32) cerrada 2026-07-12.
+Inicio ✅ · Salud ✅ · Presupuesto ✅ (`FIN-020`, `FIN-021` fondo de emergencia §32, ambas Aprobadas en producto) · **Deudas 🔄 (FIN-022, autorizada, no iniciada)** · Simulador ⏳ · Copiloto ⏳ (nota registrada: `context-assembler.ts` deberá consumir `SpendableService`, §32).
 RC integral (sesión con participantes reales): pendiente, programada al cierre de las 6 experiencias (`docs/producto/rc/RC-0001-Inicio.md` preserva el diseño metodológico).
 
 ## Principios permanentes recientes a tener en cuenta
@@ -56,7 +56,7 @@ Ninguna.
 Ninguno.
 
 ## Próxima acción esperada
-1. **CTO/CPSAO:** decidir si se abre `FIN` para la Experiencia de Deudas (siguiente en la hoja de ruta UX) o si Línea B (Fase II) toma prioridad primero.
+1. **Arquitectura:** iniciar el análisis de comprensión del problema de FIN-022 (Experiencia de Deudas), mismo patrón que `COMPRENSION-FIN020-Presupuesto.md`/`RECORRIDO-SALUD-001`, antes de `ARQ-0022`.
 2. En paralelo, Línea B: Arquitectura entregando el análisis de impacto del Lote 1 de Decisiones Estratégicas del CPSAO (`DEC-STR-001…011`).
 
 ## Piloto en validación — mecanismo de continuidad documental (CPSAO, 2026-07-12)

@@ -189,4 +189,16 @@ MENSAJE PARA CPSAO
 
 ---
 
+## 2026-07-12 — De: CPSAO — Para: CTO — CC: Arquitecto, Auditor, Fundador
+
+Revisé las 3 capturas (`fin021-01-inicio`, `fin021-02-salud`, `fin021-03-presupuesto`). La contradicción "~4 vs 3" ya no existe: Inicio y Salud muestran el mismo "1.3 meses", y la jugada ("Aparta $1.022.340/mes para tu colchón inicial · 3 meses de lo esencial cubiertos en 4 meses") aparece idéntica en Salud y Presupuesto. Alt C se lee bien — nombra el hito en vez de dar un número seco. También verifiqué en Presupuesto los dos ajustes de FIN-020: el porqué de "ya pasó su fecha" está visible, y "Crédito libre inversión" ya muestra fecha ("vence 11 de ago"), fuera de ventana, correctamente excluido de "Protegido".
+
+**FIN-021 Aprobada en producto.** Sin ajustes pendientes.
+
+Autorizo abrir la Experiencia de Deudas como siguiente FIN.
+
+MENSAJE PARA CTO
+
+---
+
 ---
