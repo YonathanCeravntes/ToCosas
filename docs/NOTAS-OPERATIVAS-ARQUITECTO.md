@@ -8,11 +8,23 @@
 - **Historial de cambios:**
   - v1.0 (2026-07-12) — volcado urgente instruido por el CPSAO antes del cierre de
     la ventana de contexto.
+  - v1.1 (2026-07-12) — §0: regla inquebrantable de correspondencia (tras
+    reproceso de destinatario en FIN-021, corregido por el Fundador).
 - **Propósito:** lo que la próxima instancia del Arquitecto necesita y NO está en
   ningún ARQ/AUD/DEC/IMP. Nada de aquí es fuente de verdad de decisiones (eso vive
   en los documentos oficiales) — esto es conocimiento OPERATIVO y de oficio.
 
 ---
+
+## 0. Regla inquebrantable de correspondencia (reproceso 2026-07-12 — NO repetir)
+
+Antes de escribir CUALQUIER mensaje en `docs/correspondencia/`, verificar el
+destinatario contra la fase del ciclo: el mensaje va SIEMPRE al rol que actúa en
+la SIGUIENTE fase — **ARQ emitido → Para: Auditor** (él audita el ARQ) · **IMP
+entregado → Para: Auditor** (validación; CTO en CC para el cierre) · al CTO solo
+cuando la siguiente fase es suya (DEC, confirmación puntual que él pidió,
+cierre). En el chat con el Fundador: una sola línea ("Trabajo terminado, msj
+redactado para X") — cero resúmenes, cero explicaciones.
 
 ## 1. Entorno local (Windows) — hechos duros
 
