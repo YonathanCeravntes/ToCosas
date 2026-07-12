@@ -1,6 +1,6 @@
 # Gobernanza oficial del proyecto Milla
 
-- **Versión:** 3.11
+- **Versión:** 3.12
 - **Fecha de adopción:** 2026-07-12
 - **Autor:** CTO, propuesta del CPSAO, ratificada por el Fundador (Yonathan Cervantes)
 - **Estado:** Vigente
@@ -76,11 +76,19 @@
     Fundador: ningún concepto financiero mostrado en más de una pantalla puede tener
     más de una fórmula/fuente de verdad. Archivada en
     `docs/archive/GOBERNANZA-v3.10.md`.
-  - **v3.11 (2026-07-12) — esta versión.** Añade el **Estándar Oficial de
+  - v3.11 (2026-07-12) — Añade el **Estándar Oficial de
     Comunicación (EOC v1.0)** (sección 33), propuesto por el CPSAO y ratificado por
     el Fundador en su totalidad: encabezado obligatorio, formato ejecutivo de
     respuesta, rúbrica de evaluación de entregas, y cadena de comunicación formal
     CPSAO↔CTO↔{Arquitecto, Auditor}.
+  - **v3.12 (2026-07-12) — esta versión.** Añade el **commit obligatorio de toda
+    documentación oficial en el mismo acto** (sección 34), a raíz de un hallazgo real
+    del CTO durante el checkout aislado de `FIN-020`: `GOBERNANZA.md` no se commiteaba
+    desde el ciclo `FIN-012` (2026-07-05) — 426 líneas de esta misma Gobernanza (toda
+    la Parte II, agentes de IA, EOC v1.0) existían solo en el working tree, junto con
+    `ESTADO_PROYECTO.md`, varios `DEC`/`AUD`/`VALIDACIÓN` de FIN-018 a FIN-020, y el
+    Programa Alpha completo. Ratificado por el Fundador (2026-07-12): "autorizo
+    commitear y que esto no vuelva a ocurrir".
 
 Todo cambio que afecte **lógica de negocio, arquitectura, base de datos, seguridad,
 IA, APIs, permisos, integraciones, monetización o experiencia funcional** sigue este
@@ -793,6 +801,51 @@ correspondencia exacta `DEC→IMP→Código→Evidencia`, ni la ratificación de
 exigida para todo mecanismo permanente nuevo. Un formato ejecutivo no exime al CTO
 de verificar independientemente antes de decidir — solo exige que la verificación se
 reporte de forma resumida, no que se omita.
+
+## 34. Commit obligatorio de toda documentación oficial en el mismo acto (nueva en v3.12)
+
+**Hallazgo que origina esta regla (no hipotético):** durante el checkout aislado de
+`FIN-020` (2026-07-12), el CTO encontró que `docs/GOBERNANZA.md` no se commiteaba
+desde el ciclo `FIN-012` (commit `44fdefb`, 2026-07-05) — 426 líneas de esta misma
+Gobernanza (toda la Parte II, la incorporación de agentes de IA, EOC v1.0, y las
+reglas §24-33) existían **solo en el working tree**, nunca en el historial de git.
+Lo mismo ocurría con `ESTADO_PROYECTO.md` (nunca commiteado desde su creación),
+`DEC-0018`/`DEC-0019`/`DEC-0020`, `AUD-0018`/`AUD-0019`/`AUD-0020`,
+`VALIDACIÓN-0019`/`VALIDACIÓN-0020`, `PROMPT-MAESTRO-CTO.md`,
+`PROCEDIMIENTO-ARRANQUE-EN-FRIO.md`, y el Programa Alpha completo
+(`docs/producto/alpha/`). Esto contradecía directamente la regla ya vigente "el
+estado oficial se determina solo por artefactos verificables: commits registrados
+en el repositorio..." — la documentación existía, pero no como artefacto verificable
+de git, con el riesgo real de pérdida total si el working tree se dañaba.
+
+**Regla permanente:** toda documentación oficial (`ARQ`, `AUD`, `DEC`, `IMP`,
+`VALIDACIÓN`, `GOBERNANZA.md`, `ESTADO_PROYECTO.md`, `BACKLOG.md`,
+`PRODUCT_VISION.md`, `PRODUCT_DECISIONS.md`, `AI_REGISTRY.md`, `ALPHA_REGISTRY.md`
+y cada `ALPHA-XXX`, `PHR_REGISTRY.md` y cada `PHR-XXXX`, `RC-XXXX`, `IDEA-XXXX`, y
+cualquier documento oficial futuro) **debe commitearse a git en el mismo acto en que
+se crea o se modifica** — nunca queda como cambio pendiente más allá de la sesión de
+trabajo en que se produjo. Esto extiende a **toda** la documentación oficial la
+disciplina que ya regía solo para `IMP` ("Referencia inmutable obligatoria para todo
+IMP", regla permanente heredada de v1.0/v2.0): un documento sin commit no es, en la
+práctica, un artefacto verificable.
+
+**Responsabilidad:**
+- Cada rol que produce un documento oficial (CTO, Arquitecto, Auditor, y el CPSAO
+  cuando corresponda para `docs/producto/`) es responsable de commitearlo antes de
+  cerrar su turno de trabajo — no delegarlo a una sesión futura.
+- El CTO, como administrador exclusivo de `BACKLOG.md`/`ESTADO_PROYECTO.md` (sección
+  7, Paso 5 de `PROCEDIMIENTO-ARRANQUE-EN-FRIO.md`), verifica en cada cierre de `FIN`
+  que `git status` no reporte documentación oficial pendiente de commit — extensión
+  directa de su responsabilidad de correspondencia exacta `DEC→IMP→Código→Evidencia`
+  (regla permanente heredada) al dominio documental, no solo al de código.
+- Si una IA (CTO, Arquitecto o Auditor) no tiene permiso de ejecutar `git commit` de
+  forma autónoma en su entorno, debe declararlo explícitamente en su entrega y
+  solicitar la ejecución del commit antes de dar por cerrada la fase — nunca asumir
+  que "el archivo existe en disco" equivale a "el archivo es un artefacto oficial
+  verificable".
+
+**Ratificación:** propuesta del CTO tras el hallazgo, autorizada por el Fundador el
+2026-07-12: *"Si, autorizo comittear y que esto no vuelva a ocurrir."*
 
 ---
 
