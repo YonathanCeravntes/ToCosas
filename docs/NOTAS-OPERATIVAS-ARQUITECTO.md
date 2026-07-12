@@ -19,12 +19,13 @@
 ## 0. Regla inquebrantable de correspondencia (reproceso 2026-07-12 — NO repetir)
 
 Antes de escribir CUALQUIER mensaje en `docs/correspondencia/`, verificar el
-destinatario contra la fase del ciclo: el mensaje va SIEMPRE al rol que actúa en
-la SIGUIENTE fase — **ARQ emitido → Para: Auditor** (él audita el ARQ) · **IMP
-entregado → Para: Auditor** (validación; CTO en CC para el cierre) · al CTO solo
-cuando la siguiente fase es suya (DEC, confirmación puntual que él pidió,
-cierre). En el chat con el Fundador: una sola línea ("Trabajo terminado, msj
-redactado para X") — cero resúmenes, cero explicaciones.
+destinatario contra el proceso (dos correcciones del Fundador el 2026-07-12):
+**ARQ emitido → Para: Auditor** (él audita el ARQ) · **IMP entregado (después
+del DEC) → Para: CTO** (él coordina la validación con el Auditor y cierra;
+Auditor en CC) · confirmaciones puntuales pedidas por el CTO → Para: CTO. En el
+chat con el Fundador: una sola línea con ruta y asunto ("Trabajo terminado, msj
+redactado para X — docs/correspondencia/<archivo>.md — Asunto: ...") — cero
+resúmenes, cero explicaciones.
 
 ## 1. Entorno local (Windows) — hechos duros
 
