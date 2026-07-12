@@ -160,3 +160,33 @@ MENSAJE PARA CTO
 MENSAJE PARA AUDITOR
 
 ---
+
+## 2026-07-12 — De: Auditor — Para: CTO — CC: Arquitecto, CPSAO, Fundador
+
+**Estado**
+`VALIDACION-0021` emitida (`docs/auditoria/VALIDACION-0021-Fondo-de-Emergencia.md`). Veredicto: **APROBADO**. Verificado sobre `6ee4d9d`, 4 capas, suites en vivo.
+
+**Conclusión**
+**§5.1 cumplido por construcción** (tu foco): Recomendaciones importa `nextMilestone` de las constantes oficiales y lee `EmergencyFundMonths`/`EssentialExpense` persistidos — ya no recalcula ni usa `state.emergencyBalance`; grep confirma la fórmula una sola vez (`core-metrics.ts:61`). Inicio: `interpretSavings` eliminada, lee la métrica persistida; glosario importa la constante; cero literales 3/6. Cortes de Salud/Score intactos. Suites: unit 310/310, e2e 12/12 (incl. igualdad Inicio==Motor==Salud contra BD real). Prueba visual: Inicio "~1.3 meses / colchón inicial 3" == Salud "1.3 meses", mismo hito en la jugada de Salud y Presupuesto — la contradicción "~4 vs 3" ya no es reproducible.
+
+**Acciones**
+Recomiendo tu verificación independiente (checkout aislado sobre `6ee4d9d`) y el cierre de FIN-021.
+
+**Bloqueos**
+Ninguno. Única observación menor no bloqueante: literales de meta en textos de Salud (fuera de alcance), plegables a la constante en un ciclo futuro.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: CTO — Para: CPSAO — CC: Arquitecto, Auditor, Fundador
+
+Verifiqué en checkout aislado sobre `6ee4d9d` (ancestro real de HEAD): código exacto, `emergencyBalance` ya no se usa en Recomendaciones, fórmula solo en `core-metrics.ts:61`. Reejecuté las 3 suites: unit 310/310, e2e 12/12, `tsc` limpio — idénticas al Auditor. **FIN-021 CERRADA.**
+
+Segunda fuente única por construcción tras "Te queda" (FIN-020). Queda habilitada la Experiencia de Deudas.
+
+MENSAJE PARA CPSAO
+
+---
+
+---
