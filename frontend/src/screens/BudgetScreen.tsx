@@ -75,7 +75,17 @@ export function BudgetScreen() {
               </Text>
               {data.debts.map((d) => (
                 <Row key={d.debtId} style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-                  <Text style={{ color: colors.text }}>{d.name}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text }}>{d.name}</Text>
+                    {/* Ajuste post-cierre (revisión CPSAO, punto 3): fecha visible
+                        también aquí — así se verifica a simple vista por qué una
+                        cuota está o no en "Protegido para lo que viene". */}
+                    {d.nextDueDate ? (
+                      <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                        vence {shortDate(d.nextDueDate)}
+                      </Text>
+                    ) : null}
+                  </View>
                   <Text style={{ fontWeight: '700', color: colors.warning }}>
                     {formatMoney(d.amount)}
                   </Text>
@@ -171,6 +181,15 @@ function ProtectedTimeline({ teQueda }: { teQueda: TeQueda }) {
       <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.sm }}>
         Esto ya está descontado del número de arriba.
       </Text>
+      {/* Ajuste post-cierre (revisión CPSAO, punto 1): la política §4.1-bis
+          visible al usuario — "ya pasó su fecha" NO afirma que quedó sin pagar. */}
+      {teQueda.pendingCommitments.some((c) => c.datePassed) ? (
+        <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
+          Los que ya pasaron su fecha siguen apartados hasta el {shortDate(teQueda.until)}:
+          aún no cruzamos pagos con compromisos, y preferimos apartar de más que mostrarte
+          plata que quizá no está.
+        </Text>
+      ) : null}
     </Card>
   );
 }
