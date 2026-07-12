@@ -1,6 +1,8 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma, RecommendationStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MetricKey } from '../financial-engine/engine.constants';
+import { nextMilestone } from '../financial-engine/metrics/emergency-fund.constants';
 import { monthStart } from '../financial-engine/metrics/series.util';
 import { SimulationsService } from '../simulations/simulations.service';
 import {
@@ -102,23 +104,28 @@ export class RecommendationsService {
       }));
     }
 
-    // 3) Fondo de emergencia bajo + excedente → aporte mensual.
-    if ((state.emergencyBalance === 0 || state.emergencyBalance < (state.fixedExpense + state.debts.reduce((a, d) => a + d.monthlyPayment, 0)) * 3) && surplus > 100_000) {
+    // 3) Fondo por debajo de su próximo hito + excedente → aporte mensual.
+    //    FIN-021 (DEC-0021 §5.1): cobertura y gasto esencial se leen de las
+    //    métricas PERSISTIDAS del Motor (la fuente oficial §32) — este servicio
+    //    ya no recalcula el concepto; los hitos vienen de la constante única.
+    const readings = await this.readMonthMetrics(userId, monthStart(now));
+    const fundMonths = readings.get(MetricKey.EmergencyFundMonths);
+    const essential = readings.get(MetricKey.EssentialExpense) ?? 0;
+    const milestone = fundMonths !== undefined ? nextMilestone(fundMonths) : null;
+    if (milestone && essential > 0 && surplus > 100_000) {
       const aporte = Math.round(surplus * 0.3);
-      const essential = state.fixedExpense + state.debts.reduce((a, d) => a + d.monthlyPayment, 0);
-      const target = essential * 3;
-      const gap = Math.max(0, target - state.emergencyBalance);
+      const gap = Math.max(0, (milestone.months - fundMonths!) * essential);
       const months = aporte > 0 ? Math.ceil(gap / aporte) : 0;
-      if (months > 0 && essential > 0) {
+      if (months > 0) {
         candidates.push(this.candidate({
           kind: 'fondo_emergencia',
           dedupeKey: `rec_fondo:${period}`,
-          title: `Aparta ${fmt(aporte)}/mes para tu fondo de emergencia`,
-          body: `A ese ritmo llegarías a 3 meses de gastos cubiertos en ${months} meses.`,
+          title: `Aparta ${fmt(aporte)}/mes para tu ${milestone.label}`,
+          body: `A ese ritmo llegas a tu ${milestone.label} (${milestone.months} meses de lo esencial cubiertos) en ${months} meses.`,
           whatIfNot: 'Sin colchón, cualquier imprevisto se convierte en deuda nueva.',
-          impact: { monthlyContribution: aporte, monthsToTarget: months },
+          impact: { monthlyContribution: aporte, monthsToTarget: months, milestoneMonths: milestone.months },
           scoreDelta: 25,
-          urgency: state.emergencyBalance === 0 ? URGENCY.rojo : URGENCY.amarillo,
+          urgency: fundMonths === 0 ? URGENCY.rojo : URGENCY.amarillo,
           feasibility: Math.min(1, surplus / (aporte * 2)),
         }));
       }
@@ -189,6 +196,14 @@ export class RecommendationsService {
       created += 1;
     }
     return created;
+  }
+
+  /** FIN-021: lecturas persistidas del Motor del mes (fuente oficial §32). */
+  private async readMonthMetrics(userId: string, capturedAt: Date): Promise<Map<string, number>> {
+    const rows = await this.prisma.metricReading.findMany({
+      where: { userId, period: 'month', capturedAt },
+    });
+    return new Map(rows.map((r) => [r.metricKey, Number(r.value)]));
   }
 
   private candidate(input: Omit<Candidate, 'priorityScore'> & {

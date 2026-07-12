@@ -8,7 +8,11 @@ import { FORBIDDEN_BRAND_TERMS } from '../copilot/copilot.constants';
  * mocks; el foco es la regla, no las consultas.
  */
 
-function buildService(activeRecs: Array<{ id: string; priorityScore: number }>) {
+function buildService(
+  activeRecs: Array<{ id: string; priorityScore: number }>,
+  // FIN-021: lecturas persistidas del Motor (fuente oficial del fondo, §32).
+  metricReadings: Array<{ metricKey: string; value: number }> = [],
+) {
   const created: unknown[] = [];
   const updated: unknown[] = [];
   const prisma = {
@@ -21,6 +25,7 @@ function buildService(activeRecs: Array<{ id: string; priorityScore: number }>) 
       update: jest.fn((args) => { updated.push(args); return Promise.resolve({}); }),
     },
     transaction: { findMany: jest.fn().mockResolvedValue([]) },
+    metricReading: { findMany: jest.fn().mockResolvedValue(metricReadings) },
   } as never;
   // Estado: excedente amplio + deuda cara → candidata de abono con prioridad alta.
   const simulations = {
@@ -84,6 +89,42 @@ describe('lista curada discrecional (DEC-0007 §10.1)', () => {
     for (const essential of ['Arriendo', 'Mercado', 'Salud', 'Servicios']) {
       expect(DISCRETIONARY_GLOBAL_CATEGORIES).not.toContain(essential);
     }
+  });
+});
+
+describe('fondo de emergencia con hitos oficiales (FIN-021, DEC-0021 §5.1)', () => {
+  const reading = (months: number, essential = 1_400_000) => [
+    { metricKey: 'emergency_fund_months', value: months },
+    { metricKey: 'essential_expense', value: essential },
+  ];
+  const fondoOf = (created: unknown[]) =>
+    (created as Array<{ kind: string; title: string; body: string }>).find(
+      (c) => c.kind === 'fondo_emergencia',
+    );
+
+  it('por debajo del colchón: la candidata apunta al colchón inicial y lo NOMBRA', async () => {
+    const { service, created } = buildService([], reading(1.2));
+    await service.generateForUser('u1', new Date('2026-07-15T12:00:00Z'));
+    const fondo = fondoOf(created);
+    // surplus 4M → aporte 1.2M; gap (3−1,2)×1,4M = 2,52M → 3 meses.
+    expect(fondo?.title).toBe('Aparta $1.200.000/mes para tu colchón inicial');
+    expect(fondo?.body).toContain('colchón inicial (3 meses de lo esencial cubiertos) en 3 meses');
+  });
+
+  it('entre hitos: apunta al fondo completo (antes NO se generaba — escala Alt C)', async () => {
+    const { service, created } = buildService([], reading(4));
+    await service.generateForUser('u1', new Date('2026-07-15T12:00:00Z'));
+    expect(fondoOf(created)?.title).toContain('fondo completo');
+  });
+
+  it('fondo completo logrado o sin lectura del Motor: no se genera candidata', async () => {
+    const done = buildService([], reading(6.5));
+    await done.service.generateForUser('u1', new Date('2026-07-15T12:00:00Z'));
+    expect(fondoOf(done.created)).toBeUndefined();
+
+    const noData = buildService([], []);
+    await noData.service.generateForUser('u1', new Date('2026-07-15T12:00:00Z'));
+    expect(fondoOf(noData.created)).toBeUndefined();
   });
 });
 

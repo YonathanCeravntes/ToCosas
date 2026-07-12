@@ -3,6 +3,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { computeNetWorth } from '../accounts/networth.util';
 import { financialPeriod } from '../budget/financial-period.util';
 import { SpendableService } from '../budget/spendable.service';
+import { MetricKey } from '../financial-engine/engine.constants';
+import { EMERGENCY_FUND_MILESTONES } from '../financial-engine/metrics/emergency-fund.constants';
+import { monthStart } from '../financial-engine/metrics/series.util';
 import { DEBT_RATIO_CUTS } from '../health/score.util';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -35,7 +38,7 @@ export class DashboardService {
     // FIN-016: el Inicio respeta el ciclo financiero del usuario.
     const period = financialPeriod(new Date(), settings?.cycleStartDay ?? 1);
 
-    const [accounts, assets, debts, fixedItems, periodTxs, recent, teQueda] = await Promise.all([
+    const [accounts, assets, debts, fixedItems, periodTxs, recent, teQueda, fundReading] = await Promise.all([
       this.prisma.account.findMany({ where: { userId, deletedAt: null } }),
       this.prisma.asset.findMany({ where: { userId, deletedAt: null } }),
       this.prisma.debt.findMany({ where: { userId, deletedAt: null, status: 'activa' } }),
@@ -56,6 +59,16 @@ export class DashboardService {
         include: { category: true, debt: true },
       }),
       this.spendable.compute(userId),
+      // FIN-021 (§32): la cobertura del fondo se LEE del Motor (mes calendario,
+      // invariante FIN-016) — la misma lectura persistida que consume Salud.
+      this.prisma.metricReading.findFirst({
+        where: {
+          userId,
+          period: 'month',
+          capturedAt: monthStart(new Date()),
+          metricKey: MetricKey.EmergencyFundMonths,
+        },
+      }),
     ]);
 
     // Patrimonio (util pura de FIN-002, misma fuente que /net-worth).
@@ -146,7 +159,9 @@ export class DashboardService {
         // §4.1-ter: recalibrada para Alt A — base = ingresos REALES recibidos.
         cashflow: interpretCashflow(teQueda.amount, teQueda.receivedIncome),
         debt: interpretDebt(round2(debtPayments), round2(incomeTotal)),
-        savings: interpretSavings(round2(totalSavings), round2(fixedExpense)),
+        // FIN-021: habla del FONDO (lectura oficial del Motor), ya no del
+        // ahorro total con fórmula propia — §32 por construcción.
+        savings: interpretEmergencyFund(fundReading ? Number(fundReading.value) : null),
       },
       recentTransactions: recent.map((t) => ({
         id: t.id,
@@ -221,17 +236,35 @@ function interpretDebt(debtPayments: number, incomeTotal: number): Interpretatio
   return { level: 'rojo', text: `${base} — se están comiendo tu ingreso` };
 }
 
-function interpretSavings(totalSavings: number, fixedExpense: number): Interpretation | null {
-  if (fixedExpense <= 0) return null;
-  const months = totalSavings / fixedExpense;
-  if (months >= 3) {
-    return { level: 'verde', text: `Con esto cubres ~${Math.round(months)} meses de tus gastos fijos` };
+/**
+ * FIN-021 (§32): interpreta la lectura OFICIAL del Motor (EmergencyFundMonths —
+ * la misma que Salud y los logros), narrada con los hitos únicos (DEC-0021 Alt C:
+ * colchón inicial / fondo completo). Sin lectura persistida (gasto esencial 0 o
+ * Motor sin correr aún) la línea se omite (§29.1).
+ */
+function interpretEmergencyFund(months: number | null): Interpretation | null {
+  if (months === null) return null;
+  const { colchonInicial, fondoCompleto } = EMERGENCY_FUND_MILESTONES;
+  const n = Math.round(months * 10) / 10;
+  if (months >= fondoCompleto.months) {
+    return { level: 'verde', text: `Tu ${fondoCompleto.label} está logrado: cubre ~${n} meses de lo esencial` };
   }
-  if (months >= 1) {
-    const n = Math.round(months);
-    return { level: 'amarillo', text: `Cubres ~${n} mes${n === 1 ? '' : 'es'} de tus fijos — vas construyendo` };
+  if (months >= colchonInicial.months) {
+    return {
+      level: 'amarillo',
+      text: `Ya tienes tu ${colchonInicial.label} (~${n} meses de lo esencial) — vas hacia el ${fondoCompleto.label} de ${fondoCompleto.months}`,
+    };
   }
-  return { level: 'rojo', text: 'Aún no cubre un mes de tus fijos — cada aporte cuenta' };
+  if (months > 0) {
+    return {
+      level: 'rojo',
+      text: `Tu fondo cubre ~${n} meses de lo esencial — tu ${colchonInicial.label} son ${colchonInicial.months}, cada aporte cuenta`,
+    };
+  }
+  return {
+    level: 'rojo',
+    text: 'Aún no tienes fondo de emergencia — en Cuentas eliges qué cuenta te respalda',
+  };
 }
 
 function sumFixed(items: Array<{ kind: string; amount: unknown }>, kind: string): number {

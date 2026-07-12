@@ -1,3 +1,4 @@
+import { EMERGENCY_FUND_MILESTONES } from '../financial-engine/metrics/emergency-fund.constants';
 import { SimulationResult } from '../simulations/simulation-engine';
 import { MinimizedContext } from './minimized-views';
 
@@ -23,8 +24,9 @@ const GLOSSARY: Record<string, string> = {
   dti: 'El DTI (endeudamiento) mide qué parte de tu ingreso mensual se va en cuotas de deuda. Por debajo de 20% está sano; por encima de 35% es señal de alerta.',
   score:
     'El Score Millo (0 a 1000) resume tu salud financiera en un solo número, combinando liquidez, endeudamiento, ahorro y patrimonio. No es un puntaje crediticio y no se comparte con nadie.',
+  // FIN-021 (DEC-0021 §5.2): hitos desde la constante oficial, sin literales.
   'fondo de emergencia':
-    'El fondo de emergencia es el dinero apartado para imprevistos. La meta típica es cubrir 6 meses de tus gastos esenciales.',
+    `El fondo de emergencia es el dinero apartado para imprevistos. Hitos: ${EMERGENCY_FUND_MILESTONES.colchonInicial.label} (${EMERGENCY_FUND_MILESTONES.colchonInicial.months} meses) y ${EMERGENCY_FUND_MILESTONES.fondoCompleto.label} (${EMERGENCY_FUND_MILESTONES.fondoCompleto.months} meses de tus gastos esenciales).`,
   liquidez:
     'La liquidez (runway) indica cuántos meses podrías cubrir tus gastos esenciales solo con tu dinero disponible.',
   ahorro:

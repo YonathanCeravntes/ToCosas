@@ -41,6 +41,11 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
           { id: 't1', kind: 'gasto', amount: 200_000, occurredAt: new Date(), note: null, categoryId: 'c2', category: cat('Comida'), debt: null },
         ]),
     },
+    // FIN-021: la cobertura del fondo llega como lectura persistida del Motor
+    // (la MISMA que consume Salud) — el dashboard no la calcula.
+    metricReading: {
+      findFirst: jest.fn().mockResolvedValue({ metricKey: 'emergency_fund_months', value: 4.2 }),
+    },
   } as never;
 
   // FIN-020: SpendableService se stubbea COHERENTE con el escenario bajo Alt A —
@@ -102,9 +107,12 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
       level: 'rojo',
       text: 'Lo que viene comprometido supera lo que te queda — mira qué puedes mover',
     });
-    // ahorro 3.5M / fijos 1.5M = 2,33 meses → amarillo (1–3).
-    expect(home.interpretation.savings?.level).toBe('amarillo');
-    expect(home.interpretation.savings?.text).toContain('~2 mes');
+    // FIN-021: la línea de ahorro narra la lectura OFICIAL del Motor (4,2 meses)
+    // con los hitos únicos — entre colchón (3) y fondo completo (6) → amarillo.
+    expect(home.interpretation.savings).toEqual({
+      level: 'amarillo',
+      text: 'Ya tienes tu colchón inicial (~4.2 meses de lo esencial) — vas hacia el fondo completo de 6',
+    });
     // deuda (ruta a): pagado 450k / ingreso 4.5M = 10% < corte verde 20% (FIN-004).
     expect(home.interpretation.debt).toEqual({
       level: 'verde',
@@ -120,6 +128,7 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
       debt: { findMany: jest.fn().mockResolvedValue([]) },
       fixedItem: { findMany: jest.fn().mockResolvedValue([]) },
       transaction: { findMany: jest.fn().mockResolvedValue([]) },
+      metricReading: { findFirst: jest.fn().mockResolvedValue(null) },
     } as never;
     const emptySpendable = {
       compute: jest.fn().mockResolvedValue({
@@ -134,7 +143,7 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     } as never;
     const home = await new DashboardService(empty, emptySpendable).home('u2');
     expect(home.interpretation.cashflow).toBeNull(); // sin ingreso recibido → sin línea
-    expect(home.interpretation.savings).toBeNull(); // sin gastos fijos → sin línea
+    expect(home.interpretation.savings).toBeNull(); // sin lectura del Motor → sin línea
     expect(home.interpretation.debt).toBeNull(); // sin pagos en el ciclo → sin línea
   });
 });
