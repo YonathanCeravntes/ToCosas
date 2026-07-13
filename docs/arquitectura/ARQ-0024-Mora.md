@@ -1,12 +1,14 @@
 # ARQ-0024 · Mora de deudas — visibilidad y conciliación (iteración 1)
 
-- **Versión:** 1.0
+- **Versión:** 1.1
 - **Fecha:** 2026-07-13
 - **Autor:** Agente Arquitecto
 - **Estado:** Emitido — para AUD-0024
 - **Historial de cambios:**
-  - v1.0 (2026-07-13) — emisión con el alcance fijado en el hilo: P1+P2+P3;
-    P4 (notificación) fuera por decisión del CPSAO, fast-follow agendado.
+  - v1.1 (2026-07-13) — se retira la subsección P4 por instrucción del CTO
+    (la notificación post-vencimiento es FIN-025, con hilo y punto de roadmap
+    propios — no se diseña aquí ni como "fuera de alcance").
+  - v1.0 (2026-07-13) — emisión con el alcance fijado en el hilo: P1+P2+P3.
 - **Módulo/Feature:** FIN-024 · **Origen (§27):** Dominio diferido 3 veces
   (ARQ-0018 §4.9, ARQ-0020 §4.1-bis, FIN-022 P4), activado por el CPSAO
 - **Documentos base:** `COMPRENSION-FIN024-Mora.md` v1.0 · hilo FIN-024 ·
@@ -43,8 +45,8 @@ Backend: `reminders.service` (P1) + estado derivado en el list/summary de
 Deudas + tests. Frontend: etiqueta de estado en la tarjeta (upgrade del
 "(ya pasó)" de FIN-022 P4) + bloque de conciliación en el detalle. **Fuera
 (declarado):** fijos (siguen con "ya pasó su fecha"; conciliación
-`fixedItemId` = mejora futura registrada), Score/Salud (P3), notificación
-post-vencimiento (P4 — fast-follow del CPSAO), `SpendableService` §4.1-bis
+`fixedItemId` = mejora futura registrada), Score/Salud (P3), la notificación
+post-vencimiento (**FIN-025**, fast-follow con hilo propio), `SpendableService` §4.1-bis
 (mora informa, no recalcula lo comprometido — fijado por el CTO), interés de
 mora/cálculo de sanciones (no inventamos números que no conocemos).
 
@@ -56,7 +58,7 @@ mora/cálculo de sanciones (no inventamos números que no conocemos).
 |---|---|---|
 | Qué es | `dispatchDue` deja de escribir en `debt.nextDueDate` Y, para recordatorios con `debtId`, evalúa `shouldFireToday` contra el **`nextDueDate` actual de la deuda** (join que ya carga) — `reminder.dueDate` deja de ser autoritativo para deudas | Quitar la escritura a `debt` y agregar un sync de `reminder.dueDate` en el flujo de pago (FIN-018) |
 | Ventajas | UNA fecha por deuda en todo el sistema (la de FIN-018) — el recordatorio no puede desincronizarse NUNCA; corrige de paso el bug latente de "recordatorio de cuota ya pagada" (hoy nada sincroniza al pagar); cero migración | Cambio más pequeño en reminders |
-| Desventajas | El roll mensual del recordatorio desaparece: si el usuario NO paga, no hay nueva fecha y el recordatorio calla tras el vencimiento (comportamiento DECLARADO — el aviso post-vencimiento es exactamente P4) | Tercer punto de escritura para mantener dos copias de la misma fecha — la clase de dualidad que esta FIN viene a matar |
+| Desventajas | El roll mensual del recordatorio desaparece: si el usuario NO paga, no hay nueva fecha y el recordatorio calla tras el vencimiento (comportamiento DECLARADO — el aviso post-vencimiento es exactamente FIN-025) | Tercer punto de escritura para mantener dos copias de la misma fecha — la clase de dualidad que esta FIN viene a matar |
 
 Los recordatorios manuales (sin `debtId`) no cambian.
 
@@ -95,12 +97,6 @@ aún no existen (mismo criterio que DEC-0019 P1 aplicó al semáforo de pilares)
 Semilla registrada aquí: cuando exista historial real de mora (post-RC), FIN
 propia con su auditoría de cortes.
 
-### P4 — Notificación post-vencimiento (FUERA — decisión CPSAO)
-
-Solo pantalla en esta iteración. El fast-follow (aviso "venció ayer" con copy
-§29.2, reutilizando canal y presupuesto 2/día) queda agendado en BACKLOG por el
-CTO — no es "mejora futura" genérica.
-
 ## 5. Respuesta al filtro §31
 
 Sin esta capacidad, Milla acompaña mientras todo va bien y calla en el momento
@@ -132,7 +128,7 @@ Ninguno.
   ("venció hace 94 días") — es la verdad, pero la primera impresión puede ser
   dura; mitigación: el copy de conciliación existe exactamente para ese caso.
 - El recordatorio de deuda impaga calla tras el vencimiento (Alt A) — declarado;
-  P4 lo cubre en el fast-follow.
+  FIN-025 lo cubre en el fast-follow.
 - `reminder.dueDate` queda como dato legado para recordatorios de deuda —
   documentado en código para que nadie vuelva a leerlo como autoritativo.
 
