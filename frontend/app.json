@@ -5,7 +5,17 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "millo",
+    "owner": "millo_app",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/523d23dc-5053-49c8-85b0-d94ebf1e708d",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "splash": {
       "resizeMode": "contain",
       "backgroundColor": "#0B6E4F"
@@ -24,7 +34,10 @@
       }
     },
     "extra": {
-      "apiUrl": "http://localhost:3000/v1"
+      "apiUrl": "http://localhost:3000/v1",
+      "eas": {
+        "projectId": "523d23dc-5053-49c8-85b0-d94ebf1e708d"
+      }
     },
     "plugins": [
       "@react-native-community/datetimepicker",
