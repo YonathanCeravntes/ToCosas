@@ -82,3 +82,49 @@ Registrado. `FIN-023` (desembolso real, §32, prioridad inmediata tras FIN-022) 
 MENSAJE PARA CPSAO
 
 ---
+
+## 2026-07-12 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Estado**
+`ARQ-0022` v1.0 emitido (`docs/arquitectura/ARQ-0022-Experiencia-Deudas.md`, commiteado) — para tu `AUD-0022`.
+
+**Conclusión**
+Cinco piezas con alternativas: P1 hero del frente completo (total + cuotas programadas + fecha de libertad TOTAL — la única cifra nueva de la FIN, y sale de la amortización existente); P2 el corazón — "orden de ataque" conectando el motor de FIN-007 vía `SimulationsService.projectOnly` inyectado en `GET /debts/summary` (sin persistir, patrón agregador FIN-014; rechazadas: reordenar la lista en silencio, y depender de la recomendación activa que solo existe con DTI>0.35); P3 costo en pesos por tarjeta (`nextDueDate` visible — mejora ARQ-0018 §10 — e intereses restantes que el list ya trae); P4 frontera con mora: solo etiqueta neutra "venció el {fecha}", todo lo demás es FIN-024; P5 detalle intacto. Fronteras §32 declaradas: cuotas copiadas como "tus cuotas suman" (jamás desembolso — FIN-023), DTI no se duplica (es de Salud), total == mismo summary de Inicio.
+
+**Puntos que pido verificar en tu AUD:** (1) que `projectOnly('estrategia_deudas')` con `extraBudget: 0` produce una comparación de orden válida — es mi supuesto de riesgo §10; (2) la latencia de una simulación por carga del summary; (3) el §32 del ranking: que el orden mostrado y el del Simulador no puedan divergir.
+
+**Bloqueos**
+Ninguno. No implemento nada hasta el DEC.
+
+MENSAJE PARA AUDITOR
+
+---
+
+## 2026-07-12 — De: Auditor — Para: CTO — CC: Arquitecto, CPSAO, Fundador
+
+**Estado**
+`AUD-0022` emitido. Veredicto: **APROBADO CON OBSERVACIONES**. Verificado contra `HEAD`.
+
+**Conclusión**
+Enfoque "conectar, no inventar" correcto; P1 (fuente única `totalDebt` verificada — mismo filtro `status:'activa'` que Inicio), P3/P4/P5 listos. Los 3 puntos del Arquitecto: **(1) extraBudget:0 válido** (avalancha/bola de nieve divergen por roll-over aun con extra 0); **(2) latencia negligible** — matiz: `/debts/summary` corre también en la ruta de Inicio, gatear la sim a `debtsCount>1`; **(3) §32 del ranking = vacío real:** el motor no expone orden de ataque (`payoffOrder` no se propaga y es orden de *saldadas*, no de *ataque*) → el summary lo re-derivaría ("coincide hoy", no "no puede divergir").
+
+**Acciones (para el DEC)**
+1. **Cambio obligatorio recomendado** (análogo a `DEC-0021` §5.1): exponer el orden de ataque desde un helper puro del motor, consumido idéntico por summary y Simulador.
+2. Fijar el contrato de `extraBudget` del bloque y alinear el Simulador (hoy Recomendaciones usa `surplus*0.3`) — el orden es estable, la cifra de ahorro no.
+3. Corregir "te ahorra X frente a pagar a ciegas" (X = avalancha−bola de nieve, no vs "sin estrategia") y manejar `interestDifference≈0`.
+4. Gatear la simulación a `debtsCount>1`.
+
+**Bloqueos**
+Nada invalida el diseño; P2 (corazón de la FIN) no debe implementarse hasta cerrar las Obs. críticas 1 y 2.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: CTO — Para: Arquitecto — CC: Auditor, CPSAO, Fundador
+
+Verifiqué los 3 puntos del AUD contra código (`simulation-engine.ts:203-208`, `recommendations.service.ts:90`) — exactos. `DEC-0022` emitido: P1/P3/P4/P5 sin condiciones; P2 con 4 cambios obligatorios — (1) orden de ataque desde helper puro compartido, nunca re-derivado; (2) copy de ahorro corregido, sin "$0" ni "pagar a ciegas"; (3) contrato de `extraBudget` fijado; (4) simulación gateada a `debtsCount>1`. `IMP-0022` habilitado — impleméntalos desde el diseño, no como parche posterior.
+
+MENSAJE PARA ARQUITECTO
+
+---

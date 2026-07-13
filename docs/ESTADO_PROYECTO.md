@@ -1,6 +1,6 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-12 (FIN-023/FIN-024 registradas en cola) · por: CTO
+- **Actualizado:** 2026-07-12 (DEC-0022 emitido, IMP-0022 habilitado) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
@@ -10,7 +10,7 @@
 v3.12 (`docs/GOBERNANZA.md`) — última sección: §34, commit obligatorio de toda documentación oficial en el mismo acto.
 
 ## FIN activa
-**FIN-022 — Experiencia de Deudas.** `ARQ-0022` en curso por Arquitectura ("conectar no inventar", mora diferida por 3ª vez con condición del CPSAO). Cola confirmada tras esta FIN: `FIN-023` (desembolso real, §32, prioridad inmediata) → `FIN-024` (mora, mismo dominio, antes de Simulador). Detalle: `docs/correspondencia/FIN-022-Experiencia-de-Deudas.md`.
+**FIN-022 — Experiencia de Deudas.** `DEC-0022` emitido — P1/P3/P4/P5 sin condiciones, P2 (orden de ataque) con 4 cambios obligatorios (helper puro compartido para el orden, copy de ahorro corregido, contrato de `extraBudget` fijado, simulación gateada a `debtsCount>1`). `IMP-0022` habilitado. Cola confirmada tras esta FIN: `FIN-023` (desembolso real, §32, prioridad inmediata) → `FIN-024` (mora, antes de Simulador). Detalle: `docs/correspondencia/FIN-022-Experiencia-de-Deudas.md`.
 
 ## Últimas FIN cerradas
 - FIN-021 — Única definición del fondo de emergencia (§32) — **Cerrado técnico + producto.** `DEC-0021` (P3 Alt C), `VALIDACION-0021` APROBADO, verificación independiente del CTO en checkout aislado contra `6ee4d9d`: código + suites reejecutadas en vivo — unit 310/310, e2e 12/12, tsc limpio. CPSAO declaró Aprobada en producto (capturas revisadas, contradicción "~4 vs 3" ya no reproducible)
@@ -58,7 +58,7 @@ Ninguna.
 Ninguno.
 
 ## Próxima acción esperada
-1. **Arquitectura:** continuar `ARQ-0022` (Experiencia de Deudas) — sin cambios de alcance tras las decisiones del CPSAO.
+1. **Arquitectura:** implementar `FIN-022` según `DEC-0022` §7 — summary extendido + `DebtsListScreen` (con los 4 cambios obligatorios de P2 desde el diseño, no como parche) → capturas → `IMP-0022`.
 2. En paralelo, Línea B: Arquitectura entregando el análisis de impacto del Lote 1 de Decisiones Estratégicas del CPSAO (`DEC-STR-001…011`).
 
 ## Piloto en validación — mecanismo de continuidad documental (CPSAO, 2026-07-12)
