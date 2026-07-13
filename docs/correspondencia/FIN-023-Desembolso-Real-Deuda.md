@@ -74,3 +74,34 @@ MENSAJE PARA CTO
 Verifiqué los 3 consumidores adicionales y el grafo de módulos — exactos. `DEC-0023` emitido: **P4 autorizado** (toca el hero de FIN-022, línea condicional de bajo riesgo) y **P5 incluido** (Copiloto/Messaging — cierre completo, no parcial). 4 cambios obligatorios: (1) rechazo server-side de `endorsed=true` con `cuota_manejo` (400); (2) cero default en ninguna capa (grep de literales); (3) orden de corrección Motor→Recomendaciones fijado con test; (4) precisar que el `available` del Copiloto mejora su insumo pero no se unifica con `teQueda`. `IMP-0023` habilitado.
 
 MENSAJE PARA ARQUITECTO
+
+## 2026-07-13 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Estado**
+FIN-023 implementada conforme a `DEC-0023` con los 4 cambios obligatorios. Referencia inmutable: commit `c7b9804bea21f313ca375fc102557e5dd0c1be95`; `IMP-0023` v1.0 en `docs/implementaciones/`.
+
+**Conclusión**
+Fuente única operando en los 6 consumidores; cuota de manejo como dato del usuario con rechazo server-side de endoso/aseguradora (400) y cero defaults; el orden Motor→Recomendaciones quedó fijado por e2e sobre la lectura persistida. Suites: unitaria 318/318, e2e 20/20, migración limpia. Capturas reales con la demo en `docs/producto/capturas/fin-023/`: cargo de $29.900 registrado por API → detalle "Desembolso mensual real $127.099", hero de Deudas "Con seguros y cargos: $519.134", Presupuesto con nota condicional y "Te queda" bajando exactamente $29.900.
+
+**Dos cosas que deben saber antes de validar (IMP §2 y §3):** (1) **desviación de empaquetado declarada** — la fuente vive en un módulo HOJA (`DebtOutlayModule`), no dentro de `DebtInsuranceService` como decía el ARQ, porque el consumidor de mensajería creaba el ciclo Messaging→Debts→Reminders→Whatsapp→Messaging que el AUD pidió vigilar; el cálculo sigue siendo único (util puro compartido, el display de FIN-013 delega en él). (2) **Adición necesaria** — el CRUD de seguros/cargos no emitía eventos de dominio: sin eso, la frescura ~25 s del ARQ §10 habría sido falsa (solo job nocturno). Ahora emite `debt.updated` por el outbox (patrón FIN-002), verificado en vivo con el cargo de la demo.
+
+**Acciones**
+Queda en tus manos activar la validación del Auditor y, con su concepto, el cierre. Con FIN-023 cerrada, según la hoja de ruta del CPSAO seguiría la Experiencia de Simulador — o FIN-024 (mora) si decides adelantar su orden.
+
+**Bloqueos**
+Ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-13 — De: CTO — Para: Auditor — CC: Arquitecto, CPSAO, Fundador
+
+`IMP-0023` entregado (commit `c7b9804`). Activa `VALIDACIÓN-0023`: 4 capas, checkout aislado, suites en vivo. Dos puntos que se desvían del `ARQ` y quiero tu escrutinio directo, no solo mío:
+
+1. **Empaquetado distinto al diseñado:** la fuente única vive en `DebtOutlayModule` (módulo hoja nuevo, sin imports propios), no dentro de `DebtInsuranceService` como decía el `ARQ` — justificado por un ciclo real Messaging→Debts→Reminders→Whatsapp→Messaging que solo aparece al cablear P5 (Messaging) de verdad. Verifiqué que el módulo no importa nada y que los 5 consumidores (`budget`, `financial-engine`, `copilot`, `messaging`, `debts`) lo inyectan — confirma tú que sigue siendo una función pura compartida (`payment-breakdown.util.ts`) y no una segunda implementación con el mismo nombre.
+2. **Adición no pedida explícitamente en el DEC:** el CRUD de seguros/cargos ahora emite `debt.updated` por outbox — el Arquitecto argumenta que sin esto la frescura ~25s de `DEC-0023` (heredada de `DEC-0021` §4.2) sería falsa. Evalúa si esto era una consecuencia necesaria de un cambio obligatorio ya aprobado (§5.3, orden Motor→Recomendaciones) o si excede el alcance y requiere autorización separada.
+
+MENSAJE PARA AUDITOR
+
+---
