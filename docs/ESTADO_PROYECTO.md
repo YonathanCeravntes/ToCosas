@@ -1,13 +1,13 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-13 (Fase 0 de infraestructura finalizada + marco de gobernanza post-Fase 0, §36) · por: CTO
+- **Actualizado:** 2026-07-13 (Fase 0 finalizada, §36; Memorando de Sincronización de Contexto institucionalizado, §37) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
 ---
 
 ## Gobernanza vigente
-v3.14 (`docs/GOBERNANZA.md`) — última sección: §36, marco de gobernanza post-Fase 0 (modelo híbrido de documentación en GitHub; flujo oficial `Fundador→CPSAO→CTO→Arquitecto→Auditor→CTO→GitHub` con el CTO como único integrador; testing obligatorio antes de integrar; no escalar infraestructura por anticipación; GitHub como registro histórico oficial; CTO custodio de la calidad técnica). Precedente inmediato: §35, sincronización Git.
+v3.15 (`docs/GOBERNANZA.md`) — última sección: §37, Memorando de Sincronización de Contexto (MSC) — el CTO emite una comunicación oficial ante cambios de etapa estructurales para fijar una línea base única entre roles; disparadores acotados (infra/gobernanza/producción/producto/arquitectura/equipo), cierre con confirmación de lectura de los roles afectados (evidencia, no aprobación), reservado a lo estructural. Precedente inmediato: §36, marco de gobernanza post-Fase 0 (modelo híbrido de documentación en GitHub; flujo oficial `Fundador→CPSAO→CTO→Arquitecto→Auditor→CTO→GitHub` con el CTO como único integrador; testing obligatorio antes de integrar; no escalar infraestructura por anticipación; GitHub como registro histórico oficial; CTO custodio de la calidad técnica).
 
 ## FIN activa
 **FIN-026 — Experiencia de Simulador — EN PAUSA, a la espera de validar el APK para reactivarse (memo del Fundador, 2026-07-13, `docs/correspondencia/Infraestructura-Fase-0.md` punto 8).** Dónde quedamos: `DEC-0026` ya emitido — P1-P6 aprobados, 3 cambios obligatorios (tocar ambos mapas `SIM_BY_KIND` + matar fallback mudo; P2 frontend-only; titular lidera con el delta del Score). `IMP-0026` habilitado, pendiente de que Arquitectura lo entregue. Reactivación condicionada por el Fundador a que el APK Android y la conectividad completa con el backend queden validados. Detalle: `docs/correspondencia/FIN-026-Experiencia-de-Simulador.md`. Retomar leyendo esta entrada antes que nada.

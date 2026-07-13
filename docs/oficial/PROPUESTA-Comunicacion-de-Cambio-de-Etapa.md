@@ -3,8 +3,15 @@
 - **De:** CTO (Claude)
 - **Para:** Fundador (Yonathan Cervantes)
 - **Fecha:** 2026-07-13
-- **Estado:** ⚠️ **PROPUESTA EN EVALUACIÓN — NO INCORPORADA A LA GOBERNANZA.** Requiere decisión expresa del Fundador antes de convertirse en regla permanente. No se ha tocado `GOBERNANZA.md` para esto.
+- **Estado:** ✅ **APROBADA CON AJUSTES E INCORPORADA.** El Fundador aprobó la propuesta el 2026-07-13 (memo "Decisión — Propuesta de Comunicación Oficial de Cambio de Etapa (MSC)") con tres ajustes, ya reflejados en `GOBERNANZA.md` §37 (v3.15). Este documento se conserva como origen y traza de la decisión.
 - **Origen:** "Consideración adicional" del memo del Fundador (2026-07-13): evaluar si cada cambio relevante de etapa debe ir acompañado de una comunicación oficial al equipo, y presentar la propuesta antes de decidir.
+
+> **Resolución (2026-07-13):** aprobada con tres ajustes — (1) disparador adicional por
+> cambios de composición/responsabilidades del equipo; (2) cierre con confirmación de
+> lectura de los roles afectados, como evidencia de sincronización, no aprobación; (3)
+> reserva expresa a lo estructural con revisión si la frecuencia se eleva. Incorporada en
+> `GOBERNANZA.md` §37. Ver detalle en las secciones siguientes (redacción original de la
+> propuesta, conservada intacta).
 
 ---
 

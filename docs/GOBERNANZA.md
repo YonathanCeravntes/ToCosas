@@ -1,6 +1,6 @@
 # Gobernanza oficial del proyecto Milla
 
-- **Versión:** 3.14
+- **Versión:** 3.15
 - **Fecha de adopción:** 2026-07-13
 - **Autor:** CTO, propuesta del CPSAO, ratificada por el Fundador (Yonathan Cervantes)
 - **Estado:** Vigente
@@ -101,7 +101,7 @@
     sin resguardar la evidencia histórica primero — protocolo aplicado de inmediato
     (rama `legacy/origin-2026-07-13` publicada en GitHub antes del
     `push --force-with-lease`).
-  - **v3.14 (2026-07-13) — esta versión.** Añade el **Marco de gobernanza
+  - v3.14 (2026-07-13) — Añade el **Marco de gobernanza
     post-Fase 0** (sección 36), institucionalizado por memo formal del Fundador tras
     declararse finalizada la Fase 0 de infraestructura (backend en producción en
     Render + Neon, app móvil conectada): modelo híbrido de documentación en GitHub
@@ -111,6 +111,15 @@
     migraciones) antes de integrar; prohibición de escalar infraestructura por
     anticipación (solo por necesidad técnica demostrada); GitHub como registro
     histórico oficial; y el CTO como custodio permanente de la calidad técnica.
+  - **v3.15 (2026-07-13) — esta versión.** Añade el **Memorando de Sincronización de
+    Contexto (MSC)** (sección 37): comunicación oficial que el CTO emite ante cambios de
+    etapa estructurales para fijar una línea base única entre roles que no comparten
+    sesión. Propuesta evaluada y presentada por el CTO sin incorporarla, aprobada con
+    tres ajustes por el Fundador: disparador adicional por cambios de composición o
+    responsabilidades del equipo (ajuste 1); cierre con confirmación de lectura de los
+    roles afectados como evidencia de sincronización, no aprobación (ajuste 2); y
+    reserva expresa del mecanismo a lo estructural, con revisión si su frecuencia se
+    eleva (ajuste 3).
 
 Todo cambio que afecte **lógica de negocio, arquitectura, base de datos, seguridad,
 IA, APIs, permisos, integraciones, monetización o experiencia funcional** sigue este
@@ -982,6 +991,72 @@ comprometa estos principios.
 **Ratificación:** memo formal del Fundador (Yonathan Cervantes), 2026-07-13, asunto
 "Resolución de decisiones de gobernanza — Infraestructura Fase 0 completada",
 íntegramente aprobado y autorizado.
+
+---
+
+## 37. Memorando de Sincronización de Contexto (MSC) ante cambios de etapa (nueva en v3.15)
+
+**Origen (no hipotético):** el 2026-07-13, tras la finalización de la Fase 0, el
+Fundador constató un riesgo ya materializado: varios roles (Fundador, CPSAO, CTO,
+Arquitecto, Auditor) no comparten sesión, y cuando se institucionaliza un cambio
+estructural, los roles ausentes siguen trabajando sobre un contexto anterior. Ese mismo
+día hubo que emitir un memorando de sincronización *a posteriori*
+(`docs/correspondencia/MEMO-Sincronizacion-Contexto-Operativo-2026-07-13.md`) para
+corregir el desfase. El CTO evaluó y presentó la propuesta
+(`docs/oficial/PROPUESTA-Comunicacion-de-Cambio-de-Etapa.md`) sin incorporarla, y el
+Fundador la aprobó con tres ajustes (memo del 2026-07-13, "Decisión — Propuesta de
+Comunicación Oficial de Cambio de Etapa (MSC)").
+
+**Regla permanente:** ante todo **cambio de etapa estructural** del proyecto, el CTO
+emite un **Memorando de Sincronización de Contexto (MSC)**: una comunicación oficial,
+estructurada y ejecutiva que fija la nueva línea base documental para todo el equipo.
+Convierte la corrección reactiva del desfase de contexto en una garantía proactiva.
+
+### 37.1 Disparadores (cuándo SÍ se emite)
+Solo transiciones estructurales:
+- **Infraestructura:** cierre o apertura de una fase (p. ej. Fase 0 → Fase 1).
+- **Gobernanza:** cambio de versión *mayor* de esta Gobernanza, o cualquier cambio que
+  altere el flujo de roles, permisos o responsabilidades.
+- **Producción:** salida a producción, o cruce de un gate legal de `docs/PRODUCCION.md`.
+- **Producto:** cierre de un bloque completo de roadmap (p. ej. las 6 experiencias UX),
+  no una `FIN` individual.
+- **Arquitectura:** decisión arquitectónica transversal que redefine cómo trabajan
+  varios módulos.
+- **Equipo (ajuste 1 del Fundador):** incorporación oficial de un nuevo miembro
+  permanente, relevo o sustitución de un rol permanente, o modificación relevante de
+  responsabilidades entre roles. Coherente con el proceso de incorporación de agentes
+  (§22) y el registro `AI_REGISTRY.md` (§23): cuando ese proceso concluye en un cambio
+  permanente de composición o de responsabilidades, además se emite el MSC.
+
+### 37.2 Cuándo NO se emite (evitar ruido — ajuste 3 del Fundador)
+Queda expresamente prohibido usar el MSC para actividad rutinaria: el cierre de una
+`FIN` individual (ya trazado en `BACKLOG.md` + su correspondencia), un
+`DEC`/`IMP`/`AUD` dentro de un ciclo, o ajustes menores de documentación. **Su uso queda
+reservado a cambios estructurales.** Si el MSC empieza a emitirse con frecuencia elevada,
+se entenderá que el mecanismo se está usando incorrectamente y deberá revisarse.
+
+### 37.3 Contenido mínimo del MSC
+Estado actual (una frase) · cambios institucionalizados · decisiones de gobernanza
+vigentes · estado real de la infraestructura · nuevas responsabilidades · punto exacto
+de continuación · lectura mínima obligatoria. Todo afirmación debe ser rastreable a un
+artefacto oficial (hereda "la documentación oficial es la única fuente de verdad"): un
+MSC no resume conversaciones, oficializa estado.
+
+### 37.4 Confirmación de lectura (ajuste 2 del Fundador)
+El MSC finaliza **solicitando confirmación de lectura únicamente a los roles directamente
+afectados** por el cambio. Esa confirmación **no constituye una aprobación** —
+constituye únicamente **evidencia de sincronización de contexto**. No abre un ciclo de
+decisión ni bloquea el avance; deja constancia de que el rol afectado opera desde la
+nueva línea base.
+
+### 37.5 Responsable, ubicación y trazabilidad
+Lo emite el **CTO** (coherente con §36.6, custodio de la calidad técnica y la
+trazabilidad). Se archiva en `docs/correspondencia/`, se referencia desde `BACKLOG.md` y
+se commitea en el mismo acto (§34). El MSC del 2026-07-13 queda como precedente y
+plantilla de formato.
+
+**Ratificación:** propuesta del CTO evaluada y presentada para decisión, aprobada con
+tres ajustes por el Fundador (Yonathan Cervantes), 2026-07-13.
 
 ---
 

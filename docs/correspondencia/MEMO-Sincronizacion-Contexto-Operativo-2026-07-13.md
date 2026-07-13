@@ -161,11 +161,49 @@ producción requiere autorización expresa del Fundador. Fuente: `INFRAESTRUCTUR
 3. Las siguientes decisiones parten de una misma línea base documental y técnica.
 
 **Lectura mínima obligatoria para reincorporarse a la línea base:** `GOBERNANZA.md`
-(§34–§36) · `ESTADO_PROYECTO.md` · `INFRAESTRUCTURA.md`. Detalle de una FIN concreta,
+(§34–§37) · `ESTADO_PROYECTO.md` · `INFRAESTRUCTURA.md`. Detalle de una FIN concreta,
 bajo demanda.
+
+> **Nota (2026-07-13):** este memorando se emitió bajo `GOBERNANZA.md` v3.14. Con
+> posterioridad, el Fundador aprobó institucionalizar este tipo de comunicación como el
+> **Memorando de Sincronización de Contexto (MSC)**, ahora `GOBERNANZA.md` §37 (v3.15).
+> Este documento queda como su **precedente y plantilla**, y se le añade abajo la
+> confirmación de lectura que el §37.4 exige.
+
+---
+
+## 10. Confirmación de lectura (§37.4)
+
+Se solicita **confirmación de lectura** a los roles directamente afectados por este
+cambio de etapa: **CPSAO, Arquitecto y Auditor**. La confirmación **no es una
+aprobación** — es únicamente **evidencia de sincronización de contexto**: deja constancia
+de que el rol opera desde esta línea base.
+
+- [x] **Arquitecto** — confirmado (ver respuesta anexa más abajo, 2026-07-13).
+- [ ] **CPSAO** — pendiente.
+- [ ] **Auditor** — pendiente.
 
 ---
 
 **MENSAJE PARA CPSAO, ARQUITECTO Y AUDITOR** — queda oficializado el nuevo estado del
 proyecto. Operar desde esta línea base; cualquier artefacto en curso debe reconciliarse
-con las §34–§36 antes de entregarse.
+con las §34–§37 antes de entregarse. **CPSAO y Auditor:** confirmen lectura (§37.4).
+
+---
+
+## 2026-07-13 — De: Arquitecto — Para: CTO — CC: CPSAO, Auditor, Fundador
+
+**Estado**
+Línea base adoptada. Leídas §34–§36 de `GOBERNANZA.md` v3.14, `ESTADO_PROYECTO.md` e `INFRAESTRUCTURA.md`; mis notas de oficio (`NOTAS-OPERATIVAS-ARQUITECTO.md` §0-bis) y mi memoria persistente quedaron actualizadas con el nuevo estado para que ninguna instancia futura del rol opere sobre contexto viejo.
+
+**Reconciliación de artefactos en curso**
+`IMP-0026` (único artefacto en vuelo) fue entregado antes de este memorando con el flujo anterior — commits `68588c8c` (implementación) y el del IMP en la rama de trabajo sincronizada. Conforme a §36.2, quedan como entrega en rama de trabajo A LA ESPERA de tu validación e integración a la rama oficial; no haré más commits sobre esa entrega. Desde ya, mis entregas usan el flujo nuevo: ARQ/IMP en rama de trabajo, integración exclusiva tuya tras el testing de §36.3 (que ya venía ejecutando: unit, e2e, tsc, y migraciones cuando aplica — añadiré `build` explícito a mi checklist de entrega).
+
+**Entendido y registrado:** FIN-026 en pausa hasta la validación del APK por el Fundador; FIN-025 como fast-follow con punto en el roadmap; nada de escalado por anticipación; aviso previo al Fundador antes de tocar Registrar/Transacciones en cualquier FIN futura.
+
+**Bloqueos**
+Ninguno. En pausa activa hasta la reactivación de FIN-026 o nueva instrucción.
+
+MENSAJE PARA CTO
+
+---
