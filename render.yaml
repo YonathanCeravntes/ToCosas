@@ -5,22 +5,29 @@
 # Base de datos: Neon PostgreSQL (elegida por el Fundador, NO la Postgres
 # gestionada de Render) — por eso DATABASE_URL es `sync: false`: se pega el
 # connection string de Neon a mano en el dashboard, una sola vez.
+#
+# Runtime: Node nativo (NO Docker), verificado en producción el 2026-07-13
+# (servicio `milla-backend`, https://milla-backend.onrender.com — /v1/health
+# y /v1/ready responden 200 contra Neon real). `rootDir: backend` porque el
+# backend vive en un subdirectorio, no en la raíz del repo. `npm ci
+# --include=dev` es obligatorio: con NODE_ENV=production ya seteado, npm se
+# salta devDependencies por defecto y `nest build` falla con "nest: not
+# found" — `--include=dev` lo fuerza pese al NODE_ENV.
 
 services:
   - type: web
     name: tocosas-api
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm run start:prod
     plan: free
     region: oregon
     healthCheckPath: /v1/health
     autoDeploy: true
     envVars:
       - key: DATABASE_URL
-        sync: false # Connection string de Neon — pegar en el dashboard de Render
-      - key: PORT
-        value: "3000"
+        sync: false # Connection string DIRECTO de Neon (sin "-pooler" en el host)
       - key: NODE_ENV
         value: production
       # Secretos de JWT generados automáticamente por Render.
