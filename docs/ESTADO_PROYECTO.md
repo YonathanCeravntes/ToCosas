@@ -1,6 +1,6 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-13 (FIN-024 Aprobada en producto · FIN-026 Simulador autorizada) · por: CTO
+- **Actualizado:** 2026-07-13 (bug de navegación en Simulador confirmado — ARQ-0026 en curso) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
@@ -10,7 +10,7 @@
 v3.12 (`docs/GOBERNANZA.md`) — última sección: §34, commit obligatorio de toda documentación oficial en el mismo acto.
 
 ## FIN activa
-**FIN-026 — Experiencia de Simulador.** Autorizada por el CPSAO (2026-07-13), no iniciada. Detalle: `docs/correspondencia/FIN-026-Experiencia-de-Simulador.md`.
+**FIN-026 — Experiencia de Simulador.** `COMPRENSION-FIN026-Simulador.md` evaluado — bug de navegación activo confirmado: `SimulatorScreen.tsx:58-60` hace que la jugada de "simular tu abono" (Salud/Presupuesto) aterrice en "¿Y si tomo un crédito?" (escenario opuesto), porque `abono_extra` no está en `SCENARIOS`. `ARQ-0026` autorizado con alcance completo: P1 = agregar `abono_extra` (máxima prioridad), más `refinanciar`/`vender_activo` y coherencia de `extraBudget` con el contrato de Deudas (`DEC-0022` §5.3). Detalle: `docs/correspondencia/FIN-026-Experiencia-de-Simulador.md`.
 
 ## Últimas FIN cerradas
 - FIN-024 — Mora de deudas (iteración 1, fijos fuera de alcance) — **Cerrado técnico + producto.** `DEC-0024` (3 cambios obligatorios §5), `VALIDACION-0024` APROBADO, verificación independiente del CTO en checkout aislado contra `faebc2a`: unit 326/326, e2e 23/23, tsc limpio. Bug fundacional corregido (escritor único de `nextDueDate`); quinta fuente única por construcción. CPSAO declaró Aprobada en producto (tono §29.2 confirmado). P4 (aviso proactivo) excluido — fast-follow `FIN-025`
