@@ -1,7 +1,7 @@
 # Gobernanza oficial del proyecto Milla
 
-- **Versión:** 3.12
-- **Fecha de adopción:** 2026-07-12
+- **Versión:** 3.13
+- **Fecha de adopción:** 2026-07-13
 - **Autor:** CTO, propuesta del CPSAO, ratificada por el Fundador (Yonathan Cervantes)
 - **Estado:** Vigente
 - **Historial de cambios:**
@@ -81,7 +81,7 @@
     el Fundador en su totalidad: encabezado obligatorio, formato ejecutivo de
     respuesta, rúbrica de evaluación de entregas, y cadena de comunicación formal
     CPSAO↔CTO↔{Arquitecto, Auditor}.
-  - **v3.12 (2026-07-12) — esta versión.** Añade el **commit obligatorio de toda
+  - v3.12 (2026-07-12) — Añade el **commit obligatorio de toda
     documentación oficial en el mismo acto** (sección 34), a raíz de un hallazgo real
     del CTO durante el checkout aislado de `FIN-020`: `GOBERNANZA.md` no se commiteaba
     desde el ciclo `FIN-012` (2026-07-05) — 426 líneas de esta misma Gobernanza (toda
@@ -89,6 +89,18 @@
     `ESTADO_PROYECTO.md`, varios `DEC`/`AUD`/`VALIDACIÓN` de FIN-018 a FIN-020, y el
     Programa Alpha completo. Ratificado por el Fundador (2026-07-12): "autorizo
     commitear y que esto no vuelva a ocurrir".
+  - **v3.13 (2026-07-13) — esta versión.** Añade la **política oficial de
+    sincronización Git** (sección 35), a raíz de un hallazgo real del CTO al intentar
+    el primer `push` autorizado a `origin`: la rama de trabajo tenía 7 commits
+    divergentes en GitHub desde el día 1 del proyecto (2026-07-04) — un primer intento
+    de gobernanza abandonado (`docs/auditorias/` plural, `ARQ-0001-Gestion-Movimientos`
+    distinto del `ARQ-0001` vigente) que nunca se sincronizó ni se descartó
+    formalmente. El Fundador estableció: GitHub y el repositorio local constituyen
+    conjuntamente el repositorio oficial (ninguno reemplaza al otro), nunca se elimina
+    historial sin respaldo previo, y ninguna operación destructiva de git se ejecuta
+    sin resguardar la evidencia histórica primero — protocolo aplicado de inmediato
+    (rama `legacy/origin-2026-07-13` publicada en GitHub antes del
+    `push --force-with-lease`).
 
 Todo cambio que afecte **lógica de negocio, arquitectura, base de datos, seguridad,
 IA, APIs, permisos, integraciones, monetización o experiencia funcional** sigue este
@@ -846,6 +858,58 @@ práctica, un artefacto verificable.
 
 **Ratificación:** propuesta del CTO tras el hallazgo, autorizada por el Fundador el
 2026-07-12: *"Si, autorizo comittear y que esto no vuelva a ocurrir."*
+
+## 35. Política oficial de sincronización Git (nueva en v3.13)
+
+**Hallazgo que origina esta regla (no hipotético):** el 2026-07-13, al ejecutar el
+primer `git push` autorizado a `origin` desde que existe disciplina de commits (§34),
+el CTO encontró que la rama de trabajo tenía **7 commits divergentes en GitHub desde
+el día 1 del proyecto** (2026-07-04, 20:28–22:50 UTC) que nunca llegaron al historial
+local: un primer intento de gobernanza, distinto y abandonado
+(`docs/auditorias/` en plural con su propio `README.md`, `ARQ-0000-Plantilla.md`,
+un `ARQ-0001-Gestion-Movimientos.md` que no es el `ARQ-0001` vigente, un
+`BACKLOG.md` de 60 líneas) más dos commits de frontend del mismo día. Ese primer
+intento quedó reemplazado por el sistema de gobernanza que sí conocemos y usamos sin
+interrupción desde entonces, pero el reemplazo nunca se sincronizó de vuelta a
+GitHub — dejando el repositorio remoto y el local con historias irreconciliables por
+`fast-forward` simple, sin que nadie lo supiera hasta este momento.
+
+**Regla permanente:** el repositorio local y el repositorio en GitHub constituyen
+**conjuntamente** el repositorio oficial del proyecto — **ninguno reemplaza al
+otro**. Consecuencias operativas:
+
+1. **Todo cambio aprobado debe existir en ambos.** El repositorio local es el
+   entorno principal de trabajo; GitHub es la infraestructura oficial de respaldo y
+   colaboración — no un simple backup pasivo. No pueden existir cambios permanentes
+   únicamente en local, ni únicamente en GitHub.
+2. **Nunca se elimina historial sin copia previa.** Ninguna operación destructiva de
+   git (`push --force`, `push --force-with-lease`, `reset --hard` sobre una rama
+   compartida, eliminar una rama remota) se ejecuta sobre `origin` sin resguardar
+   primero la evidencia histórica que esa operación descartaría — aunque el CTO
+   juzgue el contenido descartado como obsoleto.
+3. **Procedimiento obligatorio ante una divergencia irreconciliable** (el caso que
+   originó esta regla): (a) crear una rama exclusivamente de respaldo apuntando al
+   estado remoto actual (convención de nombre: `legacy/origin-<fecha>`); (b)
+   publicar esa rama en `origin` — el respaldo no cuenta como completo si solo existe
+   en el entorno local de una sesión; (c) verificar por `git ls-remote` que el hash
+   de la rama de respaldo remota coincide exactamente con el estado que se va a
+   sobrescribir; (d) solo entonces ejecutar la operación destructiva autorizada
+   (preferir siempre `--force-with-lease` sobre `--force` a secas); (e) verificar el
+   estado final de ambas ramas y reportarlo.
+4. **Ninguna operación destructiva de git se ejecuta sin autorización explícita del
+   Fundador**, incluso cuando el CTO esté técnicamente seguro de que el contenido
+   descartado es obsoleto — mismo criterio que ya rige para cualquier acción
+   irreversible fuera del dominio de código (Sistema, sección "Executing actions with
+   care").
+
+**Aplicación del 2026-07-13 (precedente operativo):** rama `legacy/origin-2026-07-13`
+creada y publicada en `origin` apuntando al commit `185de68` (el estado remoto
+divergente completo) — verificada por `git ls-remote` antes de proceder. Solo
+entonces se ejecutó `git push --force-with-lease` de la rama de trabajo
+(`claude/finance-app-design-pr8qd5`) hacia `origin`, autorizado expresamente por el
+Fundador tras revisar el contenido de los 7 commits.
+
+**Ratificación:** establecida por instrucción directa del Fundador, 2026-07-13.
 
 ---
 
