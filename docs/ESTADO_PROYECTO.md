@@ -1,6 +1,6 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-12 (FIN-022 cerrada) · por: CTO
+- **Actualizado:** 2026-07-12 (DEC-0023 emitido, IMP-0023 habilitado) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
@@ -10,7 +10,7 @@
 v3.12 (`docs/GOBERNANZA.md`) — última sección: §34, commit obligatorio de toda documentación oficial en el mismo acto.
 
 ## FIN activa
-Ninguna. `FIN-022` cerrada — cola confirmada: `FIN-023` (desembolso real + cuota de manejo, §32, prioridad inmediata) → `FIN-024` (mora, antes de Simulador).
+**FIN-023 — Desembolso real de deuda + cuota de manejo (§32).** `DEC-0023` emitido — P1-P5 aprobados (P4 toca `FIN-022` autorizado explícitamente; P5 Copiloto/Messaging incluido). 4 cambios obligatorios: rechazo server-side de `endorsed` para `cuota_manejo`, cero default, orden Motor→Recomendaciones, precisión de wording sobre `available`. `IMP-0023` habilitado. Cola tras esta FIN: `FIN-024` (mora, antes de Simulador). Detalle: `docs/correspondencia/FIN-023-Desembolso-Real-Deuda.md`.
 
 ## Últimas FIN cerradas
 - FIN-022 — Experiencia de Deudas — **Cerrado.** `DEC-0022` (P2 con 4 cambios obligatorios §5), `VALIDACION-0022` APROBADO, verificación independiente del CTO en checkout aislado contra `0f75a5c`: código + suites reejecutadas en vivo — unit 313/313, e2e 15/15, tsc limpio. Orden de ataque unificado por construcción (`attackOrder()`)
@@ -58,7 +58,7 @@ Ninguna.
 Ninguno.
 
 ## Próxima acción esperada
-1. **Arquitectura:** iniciar `ARQ-0023` (desembolso real de deuda + cuota de manejo, §32) — ver alcance ampliado en `docs/correspondencia/FIN-023-Desembolso-Real-Deuda.md`.
+1. **Arquitectura:** implementar `FIN-023` según `DEC-0023` §7 — migración enum + `outlaysByUser()` + 6 consumidores + alta de cuota de manejo en UI → capturas → `IMP-0023`.
 2. En paralelo, Línea B: Arquitectura entregando el análisis de impacto del Lote 1 de Decisiones Estratégicas del CPSAO (`DEC-STR-001…011`).
 
 ## Piloto en validación — mecanismo de continuidad documental (CPSAO, 2026-07-12)

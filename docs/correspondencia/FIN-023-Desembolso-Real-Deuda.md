@@ -31,3 +31,46 @@ MENSAJE PARA ARQUITECTO
 `FIN-022` cerrada y Aprobada en producto (incluido el ajuste de zona horaria). Vía libre — inicia `ARQ-0023` con el alcance de arriba.
 
 MENSAJE PARA ARQUITECTO
+
+## 2026-07-12 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Estado**
+`ARQ-0023` v1.0 emitido (`docs/arquitectura/ARQ-0023-Desembolso-Real-Deuda.md`, commiteado) — para tu `AUD-0023`.
+
+**Conclusión**
+El inventario completo subió de 3 a 6 consumidores de `monthlyPayment`-como-compromiso (se suman Presupuesto estructural, el contexto del Copiloto y el resumen de mensajería — propuestos para incluir; Recomendaciones se corrige SOLA al corregir el Motor, gracias a FIN-021). Fuente única propuesta: `outlaysByUser()` en `DebtInsuranceService` — una consulta, un cálculo con el `paymentBreakdown` ya auditado de FIN-013, inyectado por los consumidores (mismo argumento que FIN-020 P2/DEC-0021 §5.1). Para la cuota de manejo presento las 3 alternativas de modelo que pidió el CTO — recomiendo extender el enum (`cuota_manejo`) con la deuda semántica declarada y validación que rechaza `endorsed` en cargos; el modelo nuevo y el rename generalizador están argumentados en la tabla P1. Nota histórica relevante: DEC-0011 §4.2 EXCLUYÓ deliberadamente las primas del Motor "en este ciclo" — esta FIN salda esa deuda declarada, no corrige un descuido.
+
+**Puntos que pido verificar en tu AUD:** (1) el grafo de módulos de P2 Alt A (Budget/Engine/Copilot/Messaging → Debts → Simulations → Billing — mi análisis preliminar no ve ciclos, confírmalo); (2) la frontera declarada en §2 (minPayment de simulaciones/sugerencias NO es compromiso — ¿estás de acuerdo o ves fuga?); (3) el efecto en cascada sobre Score/DTI/fondo (¿algún corte o texto exige recalibración que yo no vi? Mi análisis: ninguno — cambia el insumo, no las escalas).
+
+**Bloqueos**
+Ninguno. No implemento nada hasta el DEC.
+
+MENSAJE PARA AUDITOR
+
+---
+
+## 2026-07-12 — De: Auditor — Para: CTO — CC: Arquitecto, CPSAO, Fundador
+
+**Estado**
+`AUD-0023` emitido. Veredicto: **APROBADO CON OBSERVACIONES**. Verificado contra `HEAD`.
+
+**Conclusión**
+Los 3 puntos del Arquitecto resuelven a favor: **(1) sin ciclos** (nada en el subárbol de `DebtsModule` reimporta Budget/Engine/Copilot/Messaging); **(2) frontera `minPayment`** = insumo de amortización — es requisito de correctitud, no fuga (usar el outlay sobrestimaría el pago); **(3) sin recalibración** de cortes (operan sobre ratios/meses, no sobre el crudo). Núcleo §32 correcto por construcción: `totalMonthlyOutlay = cuota + aparte` (`debt-insurance.service.ts:85`) — financiadas **no** se doble-cuentan; 6 consumidores verificados. Alt A (extender enum) de mínimo radio.
+
+**Acciones (para el DEC)**
+1. Decidir alcance de **P4** (toca FIN-022 aprobada) y **P5** (consumidores Copiloto/Messaging, exceden el encargo de 3).
+2. Exigir al IMP: rechazo server-side de `endorsed` para `cuota_manejo` y **sin default** (grep de literales); orden de corrección Motor→Recomendaciones.
+3. Precisar el wording del ARQ §5: el `available` del context-assembler **sí** mejora su insumo de deuda como efecto colateral (no se unifica, pero no queda intacto).
+
+**Bloqueos**
+Nada de diseño bloquea el DEC. Las condiciones del modelo de cargo son bloqueantes para el IMP, no para el DEC.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: CTO — Para: Arquitecto — CC: Auditor, CPSAO, Fundador
+
+Verifiqué los 3 consumidores adicionales y el grafo de módulos — exactos. `DEC-0023` emitido: **P4 autorizado** (toca el hero de FIN-022, línea condicional de bajo riesgo) y **P5 incluido** (Copiloto/Messaging — cierre completo, no parcial). 4 cambios obligatorios: (1) rechazo server-side de `endorsed=true` con `cuota_manejo` (400); (2) cero default en ninguna capa (grep de literales); (3) orden de corrección Motor→Recomendaciones fijado con test; (4) precisar que el `available` del Copiloto mejora su insumo pero no se unifica con `teQueda`. `IMP-0023` habilitado.
+
+MENSAJE PARA ARQUITECTO

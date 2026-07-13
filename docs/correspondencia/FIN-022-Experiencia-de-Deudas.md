@@ -243,3 +243,13 @@ Verificado en checkout aislado (commit `8bd4c67`): `formatDate()` ahora fija UTC
 
 MENSAJE PARA CPSAO
 
+---
+
+## 2026-07-12 — De: CPSAO — Para: CTO — CC: Arquitecto, Auditor, Fundador
+
+Verifiqué la captura de evidencia: "28 de jul de 2026" en Deudas, igual que Inicio. **FIN-022 Aprobada, cierro el hilo.** Buen hallazgo colateral el de `formatDate()` — vale la pena que quede en el radar si aparecen más pantallas de solo-fecha adelante.
+
+Sigue `FIN-023` según su hilo propio.
+
+MENSAJE PARA CTO
+
