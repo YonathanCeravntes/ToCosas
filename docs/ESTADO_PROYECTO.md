@@ -1,6 +1,6 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-13 (DEC-0026 emitido, IMP-0026 habilitado) · por: CTO
+- **Actualizado:** 2026-07-13 (Infraestructura Fase 0 registrada — FIN-026 en pausa) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
@@ -10,7 +10,10 @@
 v3.12 (`docs/GOBERNANZA.md`) — última sección: §34, commit obligatorio de toda documentación oficial en el mismo acto.
 
 ## FIN activa
-**FIN-026 — Experiencia de Simulador.** `DEC-0026` emitido — P1-P6 aprobados, 3 cambios obligatorios (tocar ambos mapas `SIM_BY_KIND` + matar fallback mudo; P2 frontend-only; titular lidera con el delta del Score). `IMP-0026` habilitado. Detalle: `docs/correspondencia/FIN-026-Experiencia-de-Simulador.md`.
+**FIN-026 — Experiencia de Simulador — EN PAUSA (instrucción del Fundador, 2026-07-13).** Dónde quedamos: `DEC-0026` ya emitido — P1-P6 aprobados, 3 cambios obligatorios (tocar ambos mapas `SIM_BY_KIND` + matar fallback mudo; P2 frontend-only; titular lidera con el delta del Score). `IMP-0026` habilitado, pendiente de que Arquitectura lo entregue — no se le ha pedido que se detenga, la pausa es del CTO/Fundador para atender infraestructura, no un bloqueo de Arquitectura. Detalle: `docs/correspondencia/FIN-026-Experiencia-de-Simulador.md`. Retomar leyendo esta entrada antes que nada.
+
+## Infraestructura (Fase 0, en construcción)
+GitHub, Render, Neon PostgreSQL y Cloudflare creados; ningún componente configurado de punta a punta todavía. Arquitectura objetivo, decisión de dominio y pendientes técnicos: `docs/INFRAESTRUCTURA.md`. No es una FIN — es preparación de infraestructura paralela al roadmap, por instrucción directa del Fundador.
 
 ## Últimas FIN cerradas
 - FIN-024 — Mora de deudas (iteración 1, fijos fuera de alcance) — **Cerrado técnico + producto.** `DEC-0024` (3 cambios obligatorios §5), `VALIDACION-0024` APROBADO, verificación independiente del CTO en checkout aislado contra `faebc2a`: unit 326/326, e2e 23/23, tsc limpio. Bug fundacional corregido (escritor único de `nextDueDate`); quinta fuente única por construcción. CPSAO declaró Aprobada en producto (tono §29.2 confirmado). P4 (aviso proactivo) excluido — fast-follow `FIN-025`

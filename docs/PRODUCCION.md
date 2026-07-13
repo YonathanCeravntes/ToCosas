@@ -30,8 +30,11 @@
 - [ ] Ningún secreto en el repo (verificar `.env` fuera de git — ya en `.gitignore`).
 
 ## 4. Base de datos e infraestructura
+Estado real de la infraestructura (proveedores, arquitectura objetivo, pendientes de
+Fase 0): ver `docs/INFRAESTRUCTURA.md` — este checklist no duplica esa fuente, solo
+exige sobre ella:
 - [ ] PostgreSQL gestionado con **cifrado en reposo** y **backups automáticos** (plan pago
-  de Render u equivalente — el free tier no da backups).
+  de Render/Neon — el free tier no da backups).
 - [ ] `prisma migrate deploy` en el pipeline (nunca `migrate dev` en producción).
 - [ ] Particiones de `metric_readings`: `RetentionJob` crea la del mes siguiente; la
   DEFAULT absorbe huecos (verificar tras el primer despliegue).
