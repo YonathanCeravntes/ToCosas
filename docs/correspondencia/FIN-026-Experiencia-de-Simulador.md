@@ -107,3 +107,55 @@ Verifiqué los 3 puntos del AUD contra código — exactos (`SIM_BY_KIND` sin `a
 MENSAJE PARA ARQUITECTO
 
 ---
+
+## 2026-07-13 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Estado**
+FIN-026 implementada conforme a `DEC-0026` con los 3 cambios obligatorios. Referencia inmutable: commit `68588c8cdc754a0ae07fffd94613b4af97fa84b1`; `IMP-0026` v1.0 en `docs/implementaciones/`. **Cero backend** — el diff es solo frontend + capturas.
+
+**Conclusión**
+Los 8 escenarios usables; ambos `SIM_BY_KIND` completados y el fallback mudo reemplazado por aviso visible; el selector de abono abre con `attackOrder[0]` preseleccionado (fuente única FIN-022 — la jugada aterriza en la deuda que el motor recomienda atacar); estrategia desde Deudas llega con el 0 precargado, el helper piso/techo, y el resultado muestra el MISMO copy del bloque palabra por palabra (coherencia §32 capturada); titular siempre con el delta del Score, nunca el absoluto; puentes de vuelta solo donde hay acción real; historial visible con re-ensayo; vacíos honestos. Verificación: `tsc` limpio, suites 326/326 y 23/23 como regresión. Capturas antes/después en `docs/producto/capturas/fin-026/` — la de resultado es la evidencia central: el veredicto del Simulador y el del bloque de Deudas son la misma frase.
+
+**Reservas para la validación (IMP §4):** el re-ensayo de una venta usa el valor ACTUAL del activo (no el del ensayo original — correcto y declarado); las recomendaciones de abono no traen `debtId` en su payload y el default del orden de ataque cubre el hueco (semilla registrada si el motor llegara a recomendar otra deuda); los vacíos de "sin deudas" son defensivos y verificables por código (capturado el de venta, el único alcanzable de verdad hoy).
+
+**Acciones**
+Queda en tus manos activar la validación del Auditor y, con su concepto, el cierre. Con FIN-026 cerrada, la hoja de ruta UX queda con una sola experiencia pendiente: el Copiloto.
+
+**Bloqueos**
+Ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+---
+
+## 2026-07-13 — De: CTO — Para: Fundador — CC: CPSAO, Arquitecto, Auditor
+
+**Asunto:** FIN-026 CERRADA — validación técnica del CTO
+**Estado:** Cerrada (eje técnico). Firma de producto en dispositivo real a cargo del Fundador con el APK nuevo.
+
+Por instrucción del Fundador, validé FIN-026 para cierre. Verificación independiente
+contra el commit de referencia `68588c8` (cero backend, confirmado por `git diff --stat`).
+Los **3 cambios obligatorios** de `DEC-0026`, confirmados en código real:
+
+1. **Ambos mapas `SIM_BY_KIND` + fallback mudo eliminado.** `abono_extra` presente en
+   Salud (`HealthScreen.tsx:218`) y Presupuesto (`BudgetScreen.tsx:210`). El fallback ya
+   no es mudo: `unknownScenario` (`SimulatorScreen.tsx:139`) dispara un banner visible
+   "⚠️ No encontré el escenario que buscabas" (`:246-252`) en vez de caer callado en
+   `SCENARIOS[0]`.
+2. **P2 frontend-only.** `extraBudget` con `allowZero:true` (`:87`) y validación
+   `f.allowZero ? v<0 : v<=0` (`:215`) que acepta 0; `DebtsListScreen.tsx:194-196`
+   precarga `extraBudget:0`. Sin `backend/` en el diff — no se tocó la validación del
+   backend (ya correcta).
+3. **Titular por delta.** `headline()` (`:418-422`) lidera con "Tu Score pasaría de X a
+   Y" y omite la frase cuando el delta es 0 (§29.1).
+
+`tsc --noEmit` reejecutado por el CTO: **exit 0**. Suites unit/e2e sin cambios (FIN
+frontend-only, corridas como regresión) — validación por código+capturas, método que el
+propio AUD anticipó (precedente FIN-017). Sexta experiencia UX cerrada.
+
+**Nota:** el APK OTA-capaz recién compilado (build `21922b26`) ya incluye este código,
+así que tu prueba en el teléfono valida también FIN-026 en uso real.
+
+**MENSAJE PARA FUNDADOR** — FIN-026 cerrada; queda tu firma de producto al probar el APK.
