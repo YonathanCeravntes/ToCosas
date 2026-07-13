@@ -64,7 +64,8 @@ Backend disponible 24/7 (Render + Neon), dejando la aplicación lista para prueb
 - [x] **Conectar Render con Neon mediante `DATABASE_URL`** — connection string directo de Neon (sin `-pooler`) pegado en Render. Confirmado funcionando (`/v1/ready` → `db: up`).
 - [x] Ejecutar migraciones Prisma — 17 migraciones aplicadas contra Neon en el primer arranque (`npx prisma migrate deploy` en el start command).
 - [x] Validar el despliegue del backend (smoke test) — verificado externamente vía `curl`: `/v1/health` 200 OK, `/v1/ready` confirma `db: up`. **Backend en producción, funcionando.**
-- [ ] Conectar la aplicación móvil (Expo/React Native) con la API pública `https://milla-backend.onrender.com/v1`.
+- [x] Conectar la aplicación móvil (Expo/React Native) con la API pública `https://milla-backend.onrender.com/v1` — `eas.json` perfil `preview` apunta al backend real; APK en validación por el Fundador.
+- [x] Habilitar el flujo de actualización OTA del frontend (EAS Update) — `expo-updates` instalado, `app.json`/`eas.json` configurados con `runtimeVersion` y canales `development`/`preview`/`production`; compatibilidad validada (`expo-doctor` 18/18). Procedimiento oficial: `docs/tecnico/EAS-UPDATE.md`. Pendiente: primer build OTA-capaz + prueba OTA controlada sobre él.
 
 **Nota de limpieza (no bloqueante):** `.env.example` declara `REDIS_URL`, pero el backend no usa Redis/BullMQ en ningún módulo (`git grep` sin resultados) — es config muerta de un plan anterior. No se incluyó en `render.yaml`; no hace falta provisionar Redis en Render para esta fase.
 
