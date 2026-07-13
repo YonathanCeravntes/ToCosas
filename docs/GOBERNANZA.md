@@ -1,6 +1,6 @@
 # Gobernanza oficial del proyecto Milla
 
-- **Versión:** 3.13
+- **Versión:** 3.14
 - **Fecha de adopción:** 2026-07-13
 - **Autor:** CTO, propuesta del CPSAO, ratificada por el Fundador (Yonathan Cervantes)
 - **Estado:** Vigente
@@ -89,7 +89,7 @@
     `ESTADO_PROYECTO.md`, varios `DEC`/`AUD`/`VALIDACIÓN` de FIN-018 a FIN-020, y el
     Programa Alpha completo. Ratificado por el Fundador (2026-07-12): "autorizo
     commitear y que esto no vuelva a ocurrir".
-  - **v3.13 (2026-07-13) — esta versión.** Añade la **política oficial de
+  - v3.13 (2026-07-13) — Añade la **política oficial de
     sincronización Git** (sección 35), a raíz de un hallazgo real del CTO al intentar
     el primer `push` autorizado a `origin`: la rama de trabajo tenía 7 commits
     divergentes en GitHub desde el día 1 del proyecto (2026-07-04) — un primer intento
@@ -101,6 +101,16 @@
     sin resguardar la evidencia histórica primero — protocolo aplicado de inmediato
     (rama `legacy/origin-2026-07-13` publicada en GitHub antes del
     `push --force-with-lease`).
+  - **v3.14 (2026-07-13) — esta versión.** Añade el **Marco de gobernanza
+    post-Fase 0** (sección 36), institucionalizado por memo formal del Fundador tras
+    declararse finalizada la Fase 0 de infraestructura (backend en producción en
+    Render + Neon, app móvil conectada): modelo híbrido de documentación en GitHub
+    (todo el conocimiento reconstruible sí, secretos/legal/comercial sensible no);
+    flujo oficial `Fundador→CPSAO→CTO→Arquitecto→Auditor→CTO→GitHub` con el CTO como
+    **único integrador** de la rama oficial; testing obligatorio (unit/e2e/tsc/build/
+    migraciones) antes de integrar; prohibición de escalar infraestructura por
+    anticipación (solo por necesidad técnica demostrada); GitHub como registro
+    histórico oficial; y el CTO como custodio permanente de la calidad técnica.
 
 Todo cambio que afecte **lógica de negocio, arquitectura, base de datos, seguridad,
 IA, APIs, permisos, integraciones, monetización o experiencia funcional** sigue este
@@ -910,6 +920,68 @@ entonces se ejecutó `git push --force-with-lease` de la rama de trabajo
 Fundador tras revisar el contenido de los 7 commits.
 
 **Ratificación:** establecida por instrucción directa del Fundador, 2026-07-13.
+
+---
+
+## 36. Marco de gobernanza post-Fase 0 (nueva en v3.14)
+
+**Origen (no hipotético):** el 2026-07-13, al declararse oficialmente finalizada la
+Fase 0 de infraestructura (backend NestJS en producción en Render + Neon PostgreSQL,
+app móvil conectada, `render.yaml` corregido a la configuración real), el Fundador
+emitió un memo formal (`docs/correspondencia/Infraestructura-Fase-0.md`) resolviendo
+las decisiones de gobernanza pendientes. Esta sección institucionaliza esas
+resoluciones como reglas permanentes.
+
+### 36.1 Modelo híbrido de documentación en GitHub
+GitHub es la **fuente oficial de respaldo del proyecto — del código y del
+conocimiento**, no solo del código. **Permanece en GitHub** todo lo necesario para
+reconstruir técnica y documentalmente el proyecto: código fuente, infraestructura,
+arquitectura, gobernanza, roadmap, decisiones, auditorías, documentación técnica y
+manuales. **No permanece en GitHub** la información sensible: credenciales, secretos,
+claves, tokens, variables privadas, documentación legal confidencial e información
+comercial sensible futura. (Coherente con lo ya vigente: todo secreto en `render.yaml`
+es `sync: false` y nunca se commitea.)
+
+### 36.2 Flujo oficial permanente — el CTO es el único integrador
+Queda establecido el flujo permanente:
+`Fundador → CPSAO → CTO → Arquitecto → Auditor → CTO → GitHub`.
+**El CTO es el único responsable de integrar cambios oficiales.** No existen commits
+oficiales directos del Arquitecto (ni de ningún otro rol) hacia la rama oficial.
+Pueden existir ramas de trabajo, pero **ninguna modificación llega a la rama oficial
+sin validación del CTO**. La estabilidad del producto tiene prioridad sobre la
+velocidad. (Refuerza §35: local y GitHub son espejo, ambos frentes de trabajo.)
+
+### 36.3 Testing obligatorio antes de integrar
+Ningún cambio se integra a la rama oficial sin ejecutar, como mínimo y de forma
+verificable por el CTO: **pruebas unitarias, pruebas end-to-end, validación de
+TypeScript (`tsc --noEmit`), compilación (`build`) y verificación de migraciones
+cuando aplique**. El objetivo no es solo detectar errores, sino **garantizar que el
+proyecto nunca retroceda funcionalmente** (cero regresiones). Formaliza como
+obligatoria la práctica que el CTO ya venía aplicando en cada checkout aislado de
+FIN-020 a FIN-024.
+
+### 36.4 No escalar infraestructura por anticipación
+No se escala a planes pagos (Render, Redis, Neon pagado, monitoreo, etc.) por
+previsión. **El único criterio para escalar es la necesidad técnica demostrada por
+datos reales**, nunca la anticipación. El entorno gratuito actual cumple el objetivo
+de validación. Cualquier upgrade de infraestructura de producción requiere
+autorización expresa del Fundador.
+
+### 36.5 GitHub como registro histórico oficial
+GitHub deja de ser un simple repositorio: constituye el **registro histórico oficial**
+del proyecto. Todo cambio aprobado debe encontrarse documentado, versionado, trazable
+y recuperable. (Extiende §35 del respaldo a la trazabilidad histórica completa.)
+
+### 36.6 El CTO como custodio de la calidad técnica
+El CTO asume formalmente, además de Director Técnico, el rol permanente de **custodio
+de la calidad técnica del proyecto**: proteger la arquitectura, la estabilidad, la
+documentación y la trazabilidad; impedir deuda técnica innecesaria; e impedir la
+incorporación de cambios inconsistentes. Faculta al CTO a detener cualquier cambio que
+comprometa estos principios.
+
+**Ratificación:** memo formal del Fundador (Yonathan Cervantes), 2026-07-13, asunto
+"Resolución de decisiones de gobernanza — Infraestructura Fase 0 completada",
+íntegramente aprobado y autorizado.
 
 ---
 

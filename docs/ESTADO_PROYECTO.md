@@ -1,19 +1,19 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-13 (política de sincronización Git establecida, §35) · por: CTO
+- **Actualizado:** 2026-07-13 (Fase 0 de infraestructura finalizada + marco de gobernanza post-Fase 0, §36) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
 ---
 
 ## Gobernanza vigente
-v3.13 (`docs/GOBERNANZA.md`) — última sección: §35, política oficial de sincronización Git (local + GitHub son conjuntamente el repositorio oficial; nunca se elimina historial sin respaldo previo publicado en `origin`).
+v3.14 (`docs/GOBERNANZA.md`) — última sección: §36, marco de gobernanza post-Fase 0 (modelo híbrido de documentación en GitHub; flujo oficial `Fundador→CPSAO→CTO→Arquitecto→Auditor→CTO→GitHub` con el CTO como único integrador; testing obligatorio antes de integrar; no escalar infraestructura por anticipación; GitHub como registro histórico oficial; CTO custodio de la calidad técnica). Precedente inmediato: §35, sincronización Git.
 
 ## FIN activa
-**FIN-026 — Experiencia de Simulador — EN PAUSA (instrucción del Fundador, 2026-07-13).** Dónde quedamos: `DEC-0026` ya emitido — P1-P6 aprobados, 3 cambios obligatorios (tocar ambos mapas `SIM_BY_KIND` + matar fallback mudo; P2 frontend-only; titular lidera con el delta del Score). `IMP-0026` habilitado, pendiente de que Arquitectura lo entregue — no se le ha pedido que se detenga, la pausa es del CTO/Fundador para atender infraestructura, no un bloqueo de Arquitectura. Detalle: `docs/correspondencia/FIN-026-Experiencia-de-Simulador.md`. Retomar leyendo esta entrada antes que nada.
+**FIN-026 — Experiencia de Simulador — EN PAUSA, a la espera de validar el APK para reactivarse (memo del Fundador, 2026-07-13, `docs/correspondencia/Infraestructura-Fase-0.md` punto 8).** Dónde quedamos: `DEC-0026` ya emitido — P1-P6 aprobados, 3 cambios obligatorios (tocar ambos mapas `SIM_BY_KIND` + matar fallback mudo; P2 frontend-only; titular lidera con el delta del Score). `IMP-0026` habilitado, pendiente de que Arquitectura lo entregue. Reactivación condicionada por el Fundador a que el APK Android y la conectividad completa con el backend queden validados. Detalle: `docs/correspondencia/FIN-026-Experiencia-de-Simulador.md`. Retomar leyendo esta entrada antes que nada.
 
-## Infraestructura (Fase 0, en construcción)
-GitHub, Render, Neon PostgreSQL y Cloudflare creados; ningún componente configurado de punta a punta todavía. Arquitectura objetivo, decisión de dominio y pendientes técnicos: `docs/INFRAESTRUCTURA.md`. No es una FIN — es preparación de infraestructura paralela al roadmap, por instrucción directa del Fundador.
+## Infraestructura (Fase 0 — FINALIZADA)
+**Fase 0 oficialmente finalizada (memo del Fundador, 2026-07-13).** Backend NestJS en producción en Render (runtime Node) + Neon PostgreSQL conectada; 17 migraciones Prisma aplicadas; `/v1/health` y `/v1/ready` verificadas 200 OK desde afuera (`https://milla-backend.onrender.com`). App móvil (Expo/Android) apuntando al backend real (`eas.json` perfil `preview`); APK en compilación en EAS. `render.yaml` corregido a la configuración real (Node, no Docker). Componentes oficialmente incorporados: GitHub, Render, Neon, Cloudflare (preparado), Prisma, despliegue automático, infraestructura documentada. Detalle: `docs/INFRAESTRUCTURA.md`. Escalado a planes pagos NO autorizado (solo por necesidad técnica demostrada, §36.4).
 
 ## Sincronización Git (§35)
 Rama oficial de trabajo `claude/finance-app-design-pr8qd5`, sincronizada 1:1 entre local y `origin` desde 2026-07-13 (`git status` sin ahead/behind). Historial anterior divergente (7 commits del día 1, gobernanza abandonada) preservado íntegro en `origin/legacy/origin-2026-07-13` — rama de solo archivo, no participa del desarrollo. Política completa: `GOBERNANZA.md` §35.

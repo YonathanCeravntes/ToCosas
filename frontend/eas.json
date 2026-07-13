@@ -17,7 +17,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-staging.tocosas.co/v1"
+        "EXPO_PUBLIC_API_URL": "https://milla-backend.onrender.com/v1"
       }
     },
     "production": {
