@@ -1,6 +1,6 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-13 (FIN-024 cerrada) · por: CTO
+- **Actualizado:** 2026-07-13 (FIN-024 Aprobada en producto · FIN-026 Simulador autorizada) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
@@ -10,16 +10,16 @@
 v3.12 (`docs/GOBERNANZA.md`) — última sección: §34, commit obligatorio de toda documentación oficial en el mismo acto.
 
 ## FIN activa
-Ninguna. `FIN-024` cerrada — habilita la Experiencia de Simulador.
+**FIN-026 — Experiencia de Simulador.** Autorizada por el CPSAO (2026-07-13), no iniciada. Detalle: `docs/correspondencia/FIN-026-Experiencia-de-Simulador.md`.
 
 ## Últimas FIN cerradas
-- FIN-024 — Mora de deudas (iteración 1, fijos fuera de alcance) — **Cerrado.** `DEC-0024` (3 cambios obligatorios §5), `VALIDACION-0024` APROBADO, verificación independiente del CTO en checkout aislado contra `faebc2a`: unit 326/326, e2e 23/23, tsc limpio. Bug fundacional corregido (escritor único de `nextDueDate`); quinta fuente única por construcción. P4 (aviso proactivo) excluido — fast-follow `FIN-025`
+- FIN-024 — Mora de deudas (iteración 1, fijos fuera de alcance) — **Cerrado técnico + producto.** `DEC-0024` (3 cambios obligatorios §5), `VALIDACION-0024` APROBADO, verificación independiente del CTO en checkout aislado contra `faebc2a`: unit 326/326, e2e 23/23, tsc limpio. Bug fundacional corregido (escritor único de `nextDueDate`); quinta fuente única por construcción. CPSAO declaró Aprobada en producto (tono §29.2 confirmado). P4 (aviso proactivo) excluido — fast-follow `FIN-025`
 - FIN-023 — Desembolso real de deuda + cuota de manejo (§32) — **Cerrado técnico + producto.** `DEC-0023` (P4/P5 incluidos), `VALIDACION-0023` APROBADO, verificación independiente del CTO en checkout aislado contra `c7b9804`: unit 318/318, e2e 20/20, tsc limpio. Cuarta fuente única por construcción (`DebtOutlayModule`). CPSAO declaró Aprobada en producto (aritmética cruzada confirmada)
 - FIN-022 — Experiencia de Deudas — **Cerrado.** `DEC-0022` (P2 con 4 cambios obligatorios §5), `VALIDACION-0022` APROBADO, verificación independiente del CTO en checkout aislado contra `0f75a5c`: código + suites reejecutadas en vivo — unit 313/313, e2e 15/15, tsc limpio. Orden de ataque unificado por construcción (`attackOrder()`)
 - FIN-021 — Única definición del fondo de emergencia (§32) — Cerrado técnico + producto (`DEC-0021`, `VALIDACION-0021` APROBADO)
 
 ## Hoja de ruta de experiencias UX (posición actual)
-Inicio ✅ · Salud ✅ · Presupuesto ✅ (`FIN-020`, `FIN-021` fondo de emergencia §32) · Deudas ✅ (`FIN-022`, `FIN-023` desembolso real + cuota de manejo §32, `FIN-024` mora) · **Simulador ⏳ (siguiente candidata)** · Copiloto ⏳ (nota registrada: `context-assembler.ts` deberá consumir `SpendableService`, §32). `FIN-025` (aviso proactivo de mora) fast-follow registrado, sin fecha fija.
+Inicio ✅ · Salud ✅ · Presupuesto ✅ (`FIN-020`, `FIN-021` fondo de emergencia §32) · Deudas ✅ (`FIN-022`, `FIN-023` desembolso real + cuota de manejo §32, `FIN-024` mora) · **Simulador 🔄 (FIN-026, autorizada, no iniciada)** · Copiloto ⏳ (nota registrada: `context-assembler.ts` deberá consumir `SpendableService`, §32; recordar aviso anticipado al Fundador si se toca Registrar). `FIN-025` (aviso proactivo de mora) fast-follow registrado, sin fecha fija.
 RC integral (sesión con participantes reales): pendiente, programada al cierre de las 6 experiencias (`docs/producto/rc/RC-0001-Inicio.md` preserva el diseño metodológico).
 
 **Aviso anticipado obligatorio — módulo de Registrar/Transacciones (instrucción directa del Fundador, 2026-07-13):** antes de que cualquier FIN toque el módulo de Registrar (alta de transacciones), el CTO debe avisarle con anticipación — quiere hacer observaciones antes de que avance. No está en la hoja de ruta de las 6 experiencias UX hoy (era parte del "Lote 03 de capturas" sin gobernanza, nunca pedido) — si aparece como candidata a FIN futura (p. ej. tras Copiloto), este aviso es un paso obligatorio previo a abrir su comprensión/ARQ.
@@ -58,7 +58,7 @@ Ninguna.
 Ninguno.
 
 ## Próxima acción esperada
-1. **CTO/CPSAO:** decidir si se abre `FIN` para la Experiencia de Simulador (siguiente en la hoja de ruta UX).
+1. **Arquitectura:** entregar el documento de comprensión del problema de `FIN-026` (Simulador), antes de `ARQ-0026`.
 2. En paralelo, Línea B: Arquitectura entregando el análisis de impacto del Lote 1 de Decisiones Estratégicas del CPSAO (`DEC-STR-001…011`).
 
 ## Piloto en validación — mecanismo de continuidad documental (CPSAO, 2026-07-12)
