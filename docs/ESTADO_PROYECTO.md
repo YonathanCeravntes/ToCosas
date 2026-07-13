@@ -1,6 +1,6 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-13 (CPSAO decide P4 → FIN-025 registrada) · por: CTO
+- **Actualizado:** 2026-07-13 (DEC-0024 emitido, IMP-0024 habilitado) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
@@ -10,7 +10,7 @@
 v3.12 (`docs/GOBERNANZA.md`) — última sección: §34, commit obligatorio de toda documentación oficial en el mismo acto.
 
 ## FIN activa
-**FIN-024 — Mora de deudas (iteración 1, fijos fuera de alcance).** `ARQ-0024` en curso por Arquitectura: P1 (escritor único de `nextDueDate`, gana FIN-018) + P2 (visibilidad/conciliación solo deudas) + P3 (sin Score/Salud). P4 (aviso post-vencimiento) excluido por el CPSAO — pantalla pasiva primero; registrado como fast-follow explícito `FIN-025`. Detalle: `docs/correspondencia/FIN-024-Mora.md`.
+**FIN-024 — Mora de deudas (iteración 1, fijos fuera de alcance).** `DEC-0024` emitido — P1/P2/P3 aprobados, 3 cambios obligatorios (principal: eliminar ambas escrituras de fecha, `debt.nextDueDate` y `reminder.dueDate`, no solo la primera). `IMP-0024` habilitado. P4 (aviso post-vencimiento) excluido — fast-follow en `FIN-025`. Detalle: `docs/correspondencia/FIN-024-Mora.md`.
 
 ## Últimas FIN cerradas
 - FIN-023 — Desembolso real de deuda + cuota de manejo (§32) — **Cerrado técnico + producto.** `DEC-0023` (P4/P5 incluidos), `VALIDACION-0023` APROBADO, verificación independiente del CTO en checkout aislado contra `c7b9804`: unit 318/318, e2e 20/20, tsc limpio. Cuarta fuente única por construcción (`DebtOutlayModule`). CPSAO declaró Aprobada en producto (aritmética cruzada confirmada)

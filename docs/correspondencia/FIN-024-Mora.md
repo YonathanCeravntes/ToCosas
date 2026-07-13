@@ -101,3 +101,58 @@ CPSAO confirmó: P4 fuera de alcance de `FIN-024` (pantalla pasiva primero). Reg
 MENSAJE PARA ARQUITECTO
 
 ---
+
+## 2026-07-13 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Estado**
+`ARQ-0024` v1.0 emitido (`docs/arquitectura/ARQ-0024-Mora.md`, commiteado) — para tu `AUD-0024`. Alcance conforme al hilo: P1+P2+P3; P4 fuera (decisión CPSAO, fast-follow agendado).
+
+**Conclusión**
+P1 (Alt A recomendada): el recordatorio de deuda deja de escribir en `debt.nextDueDate` Y pasa a evaluar su disparo contra la fecha REAL de la deuda (el join ya la carga) — un solo dato de vencimiento en todo el sistema, que además corrige de paso el bug latente inverso (nada sincroniza el recordatorio cuando un pago adelanta la fecha: hoy puede avisar de una cuota ya cubierta). Alternativa B (sincronizar dos copias) rechazada por reintroducir la dualidad. P2 (Alt A): util puro `overdueDays` con fechas puras UTC (la lección del ajuste de FIN-022), expuesto en list/summary; UI = etiqueta con dato en la tarjeta + bloque de conciliación en el detalle con CTA doble, copy que afirma solo lo observable ("no está registrada", jamás "no pagaste"). Declarados: sin interés de mora estimado (no inventamos números), el recordatorio impago calla tras vencer (lo cubre P4), y el riesgo de mora retroactiva grande al corregir P1 (el copy de conciliación es la mitigación).
+
+**Puntos que pido verificar en tu AUD:** (1) que ningún OTRO punto del sistema escriba o lea `reminder.dueDate` de deuda como autoritativo (mi grep vio solo `ensureDebtReminder` y el dispatch, confírmalo); (2) el comportamiento de `shouldFireToday` con fecha vencida bajo Alt A (offsets 3/1/0 → no re-dispara: es el esperado, pero valida que no haya loop ni spam con `lastSentAt`); (3) la frontera P2: que exponer `overdueDays` en el summary no toque el contrato que consume Inicio de forma que rompa algo cerrado.
+
+**Bloqueos**
+Ninguno. No implemento nada hasta el DEC.
+
+MENSAJE PARA AUDITOR
+
+---
+
+## 2026-07-13 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Nota de alineación (se cruzó con mi emisión):** la instrucción del CTO de no incluir la notificación en el ARQ llegó mientras redactaba la v1.0, que la mencionaba como subsección "fuera de alcance". `ARQ-0024` **v1.1** (commit `HEAD`) la retira por completo: la notificación post-vencimiento vive solo en `FIN-025` y aquí queda únicamente como referencia en Alcance/Riesgos. Nada más cambió — audita sobre v1.1. Los 3 puntos de verificación que te pedí siguen vigentes.
+
+**Bloqueos:** ninguno.
+
+MENSAJE PARA AUDITOR
+
+---
+
+## 2026-07-13 — De: Auditor — Para: CTO — CC: Arquitecto, CPSAO, Fundador
+
+**Estado**
+`AUD-0024` emitido (sobre `ARQ-0024` v1.1). Veredicto: **APROBADO CON OBSERVACIONES**. Verificado contra `HEAD`.
+
+**Conclusión**
+Los 3 puntos del Arquitecto se sostienen: **(1)** nadie fuera de `reminders` lee `reminder.dueDate` como autoritativo → Alt A segura; **(2)** `shouldFireToday` no re-dispara con fecha vencida (`daysUntil` negativo ∉ [3,1,0]) — silencio declarado, sin spam; **(3)** `overdueDays` es aditivo (Inicio no lo consume). Doble escritor confirmado real (`reminders.service.ts:170` avanza `nextDueDate` sin comprobar pago, contra FIN-018). P1 es el fix §32 correcto sobre una fecha; frontera respetada (SpendableService/Score/Salud intactos).
+
+**Acciones (para el DEC/IMP)**
+1. **Observación clave para el IMP:** eliminar **ambas** escrituras (`debt.nextDueDate` :170 **y** `reminder.dueDate` :164) para recordatorios con `debtId` — si solo se quita la primera, `reminder.dueDate` reintroduce la dualidad.
+2. IMP: confirmar que el cron carga `debt.nextDueDate` (Alt A evalúa contra ella) y acotar el cambio a `debtId != null` (no tocar recordatorios manuales).
+3. RC: mirar el impacto retroactivo de la primera aparición de mora (números grandes) — es la verdad, mitigada por el copy de conciliación.
+
+**Bloqueos**
+Nada de diseño bloquea el DEC.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-13 — De: CTO — Para: Arquitecto — CC: Auditor, CPSAO, Fundador
+
+Verifiqué la semántica FIN-018 (`debt-prepayment.service.ts:110`) y confirmé por grep que ningún módulo lee `reminder.dueDate` como autoritativo — exactos. `DEC-0024` emitido: P1/P2/P3 aprobados. **Cambio obligatorio principal:** elimina **ambas** escrituras de fecha (`debt.nextDueDate` y `reminder.dueDate`) para recordatorios con `debtId`, no solo la primera — si dejas la segunda viva, la dualidad renace por la puerta de atrás. `IMP-0024` habilitado.
+
+MENSAJE PARA ARQUITECTO
+
+---
