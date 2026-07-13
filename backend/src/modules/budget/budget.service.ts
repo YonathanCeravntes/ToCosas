@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OutboxService } from '../events/outbox.service';
 import { DomainEventType } from '../events/domain-events';
 import { CreateFixedItemDto, UpdateFixedItemDto } from './dto/fixed-item.dto';
+import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { clampCycleDay, financialPeriod } from './financial-period.util';
 import { SpendableService } from './spendable.service';
 
@@ -14,6 +15,7 @@ export class BudgetService {
     private readonly prisma: PrismaService,
     private readonly outbox: OutboxService,
     private readonly spendable: SpendableService,
+    private readonly debtOutlay: DebtOutlayService,
   ) {}
 
   async create(userId: string, dto: CreateFixedItemDto) {
@@ -81,7 +83,7 @@ export class BudgetService {
    *   disponible = ingresos fijos − gastos fijos − cuotas de deuda
    */
   async monthlySummary(userId: string) {
-    const [fixedItems, debts, settings, teQueda] = await Promise.all([
+    const [fixedItems, debts, settings, teQueda, outlays] = await Promise.all([
       this.prisma.fixedItem.findMany({
         where: { userId, deletedAt: null, isActive: true },
       }),
@@ -91,6 +93,8 @@ export class BudgetService {
       this.prisma.userSettings.findUnique({ where: { userId } }),
       // FIN-020: "Te queda" oficial — misma fuente que el Inicio (§32).
       this.spendable.compute(userId),
+      // FIN-023: lo comprometido con deudas = desembolso REAL (fuente única).
+      this.debtOutlay.outlaysByUser(userId),
     ]);
     // FIN-016: ciclo financiero activo (con día 1 = mes calendario, sin cambio).
     const period = financialPeriod(new Date(), settings?.cycleStartDay ?? 1);
@@ -101,9 +105,10 @@ export class BudgetService {
     const fixedExpense = fixedItems
       .filter((i) => i.kind === 'gasto')
       .reduce((acc, i) => acc + Number(i.amount), 0);
-    const debtPayments = debts.reduce(
-      (acc, d) => acc + Number(d.monthlyPayment ?? 0),
-      0,
+    const debtPayments = outlays.totalOutlay;
+    // Para el copy condicional de la casa de cuotas ("incluye seguros y cargos").
+    const debtChargesSeparate = round2(
+      [...outlays.byDebt.values()].reduce((acc, o) => acc + o.separate, 0),
     );
 
     const committed = fixedExpense + debtPayments;
@@ -122,6 +127,7 @@ export class BudgetService {
       fixedIncome: round2(fixedIncome),
       fixedExpense: round2(fixedExpense),
       debtPayments: round2(debtPayments),
+      debtChargesSeparate,
       committed: round2(committed),
       available: round2(available),
       // Porcentaje del ingreso comprometido en gastos inflexibles (0 si no hay ingreso).
@@ -129,7 +135,8 @@ export class BudgetService {
       debts: debts.map((d) => ({
         debtId: d.id,
         name: d.name,
-        amount: Number(d.monthlyPayment ?? 0),
+        // FIN-023: desembolso real por deuda (cuota si no hay cargos aparte).
+        amount: outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0),
         nextDueDate: d.nextDueDate,
       })),
       expenses: fixedItems

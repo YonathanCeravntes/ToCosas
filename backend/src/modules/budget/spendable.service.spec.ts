@@ -15,6 +15,10 @@ import { SpendableService } from './spendable.service';
 describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
   const NOW = new Date('2026-07-12T15:00:00.000Z');
 
+  // FIN-023: fuente única de desembolso — el caso base no tiene cargos aparte,
+  // así que el fallback a la cuota reproduce las MISMAS cifras (regresión).
+  const noCharges = { outlaysByUser: jest.fn().mockResolvedValue({ byDebt: new Map(), totalOutlay: 0 }) } as never;
+
   const groupBy = (sums: Record<string, number>) =>
     Object.entries(sums).map(([kind, amount]) => ({ kind, _sum: { amount } }));
 
@@ -47,7 +51,7 @@ describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
 
   it('caso a mano: Alt A con fijo vencido-sin-transacción contando como pendiente (§4.1-bis)', async () => {
     const prisma = baseScenario();
-    const r = await new SpendableService(prisma as never).compute('u1', NOW);
+    const r = await new SpendableService(prisma as never, noCharges).compute('u1', NOW);
 
     expect(r.receivedIncome).toBe(500_000);
     expect(r.protectedTotal).toBe(1_597_000); // arriendo + internet + tarjeta (moto NO)
@@ -66,7 +70,7 @@ describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
 
   it('los ingresos futuros NO cuentan: solo se consultan fijos de GASTO (Alt A)', async () => {
     const prisma = baseScenario();
-    await new SpendableService(prisma as never).compute('u1', NOW);
+    await new SpendableService(prisma as never, noCharges).compute('u1', NOW);
     expect(prisma.fixedItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ kind: 'gasto' }) }),
     );
@@ -83,7 +87,7 @@ describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
         { name: 'Tarjeta', monthlyPayment: 97_000, nextDueDate: new Date('2026-07-28T00:00:00.000Z') },
       ],
     });
-    const r = await new SpendableService(prisma as never).compute('u1', NOW);
+    const r = await new SpendableService(prisma as never, noCharges).compute('u1', NOW);
     expect(r.amount).toBe(2_653_000);
     expect(r.perDay).toBe(132_650); // 2.653.000 / 20 días
   });
@@ -95,7 +99,7 @@ describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
       fixedItems: [{ name: 'Gimnasio', amount: 200_000, dayOfMonth: 5 }],
       debts: [],
     });
-    const r = await new SpendableService(prisma as never).compute('u1', new Date('2026-07-20T12:00:00.000Z'));
+    const r = await new SpendableService(prisma as never, noCharges).compute('u1', new Date('2026-07-20T12:00:00.000Z'));
     // Periodo 15 jul – 15 ago; su ocurrencia es el 5 AGO (no el 5 jul, ya fuera).
     expect(r.pendingCommitments[0].date).toBe('2026-08-05T00:00:00.000Z');
     expect(r.pendingCommitments[0].datePassed).toBe(false);

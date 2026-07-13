@@ -110,7 +110,10 @@ function buildPrisma() {
 }
 
 describe('ContextAssembler — minimización (DEC-0005 §10.1)', () => {
-  const assembler = new ContextAssembler(buildPrisma());
+  // FIN-023: el contexto toma el desembolso real de la fuente única (stub =
+  // suma de cuotas del mock, sin cargos aparte — cifras idénticas a antes).
+  const outlayStub = { outlaysByUser: jest.fn().mockResolvedValue({ byDebt: new Map(), totalOutlay: 200_000 }) } as never;
+  const assembler = new ContextAssembler(buildPrisma(), outlayStub);
 
   async function allViewsSerialized(): Promise<string> {
     const [ctx, snapshot, debts, score, memory] = await Promise.all([

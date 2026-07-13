@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { TransactionsService } from '../transactions/transactions.service';
 import { TxKindDto } from '../transactions/dto/transaction.dto';
 import { ruleParse } from '../whatsapp/nlp/rule.parser';
@@ -32,6 +33,7 @@ export class ConversationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly transactions: TransactionsService,
+    private readonly debtOutlay: DebtOutlayService,
   ) {}
 
   async handle(input: ConversationInput): Promise<string> {
@@ -168,13 +170,14 @@ export class ConversationService {
       where: { userId, deletedAt: null, status: 'activa' },
     });
     const totalDebt = debts.reduce((a, d) => a + Number(d.currentBalance), 0);
-    const monthly = debts.reduce((a, d) => a + Number(d.monthlyPayment ?? 0), 0);
+    // FIN-023 (DEC-0023 §5): desembolso REAL (cuota + seguros/cargos aparte).
+    const monthly = (await this.debtOutlay.outlaysByUser(userId)).totalOutlay;
     const dash = await this.transactions.monthlyDashboard(userId);
 
     return [
       `📊 *Tu resumen*`,
       `Deuda total: ${fmt(totalDebt)} (${debts.length} deuda${debts.length === 1 ? '' : 's'})`,
-      `Cuotas del mes: ${fmt(monthly)}`,
+      `Al mes en deudas: ${fmt(monthly)} (cuotas, seguros y cargos)`,
       `Ingresos del mes: ${fmt(dash.income)} · Gastos: ${fmt(dash.expense)}`,
       `Flujo estimado: ${fmt(dash.estimatedCashflow)} ${dash.estimatedCashflow >= 0 ? '👍' : '⚠️'}`,
     ].join('\n');

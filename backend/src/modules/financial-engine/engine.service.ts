@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { computeNetWorth } from '../accounts/networth.util';
 import { computeScore, SCORE_VERSION } from '../health/score.util';
 import { computeCoreMetrics, MetricValue } from './metrics/core-metrics';
@@ -17,14 +18,18 @@ import { COLD_START_DAYS, MetricKey } from './engine.constants';
 export class EngineService {
   private readonly logger = new Logger(EngineService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // FIN-023 (§32): el compromiso mensual de deuda es el desembolso REAL.
+    private readonly debtOutlay: DebtOutlayService,
+  ) {}
 
   /** Recalcula y persiste las métricas core del mes corriente del usuario. */
   async recompute(userId: string, now: Date = new Date()): Promise<MetricValue[]> {
     const from = monthStart(now);
     const to = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 1, 1));
 
-    const [txByKind, fixedItems, debts, accounts, assets] = await Promise.all([
+    const [txByKind, fixedItems, debts, accounts, assets, outlays] = await Promise.all([
       this.prisma.transaction.groupBy({
         by: ['kind'],
         where: { userId, deletedAt: null, occurredAt: { gte: from, lt: to } },
@@ -40,6 +45,7 @@ export class EngineService {
         where: { userId, deletedAt: null, archivedAt: null },
       }),
       this.prisma.asset.findMany({ where: { userId, deletedAt: null } }),
+      this.debtOutlay.outlaysByUser(userId),
     ]);
 
     const sumKind = (k: string) =>
@@ -50,7 +56,10 @@ export class EngineService {
     const fixedExpense = fixedItems
       .filter((i) => i.kind === 'gasto')
       .reduce((a, i) => a + Number(i.amount), 0);
-    const debtMonthly = debts.reduce((a, d) => a + Number(d.monthlyPayment ?? 0), 0);
+    // FIN-023: desembolso real (cuota + seguros/cargos aparte) — corrige por
+    // construcción DTI, gasto esencial, fondo de emergencia y runway; las
+    // Recomendaciones se corrigen SOLAS al leer las lecturas persistidas (FIN-021).
+    const debtMonthly = outlays.totalOutlay;
     const liabilities = debts.reduce((a, d) => a + Number(d.currentBalance), 0);
 
     const nw = computeNetWorth(

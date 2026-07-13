@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { MetricKey } from '../financial-engine/engine.constants';
 import { monthStart, monthStartMinus } from '../financial-engine/metrics/series.util';
 import { computeNetWorth } from '../accounts/networth.util';
@@ -53,7 +54,10 @@ export function toMinimizedSimulationView(result: SimulationResult): MinimizedSi
  */
 @Injectable()
 export class ContextAssembler {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly debtOutlay: DebtOutlayService,
+  ) {}
 
   async buildInitialContext(userId: string, now = new Date()): Promise<MinimizedContext> {
     const [snapshot, debts, score, memory] = await Promise.all([
@@ -146,7 +150,9 @@ export class ContextAssembler {
       .filter((i) => i.kind === 'ingreso')
       .reduce((a, i) => a + Number(i.amount), 0);
     const fixedExpenseTotal = sorted.reduce((a, i) => a + Number(i.amount), 0);
-    const debtMonthly = debts.reduce((a, d) => a + Number(d.monthlyPayment ?? 0), 0);
+    // FIN-023 (DEC-0023 §5.4): el contexto razona con el desembolso REAL.
+    // Nota: su `available` NO se unifica con teQueda — solo mejora este insumo.
+    const debtMonthly = (await this.debtOutlay.outlaysByUser(userId)).totalOutlay;
 
     const liabilities = debts.reduce((a, d) => a + Number(d.currentBalance), 0);
     const nw = computeNetWorth(

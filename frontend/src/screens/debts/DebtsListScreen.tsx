@@ -96,6 +96,12 @@ function FrontHero({ summary, debts }: { summary: DebtsSummary | null; debts: De
       <Text style={{ color: colors.textInverse, opacity: 0.85, marginTop: 4 }}>
         Tus cuotas suman {formatMoney(summary.monthlyPaymentsTotal)} al mes
       </Text>
+      {/* FIN-023 P4: el desembolso real, SOLO si difiere de las cuotas (§29.1). */}
+      {summary.totalMonthlyOutlay > summary.monthlyPaymentsTotal ? (
+        <Text style={{ color: colors.textInverse, opacity: 0.85, marginTop: 2 }}>
+          Con seguros y cargos: {formatMoney(summary.totalMonthlyOutlay)} al mes
+        </Text>
+      ) : null}
       {freeDate ? (
         <Text style={{ color: colors.textInverse, fontWeight: '700', marginTop: 6 }}>
           🏁 Libre de todo: {formatDate(freeDate)}

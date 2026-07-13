@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { DebtOutlayModule } from '../debts/debt-outlay.module';
 import { InsightsModule } from '../insights/insights.module';
 import { EngineController } from './engine.controller';
 import { EngineService } from './engine.service';
@@ -15,7 +16,8 @@ import { RetentionJob } from './jobs/retention.job';
  * FIN-006) genera insights accionables.
  */
 @Module({
-  imports: [AuthModule, InsightsModule],
+  // DebtOutlayModule (FIN-023): `debtMonthly` del Motor = desembolso REAL.
+  imports: [AuthModule, InsightsModule, DebtOutlayModule],
   controllers: [EngineController],
   providers: [EngineService, EngineListener, InsightsGenerator, SnapshotJob, TrendsJob, RetentionJob],
   exports: [EngineService, SnapshotJob],

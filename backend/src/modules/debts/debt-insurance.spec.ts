@@ -3,7 +3,7 @@ import * as path from 'path';
 import { DebtInsuranceService } from './debt-insurance.service';
 
 describe('DebtInsuranceService (FIN-013, DEC-0011 §4.1/§4.2)', () => {
-  const svc = new DebtInsuranceService({} as never);
+  const svc = new DebtInsuranceService({} as never, {} as never);
 
   describe('paymentBreakdown — desglose de cuota real (solo display)', () => {
     const ins = (premium: number, financed: boolean, active = true) => ({

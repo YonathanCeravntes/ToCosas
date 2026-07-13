@@ -408,12 +408,17 @@ enum DebtInsuranceKind {
   incendio_terremoto
   todo_riesgo
   desempleo
+  // FIN-023: cargo bancario de tarjetas — dato del USUARIO, sin default.
+  // Convive en este modelo por decisión DEC-0023 P1 Alt A (deuda semántica
+  // declarada: `endorsed`/`insurer` no aplican y el API los rechaza).
+  cuota_manejo
   otro
 }
 
 // Modelo mínimo (DEC-0011 §8: prima mensual plana, sin cálculo actuarial).
-// Las primas NO impactan el Motor (DTI/gasto esencial) en este ciclo — solo
-// display de cuota total real y costo total del crédito (DEC-0011 §4.2).
+// FIN-023 (DEC-0023) saldó la deuda declarada de DEC-0011 §4.2: los cargos
+// APARTE ahora SÍ impactan "lo comprometido" (Motor, teQueda, Presupuesto,
+// Copiloto, mensajería) vía la fuente única `outlaysByUser`.
 model DebtInsurance {
   id             String            @id @default(uuid()) @db.Uuid
   debtId         String            @map("debt_id") @db.Uuid

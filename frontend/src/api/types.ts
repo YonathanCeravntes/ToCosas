@@ -119,6 +119,8 @@ export interface DebtsSummary {
   debtsCount: number;
   totalDebt: number;
   monthlyPaymentsTotal: number;
+  /** FIN-023: cuotas + seguros/cargos APARTE — igual a monthlyPaymentsTotal si no hay. */
+  totalMonthlyOutlay: number;
   upcoming: Array<{ debtId: string; name: string; dueDate: string | null; amount: number }>;
   // FIN-022 P2: orden de ataque del MOTOR (null con <2 deudas o sin comparación
   // válida — el bloque se omite, §29.1).
@@ -479,6 +481,8 @@ export interface MonthlyBudget {
   fixedIncome: number;
   fixedExpense: number;
   debtPayments: number;
+  /** FIN-023: total de seguros/cargos que se pagan APARTE (0 si no hay). */
+  debtChargesSeparate: number;
   committed: number;
   available: number;
   committedRatio: number;

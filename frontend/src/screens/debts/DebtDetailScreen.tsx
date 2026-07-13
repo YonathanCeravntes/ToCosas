@@ -338,6 +338,8 @@ const INSURANCE_KIND_LABEL: Record<string, string> = {
   incendio_terremoto: 'Incendio/terremoto',
   todo_riesgo: 'Todo riesgo',
   desempleo: 'Desempleo',
+  // FIN-023: cargo del banco (típico de tarjetas) — no es una póliza.
+  cuota_manejo: 'Cuota de manejo',
   otro: 'Otro',
 };
 
@@ -353,6 +355,8 @@ function InsuranceSection({
   onChanged: () => void;
 }) {
   const [showForm, setShowForm] = useState(false);
+  // FIN-023: el alta distingue seguro vs cuota de manejo (cargo del banco).
+  const [isCargo, setIsCargo] = useState(false);
   const [name, setName] = useState('');
   const [premium, setPremium] = useState('');
   const [financed, setFinanced] = useState(true);
@@ -364,6 +368,8 @@ function InsuranceSection({
     setSaving(true);
     try {
       await debtsApi.createInsurance(debtId, {
+        // La cuota de manejo NUNCA lleva endoso/aseguradora (el API lo rechaza).
+        kind: isCargo ? 'cuota_manejo' : undefined,
         name: name.trim(),
         monthlyPremium: value,
         financed,
@@ -390,7 +396,7 @@ function InsuranceSection({
   return (
     <Card>
       <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
-        🛡️ Seguros del crédito
+        🛡️ Seguros y cargos del crédito
       </Text>
 
       {breakdown && breakdown.insuranceMonthlyTotal > 0 ? (
@@ -401,13 +407,13 @@ function InsuranceSection({
           </Row>
           {breakdown.insuranceFinanced > 0 ? (
             <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-              <Text style={{ color: colors.textMuted }}>Seguros dentro de la cuota</Text>
+              <Text style={{ color: colors.textMuted }}>Seguros y cargos en la cuota</Text>
               <Text style={{ color: colors.textMuted }}>{formatMoney(breakdown.insuranceFinanced)}</Text>
             </Row>
           ) : null}
           {breakdown.insuranceSeparate > 0 ? (
             <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-              <Text style={{ color: colors.textMuted }}>+ Seguros aparte</Text>
+              <Text style={{ color: colors.textMuted }}>+ Seguros y cargos aparte</Text>
               <Text style={{ color: colors.text }}>{formatMoney(breakdown.insuranceSeparate)}</Text>
             </Row>
           ) : null}
@@ -451,13 +457,45 @@ function InsuranceSection({
 
       {showForm ? (
         <View style={{ marginTop: spacing.sm }}>
-          <Field label="Nombre del seguro" value={name} onChangeText={setName} placeholder="Seguro de vida deudor" />
+          <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
+            {[
+              { v: false, label: '🛡️ Seguro' },
+              { v: true, label: '🏦 Cuota de manejo' },
+            ].map((opt) => (
+              <Pressable
+                key={String(opt.v)}
+                onPress={() => {
+                  setIsCargo(opt.v);
+                  if (opt.v && !name) setName('Cuota de manejo');
+                }}
+                style={{
+                  flex: 1,
+                  padding: spacing.sm,
+                  borderRadius: radius.md,
+                  alignItems: 'center',
+                  backgroundColor: isCargo === opt.v ? colors.primary : colors.surface,
+                  borderWidth: 1,
+                  borderColor: isCargo === opt.v ? colors.primary : colors.border,
+                }}
+              >
+                <Text style={{ color: isCargo === opt.v ? colors.textInverse : colors.text, fontSize: 12 }}>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            ))}
+          </Row>
           <Field
-            label="Prima mensual"
+            label={isCargo ? 'Nombre del cargo' : 'Nombre del seguro'}
+            value={name}
+            onChangeText={setName}
+            placeholder={isCargo ? 'Cuota de manejo' : 'Seguro de vida deudor'}
+          />
+          <Field
+            label={isCargo ? 'Cargo mensual' : 'Prima mensual'}
             value={premium}
             onChangeText={setPremium}
             keyboardType="numeric"
-            placeholder="45000"
+            placeholder={isCargo ? '30000' : '45000'}
           />
           <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
             {[
@@ -483,10 +521,10 @@ function InsuranceSection({
               </Pressable>
             ))}
           </Row>
-          <Button title="Guardar seguro" onPress={() => void add()} loading={saving} />
+          <Button title={isCargo ? 'Guardar cargo' : 'Guardar seguro'} onPress={() => void add()} loading={saving} />
         </View>
       ) : (
-        <Button title="➕ Agregar seguro" variant="secondary" onPress={() => setShowForm(true)} />
+        <Button title="➕ Agregar seguro o cargo" variant="secondary" onPress={() => setShowForm(true)} />
       )}
     </Card>
   );

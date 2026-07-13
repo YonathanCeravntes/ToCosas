@@ -9,12 +9,15 @@ import {
   MaxLength,
 } from 'class-validator';
 
-/** FIN-013 · Seguros asociados al crédito (DEC-0011 §4.1). */
+/** FIN-013 · Seguros asociados al crédito (DEC-0011 §4.1).
+ *  FIN-023: + `cuota_manejo` (cargo bancario, dato del usuario — sin default;
+ *  `endorsed`/`insurer` no aplican y el service los rechaza con 400). */
 export enum DebtInsuranceKindDto {
   vida_deudor = 'vida_deudor',
   incendio_terremoto = 'incendio_terremoto',
   todo_riesgo = 'todo_riesgo',
   desempleo = 'desempleo',
+  cuota_manejo = 'cuota_manejo',
   otro = 'otro',
 }
 

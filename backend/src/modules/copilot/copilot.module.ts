@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { DebtOutlayModule } from '../debts/debt-outlay.module';
 import { SimulationsModule } from '../simulations/simulations.module';
 import { BillingModule } from '../billing/billing.module';
 import { AnthropicClient } from './anthropic.client';
@@ -15,7 +16,8 @@ import { CopilotRetentionJob } from './copilot-retention.job';
  * plantilla-primero, y datos reales bloqueados hasta DPA+PIA.
  */
 @Module({
-  imports: [AuthModule, SimulationsModule, BillingModule],
+  // DebtOutlayModule (FIN-023 P5): el contexto razona con el desembolso real.
+  imports: [AuthModule, SimulationsModule, BillingModule, DebtOutlayModule],
   controllers: [CopilotController],
   providers: [
     ConsentService,

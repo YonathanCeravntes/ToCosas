@@ -8,6 +8,7 @@ import { RemindersService } from '../reminders/reminders.service';
 import { OutboxService } from '../events/outbox.service';
 import { DomainEventType } from '../events/domain-events';
 import { SimulationsService } from '../simulations/simulations.service';
+import { DebtOutlayService } from './debt-outlay.service';
 import { debtToAmortizationInput } from './debt-amortization.mapper';
 import { DebtInsuranceService } from './debt-insurance.service';
 import { CreateDebtDto, UpdateDebtDto } from './dto/debt.dto';
@@ -21,6 +22,7 @@ export class DebtsService {
     private readonly outbox: OutboxService,
     private readonly insurance: DebtInsuranceService,
     private readonly simulations: SimulationsService,
+    private readonly debtOutlay: DebtOutlayService,
   ) {}
 
   async create(userId: string, dto: CreateDebtDto) {
@@ -202,6 +204,9 @@ export class DebtsService {
       0,
     );
 
+    // FIN-023 P4: el desembolso real agregado (línea condicional del hero).
+    const outlays = await this.debtOutlay.outlaysByUser(userId);
+
     // FIN-022 P2: orden de ataque DEL MOTOR (gate a 2+ deudas — DEC-0022 §5.4;
     // el propio strategyOverview re-verifica y decide omitirse, §29.1).
     const overview = debts.length > 1 ? await this.simulations.strategyOverview(userId) : null;
@@ -231,6 +236,8 @@ export class DebtsService {
       debtsCount: debts.length,
       totalDebt: Math.round(totalDebt * 100) / 100,
       monthlyPaymentsTotal: Math.round(monthlyTotal * 100) / 100,
+      // FIN-023: con seguros/cargos aparte; igual a monthlyPaymentsTotal si no hay.
+      totalMonthlyOutlay: outlays.totalOutlay,
       upcoming: debts
         .filter((d) => d.nextDueDate)
         .sort((a, b) => (a.nextDueDate! > b.nextDueDate! ? 1 : -1))

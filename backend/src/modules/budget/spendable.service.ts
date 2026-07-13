@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { financialPeriod } from './financial-period.util';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -49,14 +50,19 @@ export interface TeQueda {
  */
 @Injectable()
 export class SpendableService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // FIN-023 (§32): la cuota comprometida es el desembolso REAL (cuota +
+    // seguros/cargos aparte) — fuente única, nunca monthlyPayment a secas.
+    private readonly debtOutlay: DebtOutlayService,
+  ) {}
 
   async compute(userId: string, now = new Date()): Promise<TeQueda> {
     const settings = await this.prisma.userSettings.findUnique({ where: { userId } });
     const period = financialPeriod(now, settings?.cycleStartDay ?? 1);
     const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-    const [txByKind, fixedItems, debts] = await Promise.all([
+    const [txByKind, fixedItems, debts, outlays] = await Promise.all([
       this.prisma.transaction.groupBy({
         by: ['kind'],
         where: {
@@ -73,6 +79,7 @@ export class SpendableService {
       this.prisma.debt.findMany({
         where: { userId, deletedAt: null, status: 'activa', nextDueDate: { not: null } },
       }),
+      this.debtOutlay.outlaysByUser(userId),
     ]);
 
     const sumKind = (k: string) =>
@@ -101,12 +108,13 @@ export class SpendableService {
     }
 
     // Cuotas: pendientes solo si su próxima fecha cae en lo que RESTA del ciclo.
+    // El monto es el DESEMBOLSO real de esa deuda (FIN-023, fuente única).
     for (const d of debts) {
       const due = d.nextDueDate!;
       if (due >= startOfToday && due < period.end) {
         commitments.push({
           name: d.name,
-          amount: Number(d.monthlyPayment ?? 0),
+          amount: outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0),
           kind: 'cuota',
           date: due.toISOString(),
           datePassed: false,

@@ -1,23 +1,28 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DomainEventType } from '../events/domain-events';
+import { OutboxService } from '../events/outbox.service';
 import {
   CreateDebtInsuranceDto,
   UpdateDebtInsuranceDto,
 } from './dto/debt-insurance.dto';
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
+import { BreakdownCharge, paymentBreakdown } from './payment-breakdown.util';
 
 /**
- * FIN-013 · Seguros asociados al crédito (DEC-0011 §4.1/§4.2).
+ * FIN-013 · Seguros y cargos asociados al crédito (DEC-0011 §4.1).
  *
- * Modelo mínimo: prima mensual plana, financiado (dentro de la cuota) o no,
- * endosable (póliza propia del usuario). Las primas NO impactan el Motor
- * (DTI/gasto esencial) en este ciclo — solo el display de cuota total real
- * y el costo total del crédito.
+ * Modelo mínimo: prima/cargo mensual plano, financiado (dentro de la cuota) o
+ * aparte, endosable (solo seguros — FIN-023 añade `cuota_manejo` y rechaza el
+ * endoso para cargos). El cálculo del desglose vive en
+ * `payment-breakdown.util.ts` (compartido con `DebtOutlayService`, la fuente
+ * de "lo comprometido" — DEC-0023).
  */
 @Injectable()
 export class DebtInsuranceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   async list(userId: string, debtId: string) {
     await this.ensureDebtOwned(userId, debtId);
@@ -29,61 +34,100 @@ export class DebtInsuranceService {
 
   async create(userId: string, debtId: string, dto: CreateDebtInsuranceDto) {
     await this.ensureDebtOwned(userId, debtId);
-    return this.prisma.debtInsurance.create({
-      data: {
-        debtId,
-        kind: dto.kind ?? 'otro',
-        name: dto.name,
-        monthlyPremium: dto.monthlyPremium,
-        financed: dto.financed ?? true,
-        endorsed: dto.endorsed ?? false,
-        insurer: dto.insurer ?? null,
-        notes: dto.notes ?? null,
-      },
+    this.validateChargeSemantics(dto.kind, dto.endorsed, dto.insurer);
+    // FIN-023: cambiar los cargos cambia el desembolso real → evento de dominio
+    // para que el Motor recalcule (frescura ~25 s declarada en ARQ-0023 §10).
+    return this.outbox.withEvent(async (tx) => {
+      const created = await tx.debtInsurance.create({
+        data: {
+          debtId,
+          kind: dto.kind ?? 'otro',
+          name: dto.name,
+          monthlyPremium: dto.monthlyPremium,
+          financed: dto.financed ?? true,
+          endorsed: dto.endorsed ?? false,
+          insurer: dto.insurer ?? null,
+          notes: dto.notes ?? null,
+        },
+      });
+      return {
+        result: created,
+        event: {
+          aggregateType: 'debt',
+          aggregateId: debtId,
+          eventType: DomainEventType.DebtUpdated,
+          payload: { userId, op: 'insurance_create' },
+        },
+      };
     });
   }
 
   async update(userId: string, insuranceId: string, dto: UpdateDebtInsuranceDto) {
-    await this.ensureInsuranceOwned(userId, insuranceId);
-    return this.prisma.debtInsurance.update({
-      where: { id: insuranceId },
-      data: { ...dto },
+    const current = await this.ensureInsuranceOwned(userId, insuranceId);
+    this.validateChargeSemantics(
+      dto.kind ?? (current.kind as string),
+      dto.endorsed ?? current.endorsed,
+      dto.insurer === undefined ? current.insurer : dto.insurer,
+    );
+    return this.outbox.withEvent(async (tx) => {
+      const updated = await tx.debtInsurance.update({
+        where: { id: insuranceId },
+        data: { ...dto },
+      });
+      return {
+        result: updated,
+        event: {
+          aggregateType: 'debt',
+          aggregateId: current.debtId,
+          eventType: DomainEventType.DebtUpdated,
+          payload: { userId, op: 'insurance_update' },
+        },
+      };
     });
   }
 
+  /** FIN-023 (DEC-0023 §5.1): una cuota de manejo es un cargo del banco, no una
+   *  póliza — el endoso y la aseguradora no tienen sentido y se rechazan. */
+  private validateChargeSemantics(
+    kind: string | undefined,
+    endorsed: boolean | undefined,
+    insurer: string | null | undefined,
+  ) {
+    if (kind !== 'cuota_manejo') return;
+    if (endorsed) {
+      throw new BadRequestException('Una cuota de manejo no es endosable (no es una póliza)');
+    }
+    if (insurer) {
+      throw new BadRequestException('Una cuota de manejo no tiene aseguradora');
+    }
+  }
+
   async remove(userId: string, insuranceId: string) {
-    await this.ensureInsuranceOwned(userId, insuranceId);
-    await this.prisma.debtInsurance.update({
-      where: { id: insuranceId },
-      data: { deletedAt: new Date() },
+    const current = await this.ensureInsuranceOwned(userId, insuranceId);
+    await this.outbox.withEvent(async (tx) => {
+      const updated = await tx.debtInsurance.update({
+        where: { id: insuranceId },
+        data: { deletedAt: new Date() },
+      });
+      return {
+        result: updated,
+        event: {
+          aggregateType: 'debt',
+          aggregateId: current.debtId,
+          eventType: DomainEventType.DebtUpdated,
+          payload: { userId, op: 'insurance_remove' },
+        },
+      };
     });
     return { deleted: true };
   }
 
   /**
-   * Desglose de la cuota real (solo display, no toca el Motor):
-   *   - financiadas: primas que ya van DENTRO de la cuota registrada.
-   *   - aparte: primas que el usuario paga por fuera → se SUMAN a la cuota.
-   *   cuotaTotal = monthlyPayment + primas aparte.
+   * Desglose de la cuota real para el DISPLAY del detalle. Delegado al util
+   * puro único (FIN-023): mismo cálculo que la fuente de "lo comprometido".
    */
-  paymentBreakdown(
-    monthlyPayment: number,
-    insurances: Array<{ monthlyPremium: unknown; financed: boolean; active: boolean; deletedAt?: Date | null }>,
-  ) {
-    const activos = insurances.filter((i) => i.active && !i.deletedAt);
-    const financed = activos
-      .filter((i) => i.financed)
-      .reduce((acc, i) => acc + Number(i.monthlyPremium), 0);
-    const separate = activos
-      .filter((i) => !i.financed)
-      .reduce((acc, i) => acc + Number(i.monthlyPremium), 0);
-    return {
-      basePayment: round2(monthlyPayment),
-      insuranceFinanced: round2(financed),
-      insuranceSeparate: round2(separate),
-      insuranceMonthlyTotal: round2(financed + separate),
-      totalMonthlyOutlay: round2(monthlyPayment + separate),
-    };
+  paymentBreakdown(monthlyPayment: number, insurances: BreakdownCharge[]) {
+    return paymentBreakdown(monthlyPayment, insurances);
   }
 
   private async ensureDebtOwned(userId: string, debtId: string) {

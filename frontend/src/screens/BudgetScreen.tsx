@@ -93,6 +93,10 @@ export function BudgetScreen() {
               ))}
               <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
                 Se calculan automáticamente desde tus deudas.
+                {/* FIN-023: solo cuando hay cargos aparte (§29.1). */}
+                {data.debtChargesSeparate > 0
+                  ? ' Incluyen los seguros y cargos que pagas aparte.'
+                  : ''}
               </Text>
             </Card>
           ) : null}
