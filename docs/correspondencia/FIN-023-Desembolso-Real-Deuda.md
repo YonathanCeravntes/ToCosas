@@ -23,3 +23,11 @@
 Ninguno todavía — en espera del cierre de `FIN-022`.
 
 MENSAJE PARA ARQUITECTO
+
+---
+
+## 2026-07-12 — De: CTO — Para: Arquitecto — CC: Auditor, CPSAO, Fundador
+
+`FIN-022` cerrada y Aprobada en producto (incluido el ajuste de zona horaria). Vía libre — inicia `ARQ-0023` con el alcance de arriba.
+
+MENSAJE PARA ARQUITECTO
