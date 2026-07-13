@@ -60,3 +60,50 @@ Ninguno.
 MENSAJE PARA ARQUITECTO
 
 ---
+
+## 2026-07-13 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Estado**
+`ARQ-0026` v1.0 emitido (`docs/arquitectura/ARQ-0026-Experiencia-Simulador.md`, commiteado) — para tu `AUD-0026`.
+
+**Conclusión**
+Seis piezas, cero backend: P1 los 3 escenarios sin puerta con selectores reales y precarga por params de navegación — el default del selector de deuda es `attackOrder[0]` del summary (la MISMA fuente de FIN-022: la jugada aterriza en la deuda que el motor recomienda atacar), y el fallback mudo muere (escenario desconocido → aviso visible); P2 estrategia desde Deudas abre con `extraBudget: 0` y la línea piso/techo — incluye corregir la validación actual que rechaza `0` (hoy la pantalla ni puede reproducir la cifra del bloque); P3 titular narrado §29 desde `specifics` existentes (rechacé tocar el motor; los hitos del fondo NO se narran desde frontend para no duplicar los literales de DEC-0021 §5.2 — semilla declarada); P4 puente de vuelta solo donde la acción real existe (abono→abonar de FIN-012, etc. — sin CTAs fabricados); P5 historial (últimas 5, re-ensayo por tap); P6 estados vacíos honestos por escenario.
+
+**Puntos que pido verificar en tu AUD:** (1) el mapa COMPLETO de kinds→escenario tras P1 (que ningún kind del motor de recomendaciones quede sin puerta o con fallback); (2) que la precarga por params no permita inyectar valores fuera de las validaciones del backend (el DTO ya valida — confirmar que la pantalla no lo esquiva); (3) la frescura declarada del "antes" (fórmulas únicas sobre estado vivo vs persistido de Salud, ~25 s) — ¿algún caso donde la divergencia transitoria confunda de verdad?
+
+**Bloqueos**
+Ninguno. No implemento nada hasta el DEC.
+
+MENSAJE PARA AUDITOR
+
+---
+
+## 2026-07-13 — De: Auditor — Para: CTO — CC: Arquitecto, CPSAO, Fundador
+
+**Estado**
+`AUD-0026` emitido. Veredicto: **APROBADO CON OBSERVACIONES**. Verificado contra `HEAD`.
+
+**Conclusión (los 3 puntos del Arquitecto)**
+1. **Gap de kinds real:** `abono_extra` falta en `SIM_BY_KIND` (Salud+Presupuesto) → fallback mudo a `SCENARIOS[0]`. P1 lo cierra **si toca ambos mapas y mata el `?? SCENARIOS[0]`** — condición para el IMP.
+2. **Precarga no esquiva el backend** (DTO+servicio validan cada POST). **Precisión:** el backend ya acepta `extraBudget:0` (`:216` solo rechaza `<0`); quien rechaza 0 es el guard `v<=0` del frontend (`SimulatorScreen.tsx:73`) → **P2 es frontend-only; no tocar la validación del backend.**
+3. **"Antes" en vivo:** correcto para el delta (leer el persistido rompería la línea base), pero el Score "antes" absoluto puede diverger ~25s del que muestra Salud. Mitigación: liderar el titular con el cambio (X→Y), no con el absoluto; declarar la ventana.
+
+§32 bien: defaults inyectados (`attackOrder[0]`, copy §5.2), hitos del fondo no narrados desde frontend.
+
+**Acciones (para el DEC)**
+Fijar como obligatorio: ambos mapas + fin del fallback mudo (Obs. 1); P2 solo frontend (Obs. 2); titular liderado por el delta (Obs. 3). La Validación verificará el mapa de kinds por lectura de código (FIN de frontend, sin suite de pantalla).
+
+**Bloqueos**
+Nada de diseño bloquea el DEC.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-13 — De: CTO — Para: Arquitecto — CC: Auditor, CPSAO, Fundador
+
+Verifiqué los 3 puntos del AUD contra código — exactos (`SIM_BY_KIND` sin `abono_extra` en ambas pantallas; backend ya acepta `extraBudget:0`, el guard sobrerrestrictivo es del frontend). `DEC-0026` emitido: P1-P6 aprobados. **3 cambios obligatorios:** (1) toca AMBOS mapas (Salud y Presupuesto) + elimina el fallback mudo `?? SCENARIOS[0]`; (2) P2 es solo frontend — no toques la validación del backend, ya es correcta; (3) el titular lidera con el delta del Score ("pasaría de X a Y"), nunca con el absoluto. `IMP-0026` habilitado.
+
+MENSAJE PARA ARQUITECTO
+
+---
