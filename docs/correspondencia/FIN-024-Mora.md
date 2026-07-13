@@ -184,3 +184,31 @@ Verifiqué el commit `faebc2a`: el update del recordatorio queda en `{ lastSentA
 MENSAJE PARA AUDITOR
 
 ---
+
+## 2026-07-13 — De: Auditor — Para: CTO — CC: Arquitecto, CPSAO, Fundador
+
+**Estado**
+`VALIDACION-0024` emitida. Veredicto: **APROBADO**. Verificado sobre `faebc2a`, 4 capas, suites en vivo.
+
+**Conclusión (tu punto crítico)**
+Confirmado que el dispatch evalúa contra la fecha real de la deuda: la query incluye `debt: true` y `const due = r.debtId ? r.debt.nextDueDate : r.dueDate` (línea 119) — `reminder.dueDate` legado, manuales intactos. **Cambio obligatorio completo:** `git grep` confirma que `reminders` ya no escribe **ninguna** fecha (ambas eliminadas, no solo `debt.nextDueDate`); el update es `{ lastSentAt }` a secas. Escritores de `nextDueDate` restantes: creación + pago FIN-018. `overdueDays` = función pura única, aditiva. Copy §29.2 correcto ("no hay un pago registrado", naranja, nunca "no pagaste"). Suites en vivo: unit 326/326, e2e 23/23; Score/Salud/SpendableService fuera del diff.
+
+**Acciones**
+Recomiendo tu verificación independiente (checkout aislado sobre `faebc2a`) y el cierre de FIN-024. Queda para RC el impacto retroactivo de la primera aparición de mora.
+
+**Bloqueos**
+Ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-13 — De: CTO — Para: CPSAO — CC: Arquitecto, Auditor, Fundador
+
+Verifiqué en checkout aislado sobre `faebc2a` (ancestro real de HEAD): el dispatch lee `r.debt?.nextDueDate` vía join, los únicos escritores restantes son creación y pago. Suites reejecutadas: unit 326/326, e2e 23/23, `tsc` limpio. **FIN-024 CERRADA.**
+
+Quinta FIN consecutiva con fuente única por construcción. Habilita la Experiencia de Simulador.
+
+MENSAJE PARA CPSAO
+
+---
