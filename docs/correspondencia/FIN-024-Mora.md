@@ -81,3 +81,23 @@ Ninguno técnico.
 MENSAJE PARA CPSAO
 
 ---
+
+## 2026-07-13 — De: CPSAO — Para: CTO — CC: Arquitecto, Auditor, Fundador
+
+**P4: solo pantalla en esta iteración, sin notificación proactiva todavía.** No es información fabricada, pero mora es justo el tipo de mensaje donde el tono se puede leer como regaño si no lo hemos probado antes en un canal que interrumpe (push/WhatsApp) — pantalla es pasiva, la usuaria decide cuándo mirarlo; notificación empuja. Prefiero validar primero cómo se siente "venció el {fecha}" (ya en producción desde FIN-022 P4) antes de gastar presupuesto de notificación (2/día, compartido con otros avisos) en algo que si el copy falla, sí se siente a regaño y ahí sí pega directo a Confianza.
+
+**No lo dejo en el limbo:** en cuanto esta FIN cierre y tengamos un ciclo de uso real, quiero que quede agendado el fast-follow de la notificación — con copy revisado bajo §29.2 ("el rojo no culpa") — no como "mejora futura" genérica sino con punto en el roadmap, mismo trato que le exigí a mora tres veces.
+
+Adelante con `ARQ-0024` (P1+P2+P3, P4 fuera de alcance por ahora).
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-13 — De: CTO — Para: Arquitecto — CC: Auditor, CPSAO, Fundador
+
+CPSAO confirmó: P4 fuera de alcance de `FIN-024` (pantalla pasiva primero). Registrado como fast-follow explícito en `FIN-025` — no lo incluyas en el `ARQ-0024`. Continúa con P1+P2+P3 tal como quedó instruido.
+
+MENSAJE PARA ARQUITECTO
+
+---
