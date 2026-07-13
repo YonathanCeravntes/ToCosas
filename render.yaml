@@ -1,12 +1,10 @@
-# Blueprint de Render para el backend de ToCosas.
-# Despliegue: conecta el repo en https://dashboard.render.com/blueprints
-# y Render creará el servicio web + la base de datos automáticamente.
-
-databases:
-  - name: tocosas-db
-    plan: free
-    databaseName: tocosas
-    user: tocosas
+# Blueprint de Render para el backend de Millo (docs/INFRAESTRUCTURA.md, Fase 0).
+# Despliegue: conecta el repo en https://dashboard.render.com/blueprints —
+# Render detecta este archivo y crea el servicio automáticamente.
+#
+# Base de datos: Neon PostgreSQL (elegida por el Fundador, NO la Postgres
+# gestionada de Render) — por eso DATABASE_URL es `sync: false`: se pega el
+# connection string de Neon a mano en el dashboard, una sola vez.
 
 services:
   - type: web
@@ -20,9 +18,7 @@ services:
     autoDeploy: true
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: tocosas-db
-          property: connectionString
+        sync: false # Connection string de Neon — pegar en el dashboard de Render
       - key: PORT
         value: "3000"
       - key: NODE_ENV
@@ -34,7 +30,18 @@ services:
         generateValue: true
       - key: JWT_ACCESS_TTL
         value: "3600"
-      # WhatsApp / LLM: se configuran en el panel cuando conectes Meta.
+
+      # Gates de producción (docs/PRODUCCION.md §2) — APAGADOS por defecto,
+      # no encender sin cerrar el gate legal correspondiente.
+      - key: HEALTH_SCORE_PRODUCTION_ENABLED
+        value: "false"
+      - key: COPILOT_PRODUCTION_ENABLED
+        value: "false"
+      - key: MILLOPLUS_PRICE_COP
+        value: "0"
+
+      # WhatsApp / Telegram / LLM: se configuran en el panel cuando se conecten
+      # los canales reales — vacíos no rompen el arranque (valores opcionales).
       - key: WHATSAPP_PROVIDER
         value: meta
       - key: WHATSAPP_VERIFY_TOKEN
@@ -45,5 +52,28 @@ services:
         sync: false
       - key: WHATSAPP_ACCESS_TOKEN
         sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        value: MilloBot
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+
+      # Copiloto/LLM — bloqueado por gate legal DPA+PIA (docs/PRODUCCION.md §1);
+      # no activar ANTHROPIC_API_KEY con datos reales hasta cerrarlo.
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: claude-haiku-4-5-20251001
+
+      # Monetización / push — opcionales en Fase 0.
+      - key: REVENUECAT_WEBHOOK_SECRET
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
         sync: false
