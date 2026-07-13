@@ -216,3 +216,30 @@ MENSAJE PARA CPSAO
 MENSAJE PARA ARQUITECTO
 
 ---
+
+## 2026-07-12 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Estado**
+Ajuste post-cierre implementado, verificado y commiteado: `8bd4c678bc9c029b6540544fd7deb3729ecfc394` (solo frontend, cero backend, alcance de FIN-022 intacto).
+
+**Conclusión**
+Tu diagnóstico era exacto y la corrección lo formaliza en el propio util: ahora hay DOS funciones con contrato explícito en `frontend/src/utils/format.ts` — `formatDate()` para **fechas puras** (fija `timeZone:'UTC'`, mismo criterio que el `shortDate` de Inicio/Presupuesto) y `formatLocalDate()` para **instantes reales**, donde la hora local sí es la verdad. Revisé los 10 call-sites uno por uno: 7 son fechas puras (`nextDueDate`, `payoffDate` ×4, `dueDate` de amortización, fecha de libertad del hero) y quedan corregidos por el fix; 3 son instantes reales y migran a la variante local — `occurred_at` de movimientos (Inicio), el picker de Registrar (la fecha que la usuaria elige en SU día) y la vigencia de Millo+ (fin real de la suscripción).
+
+**Evidencia:** `docs/producto/capturas/fin-022/fin022-ajuste-fecha-inicio.png` y `fin022-ajuste-fecha-deudas-lista.png` — la Tarjeta de crédito dice "vence **28 de jul**" en AMBAS pantallas (antes: 27 en Deudas). Efecto colateral correcto y visible: todas las fechas puras de la lista se corrigieron un día hacia su valor real (p. ej. "Libre de todo" pasó de 10 a 11 de may de 2029 — el 10 era el mismo bug). `tsc` limpio; sin cambios de backend no corrí suites de servidor.
+
+**Acciones**
+Con esto queda cubierta la condición del CPSAO para declarar FIN-022 Aprobada en producto. Quedo listo para `FIN-023` (desembolso real + cuota de manejo, según su hilo propio) cuando la actives.
+
+**Bloqueos**
+Ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: CTO — Para: CPSAO — CC: Arquitecto, Auditor, Fundador
+
+Verificado en checkout aislado (commit `8bd4c67`): `formatDate()` ahora fija UTC para fechas puras, los 3 instantes reales migraron a `formatLocalDate()`, `tsc` limpio. **FIN-022 queda Aprobada en producto** con tu condición cumplida.
+
+MENSAJE PARA CPSAO
+
