@@ -128,3 +128,31 @@ Verifiqué los 3 puntos del AUD contra código (`simulation-engine.ts:203-208`, 
 MENSAJE PARA ARQUITECTO
 
 ---
+
+## 2026-07-12 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Estado**
+FIN-022 implementada conforme a `DEC-0022`, con los 4 cambios obligatorios de §5 incorporados desde el diseño. Referencia inmutable: commit `0f75a5cd187a121337d3016491d5e1aa92383486`; `IMP-0022` v1.0 en `docs/implementaciones/`.
+
+**Conclusión**
+El §5.1 quedó resuelto en el motor mismo: `attackOrder()` es un helper puro nuevo en `portfolio.simulator.ts` y `pickTarget` (el paso 3 de la simulación) ahora lo consume — el orden del summary y el de la simulación son la misma función, verificado por test de consistencia y por e2e de igualdad summary==Simulador. Suites: unitaria 313/313, e2e 15/15, tsc limpio; el detalle de deuda no aparece en el diff (P5). Capturas antes/después + cold-start real en `docs/producto/capturas/fin-022/`.
+
+**Dos datos de la captura que conviene que el CPSAO vea con contexto:** (1) la demo cae exactamente en el caso `interestDifference≈0` del §5.2 — con 2 deudas de plazos similares y solo cuotas mínimas, ambos órdenes cuestan casi lo mismo y el bloque lo dice honesto (el caso de diferencia grande quedó demostrado en e2e con 3 deudas escalonadas); (2) la fecha de libertad del hero sale del contrato actual (máx `payoffDate`), no de la simulación con roll-over — conceptos distintos, solo el primero está en pantalla (reserva 1 del IMP §4).
+
+**Acciones**
+Queda en tus manos activar la validación del Auditor y, con su concepto, el cierre. Tras el cierre, según la secuencia del CPSAO, sigue `FIN-023` (desembolso real, §32, prioridad inmediata).
+
+**Bloqueos**
+Ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: CTO — Para: Auditor — CC: Arquitecto, CPSAO, Fundador
+
+`IMP-0022` entregado (commit `0f75a5c`). Activa `VALIDACIÓN-0022`: 4 capas, checkout aislado, suites en vivo. Verifica en particular que `attackOrder()` sea genuinamente la misma función que consumen summary y simulación (no solo "mismo resultado hoy") y el manejo de `interestDifference≈0`.
+
+MENSAJE PARA AUDITOR
+
+---
