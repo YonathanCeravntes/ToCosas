@@ -1,6 +1,6 @@
 # ESTADO_PROYECTO — Milla
 
-- **Actualizado:** 2026-07-12 (DEC-0022 emitido, IMP-0022 habilitado) · por: CTO
+- **Actualizado:** 2026-07-12 (FIN-022 cerrada) · por: CTO
 - **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
 - **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
 
@@ -10,18 +10,18 @@
 v3.12 (`docs/GOBERNANZA.md`) — última sección: §34, commit obligatorio de toda documentación oficial en el mismo acto.
 
 ## FIN activa
-**FIN-022 — Experiencia de Deudas.** `DEC-0022` emitido — P1/P3/P4/P5 sin condiciones, P2 (orden de ataque) con 4 cambios obligatorios (helper puro compartido para el orden, copy de ahorro corregido, contrato de `extraBudget` fijado, simulación gateada a `debtsCount>1`). `IMP-0022` habilitado. Cola confirmada tras esta FIN: `FIN-023` (desembolso real, §32, prioridad inmediata) → `FIN-024` (mora, antes de Simulador). Detalle: `docs/correspondencia/FIN-022-Experiencia-de-Deudas.md`.
+Ninguna. `FIN-022` cerrada — cola confirmada: `FIN-023` (desembolso real + cuota de manejo, §32, prioridad inmediata) → `FIN-024` (mora, antes de Simulador).
 
 ## Últimas FIN cerradas
+- FIN-022 — Experiencia de Deudas — **Cerrado.** `DEC-0022` (P2 con 4 cambios obligatorios §5), `VALIDACION-0022` APROBADO, verificación independiente del CTO en checkout aislado contra `0f75a5c`: código + suites reejecutadas en vivo — unit 313/313, e2e 15/15, tsc limpio. Orden de ataque unificado por construcción (`attackOrder()`)
 - FIN-021 — Única definición del fondo de emergencia (§32) — **Cerrado técnico + producto.** `DEC-0021` (P3 Alt C), `VALIDACION-0021` APROBADO, verificación independiente del CTO en checkout aislado contra `6ee4d9d`: código + suites reejecutadas en vivo — unit 310/310, e2e 12/12, tsc limpio. CPSAO declaró Aprobada en producto (capturas revisadas, contradicción "~4 vs 3" ya no reproducible)
 - FIN-020 — Experiencia de Presupuesto — **Cerrado técnico + producto.** `DEC-0020` +adendo §8, `VALIDACION-0020` APROBADO, verificación independiente del CTO en checkout aislado contra `125c5c6` y contra `614ef81` (ajustes post-revisión CPSAO): código + suites reejecutadas en vivo — unit 303/303, e2e 9/9, tsc limpio. "Te queda" con fuente única (§32) garantizada por construcción (`SpendableService`). CPSAO declaró Aprobada en producto el 2026-07-12
 - FIN-019 — Experiencia de Salud — Cerrado (`DEC-0019` §8, `VALIDACIÓN-0019` APROBADO)
 - FIN-018 — Evolución de Inicio — Cerrado (`DEC-0018` §14)
 - FIN-017 — UX Login/Dashboard — Cerrado (`DEC-0017`)
-- FIN-016 — Periodo financiero — Cerrado
 
 ## Hoja de ruta de experiencias UX (posición actual)
-Inicio ✅ · Salud ✅ · Presupuesto ✅ (`FIN-020`, `FIN-021` fondo de emergencia §32, ambas Aprobadas en producto) · **Deudas 🔄 (FIN-022, en ARQ)** · `FIN-023` (desembolso real §32) y `FIN-024` (mora) en cola antes de Simulador ⏳ · Copiloto ⏳ (nota registrada: `context-assembler.ts` deberá consumir `SpendableService`, §32).
+Inicio ✅ · Salud ✅ · Presupuesto ✅ (`FIN-020`, `FIN-021` fondo de emergencia §32) · **Deudas ✅ (FIN-022, cerrada 2026-07-12)** · `FIN-023` (desembolso real + cuota de manejo, §32) y `FIN-024` (mora) en cola antes de Simulador ⏳ · Copiloto ⏳ (nota registrada: `context-assembler.ts` deberá consumir `SpendableService`, §32).
 RC integral (sesión con participantes reales): pendiente, programada al cierre de las 6 experiencias (`docs/producto/rc/RC-0001-Inicio.md` preserva el diseño metodológico).
 
 ## Principios permanentes recientes a tener en cuenta
@@ -48,7 +48,7 @@ Planificación completa: `ALPHA-001`…`ALPHA-008` aprobadas. En **fase de ejecu
 - **Limitación de sandbox — SUPERADA (2026-07-12):** el precedente desde FIN-012 ("no se puede ejecutar Postgres embebido real") ya no aplica en este entorno — Docker con Postgres real está disponible y operativo; el CTO ejecutó la suite e2e completa (9/9) contra él durante la validación de FIN-020. Corregir el precedente si se cita en FIN futuras.
 - **Documentación oficial sin commitear — RESUELTO (2026-07-12):** el hallazgo del CTO (`GOBERNANZA.md` sin commitear desde 2026-07-05, ~30 documentos oficiales sin trackear) fue regularizado en 7 commits temáticos (`fd63e51`…`85bff76`) tras la autorización del Fundador. Nueva regla permanente `GOBERNANZA.md` §34 (v3.12) evita que se repita: toda documentación oficial se commitea en el mismo acto de su creación/modificación.
 - **Fórmulas divergentes de "meses de fondo de emergencia" — RESUELTO (2026-07-12):** `FIN-021` cerrada. Única fuente (`EmergencyFundMonths` del Motor + `emergency-fund.constants.ts` para los hitos) consumida por construcción por Inicio, Salud y Recomendaciones. Detalle en `docs/correspondencia/FIN-021-Fondo-de-Emergencia.md`.
-- **`FIN-023` registrada — "lo comprometido" subestimado para usuarios con seguros aparte (§32):** `debt-insurance.spec.ts:29-33` confirma que el desembolso real con seguro aparte es mayor que `monthlyPayment` (545.000 vs 500.000). `spendable.service.ts:109` y `engine.service.ts:53` (DTI + fondo de emergencia) usan `monthlyPayment` a secas — tercer concepto de esta clase. CPSAO: prioridad inmediata tras `FIN-022`. Detalle en `docs/correspondencia/FIN-022-Experiencia-de-Deudas.md`.
+- **`FIN-023` registrada — "lo comprometido" subestimado para usuarios con seguros aparte, ampliada con cuota de manejo (§32):** `debt-insurance.spec.ts:29-33` confirma que el desembolso real con seguro aparte es mayor que `monthlyPayment` (545.000 vs 500.000). `spendable.service.ts:109` y `engine.service.ts:53` (DTI + fondo de emergencia) usan `monthlyPayment` a secas. Ampliado por el Fundador: la cuota de manejo de tarjeta (cargo bancario, no siempre existe) debe ser dato del usuario. CPSAO: prioridad inmediata tras `FIN-022`. Detalle en `docs/correspondencia/FIN-023-Desembolso-Real-Deuda.md`.
 - **`FIN-024` registrada — mora de fijos y deudas, diferida por 3ª vez con condición del CPSAO:** no puede quedar en el limbo una cuarta vez; posicionada después de `FIN-023`, antes de Simulador.
 
 ## Decisiones del Fundador pendientes de ejecutar
@@ -58,7 +58,7 @@ Ninguna.
 Ninguno.
 
 ## Próxima acción esperada
-1. **Arquitectura:** implementar `FIN-022` según `DEC-0022` §7 — summary extendido + `DebtsListScreen` (con los 4 cambios obligatorios de P2 desde el diseño, no como parche) → capturas → `IMP-0022`.
+1. **Arquitectura:** iniciar `ARQ-0023` (desembolso real de deuda + cuota de manejo, §32) — ver alcance ampliado en `docs/correspondencia/FIN-023-Desembolso-Real-Deuda.md`.
 2. En paralelo, Línea B: Arquitectura entregando el análisis de impacto del Lote 1 de Decisiones Estratégicas del CPSAO (`DEC-STR-001…011`).
 
 ## Piloto en validación — mecanismo de continuidad documental (CPSAO, 2026-07-12)

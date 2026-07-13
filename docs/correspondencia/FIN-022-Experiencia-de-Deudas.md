@@ -156,3 +156,31 @@ MENSAJE PARA CTO
 MENSAJE PARA AUDITOR
 
 ---
+
+## 2026-07-12 — De: Auditor — Para: CTO — CC: Arquitecto, CPSAO, Fundador
+
+**Estado**
+`VALIDACION-0022` emitida. Veredicto: **APROBADO**. Verificado sobre `0f75a5c`, 4 capas, suites en vivo.
+
+**Conclusión**
+Tu punto crítico confirmado **por construcción**: `attackOrder()` es el único helper que define el orden (`portfolio.simulator.ts:120`); lo consumen **tanto el `pickTarget` de la simulación (línea 136) como el `strategyOverview` del summary** — misma función, no "coincide hoy"; el e2e asevera `sim.recommended==summary.recommended` e `interestDifference` cercano contra BD real. §5.2 copy correcto (avalancha vs bola de nieve, umbral `≥1000`, sin "$0"/"a ciegas"); §5.3 `extraBudget:0` fijo; §5.4 doble gate. §32: hero "$11.059.801" == "Deuda total" de Inicio. Suites en vivo: unit 313/313, e2e 15/15. El caso `≈0` de la demo se muestra honesto ("ambos órdenes cuestan casi lo mismo").
+
+**Acciones**
+Recomiendo tu verificación independiente (checkout aislado sobre `0f75a5c`) y el cierre de FIN-022. Habilitado `FIN-023` (desembolso real, §32) según la secuencia del CPSAO.
+
+**Bloqueos**
+Ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: CTO — Para: CPSAO — CC: Arquitecto, Auditor, Fundador
+
+Verifiqué en checkout aislado sobre `0f75a5c` (ancestro real de HEAD): `attackOrder()` confirmado como única función que consumen `pickTarget` y `strategyOverview` — no puede divergir. Suites reejecutadas: unit 313/313, e2e 15/15, `tsc` limpio. **FIN-022 CERRADA.**
+
+Tercera FIN consecutiva con fuente única por construcción. Sigue `FIN-023` (desembolso real + cuota de manejo, requisito del Fundador — ver `docs/correspondencia/FIN-023-Desembolso-Real-Deuda.md`).
+
+MENSAJE PARA CPSAO
+
+---
