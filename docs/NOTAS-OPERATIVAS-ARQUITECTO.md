@@ -8,6 +8,8 @@
 - **Historial de cambios:**
   - v1.0 (2026-07-12) — volcado urgente instruido por el CPSAO antes del cierre de
     la ventana de contexto.
+  - v1.2 (2026-07-13) — §0-bis: línea base post-Fase 0 (MEMO del CTO,
+    GOBERNANZA v3.14 §34–§36).
   - v1.1 (2026-07-12) — §0: regla inquebrantable de correspondencia (tras
     reproceso de destinatario en FIN-021, corregido por el Fundador).
 - **Propósito:** lo que la próxima instancia del Arquitecto necesita y NO está en
@@ -26,6 +28,20 @@ Auditor en CC) · confirmaciones puntuales pedidas por el CTO → Para: CTO. En 
 chat con el Fundador: una sola línea con ruta y asunto ("Trabajo terminado, msj
 redactado para X — docs/correspondencia/<archivo>.md — Asunto: ...") — cero
 resúmenes, cero explicaciones.
+
+## 0-bis. Línea base post-Fase 0 (MEMO CTO 2026-07-13 — LEER GOBERNANZA §34–§36)
+
+- Backend en PRODUCCIÓN: Render (`https://milla-backend.onrender.com`) + Neon
+  PostgreSQL. No escalar planes por anticipación; upgrade = dato real +
+  autorización del Fundador.
+- **§36.2 — flujo de integración:** el Arquitecto entrega ARQ/IMP en RAMAS DE
+  TRABAJO; el CTO es el único que integra a la rama oficial tras validar.
+  Cero commits oficiales directos.
+- §34: doc oficial se commitea en el mismo acto. §36.3: unit + e2e + tsc +
+  build + migraciones verificables antes de integrar (cero regresiones).
+- FIN-026 en pausa hasta validación del APK por el Fundador; FIN-025 (aviso
+  de mora) fast-follow registrado. Avisar al Fundador ANTES de que cualquier
+  FIN toque Registrar/Transacciones.
 
 ## 1. Entorno local (Windows) — hechos duros
 
