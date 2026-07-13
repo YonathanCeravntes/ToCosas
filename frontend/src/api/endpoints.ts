@@ -26,6 +26,7 @@ import {
   MonthlyBudget,
   Recommendation,
   SimulationResult,
+  SimulationHistoryEntry,
   SimulationType,
   ScoreHistoryPoint,
   NetWorth,
@@ -107,6 +108,8 @@ export const gamificationApi = {
 export const simulationsApi = {
   run: (input: { type: SimulationType } & Record<string, number | string | undefined>) =>
     api.post<SimulationResult>('/simulations', input),
+  // FIN-026 P5: lo persistido por fin visible (últimas 20 del backend).
+  history: () => api.get<SimulationHistoryEntry[]>('/simulations'),
 };
 
 export const recommendationsApi = {

@@ -209,10 +209,13 @@ function JugadaCard({
   if (!hasScore) return null;
 
   const top = recs.find((r) => r.status === 'new' || r.status === 'seen') ?? recs[0] ?? null;
+  // FIN-026 (DEC-0026 §5.1): mapa COMPLETO de kinds del motor — el abono ya no
+  // cae al escenario equivocado.
   const SIM_BY_KIND: Record<string, string> = {
     estrategia: 'estrategia_deudas',
     recorte_categoria: 'reducir_gastos',
     fondo_emergencia: 'proyeccion_ahorro',
+    abono_extra: 'abono_extra',
   };
   const goSimulator = (scenario?: string) =>
     navigation.navigate('Simulator', scenario ? { scenario } : undefined);

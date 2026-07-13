@@ -377,6 +377,14 @@ export interface SimulationResult {
   specifics: Record<string, number | string | null>;
 }
 
+/** FIN-026 P5: fila persistida del historial de simulaciones (FIN-007/009). */
+export interface SimulationHistoryEntry {
+  id: string;
+  type: SimulationType;
+  params: Record<string, number | string | undefined> & { type?: SimulationType };
+  createdAt: string;
+}
+
 export interface Recommendation {
   id: string;
   kind: string;

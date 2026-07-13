@@ -202,10 +202,12 @@ function ProtectedTimeline({ teQueda }: { teQueda: TeQueda }) {
  *  con margen negativo, aviso honesto + palanca de recorte. */
 function FreeMoneyBridge({ teQueda, recs }: { teQueda: TeQueda; recs: Recommendation[] }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  // FIN-026 (DEC-0026 §5.1): mapa COMPLETO de kinds del motor.
   const SIM_BY_KIND: Record<string, string> = {
     estrategia: 'estrategia_deudas',
     recorte_categoria: 'reducir_gastos',
     fondo_emergencia: 'proyeccion_ahorro',
+    abono_extra: 'abono_extra',
   };
   const goSimulator = (scenario?: string) =>
     navigation.navigate('Simulator', scenario ? { scenario } : undefined);

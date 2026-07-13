@@ -188,7 +188,14 @@ function AttackPlan({
         ))}
       </View>
       <Pressable
-        onPress={() => rootNav.navigate('Simulator', { scenario: 'estrategia_deudas' })}
+        onPress={() =>
+          // FIN-026 P2: llega con el contrato del bloque (extraBudget 0 = piso,
+          // DEC-0022 §5.3) — la MISMA cifra, explicada en pantalla.
+          rootNav.navigate('Simulator', {
+            scenario: 'estrategia_deudas',
+            params: { extraBudget: 0 },
+          })
+        }
         style={{ marginTop: spacing.sm }}
       >
         <Text style={{ color: colors.primary, fontWeight: '700' }}>🧪 Verlo en el simulador →</Text>
