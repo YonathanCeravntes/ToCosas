@@ -6,12 +6,24 @@ import { computeNetWorth } from '../accounts/networth.util';
 import { MetricKey } from '../financial-engine/engine.constants';
 import { monthStart } from '../financial-engine/metrics/series.util';
 import { RateBasis } from '../finance/amortization/amortization.types';
+import { toMonthlyEffectiveRate } from '../finance/amortization/interest.util';
+import { attackOrder, compareStrategies, Strategy } from '../finance/portfolio/portfolio.simulator';
 import {
   FinancialState,
   project,
   ScenarioParams,
   SimulationResult,
 } from './simulation-engine';
+
+export interface StrategyOverview {
+  recommended: Strategy;
+  /** Ahorro = |intereses avalancha − intereses bola de nieve| (piso, con extra 0). */
+  interestDifference: number;
+  /** Meses hasta quedar libre de todo con la estrategia recomendada. */
+  months: number;
+  /** Ids reales de deuda en orden de ATAQUE (helper único del motor, DEC-0022 §5.1). */
+  attackOrder: string[];
+}
 
 /**
  * Simulaciones (FIN-007). Carga la foto REAL del usuario, delega en el motor
@@ -60,6 +72,42 @@ export class SimulationsService {
   /** Proyección sin persistir (uso interno del motor de recomendaciones). */
   async projectOnly(userId: string, params: ScenarioParams): Promise<SimulationResult> {
     return project(await this.loadState(userId), params);
+  }
+
+  /**
+   * FIN-022 (DEC-0022 §5) · Bloque de estrategia para `GET /debts/summary` —
+   * sin persistir, sin cuota (no es una simulación del usuario).
+   *
+   * Contrato de `extraBudget` (DEC §5.3): **0**. El orden de ataque no depende
+   * del excedente, y la cifra de ahorro es el PISO — la diferencia entre ambas
+   * estrategias pagando solo las cuotas mínimas actuales. Recomendaciones usa
+   * `surplus*0.3` porque responde OTRA pregunta ("¿y si además abonas extra?");
+   * divergencia declarada aquí y en IMP-0022, no oculta.
+   */
+  async strategyOverview(userId: string): Promise<StrategyOverview | null> {
+    const state = await this.loadState(userId);
+    const portfolio = state.debts
+      .filter((d) => d.balance > 0)
+      .map((d) => ({
+        id: d.id,
+        name: d.ref, // el nombre real lo resuelve el consumidor (privacidad del state)
+        balance: d.balance,
+        monthlyRate: toMonthlyEffectiveRate(d.ratePct, d.rateBasis),
+        minPayment: d.monthlyPayment,
+      }));
+    // DEC §5.4: la comparación solo tiene sentido (y costo) con 2+ deudas.
+    if (portfolio.length < 2) return null;
+
+    const cmp = compareStrategies(portfolio, 0);
+    // Motor sin respuesta válida (presupuesto mínimo no amortiza) → omitir (§29.1).
+    if (!cmp.avalanche.feasible || !cmp.snowball.feasible) return null;
+
+    return {
+      recommended: cmp.recommended,
+      interestDifference: Math.abs(cmp.avalanche.totalInterest - cmp.snowball.totalInterest),
+      months: cmp[cmp.recommended].months,
+      attackOrder: attackOrder(portfolio, cmp.recommended).map((p) => p.id),
+    };
   }
 
   async history(userId: string) {

@@ -7,6 +7,7 @@ import {
 import { RemindersService } from '../reminders/reminders.service';
 import { OutboxService } from '../events/outbox.service';
 import { DomainEventType } from '../events/domain-events';
+import { SimulationsService } from '../simulations/simulations.service';
 import { debtToAmortizationInput } from './debt-amortization.mapper';
 import { DebtInsuranceService } from './debt-insurance.service';
 import { CreateDebtDto, UpdateDebtDto } from './dto/debt.dto';
@@ -19,6 +20,7 @@ export class DebtsService {
     private readonly reminders: RemindersService,
     private readonly outbox: OutboxService,
     private readonly insurance: DebtInsuranceService,
+    private readonly simulations: SimulationsService,
   ) {}
 
   async create(userId: string, dto: CreateDebtDto) {
@@ -199,7 +201,33 @@ export class DebtsService {
       (acc, d) => acc + Number(d.monthlyPayment ?? 0),
       0,
     );
+
+    // FIN-022 P2: orden de ataque DEL MOTOR (gate a 2+ deudas — DEC-0022 §5.4;
+    // el propio strategyOverview re-verifica y decide omitirse, §29.1).
+    const overview = debts.length > 1 ? await this.simulations.strategyOverview(userId) : null;
+    const byId = new Map(debts.map((d) => [d.id, d]));
+    const strategy = overview
+      ? {
+          recommended: overview.recommended,
+          interestDifference: overview.interestDifference,
+          months: overview.months,
+          attackOrder: overview.attackOrder
+            .filter((id) => byId.has(id))
+            .map((id) => {
+              const d = byId.get(id)!;
+              return {
+                debtId: d.id,
+                name: d.name,
+                ratePct: Number(d.interestRate),
+                rateBasis: d.rateBasis,
+                balance: Number(d.currentBalance),
+              };
+            }),
+        }
+      : null;
+
     return {
+      strategy,
       debtsCount: debts.length,
       totalDebt: Math.round(totalDebt * 100) / 100,
       monthlyPaymentsTotal: Math.round(monthlyTotal * 100) / 100,

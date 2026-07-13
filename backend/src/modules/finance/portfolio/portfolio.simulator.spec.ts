@@ -1,4 +1,5 @@
 import {
+  attackOrder,
   compareStrategies,
   PortfolioDebt,
   simulatePortfolio,
@@ -60,5 +61,28 @@ describe('simulatePortfolio', () => {
     const expected =
       cmp.avalanche.totalInterest <= cmp.snowball.totalInterest ? 'avalanche' : 'snowball';
     expect(cmp.recommended).toBe(expected);
+  });
+});
+
+/** FIN-022 (DEC-0022 §5.1): el orden de ATAQUE es un helper único del motor. */
+describe('attackOrder', () => {
+  it('avalancha: mayor tasa primero (caso a mano ARQ-0022 §13.2)', () => {
+    expect(attackOrder(debts, 'avalanche').map((d) => d.id)).toEqual(['tarjeta', 'libre', 'carro']);
+  });
+
+  it('bola de nieve: menor saldo primero', () => {
+    expect(attackOrder(debts, 'snowball').map((d) => d.id)).toEqual(['tarjeta', 'libre', 'carro']);
+  });
+
+  it('excluye saldadas y es consistente con el objetivo de la simulación', () => {
+    const conSaldada: PortfolioDebt[] = [
+      { id: 'pagada', name: 'Pagada', balance: 0, monthlyRate: 0.05, minPayment: 0 },
+      ...debts,
+    ];
+    const order = attackOrder(conSaldada, 'avalanche');
+    expect(order.map((d) => d.id)).toEqual(['tarjeta', 'libre', 'carro']);
+    // El primero del orden de ataque ES la primera saldada bajo avalancha:
+    // pickTarget consume attackOrder[0] — consistencia por construcción.
+    expect(simulatePortfolio(debts, 300_000, 'avalanche').payoffOrder[0]).toBe(order[0].id);
   });
 });

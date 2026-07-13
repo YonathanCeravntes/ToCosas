@@ -110,17 +110,30 @@ export function simulatePortfolio(
   };
 }
 
+/**
+ * FIN-022 (DEC-0022 §5.1) · El ORDEN DE ATAQUE: a qué deuda dirigir el excedente
+ * primero según la estrategia. ÚNICO punto que lo define — `pickTarget` (el paso
+ * 3 de la simulación) y cualquier consumidor externo (resumen de Deudas,
+ * Simulador) lo comparten por construcción: no puede divergir.
+ * Nota: distinto de `payoffOrder` (el orden en que las deudas QUEDAN saldadas).
+ */
+export function attackOrder<T extends { balance: number; monthlyRate: number }>(
+  debts: T[],
+  strategy: Strategy,
+): T[] {
+  const active = debts.filter((d) => d.balance > 0.005);
+  // sort es estable: ante empate se conserva el orden de entrada (mismo criterio
+  // que tenía el reduce original con comparación estricta).
+  return [...active].sort((a, b) =>
+    strategy === 'avalanche' ? b.monthlyRate - a.monthlyRate : a.balance - b.balance,
+  );
+}
+
 function pickTarget(
   debts: PortfolioDebt[],
   strategy: Strategy,
 ): PortfolioDebt | null {
-  const active = debts.filter((d) => d.balance > 0.005);
-  if (active.length === 0) return null;
-  if (strategy === 'avalanche') {
-    return active.reduce((best, d) => (d.monthlyRate > best.monthlyRate ? d : best));
-  }
-  // snowball: menor saldo
-  return active.reduce((best, d) => (d.balance < best.balance ? d : best));
+  return attackOrder(debts, strategy)[0] ?? null;
 }
 
 /** Compara ambas estrategias y recomienda la de menor interés total. */

@@ -120,6 +120,20 @@ export interface DebtsSummary {
   totalDebt: number;
   monthlyPaymentsTotal: number;
   upcoming: Array<{ debtId: string; name: string; dueDate: string | null; amount: number }>;
+  // FIN-022 P2: orden de ataque del MOTOR (null con <2 deudas o sin comparación
+  // válida — el bloque se omite, §29.1).
+  strategy: {
+    recommended: 'avalanche' | 'snowball';
+    interestDifference: number;
+    months: number;
+    attackOrder: Array<{
+      debtId: string;
+      name: string;
+      ratePct: number;
+      rateBasis: string;
+      balance: number;
+    }>;
+  } | null;
 }
 
 export type TxKind = 'ingreso' | 'gasto' | 'pago_deuda' | 'transferencia';
