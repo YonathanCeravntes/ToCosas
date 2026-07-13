@@ -53,6 +53,8 @@ export interface Debt {
   monthlyPayment: string | number | null;
   nextDueDate: string | null;
   status: string;
+  /** FIN-024: días de mora derivados por el backend (null = al día). */
+  overdueDays?: number | null;
   projection?: DebtProjection;
 }
 

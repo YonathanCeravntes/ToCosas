@@ -6,7 +6,7 @@ import { PushSender } from '../notifications/push-sender.interface';
 import { NotificationBudgetService } from '../notifications/notification-budget.service';
 import { TelegramSender } from '../telegram/telegram.provider';
 import { CreateReminderDto, UpdateReminderDto } from './dto/reminder.dto';
-import { addOneMonth, daysUntil, offsetLabel, shouldFireToday } from './reminder.util';
+import { daysUntil, offsetLabel, shouldFireToday } from './reminder.util';
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO');
 
@@ -103,18 +103,28 @@ export class RemindersService {
   async dispatchDue(today: Date = new Date()): Promise<{ sent: number }> {
     const reminders = await this.prisma.reminder.findMany({
       where: { isActive: true, deletedAt: null },
-      include: { user: { include: { settings: true, waLinks: true, devices: true, tgLinks: true } } },
+      include: {
+        user: { include: { settings: true, waLinks: true, devices: true, tgLinks: true } },
+        // FIN-024 P1: para recordatorios de deuda, la fecha autoritativa es la
+        // de la DEUDA (semántica FIN-018: avanza al pagar).
+        debt: true,
+      },
     });
 
     let sent = 0;
     for (const r of reminders) {
-      if (!shouldFireToday(r.dueDate, r.offsetsDays, today)) continue;
+      // FIN-024 P1 (DEC-0024): UNA sola fecha de vencimiento por deuda. El
+      // `reminder.dueDate` de recordatorios con debtId es dato LEGADO — no
+      // volver a leerlo como autoritativo ni escribirlo.
+      const due = r.debtId ? r.debt?.nextDueDate : r.dueDate;
+      if (!due) continue; // deuda saldada (nextDueDate NULL): nada que recordar
+      if (!shouldFireToday(due, r.offsetsDays, today)) continue;
       // Evitar reenviar el mismo día.
       if (r.lastSentAt && daysUntil(r.lastSentAt, today) === 0) continue;
       // Presupuesto global (FIN-007 §4.5 / DEC-0007 §10.3): máx. 2 recordatorios/día.
       if (!(await this.budget.canSend(r.userId, 'recordatorio', today))) continue;
 
-      const remaining = daysUntil(r.dueDate, today);
+      const remaining = daysUntil(due, today);
       const when = offsetLabel(remaining);
       const amount = r.amount ? ` de ${fmt(Number(r.amount))}` : '';
       const message = `🔔 Recordatorio: ${when === 'hoy' ? 'hoy vence' : `${when} vence`} "${r.title}"${amount}.`;
@@ -155,21 +165,15 @@ export class RemindersService {
       // Presupuesto global: registra el EVENTO (timestamp propio por recordatorio).
       await this.budget.record(r.userId, 'recordatorio', usedChannels, new Date());
 
-      // Cuota recurrente: al llegar el día de vencimiento, avanza al mes siguiente
-      // para que la próxima cuota vuelva a avisar automáticamente.
-      const rollToNextMonth = r.debtId != null && remaining <= 0;
+      // FIN-024 P1: se eliminan AMBAS escrituras de fecha del roll mensual
+      // (debt.nextDueDate y reminder.dueDate — DEC-0024 §5). La fecha solo la
+      // avanza el PAGO (FIN-018); al avanzar, este mismo dispatch volverá a
+      // avisar de la próxima cuota sin escribir nada. Si la cuota queda
+      // vencida, el recordatorio calla (el aviso post-vencimiento es FIN-025).
       await this.prisma.reminder.update({
         where: { id: r.id },
-        data: rollToNextMonth
-          ? { lastSentAt: today, dueDate: addOneMonth(r.dueDate) }
-          : { lastSentAt: today },
+        data: { lastSentAt: today },
       });
-      if (rollToNextMonth && r.debtId) {
-        await this.prisma.debt.update({
-          where: { id: r.debtId },
-          data: { nextDueDate: addOneMonth(r.dueDate) },
-        });
-      }
       sent += 1;
     }
     if (sent > 0) this.logger.log(`Recordatorios enviados: ${sent}`);

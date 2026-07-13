@@ -10,6 +10,7 @@ import { DomainEventType } from '../events/domain-events';
 import { SimulationsService } from '../simulations/simulations.service';
 import { DebtOutlayService } from './debt-outlay.service';
 import { debtToAmortizationInput } from './debt-amortization.mapper';
+import { overdueDays } from './overdue.util';
 import { DebtInsuranceService } from './debt-insurance.service';
 import { CreateDebtDto, UpdateDebtDto } from './dto/debt.dto';
 
@@ -99,6 +100,8 @@ export class DebtsService {
       const g = byDebt.get(d.id);
       return {
         ...d,
+        // FIN-024 P2: estado de mora derivado en lectura (null = al día).
+        overdueDays: overdueDays(d.nextDueDate),
         projection: {
           totalInterest: Number(g?._sum.interestPart ?? 0),
           totalPaid: Number(g?._sum.payment ?? 0),
@@ -121,6 +124,8 @@ export class DebtsService {
     if (!debt) throw new NotFoundException('Deuda no encontrada');
     return {
       ...debt,
+      // FIN-024 P2: para el bloque de conciliación del detalle.
+      overdueDays: overdueDays(debt.nextDueDate),
       projection: this.projectionFromEntries(debt.amortization),
       // Desglose de cuota real con seguros (FIN-013, solo display).
       paymentBreakdown: this.insurance.paymentBreakdown(
@@ -247,6 +252,8 @@ export class DebtsService {
           name: d.name,
           dueDate: d.nextDueDate,
           amount: Number(d.monthlyPayment ?? 0),
+          // FIN-024 P2: mismo helper único (§32) también en el summary.
+          overdueDays: overdueDays(d.nextDueDate),
         })),
     };
   }

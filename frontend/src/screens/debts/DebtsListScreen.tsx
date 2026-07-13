@@ -215,13 +215,14 @@ function DebtCard({ debt }: { debt: Debt }) {
           {formatPercent(toNumber(debt.interestRate))} {debt.rateBasis} · Cuota{' '}
           {formatMoney(toNumber(debt.monthlyPayment))}
         </Text>
-        {/* P4: fecha visible con etiqueta NEUTRA si ya pasó — el dominio mora es
-            FIN-024, aquí no se juzga ni se detecta nada. */}
-        {debt.nextDueDate ? (
-          <Text style={{ color: colors.textMuted }}>
-            vence {formatDate(debt.nextDueDate)}
-            {new Date(debt.nextDueDate) < new Date() ? ' (ya pasó)' : ''}
+        {/* FIN-024 P2: estado de mora derivado por el backend (helper único).
+            Naranja, no rojo — es un aviso, no un juicio (§29.2). */}
+        {debt.overdueDays ? (
+          <Text style={{ color: colors.warning, fontWeight: '700' }}>
+            ⏰ venció hace {debt.overdueDays} día{debt.overdueDays === 1 ? '' : 's'}
           </Text>
+        ) : debt.nextDueDate ? (
+          <Text style={{ color: colors.textMuted }}>vence {formatDate(debt.nextDueDate)}</Text>
         ) : null}
       </Row>
       {remaining !== null && remaining > 0 ? (

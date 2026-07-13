@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Card, Field, Row } from '../../components/ui';
 import { colors, radius, spacing } from '../../theme/colors';
@@ -56,6 +57,10 @@ export function DebtDetailScreen({ route }: Props) {
           Cuota mensual {formatMoney(toNumber(data.monthlyPayment))}
         </Text>
       </Card>
+
+      {/* FIN-024 P2: bloque de conciliación — solo si la cuota está vencida.
+          Afirma lo OBSERVABLE ("no está registrada"), nunca el impago (§29.2). */}
+      {data.overdueDays ? <OverdueBlock days={data.overdueDays} /> : null}
 
       {/* Resumen del crédito: cuándo termina, intereses y total a pagar */}
       {data.projection ? (
@@ -169,6 +174,27 @@ export function DebtDetailScreen({ route }: Props) {
         </Text>
       ) : null}
     </ScrollView>
+  );
+}
+
+/** FIN-024 P2: la cuota venció y no hay pago registrado — conciliar o actuar. */
+function OverdueBlock({ days }: { days: number }) {
+  // Salto de tab (Registrar = ruta 'Add'): bubbling al navegador padre.
+  const navigation = useNavigation<{ navigate: (r: string) => void }>();
+  return (
+    <Card style={{ borderColor: colors.warning, borderWidth: 2 }}>
+      <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
+        ⏰ Esta cuota venció hace {days} día{days === 1 ? '' : 's'}
+      </Text>
+      <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
+        No hay un pago registrado para esta cuota. Si ya la pagaste por otro medio, regístrala
+        para que tus números digan la verdad; si no, cada día suma intereses — abajo puedes
+        abonar directamente.
+      </Text>
+      <Pressable onPress={() => navigation.navigate('Add')} style={{ marginTop: spacing.sm }}>
+        <Text style={{ color: colors.primary, fontWeight: '700' }}>✅ Registrar el pago →</Text>
+      </Pressable>
+    </Card>
   );
 }
 
