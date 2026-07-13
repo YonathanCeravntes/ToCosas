@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Button, Card, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
-import { formatDate, formatMoney } from '../utils/format';
+import { formatLocalDate, formatMoney } from '../utils/format';
 import { useApi } from '../utils/useApi';
 import { dashboardApi, debtsApi, gamificationApi } from '../api/endpoints';
 import { FlowSection, GamificationProfile } from '../api/types';
@@ -290,7 +290,8 @@ export function DashboardScreen() {
                       {t.note || t.kind}
                     </Text>
                     <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                      {formatDate(t.occurred_at)}
+                      {/* occurredAt es un instante real → fecha LOCAL. */}
+                      {formatLocalDate(t.occurred_at)}
                       {t.id.startsWith('local:') ? ' · sin sincronizar' : ''}
                     </Text>
                   </View>

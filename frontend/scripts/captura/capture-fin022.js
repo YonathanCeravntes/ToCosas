@@ -91,6 +91,18 @@ async function session(email, password) {
 
   // 1) Usuaria demo — lista completa.
   await seed(demo.tokens, demo.user);
+
+  // Modo ajuste de fecha (post-cierre FIN-022): evidencia de la MISMA fecha
+  // en Inicio y Deudas — se captura Inicio antes de ir a la pestaña.
+  if (PREFIX === 'ajuste-fecha') {
+    const h0 = await contentHeight();
+    await setViewport(Math.min(h0, 6000));
+    await wait(2500);
+    await shot('fin022-ajuste-fecha-inicio.png');
+    await setViewport(844);
+    await wait(800);
+  }
+
   await goDebts();
   let h = await contentHeight();
   await setViewport(Math.min(h, 6000));

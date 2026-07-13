@@ -4,7 +4,7 @@ import { Button, Card, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { billingApi } from '../api/endpoints';
 import { BillingStatus } from '../api/types';
-import { formatDate } from '../utils/format';
+import { formatLocalDate } from '../utils/format';
 
 const BENEFITS = [
   ['📈', 'Evolución completa de tu Score, mes a mes'],
@@ -54,7 +54,8 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
         {isPremium ? (
           <View style={{ marginTop: spacing.sm, backgroundColor: '#ffffff22', borderRadius: radius.full, paddingVertical: 6, paddingHorizontal: 14 }}>
             <Text style={{ color: colors.textInverse, fontWeight: '700' }}>
-              Activo{status?.until ? ` hasta ${formatDate(status.until)}` : ''}
+              {/* La vigencia es un instante real (fin de suscripción) → local. */}
+              Activo{status?.until ? ` hasta ${formatLocalDate(status.until)}` : ''}
               {status?.status === 'trial' ? ' (prueba)' : ''}
             </Text>
           </View>

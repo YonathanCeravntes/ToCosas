@@ -7,7 +7,7 @@ import { Category, TxKind } from '../../api/types';
 import { categoriesApi } from '../../api/endpoints';
 import { transactionsRepo } from '../../offline/transactionsRepo';
 import { runSync } from '../../offline/syncEngine';
-import { formatDate } from '../../utils/format';
+import { formatLocalDate } from '../../utils/format';
 
 const KINDS: Array<{ key: TxKind; label: string; emoji: string }> = [
   { key: 'gasto', label: 'Gasto', emoji: '🛒' },
@@ -142,7 +142,8 @@ export function AddTransactionScreen() {
           marginBottom: spacing.md,
         }}
       >
-        <Text style={{ fontSize: 16, color: colors.text }}>📅 {formatDate(occurredAt)}</Text>
+        {/* Instante real del día del usuario (picker local) → fecha local. */}
+        <Text style={{ fontSize: 16, color: colors.text }}>📅 {formatLocalDate(occurredAt)}</Text>
         <Text style={{ color: colors.primary, fontWeight: '600' }}>Cambiar</Text>
       </Pressable>
       {showDatePicker ? (

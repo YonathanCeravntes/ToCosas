@@ -8,8 +8,28 @@ export function formatMoney(value: number, currency = 'COP'): string {
   return formatter.format(value ?? 0);
 }
 
-/** Formatea una fecha ISO a "3 jul 2026". */
+/**
+ * Formatea una FECHA PURA (sin hora real: nextDueDate, payoffDate, dueDate de
+ * amortización…) a "3 jul 2026". Fija UTC porque estos campos viajan como
+ * medianoche UTC y en zonas negativas (Colombia, UTC−5) la conversión local
+ * los corría un día hacia atrás (ajuste post-cierre FIN-022; `shortDate` de
+ * Inicio/Presupuesto ya lo hacía así). Para instantes reales usa
+ * `formatLocalDate`.
+ */
 export function formatDate(iso: string | Date): string {
+  const d = typeof iso === 'string' ? new Date(iso) : iso;
+  return d.toLocaleDateString('es-CO', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+/** Formatea un INSTANTE real (occurredAt de transacciones, vigencias de
+ * suscripción) a la fecha local del dispositivo — aquí la hora local SÍ es la
+ * verdad del evento. */
+export function formatLocalDate(iso: string | Date): string {
   const d = typeof iso === 'string' ? new Date(iso) : iso;
   return d.toLocaleDateString('es-CO', {
     day: 'numeric',
