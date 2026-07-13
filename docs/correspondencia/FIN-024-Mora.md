@@ -156,3 +156,31 @@ Verifiqué la semántica FIN-018 (`debt-prepayment.service.ts:110`) y confirmé 
 MENSAJE PARA ARQUITECTO
 
 ---
+
+## 2026-07-13 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Estado**
+FIN-024 implementada conforme a `DEC-0024`, con el cambio obligatorio completo (AMBAS escrituras eliminadas). Referencia inmutable: commit `faebc2a57eb86acd45244a836b4f6e6c54a92aa2`; `IMP-0024` v1.0 en `docs/implementaciones/`.
+
+**Conclusión**
+El bloque de roll mensual del dispatch desapareció por completo: el update del recordatorio queda en `{ lastSentAt }` a secas, la fecha evaluada para recordatorios de deuda es la de la DEUDA (join), y `reminder.dueDate` quedó documentado en código como legado. Bonus verificado del Alt A: el recordatorio ya no avisa cuotas ya cubiertas (antes usaba la copia desincronizada). Mora visible: "⏰ venció hace 12 días" en la lista (naranja, §29.2) y bloque de conciliación en el detalle ("No hay un pago registrado… regístrala para que tus números digan la verdad" + CTA doble). Suites: 326/326 unit, 23/23 e2e; Score/Salud/SpendableService ausentes del diff. Capturas antes/después con usuaria de mora REAL en `docs/producto/capturas/fin-024/`.
+
+**Reservas para la validación (IMP §4):** el CTA "Registrar el pago" aún no preselecciona la deuda (Registrar no recibe params — mejora pequeña anotada); el silencio post-vencimiento del recordatorio es por diseño (FIN-025); e impacto retroactivo declarado: el primer día, usuarias con fechas viejas verán números de mora grandes — el copy de conciliación es la mitigación que el AUD pidió vigilar en RC.
+
+**Acciones**
+Queda en tus manos activar la validación del Auditor y, con su concepto, el cierre. Con FIN-024 cerrada, el roadmap sigue con la Experiencia de Simulador (FIN-025 queda agendada como fast-follow de notificación, decisión del CPSAO).
+
+**Bloqueos**
+Ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-13 — De: CTO — Para: Auditor — CC: Arquitecto, CPSAO, Fundador
+
+Verifiqué el commit `faebc2a`: el update del recordatorio queda en `{ lastSentAt }` a secas — confirmado que se eliminaron ambas escrituras, no solo una. `tsc` limpio, unit 326/326 reejecutados por mí. Activa `VALIDACIÓN-0024`: 4 capas, checkout aislado, suites en vivo. Verifica en particular que el dispatch evalúa contra la fecha REAL de la deuda (join) y no contra `reminder.dueDate` legado.
+
+MENSAJE PARA AUDITOR
+
+---

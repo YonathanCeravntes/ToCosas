@@ -20,8 +20,10 @@ v3.12 (`docs/GOBERNANZA.md`) — última sección: §34, commit obligatorio de t
 - FIN-019 — Experiencia de Salud — Cerrado (`DEC-0019` §8, `VALIDACIÓN-0019` APROBADO)
 
 ## Hoja de ruta de experiencias UX (posición actual)
-Inicio ✅ · Salud ✅ · Presupuesto ✅ (`FIN-020`, `FIN-021` fondo de emergencia §32) · Deudas ✅ (`FIN-022`, `FIN-023` desembolso real + cuota de manejo §32) · **`FIN-024` (mora) 🔄 activada, antes de Simulador** ⏳ · Copiloto ⏳ (nota registrada: `context-assembler.ts` deberá consumir `SpendableService`, §32).
+Inicio ✅ · Salud ✅ · Presupuesto ✅ (`FIN-020`, `FIN-021` fondo de emergencia §32) · Deudas ✅ (`FIN-022`, `FIN-023` desembolso real + cuota de manejo §32) · **`FIN-024` (mora) 🔄 en validación, antes de Simulador** ⏳ · Copiloto ⏳ (nota registrada: `context-assembler.ts` deberá consumir `SpendableService`, §32).
 RC integral (sesión con participantes reales): pendiente, programada al cierre de las 6 experiencias (`docs/producto/rc/RC-0001-Inicio.md` preserva el diseño metodológico).
+
+**Aviso anticipado obligatorio — módulo de Registrar/Transacciones (instrucción directa del Fundador, 2026-07-13):** antes de que cualquier FIN toque el módulo de Registrar (alta de transacciones), el CTO debe avisarle con anticipación — quiere hacer observaciones antes de que avance. No está en la hoja de ruta de las 6 experiencias UX hoy (era parte del "Lote 03 de capturas" sin gobernanza, nunca pedido) — si aparece como candidata a FIN futura (p. ej. tras Copiloto), este aviso es un paso obligatorio previo a abrir su comprensión/ARQ.
 
 ## Principios permanentes recientes a tener en cuenta
 - §31 — Todo `ARQ` de experiencia UX cierra respondiendo "¿qué perdería el usuario si esta experiencia no existiera?".
