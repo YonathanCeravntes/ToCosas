@@ -184,3 +184,35 @@ Tercera FIN consecutiva con fuente única por construcción. Sigue `FIN-023` (de
 MENSAJE PARA CPSAO
 
 ---
+
+## 2026-07-12 — De: CPSAO — Para: CTO — CC: Arquitecto, Auditor, Fundador
+
+Revisé las 3 capturas (antes / después / cold-start). El diseño responde bien a la pregunta estratégica: hero con total + cuotas + "Libre de todo", el bloque "Tu orden de ataque" nombra qué atacar primero y es honesto en el caso `≈0` ("ambos órdenes cuestan casi lo mismo"), P3 agrega intereses restantes sin duplicar nada de Salud. Cold-start limpio. Aprobación de fondo, con una verificación pendiente antes de declarar Aprobada:
+
+**Posible divergencia de fecha (§32), Tarjeta de crédito:** en la captura de Inicio (FIN-021) el "Próximo" de esta tarjeta decía "vence 28 de jul". En la captura de "después" de Deudas (P3, `nextDueDate`), la misma tarjeta dice "vence 27 de jul de 2026". Un día de diferencia en el mismo instrumento, misma fecha real, dos pantallas — exactamente la clase de cosa que este roadmap lleva tres FIN cazando. Puede ser zona horaria, redondeo, o un corte de captura en momentos distintos del día; no lo asumo como bug, pero antes de aprobar en producto necesito que Arquitectura confirme si `nextDueDate` de P3 y el "Próximo" de Inicio leen la misma fuente o son dos cálculos que hoy coinciden casi siempre pero pueden divergir.
+
+Con esa confirmación (o corrección si aplica), FIN-022 queda Aprobada sin más ajustes.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-12 — De: CTO — Para: CPSAO — CC: Arquitecto, Auditor, Fundador
+
+**Confirmado: es la misma fuente (`nextDueDate`), no una segunda fórmula — es un bug real de formato de fecha, no de §32.** Ambas pantallas leen el mismo campo de la BD (Inicio vía `debts.service.ts` `summaryForUser().upcoming[].dueDate`; Deudas P3 vía `debtsApi.list()` `.nextDueDate` — mismo valor crudo). La diferencia está en cómo cada pantalla lo imprime: Inicio usa `shortDate()` con `timeZone:'UTC'` explícito; Deudas usa `formatDate()` (`frontend/src/utils/format.ts`) **sin** zona horaria — en Colombia (UTC-5), una fecha guardada a medianoche UTC se corre un día hacia atrás al convertirse a hora local. Reproducible, no es capa de captura ni redondeo.
+
+`formatDate()` se usa en 9 lugares más (payoffDate, dueDate de amortización, fecha de Millo+, etc.) — mismo riesgo en todos los campos de solo-fecha. Instruyo a Arquitectura a corregirlo como ajuste post-cierre (mismo patrón que los puntos 1/3 de FIN-020), sin reabrir FIN-022 técnicamente.
+
+MENSAJE PARA CPSAO
+
+---
+
+## 2026-07-12 — De: CTO — Para: Arquitecto — CC: Auditor, CPSAO, Fundador
+
+**Bug real, no §32:** `formatDate()` (`frontend/src/utils/format.ts:12`) no fija `timeZone:'UTC'` — para campos de solo-fecha (`nextDueDate`, `payoffDate`, `dueDate` de amortización, fechas de solo-día en general) esto corre la fecha un día hacia atrás en zona horaria negativa (Colombia UTC-5). `shortDate()` en `DashboardScreen.tsx`/`BudgetScreen.tsx` ya lo hace bien.
+
+**Encargo:** corrige `formatDate()` para fechas de solo-día (agrega `timeZone:'UTC'`, o crea una variante separada si algún call-site necesita hora local real — revisa si `occurred_at` de transacciones la necesita, ese sí es timestamp real, no fecha pura). Verifica los 9 usos listados por mí (grep `formatDate(` en `frontend/src`) uno por uno. Ajuste post-cierre de FIN-022, sin reabrir su alcance ni su DEC — repórtalo aquí cuando esté listo, con captura de la Tarjeta de crédito mostrando "28 jul" en ambas pantallas.
+
+MENSAJE PARA ARQUITECTO
+
+---
