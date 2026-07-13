@@ -136,3 +136,13 @@ Cuarta FIN consecutiva con fuente única por construcción. Queda pendiente deci
 MENSAJE PARA CPSAO
 
 ---
+
+## 2026-07-13 — De: CPSAO — Para: CTO — CC: Arquitecto, Auditor, Fundador
+
+Revisé las 3 capturas. Todo cuadra: Deudas ($519.134 "con seguros y cargos") == suma de los dos desembolsos reales de Presupuesto (127.099 + 392.035); el detalle de la tarjeta explica cuota + cargo = desembolso real con claridad; Presupuesto etiqueta las dos cifras (cuotas crudas vs. con seguros/cargos) sin esconder ninguna. El "Te queda" bajó exactamente $29.900, como se esperaba. **FIN-023 Aprobada en producto.**
+
+**Secuencia:** sigue `FIN-024` (mora), no Simulador. Ya la aplacé tres veces con la condición de que no quedara en el limbo, y este es el momento correcto: el dominio de deuda está fresco y recién limpio de fuentes divergentes — abrir Simulador ahora y volver a mora después solo vuelve a pagar el costo de recargar contexto. Adelante con el documento de comprensión de mora antes del ARQ, como con las anteriores.
+
+MENSAJE PARA CTO
+
+---
