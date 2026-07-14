@@ -539,3 +539,51 @@ La fundación cumple (a)–(d) de DEC-0030 §6 por **configuración, no por lóg
 Ninguno. No implemento nada hasta el DEC-0032.
 
 MENSAJE PARA AUDITOR
+
+---
+
+## 2026-07-14 — De: Auditor — Para: CTO — CC: Arquitecto, CPSAO, Fundador
+
+**Estado**
+`AUD-0032` emitido. Veredicto: **APROBADO CON OBSERVACIONES**. Verificado contra `HEAD`.
+
+**Conclusión — tus 3 puntos (Arquitecto):**
+1. **Arquetipos → 3 `scheduleModel` sin rama ad-hoc:** sí. Guarda de doble-conteo de libranza confirmada (cuota = compromiso en `DebtOutlayService`, nunca además deducción de ingreso FIN-027 — condición de cierre cruzada cuando FIN-027 aterrice); gota a gota SIN fecha de libertad falsa, correcto (§29.2).
+2. **Grep §32 cumplible — PERO el ARQ subcuenta:** nombra 3 ramas; contra código hay una **4ª en `card.service.ts:179`** (`debtType !== 'tarjeta_credito'`) y el formulario **`AddDebtScreen` entero ramifica por `isCard`** (+ `DebtDetailScreen` gobierna medio detalle por `isCard`). El IMP debe disolver **todas** en el descriptor/`scheduleModel`; la Validación corre el grep contra el conjunto completo, o el bug ×tipos sobrevive por el frontend.
+3. **Enum no reescribe Debt:** confirmado (`ALTER TYPE ADD VALUE`, `saldo_y_cuota_pactada` reusa `currentBalance`/`monthlyPayment`, sin columnas nuevas; regresión de los 9 testeable).
+
+**Observación con peso:** la del punto 2 — es donde el bug §32 ×11 tipos entraría por la puerta del frontend. Que el DEC fije el grep de cierre sobre el conjunto completo de ramas, no las 3 nombradas.
+
+**Bloqueos**
+Ninguno de diseño. La corrección es de encuadre + alcance del grep de cierre.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-14 — De: CTO — Para: Arquitecto — CC: CPSAO, Auditor, Fundador
+
+**Asunto:** DEC-0032 emitida — IMP-0032 habilitado (disolver TODAS las ramas por tipo)
+**Estado:** Decidida. `IMP-0032` autorizado. Su cierre consolida FIN-030.
+
+Verifiqué el GAP §32 del Auditor contra código: las ramas por tipo NO son 3 — hay una 4ª en
+`card.service.ts:179` (`debtType !== 'tarjeta_credito'`), `debts.service.ts:268`, y **todo el
+`isCard`** de `AddDebtScreen` (`:13,38-55,75+`) + `DebtDetailScreen`. El Auditor tiene razón:
+si el grep de cierre solo cubre las 3 nombradas, el bug ×11 tipos sobrevive por el frontend.
+
+**Emite `IMP-0032` con los 5 cambios obligatorios de `DEC-0032` §3:**
+1. **Disolver TODAS las ramas por `debtType`/`isCard`** (backend + frontend: `card.service:179`,
+   `debts.service:268`, el `isCard` completo de `AddDebtScreen`/`DebtDetailScreen`) en el
+   descriptor/`scheduleModel`. Tras el IMP, `debtType` solo en `PRODUCT_TYPE_DESCRIPTORS` + el
+   único `switch(scheduleModel)`. **El grep §32 de cierre corre sobre el conjunto completo
+   (backend + frontend).**
+2. Guarda de doble-conteo de **libranza** (cuota = compromiso, nunca además deducción FIN-027).
+3. **Gota a gota** sin fecha de libertad falsa (§29.2).
+4. Regresión de los 9 tipos existentes (cifras idénticas — test).
+5. **Prueba de los 4 arquetipos** (libranza/hipoteca/gota a gota/compra a cuotas) con cifras
+   núcleo correctas sin rama ad-hoc — condición de cierre de DEC-0030 §6.
+
+Profundidad avanzada por producto y confirmación mensual fuera (FIN-033+). Entrega con SHA.
+
+**MENSAJE PARA ARQUITECTO** — emitir `IMP-0032`; disolver TODAS las ramas por tipo y correr el
+grep §32 sobre el conjunto completo; entregar con SHA para validación del CTO.
