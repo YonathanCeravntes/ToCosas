@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { NetIncomeService } from '../income/net-income.service';
+import { SpendableService } from '../budget/spendable.service';
 import { computeNetWorth } from '../accounts/networth.util';
 import { computeScore, SCORE_VERSION } from '../health/score.util';
 import { computeCoreMetrics, MetricValue } from './metrics/core-metrics';
@@ -25,6 +26,8 @@ export class EngineService {
     private readonly debtOutlay: DebtOutlayService,
     // FIN-027 (DEC-0027 P3): DTI/Score se calculan sobre el ingreso NETO.
     private readonly netIncome: NetIncomeService,
+    // BT-006 (decisión del Fundador): "Capacidad de ahorro" = razón de "Te queda".
+    private readonly spendable: SpendableService,
   ) {}
 
   /** Recalcula y persiste las métricas core del mes corriente del usuario. */
@@ -94,6 +97,18 @@ export class EngineService {
       emergencyBalance: nw.totalEmergencyFund,
       netWorth: nw.netWorth,
     });
+
+    // BT-006 (decisión del Fundador 2026-07-14): "Capacidad de ahorro" es el
+    // MISMO concepto que "Te queda para gastar" (§32): qué % del ingreso queda
+    // disponible tras cubrir los compromisos del período. Se toma de
+    // SpendableService (fuente única) — no de una fórmula paralela — para que
+    // Inicio, Salud y el Score cuenten LA MISMA historia. El "ahorro realmente
+    // logrado" (flujo realizado) será un indicador aparte en el futuro.
+    const teQueda = await this.spendable.compute(userId, now);
+    const savingsCapacity =
+      teQueda.incomeBase > 0 ? Math.round((teQueda.amount / teQueda.incomeBase) * 10_000) / 10_000 : 0;
+    const savingsMetric = metrics.find((m) => m.metricKey === MetricKey.SavingsRate);
+    if (savingsMetric) savingsMetric.value = savingsCapacity;
 
     await this.upsertReadings(userId, metrics, from, 'month');
 

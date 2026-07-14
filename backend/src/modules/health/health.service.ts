@@ -172,11 +172,13 @@ export class HealthService {
         display: savings !== null ? fmtPct(savings) : '—',
         level:
           savings === null ? 'sin_datos' : savings > 0.2 ? 'verde' : savings >= 0.1 ? 'amarillo' : 'rojo',
-        meaning: 'Qué parte de tu ingreso te queda libre cada mes después de gastos y cuotas.',
+        // BT-006 (decisión del Fundador): mismo concepto que "Te queda para gastar" —
+        // qué % del ingreso queda disponible tras cubrir los compromisos del período.
+        meaning: 'Después de cubrir tus compromisos del mes, qué parte de tu ingreso te queda disponible para ahorrar o gastar libremente.',
         howComputed:
           savings !== null
-            ? `Tu flujo del mes dividido entre tu ingreso de referencia es ${fmtPct(savings)}.`
-            : 'Registra tus ingresos y gastos del mes para calcularla.',
+            ? `Es lo mismo que "Te queda para gastar" en Inicio: tu ingreso menos los compromisos del período, sobre tu ingreso — ${fmtPct(savings)}.`
+            : 'Registra tus ingresos y compromisos del mes para calcularla.',
         ranges: 'Verde >20% · Amarillo 10–20% · Rojo <10%',
         actions: [
           'Revisa tus gastos fijos en Presupuesto.',

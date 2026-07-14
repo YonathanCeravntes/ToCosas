@@ -17,6 +17,7 @@
 | BT-004 | Un ingreso fijo **declarado** (perfil de ingresos, FIN-027) no aparece en "Te queda para gastar". | **Decisión de producto del Fundador** — cambia la definición §32 de "Te queda". | ✅ **Resuelto** (decisión del Fundador, 2026-07-14) — implementado y verificado | Análisis + resolución abajo. Commit del fix registrado. |
 | BT-005 | Al anular un pago de deuda desde la app, el botón "Guardar" queda cargando y "Anular" no se habilita (parece colgado). | **Defecto de experiencia** — el backend anula bien (0.93s, deuda regenerada); la petición se cuelga sin timeout cuando el backend está dormido (Render free). | ✅ **Corregido** (timeout en el cliente HTTP) + deuda del Fundador regenerada manualmente | Detalle abajo. |
 | BT-006 | Salud muestra "Score Millo: —" sin contexto. | **Dos partes:** (a) el Score estaba **apagado en producción por gate LEGAL** (`HEALTH_SCORE_PRODUCTION_ENABLED=false`, `DEC-0004` §10.3) → backend 503; (b) el frontend no manejaba ese 503 y mostraba un "—" mudo → **defecto de experiencia**. | (a) ✅ **Score ACTIVADO en Beta cerrada** por decisión ejecutiva del Fundador (2026-07-14); (b) ✅ **Corregido** (mensaje contextual) | Detalle + resolución abajo. |
+| BT-007 | Inconsistencia entre pantallas: Inicio dice "68 de cada 100 libres" y Salud "Capacidad de ahorro: 1 de cada 100" — el usuario percibe que Millo se contradice. | **Decisión de producto del Fundador** — "Capacidad de ahorro" debe ser el MISMO concepto que "Te queda para gastar" (§32), no el ahorro realizado. | ✅ **Corregido** (el pilar de Ahorro del Score toma la razón de "Te queda" de `SpendableService`, fuente única) | Detalle abajo. |
 
 ---
 
@@ -233,6 +234,42 @@ la **validación legal formal como requisito OBLIGATORIO antes del lanzamiento p
 escala educativa, no-compartir) ya estaban construidas y aprobadas en el diseño de FIN-004.
 - **Estado:** ✅ Ambas partes resueltas. Validación del cálculo y la visualización tras
   encender el flag.
+
+## BT-007 · "Capacidad de ahorro" (Salud) inconsistente con "Te queda" (Inicio)
+
+**Reportado por:** Fundador (Beta Técnica, 2026-07-14) — Inicio muestra "68 de cada 100
+libres" y Salud "Capacidad de ahorro: 1 de cada 100"; se percibe como una contradicción.
+
+**Causa raíz (verificada por el CTO con datos reales del Fundador):**
+- Ambos usaban el **mismo denominador** (ingreso declarado, $5.609.240) — eso ya era
+  consistente. La diferencia estaba en el numerador:
+  - **"Libres" (Inicio)** = `teQueda / incomeBase` = (ingreso − compromisos del período) /
+    ingreso = **68%** (`SpendableService`, fuente única §32).
+  - **"Capacidad de ahorro" (Salud)** = `cashflow / ingreso` = (ingreso REALMENTE recibido −
+    gastos reales) / ingreso = **~1%** (`core-metrics`, ahorro *realizado*).
+- El gap se amplificaba porque el Fundador declaró un salario pero solo registró $70.000 de
+  ingreso real: "libres" cuenta el declarado; "ahorro realizado" solo lo recibido.
+- **Aclaración clave del CTO:** hacer que "ahorro" usara el ingreso declarado habría dado
+  ~98% (no 68%), porque "ahorro" resta el gasto real y "libres" resta los compromisos — dos
+  cosas distintas. La consistencia real exige que "Capacidad de ahorro" mida lo mismo que
+  "Te queda".
+
+**Decisión del Fundador (2026-07-14, ejecutiva):** "Capacidad de ahorro" representa el mismo
+concepto financiero que "Te queda para gastar" — qué % del ingreso queda disponible tras
+cubrir los compromisos del período. El ahorro *realizado* será un indicador aparte futuro
+("Ahorro logrado este mes"), con nombre propio.
+
+**Implementación (CTO), §32 por construcción:**
+- El Motor (`engine.service.recompute`) **inyecta `SpendableService`** (fuente única de "Te
+  queda") y sobrescribe la métrica `savings_rate` con `teQueda.amount / teQueda.incomeBase`.
+  Así el **pilar de Ahorro del Score y el indicador de Salud** salen de la MISMA fuente que
+  Inicio — imposible que diverjan. Se importó `BudgetModule` en `FinancialEngineModule` (sin
+  ciclo — `budget` no importa el Motor).
+- Texto del indicador actualizado: "Después de cubrir tus compromisos del mes, qué parte de
+  tu ingreso te queda disponible… Es lo mismo que 'Te queda para gastar' en Inicio."
+- **Verificado por el CTO:** `tsc` 0, unit 355/355, e2e 44/44. Coherencia Inicio/Salud/Score
+  validada en vivo tras el deploy.
+- **Despliegue (§41):** backend-only → Beta por auto-deploy de Render, sin OTA.
 
 ## Historial
 - 2026-07-13 — Creación del registro. BT-001 corregido y verificado; BT-002 encauzado a

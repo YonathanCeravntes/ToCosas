@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { BudgetModule } from '../budget/budget.module';
 import { DebtOutlayModule } from '../debts/debt-outlay.module';
 import { IncomeModule } from '../income/income.module';
 import { InsightsModule } from '../insights/insights.module';
@@ -19,7 +20,9 @@ import { RetentionJob } from './jobs/retention.job';
 @Module({
   // DebtOutlayModule (FIN-023): `debtMonthly` del Motor = desembolso REAL.
   // IncomeModule (FIN-027): `fixedIncome` de referencia = ingreso NETO.
-  imports: [AuthModule, InsightsModule, DebtOutlayModule, IncomeModule],
+  // BudgetModule (BT-006): "Capacidad de ahorro" del Score = razón de "Te queda"
+  //   (SpendableService, fuente única §32) — Inicio, Salud y Score cuentan lo mismo.
+  imports: [AuthModule, InsightsModule, DebtOutlayModule, IncomeModule, BudgetModule],
   controllers: [EngineController],
   providers: [EngineService, EngineListener, InsightsGenerator, SnapshotJob, TrendsJob, RetentionJob],
   exports: [EngineService, SnapshotJob],
