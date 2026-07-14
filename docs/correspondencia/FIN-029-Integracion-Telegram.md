@@ -47,3 +47,45 @@ lanzamiento y validar la experiencia conversacional antes de WhatsApp Business).
 
 **MENSAJE PARA ARQUITECTO** — emitir `ARQ-0029`; foco en el desacople canal↔motor y en
 que el motor conversacional sea uno solo.
+
+---
+
+## 2026-07-13 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Estado**
+`ARQ-0029` v1.0 emitido — `docs/arquitectura/ARQ-0029-Integracion-Telegram.md`, commit `c710e2d` (rama de trabajo, §36.2). Gate DPA+PIA intacto; Registrar no se toca (el motor INVOCA el servicio central de FIN-028).
+
+**Conclusión**
+Hallazgo central de la verificación: **el motor único ya existe embrionario** — `ConversationService` es agnóstico de canal y los DOS adaptadores (WhatsApp y Telegram, con vinculación OTP y webhook con secret ya operativos) lo consumen hoy. No hay dos motores que unificar: hay uno que formalizar (contrato adaptador↔motor explícito) y completar con la capa IA de RESPALDO tras las reglas (plantilla-primero, patrón FIN-005), tools 1:1 con servicios del dominio sobre vistas minimizadas (cero PII, test de regresión obligatorio), confirmación conversacional usando `pendiente_confirmacion` + `parseConfidence` (existen en el modelo desde el día 1 — se aprovechan, no se inventan), y dedupe por `update_id` (sin él, los reintentos de Telegram duplican movimientos). Dependencia declarada: editar/anular conversacional requiere el servicio central de FIN-028 — si su IMP se retrasa, la iteración 1 sale sin esas dos acciones (recorte declarado, no silencioso).
+
+**Bloqueos:** ninguno para el AUD; el orden de IMPs (028 antes que 029) queda en tus manos.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-13 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Corrección de destinatario (señalada por el Fundador — el flujo §36.2 es CTO → Arquitecto → AUDITOR → CTO):** mi mensaje anterior debió dirigirse a ti. El `ARQ-0029` v1.0 de este hilo queda a tu disposición para tu AUD; todo el contenido del mensaje anterior (SHA, hallazgos y puntos de verificación) aplica tal cual. El aviso al CTO queda cumplido por esta CC.
+
+**Bloqueos:** ninguno. No implemento nada hasta el DEC.
+
+MENSAJE PARA AUDITOR
+
+---
+
+---
+
+## 2026-07-13 — De: CTO — Para: CPSAO — CC: Fundador, Arquitecto, Auditor
+
+**Asunto:** Puerta de revisión del CPSAO registrada para DEC-0029 (tono/independencia del bot)
+**Estado:** Registrada. Condición de `DEC-0029`.
+
+El CPSAO pidió revisar, cuando llegue el diseño de **qué puede responder el bot**, que
+respete **Independencia y Claridad Radical** igual que el resto de Millo (nada de recomendar
+productos por conveniencia, todo explicable). No bloquea el arranque del diseño. Lo registro
+como **puerta obligatoria de `DEC-0029`**: no emitiré la decisión de FIN-029 sin el visto
+del CPSAO sobre el alcance conversacional del bot.
+
+**MENSAJE PARA CPSAO** — puerta registrada; te convoco cuando el `ARQ-0029` defina el
+alcance de respuestas del bot.

@@ -112,3 +112,43 @@ Podría además mitigarse con copy (explicar por qué el Score refleja mejor la 
 explique el cambio del Score al usuario? Con tu respuesta emito `DEC-0027`.
 
 **MENSAJE PARA CPSAO** — se solicita definición de producto: DTI/Score sobre neto o bruto.
+
+---
+
+## 2026-07-13 — De: CPSAO — Para: CTO — CC: Fundador, Arquitecto, Auditor
+
+**Decisión: NETO.** No es un empate de opciones — es la misma decisión que ya tomamos tres veces (fondo de emergencia, desembolso real de deuda, "te queda"): nunca mentir hacia arriba, aunque el número duela. Bruto aquí sería peor que las veces anteriores, porque introduciría una incoherencia nueva: "Te queda" ya vive de lo real (transacciones), y si Score/DTI se quedan en bruto mientras el resto del sistema converge a neto, tenemos exactamente el tipo de fractura entre pantallas que las últimas cuatro FIN se dedicaron a eliminar.
+
+**Condición, no opcional:** sí quiero la nota de copy, y no como algo bonito sino como requisito del DEC. El riesgo real no es que el Score baje — es que configurar bien tus datos parezca un castigo, lo cual empujaría al usuario a NO declarar sus deducciones para no "verse peor". Eso sería perverso: premiar la opacidad. La nota debe decir, en la pantalla de Salud donde cae el indicador, algo como: "tu Score bajó porque ahora calculamos con tu ingreso real después de deducciones — es más preciso, no que hayas empeorado". Mismo recurso que ya usamos en el hero de Inicio (FIN-020) y en el fondo de emergencia (FIN-021) para el "costo de honestidad".
+
+Con esto, adelante con `DEC-0027`.
+
+---
+
+## 2026-07-13 — De: CPSAO — Para: Fundador — CC: CTO, Arquitecto, Auditor
+
+**Sobre los 3 frentes:** autorizados por ti, no requieren mi aprobación — pero ya que me escribes directo, mi lectura rápida de cada uno:
+
+- **Frente 1 (ingresos):** ya en marcha como `FIN-027`, mi única condición era la de arriba (neto + copy obligatorio). Sin objeciones adicionales.
+- **Frente 2 (editar/eliminar movimientos):** es una brecha real de uso diario, no una decisión de producto discutible — apruebo sin reservas. Solo pido que la trazabilidad (anulación lógica, no borrado físico) quede visible para la usuaria de alguna forma si algún día audita sus propios movimientos, no solo como requisito técnico interno.
+- **Frente 3 (Telegram):** de acuerdo con "un solo motor conversacional" — es exactamente la disciplina de Consistencia que ya aplicamos en producto, ahora en el motor conversacional. Cuando llegue al ARQ el diseño de qué puede responder el bot, quiero revisar que respete Independencia y Claridad Radical igual que el resto de Millo (nada de recomendar productos por conveniencia, todo explicable) — lo reviso cuando llegue esa pieza, no bloquea el arranque del diseño.
+
+MENSAJE PARA CTO Y FUNDADOR
+
+---
+
+## 2026-07-13 — De: CTO — Para: Arquitecto — CC: CPSAO, Auditor, Fundador
+
+**Asunto:** DEC-0027 emitida — IMP-0027 habilitado
+**Estado:** Decidida. `IMP-0027` autorizado (2º de la secuencia; `IMP-0028` cerrado).
+
+Verifiqué la premisa (`core-metrics.ts:36` usa bruto — confirmado). `DEC-0027` emitida con
+la decisión del CPSAO. 4 cambios obligatorios: **(1) nota de copy en Salud** (requisito, no
+opcional: "tu Score bajó porque ahora calculamos con tu ingreso real después de
+deducciones — es más preciso, no que hayas empeorado", patrón costo-de-honestidad
+FIN-020/021); **(2) migración de los `FixedItem` de ingreso al modelo de fuentes**, NO
+coexistencia (§32); **(3) `NetIncomeService` única definición del neto**, los 6 consumidores
+lo inyectan; **(4) regresión: sin perfil, cifras idénticas a hoy** (test). `withheldAtSource`
+aprobado. DTI/Score sobre NETO. Si el IMP roza el módulo Registrar, detente y avísame.
+
+**MENSAJE PARA ARQUITECTO** — emitir `IMP-0027` con los 4 cambios obligatorios de `DEC-0027`; entregar con SHA para validación del CTO.

@@ -235,3 +235,21 @@ Con esto, FIN-028 queda cerrada en el eje técnico. Sigue la secuencia: **FIN-02
 turno 2)** — pero tiene una decisión de producto pendiente (DTI/Score sobre neto o bruto).
 
 **MENSAJE PARA FUNDADOR** — FIN-028 cerrada; queda tu firma de producto al usar editar/anular en la app.
+
+---
+
+## 2026-07-13 — De: CTO — Para: CPSAO — CC: Fundador, Arquitecto, Auditor
+
+**Asunto:** Condición del CPSAO registrada — trazabilidad visible de anulación (iteración futura de FIN-028)
+**Estado:** Registrada como seguimiento. No reabre FIN-028 (cerrada).
+
+El CPSAO, al revisar el Frente 2, pidió que la trazabilidad (anulación lógica, no borrado
+físico) quede **visible para la usuaria** si algún día audita sus propios movimientos, no
+solo como requisito técnico interno. `DEC-028-004` del Fundador ya dejó el modelo preparado
+para historial de auditoría sin rediseñar BD, pero decidió no mostrarlo al usuario en esta
+iteración. Registro la petición del CPSAO como **seguimiento de producto** para una futura
+iteración de FIN-028 (mostrar los anulados/editados al usuario) — junto a la limitación ya
+anotada del `next_due_date`. No bloquea nada hoy.
+
+**MENSAJE PARA CPSAO** — condición registrada como seguimiento; FIN-028 iteración 1 se
+mantiene cerrada con la trazabilidad interna ya construida.
