@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Field } from '../../components/ui';
 import { colors, spacing } from '../../theme/colors';
 import { debtsApi } from '../../api/endpoints';
+import { parseDecimal, parseAmount } from '../../utils/format';
 import { DebtsStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<DebtsStackParamList, 'AddDebt'>;
@@ -17,15 +18,19 @@ export function AddDebtScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const num = (s: string) => parseFloat(s.replace(/[^\d.]/g, '')) || 0;
+  // BT-001: montos en COP → entero (descarta miles); tasa → decimal regional
+  // ("15,35"/"15.35"). Antes un solo helper borraba la coma y "15,35" viajaba
+  // como 1535 → desbordaba Decimal(7,4) en el backend → 500.
+  const amt = (s: string) => { const n = parseAmount(s); return Number.isNaN(n) ? 0 : n; };
 
   const onSubmit = async () => {
     setError(null);
-    const bal = num(balance);
-    if (!name || !bal || !num(term)) {
+    const bal = amt(balance);
+    if (!name || !bal || !amt(term)) {
       setError('Completa nombre, saldo y plazo.');
       return;
     }
+    const rateVal = parseDecimal(rate);
     setLoading(true);
     try {
       await debtsApi.create({
@@ -34,10 +39,10 @@ export function AddDebtScreen({ navigation }: Props) {
         originalAmount: bal,
         currentBalance: bal,
         startDate: new Date().toISOString().slice(0, 10),
-        termMonths: num(term),
-        interestRate: num(rate),
+        termMonths: amt(term),
+        interestRate: Number.isNaN(rateVal) ? 0 : rateVal,
         rateBasis: 'EA',
-        paymentDay: paymentDay ? num(paymentDay) : undefined,
+        paymentDay: paymentDay ? amt(paymentDay) : undefined,
       });
       navigation.goBack();
     } catch (e) {

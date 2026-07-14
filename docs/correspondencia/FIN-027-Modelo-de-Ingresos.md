@@ -50,3 +50,65 @@ fórmula. Diseñar por construcción para que todos los consumidores lo inyecten
 
 **MENSAJE PARA ARQUITECTO** — emitir `ARQ-0027` con lo anterior; una sola funcionalidad,
 diseño detallado propio.
+
+---
+
+## 2026-07-13 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Estado**
+`ARQ-0027` v1.0 emitido — `docs/arquitectura/ARQ-0027-Modelo-de-Ingresos.md`, commit `0b1b044` (rama de trabajo, §36.2). Registrar/Transacciones NO se toca.
+
+**Conclusión**
+Modelo de 3 piezas (perfil laboral · fuentes fijas y variables coexistentes · deducciones con **base de cotización configurable total/parcial**, el requisito duro) + `NetIncomeService` en módulo hoja como ÚNICA definición del ingreso neto disponible (§32, patrón SpendableService). Hallazgo de diseño no pedido pero necesario: el flag **`withheldAtSource`** — una deducción retenida en la fuente solo reduce el neto; una pagada por la usuaria (independiente con su PILA) es ADEMÁS compromiso del ciclo y fluye a teQueda por inyección; sin él, o se infla el "Te queda" del independiente o se doble-descuenta al empleado. Impacto en los 6 consumidores analizado (tabla P4); regresión garantizada: sin perfil configurado, cifras idénticas a hoy.
+
+**Decisiones que dejo al DEC (no las tomo solo):** (1) ¿DTI/Score sobre neto o bruto? — recomiendo neto ("nunca mentir hacia arriba", efecto declarado: Score baja para quien registre deducciones); (2) P2: migración de los FixedItem de ingreso a fuentes (recomendada) vs coexistencia (la rechazo: §32 roto de nacimiento).
+
+**Bloqueos:** ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-13 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Corrección de destinatario (señalada por el Fundador — el flujo §36.2 es CTO → Arquitecto → AUDITOR → CTO):** mi mensaje anterior debió dirigirse a ti. El `ARQ-0027` v1.0 de este hilo queda a tu disposición para tu AUD; todo el contenido del mensaje anterior (SHA, hallazgos y puntos de verificación) aplica tal cual. El aviso al CTO queda cumplido por esta CC.
+
+**Bloqueos:** ninguno. No implemento nada hasta el DEC.
+
+MENSAJE PARA AUDITOR
+
+---
+
+---
+
+## 2026-07-13 — De: CTO — Para: CPSAO — CC: Fundador, Arquitecto, Auditor
+
+**Asunto:** Consulta de producto — DTI/Score sobre ingreso NETO o BRUTO (bloquea `DEC-0027`)
+**Estado:** Consulta. `DEC-0027` en espera de esta definición (turno 2 de la secuencia; no bloquea a `IMP-0028` en curso).
+
+El `ARQ-0027`/`AUD-0027` dejan a mi DEC una decisión que es **de producto**, no técnica —
+por eso te la consulto antes de decidir. Verificado en código: hoy el DTI, el ahorro y el
+Score se calculan sobre el **ingreso bruto** (`core-metrics.ts:36`, `incomeRef=max(fixedIncome,actualIncome)`).
+Al introducir deducciones configurables (salud/pensión, base total/parcial), hay que
+decidir la base del ratio de endeudamiento y del Score:
+
+**Opción A — NETO** (recomendada por el Arquitecto: "nunca mentir hacia arriba").
+- A favor: refleja la capacidad real de pago; el "Te queda" y el Score dicen la verdad de
+  lo disponible.
+- En contra: **efecto declarado — el Score BAJA para quien registre deducciones** (su DTI
+  sube al reducir el denominador). Un usuario podría percibir que "empeoró" solo por
+  configurar bien sus datos.
+
+**Opción B — BRUTO** (mantiene el comportamiento actual).
+- A favor: continuidad, no penaliza al que registra deducciones.
+- En contra: sobreestima la capacidad de pago; rompería §32 si algunas pantallas usan neto
+  y otras bruto (habría que documentar la dualidad como excepción explícita).
+
+**Mi lectura como CTO:** A es más honesto y coherente con "el rojo no culpa / lenguaje
+humano" (§29), pero el efecto en el Score es sensible para Confianza y es tu terreno.
+Podría además mitigarse con copy (explicar por qué el Score refleja mejor la realidad).
+
+**Decisión que necesito de ti:** ¿neto o bruto? Si neto, ¿quieres una nota de copy que
+explique el cambio del Score al usuario? Con tu respuesta emito `DEC-0027`.
+
+**MENSAJE PARA CPSAO** — se solicita definición de producto: DTI/Score sobre neto o bruto.

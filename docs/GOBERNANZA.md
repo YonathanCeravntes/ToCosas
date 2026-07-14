@@ -1,6 +1,6 @@
 # Gobernanza oficial del proyecto Milla
 
-- **Versión:** 3.15
+- **Versión:** 3.16
 - **Fecha de adopción:** 2026-07-13
 - **Autor:** CTO, propuesta del CPSAO, ratificada por el Fundador (Yonathan Cervantes)
 - **Estado:** Vigente
@@ -111,7 +111,7 @@
     migraciones) antes de integrar; prohibición de escalar infraestructura por
     anticipación (solo por necesidad técnica demostrada); GitHub como registro
     histórico oficial; y el CTO como custodio permanente de la calidad técnica.
-  - **v3.15 (2026-07-13) — esta versión.** Añade el **Memorando de Sincronización de
+  - v3.15 (2026-07-13) — Añade el **Memorando de Sincronización de
     Contexto (MSC)** (sección 37): comunicación oficial que el CTO emite ante cambios de
     etapa estructurales para fijar una línea base única entre roles que no comparten
     sesión. Propuesta evaluada y presentada por el CTO sin incorporarla, aprobada con
@@ -120,6 +120,15 @@
     roles afectados como evidencia de sincronización, no aprobación (ajuste 2); y
     reserva expresa del mecanismo a lo estructural, con revisión si su frecuencia se
     eleva (ajuste 3).
+  - **v3.16 (2026-07-13) — esta versión.** Añade, a raíz de la primera Beta Técnica, la
+    **gestión de defectos detectados en uso real** (sección 38): todo defecto lo evalúa y
+    clasifica el CTO de inmediato (implementación/arquitectura/UX/nueva necesidad); solo
+    las nuevas necesidades se vuelven `FIN`, el resto se corrige por mantenimiento con
+    registro en el bug tracker `docs/oficial/REGISTRO-DEFECTOS.md` y trazabilidad
+    defecto→corrección→commit. Añade además el **invariante de formato regional en campos
+    numéricos** (sección 39), motivado por `BT-001` (un 500 al registrar `15,35`): todo
+    campo numérico acepta coma/punto decimal y enteros, normalizado antes del Motor, sin
+    error por formato regional.
 
 Todo cambio que afecte **lógica de negocio, arquitectura, base de datos, seguridad,
 IA, APIs, permisos, integraciones, monetización o experiencia funcional** sigue este
@@ -1057,6 +1066,49 @@ plantilla de formato.
 
 **Ratificación:** propuesta del CTO evaluada y presentada para decisión, aprobada con
 tres ajustes por el Fundador (Yonathan Cervantes), 2026-07-13.
+
+---
+
+## 38. Gestión de defectos detectados en uso real (bug tracking) (nueva en v3.16)
+
+**Origen (no hipotético):** durante la primera Beta Técnica (2026-07-13), el Fundador
+detectó defectos funcionales reales por el uso cotidiano de la app (el primero, `BT-001`:
+un 500 al registrar una tasa con coma decimal) y estableció un principio operativo
+permanente para tratarlos.
+
+**Regla permanente:**
+1. **Todo defecto detectado en uso real lo evalúa el CTO de inmediato** y lo **clasifica**
+   en una de: **defecto de implementación · defecto de arquitectura · defecto de
+   experiencia de usuario · nueva necesidad funcional**.
+2. **Solo las nuevas necesidades funcionales se convierten en `FIN`.** Los defectos se
+   corrigen por el **flujo de mantenimiento**, preservando la estabilidad del producto —
+   no esperan el cierre de nuevas FIN si afectan la utilización normal de la app.
+3. **Registro y trazabilidad obligatorios.** Todo defecto se registra en el bug tracker
+   oficial (`docs/oficial/REGISTRO-DEFECTOS.md`) con numeración `BT-XXX`, y se mantiene la
+   trazabilidad **defecto → clasificación → corrección → commit**. La documentación técnica
+   se actualiza **solo si** la solución modifica reglas permanentes del sistema.
+4. **Objetivo:** cada error del uso real se convierte en una mejora permanente y queda
+   respaldado documentalmente para evitar su reaparición.
+
+**Ratificación:** instrucción directa del Fundador (Yonathan Cervantes), 2026-07-13
+("Corrección de defectos detectados durante la Beta Técnica").
+
+## 39. Formato regional en campos numéricos (invariante del sistema) (nueva en v3.16)
+
+**Origen (no hipotético):** `BT-001` — el registro de una tasa `15,35` (coma decimal,
+es-CO) producía un 500 porque una capa borraba la coma y desbordaba el campo Decimal.
+
+**Regla permanente:** **todos los campos numéricos de Millo deben aceptar la escritura
+natural del usuario según su configuración regional** — como mínimo coma decimal, punto
+decimal y enteros. La **normalización se realiza antes del procesamiento del Motor
+Financiero** (capa autoritativa en el backend, `common/parse-number.util.ts` /
+`@NormalizeNumber()`), replicada en el frontend por UX (`utils/format.ts` ·
+`parseDecimal`/`parseAmount`). **Ningún usuario debe recibir un error por diferencias de
+formato regional**; un valor fuera de rango se rechaza con un 400 claro, nunca un 500.
+Todo DTO futuro con campos numéricos expuestos al usuario debe aplicar `@NormalizeNumber()`.
+
+**Ratificación:** decisión del Fundador (Yonathan Cervantes), 2026-07-13, en la misma
+instrucción de `BT-001`.
 
 ---
 
