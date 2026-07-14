@@ -1,6 +1,6 @@
 # Gobernanza oficial del proyecto Milla
 
-- **Versión:** 3.17
+- **Versión:** 3.18
 - **Fecha de adopción:** 2026-07-14
 - **Autor:** CTO, propuesta del CPSAO, ratificada por el Fundador (Yonathan Cervantes)
 - **Estado:** Vigente
@@ -136,6 +136,11 @@
     `localhost`/variables faltantes/config inconsistente/`/health` caído; vía única de
     publicación (`npm run ota:publish`, prohibido `eas update` directo); y dispositivo
     centinela previo a ampliar a todos los usuarios.
+  - **v3.18 (2026-07-14) — esta versión.** Añade la **continuidad Beta** (sección 41): toda
+    `FIN` cerrada e integrada debe reflejarse en la app de los usuarios de prueba vía OTA
+    (por la vía segura de §40); los usuarios de prueba trabajan siempre con la última versión
+    aprobada salvo razón técnica justificada. Ciclo oficial hasta el dispositivo:
+    `Arquitecto→Auditor→CTO→Integración→GitHub→OTA→Dispositivos Beta`.
 
 Todo cambio que afecte **lógica de negocio, arquitectura, base de datos, seguridad,
 IA, APIs, permisos, integraciones, monetización o experiencia funcional** sigue este
@@ -1146,6 +1151,30 @@ hacen muy difícil que el incidente ocurra**.
 **Ratificación:** instrucción directa del Fundador (Yonathan Cervantes), 2026-07-14
 ("Llamado de atención formal — Incidente BT-003 y fortalecimiento obligatorio del proceso
 de despliegue").
+
+## 41. Continuidad Beta — toda FIN cerrada llega al dispositivo Beta (nueva en v3.18)
+
+**Origen:** tras validar el hotfix de BT-003, el Fundador estableció (2026-07-14) que la
+infraestructura ya está probada y el foco es el producto: cada mejora aprobada debe llegar
+a los usuarios de prueba para validar su valor real en uso cotidiano.
+
+**Regla permanente:** toda `FIN` **cerrada e integrada** debe **reflejarse en la aplicación
+que usan los usuarios de prueba**. Las funcionalidades no pueden quedarse solo en GitHub o
+en local. El ciclo oficial extiende el flujo de integración (§36.2) hasta el dispositivo:
+
+```
+Arquitecto → Auditor → CTO → Integración → GitHub → OTA → Dispositivos Beta
+```
+
+- Al cerrar una `FIN` con cambios de frontend, el CTO publica el OTA correspondiente **por
+  la vía segura** (`npm run ota:publish`, §40) — el gate y el dispositivo centinela siguen
+  siendo obligatorios. Cambios solo de backend llegan por el deploy normal de Render.
+- Los usuarios de prueba trabajan **siempre con la versión más reciente aprobada**, salvo
+  que exista una **razón técnica debidamente justificada y documentada** para no hacerlo.
+- Propósito: validar cada mejora en condiciones reales y recibir retroalimentación continua.
+
+**Ratificación:** directriz operativa del Fundador (Yonathan Cervantes), 2026-07-14 ("Cierre
+del incidente BT-003 y directriz para las próximas entregas").
 
 ---
 

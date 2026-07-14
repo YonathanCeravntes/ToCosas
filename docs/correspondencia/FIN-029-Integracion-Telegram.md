@@ -161,3 +161,41 @@ encender IA con datos reales en prod). Editar/anular conversacional disponibles 
 cerrado). Si tocas Registrar más allá de invocar el servicio central, detente y avísame.
 
 **MENSAJE PARA ARQUITECTO** — emitir `IMP-0029` con los cambios obligatorios de `DEC-0029`; entregar con SHA para validación del CTO.
+
+## 2026-07-14 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Estado**
+`IMP-0029` entregado en rama de trabajo (§36.2) — commit `9bb83c0d802168421e472d2ae6750f56c0c01cc6`; `IMP-0029` v1.0 en `docs/implementaciones/`. Cierra la tanda 028→027→029.
+
+**Conclusión**
+Las 6 condiciones obligatorias honradas en la ruta VIVA (plantilla-primero, el gate DPA+PIA sigue cerrado por construcción — la conversación no tiene forma de llamar al LLM, grep limpio en `messaging/`): acuse explícito con el DÓNDE en cada movimiento; honestidad sin falsos "ya lo anoté"; `simular` muestra el escenario de abono (motor FIN-007, deuda de mayor tasa dicha explícitamente) sin empujar decisiones; paywall honesto al agotar la cuota. El dedupe por `update_id` YA existía — lo probé, no lo reconstruí (e2e). Dato que conviene que el CPSAO vea: el test de genericidad §5.5 cazó un defecto real — el propio texto de ayuda del bot nombraba "Bancolombia" como ejemplo, violando Independencia; corregido a "mi crédito". Suites: unit 355/355, e2e 43/43 (11 suites), tsc limpio, cero migraciones, cero claves.
+
+**Tres reservas que declaro explícitas (IMP §4) — NO son gaps, son lo que el gate mantiene apagado (DEC §6):** (1) la capa de IA tool-use está diseñada pero no es runtime; hoy la interpretación es determinista; (2) el handshake `pendiente_confirmacion` (P3) no se implementó stateful — "cero escrituras alegres" se cumple porque las reglas piden el dato antes de registrar, pero la confirmación explícita en baja confianza espera al LLM (necesita estado conversacional inexistente hoy); (3) `editar` por texto libre es territorio del LLM — hoy solo `anular` está en reglas; el servicio central de FIN-028 ya lo soporta para cuando el LLM lo invoque.
+
+**Acciones**
+Queda en tus manos activar la validación del Auditor y, con su concepto, el cierre. Con esto se cierra la tanda de tres frentes de la Beta Técnica.
+
+**Bloqueos**
+Ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+---
+
+## 2026-07-14 — De: CTO — Para: Fundador — CC: Arquitecto, Auditor, CPSAO, Ingeniero de Plataforma
+
+**Asunto:** BT-003 cerrado + continuidad Beta institucionalizada (§41)
+**Estado:** Acuse. Directriz vigente.
+
+Recibido el cierre de BT-003 y la nueva directriz. Institucionalizada como `GOBERNANZA.md`
+§41 (v3.18): toda FIN cerrada e integrada llega al dispositivo Beta vía OTA, por la vía
+segura de §40 (gate + centinela); los usuarios de prueba usan siempre la última versión
+aprobada salvo razón técnica justificada.
+
+**Estado actual de la Beta:** el OTA vigente (`f166ac42`) ya lleva todo lo cerrado —
+FIN-027, FIN-028, BT-001 y el fix BT-003. No queda nada aprobado sin desplegar. El próximo
+OTA será al cerrar `IMP-0029` (Telegram), y saldrá por `npm run ota:publish`.
+
+**MENSAJE PARA FUNDADOR** — directriz aplicada; la Beta está al día con todo lo aprobado.
