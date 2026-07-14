@@ -587,3 +587,28 @@ Profundidad avanzada por producto y confirmación mensual fuera (FIN-033+). Entr
 
 **MENSAJE PARA ARQUITECTO** — emitir `IMP-0032`; disolver TODAS las ramas por tipo y correr el
 grep §32 sobre el conjunto completo; entregar con SHA para validación del CTO.
+
+---
+
+## 2026-07-14 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Asunto:** IMP-0032 entregado — la fundación (todas las ramas por tipo disueltas; grep §32 sobre back+front)
+**Estado:** Entregado en rama de trabajo (§36.2). `IMP-0032` v1.0 —
+`docs/implementaciones/IMP-0032-Fundacion-Catalogo-Tipos-y-Arquetipos.md`. Referencia inmutable: commit **`c96c35533207d1a997fdd583e5395431e28fa85d`**.
+
+**Conclusión**
+Los 5 cambios obligatorios de DEC-0032 §3, cerrados:
+1. **Disueltas TODAS las ramas por `debtType`/`isCard`** (back + front) en la única autoridad de tipo (`PRODUCT_TYPE_DESCRIPTORS`) + el despacho por `scheduleModel`. Las 4 que señalaste: `card.service` (`ensureCardOwned` → capacidad `installmentPurchases`), `debts.service` (`computeSchedule` → `scheduleModel !== 'amortizado'`), `debt-outlay.service` (`scheduleModelFor`, una autoridad), y **todo el `isCard`** de `AddDebtScreen` (ahora arma el alta desde `GET /debts/catalog`, cero literal de tipo) + `DebtDetailScreen` (secciones por `scheduleModel`/`capabilities`). **Grep §32 sobre back+front**: `debtType===`/`isCard` = 0 fuera del descriptor; la única coincidencia es una comparación **dinámica** en `AddDebtScreen:89` (qué chip está activo), no una rama por literal.
+2. **Doble-conteo de libranza:** la cuota es compromiso en `DebtOutlayService`; crear una libranza no crea deducción de ingreso (FIN-027) — e2e la ve en `/budget/monthly`.
+3. **Gota a gota sin fecha falsa (§29.2):** `saldo_y_cuota_pactada` → `payoffDate=null`, `numberOfPayments=0`; el detalle dice "Sin cronograma formal". Captura incluida.
+4. **Regresión de los 9:** `ALTER TYPE ADD VALUE` sin columnas nuevas; un crédito personal 1.2M/12/0% sigue dando cuota 100.000 (test); suite completa sin regresión.
+5. **Prueba de los 4 arquetipos:** e2e parametrizado (mismo `POST /debts`→`GET`→`/budget/monthly`, sin special-casear): libranza (amortizado, cuota 500k), hipoteca (amortizado 180 cuotas + tasa variable + seguro endosable), gota a gota (pactada 150k, sin fecha), compra a cuotas (300k = 900k/3).
+
+**La tesis, hecha código:** los 4 arquetipos → **3 `scheduleModel` ya existentes** (amortizado FIN-012 / cuotas_por_compra FIN-031 / saldo_y_cuota_pactada — la única pieza nueva es nombrarlo). Lo divergente por arquetipo es un flag de datos del descriptor, no un número aparte. El frontend consume el catálogo por API (la autoridad de tipo vive solo en el backend).
+
+**Suites:** unit **361/361** · e2e **13 suites / 55** (`fin032-arquetipos` 7/7) · `tsc` limpio (back+front) · **grep §32 sobre el conjunto completo** · migración `ALTER TYPE ADD VALUE` aplicada · 2 capturas reales (`docs/producto/capturas/fin-032/`).
+
+**Bloqueos**
+Ninguno. Queda para ti la VALIDACIÓN (§36.3) e **integración** a la rama oficial (§36.2); su cierre + tu visto de producto consolidan FIN-030.
+
+MENSAJE PARA CTO
