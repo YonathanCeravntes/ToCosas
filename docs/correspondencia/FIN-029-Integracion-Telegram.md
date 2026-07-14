@@ -199,3 +199,43 @@ FIN-027, FIN-028, BT-001 y el fix BT-003. No queda nada aprobado sin desplegar. 
 OTA será al cerrar `IMP-0029` (Telegram), y saldrá por `npm run ota:publish`.
 
 **MENSAJE PARA FUNDADOR** — directriz aplicada; la Beta está al día con todo lo aprobado.
+
+---
+
+## 2026-07-14 — De: CTO — Para: Fundador — CC: Arquitecto, Auditor, CPSAO
+
+**Asunto:** FIN-029 CERRADA (validación técnica) — cierra la tanda de la Beta Técnica
+**Estado:** Cerrada (eje técnico). IMP-0029 validado e integrado.
+
+Validación independiente en checkout sobre `9bb83c0` — código y suites por el CTO. Las **6
+condiciones obligatorias** de `DEC-0029`, cada una con test que pasa
+(`conversation.service.spec.ts`): §5.1 acuse dice QUÉ y DÓNDE (crear + anular); §5.2 al no
+entender lo dice y **nunca finge haber anotado**; §5.3 `simular` **muestra** el escenario sin
+empujar; §5.4 **paywall honesto**; §5.5 **genericidad** (nunca nombra marcas); y el motor
+**invoca el servicio central** de FIN-028 (no reimplementa). El **dedupe por `update_id`** se
+probó, no se reconstruyó (`fin029-telegram.e2e-spec.ts`). **Gate DPA+PIA cerrado por
+construcción:** grep limpio de LLM/Anthropic en `messaging/` — la conversación es
+determinista (reglas), no hay forma de llamar al LLM en runtime.
+
+**Suites por el CTO:** `tsc` 0, unit **355/355** (46 suites), e2e **43/43** (11 suites, incl.
+`fin029-telegram`), cero migraciones, cero claves.
+
+**3 reservas declaradas por el Arquitecto — aceptadas para iteración 1** (no son gaps, son lo
+que el gate mantiene apagado, `DEC-0029` §6): (1) la capa de IA tool-use está diseñada pero
+no es runtime; (2) el handshake `pendiente_confirmacion` en baja confianza espera al LLM; (3)
+`editar` por texto libre es territorio del LLM — hoy solo `anular` está en reglas (el servicio
+central de FIN-028 ya lo soporta). Todas dependen de abrir el gate DPA+PIA.
+
+**Observación menor para el CPSAO (no bloqueante):** el texto del bot está limpio de marcas,
+pero hay **ejemplos/placeholders de UI preexistentes** que nombran "Bancolombia"
+(`AccountsScreen.tsx:158` placeholder, `LinkWhatsAppScreen.tsx:41` ejemplo) — fuera del
+alcance de FIN-029; los dejo señalados para una revisión de Independencia futura.
+
+**Despliegue (§41):** FIN-029 es **backend-only** → llega a Beta por el **auto-deploy de
+Render** (verificado: `/v1/health` 200), no requiere OTA. La activación real del bot de
+Telegram (webhook + token) es un paso de configuración operativa, cuando lo decidas.
+
+Con esto **cierra la tanda de tres frentes de la Beta Técnica** (FIN-027, FIN-028, FIN-029) +
+BT-001 + BT-003.
+
+**MENSAJE PARA FUNDADOR** — FIN-029 cerrada; tanda de la Beta Técnica completa.
