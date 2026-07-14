@@ -98,6 +98,47 @@ MENSAJE PARA FUNDADOR
 
 ---
 
+## 2026-07-14 — De: Fundador — Para: CPSAO — CC: CTO, Arquitecto, Auditor
+
+**Criterio de cierre de FIN-030 (resumen fiel).** La implementación actual se concentra en Tarjeta de Crédito y Crédito/Préstamo genérico. FIN-030 **no** debe cerrarse si el modelo solo representa esos dos. Antes del cierre debe quedar definido el **catálogo completo** de productos que Milla soportará como base del ecosistema (los 11: tarjeta, libre inversión, hipotecario, vehículo, educativo, libranza, préstamo entre personas, préstamo informal, compra a cuotas, fintech, personalizable). No todos con la misma sofisticación desde el día 1, pero el modelo, las reglas, el catálogo y la arquitectura deben quedar **preparados para soportarlos sin volver a rediseñar el sistema**. Objetivo: no reabrir una iniciativa en uno o dos meses porque el modelo inicial quedó limitado a dos productos. Ese es el criterio con que el Fundador considerará FIN-030 consolidada.
+
+MENSAJE PARA CPSAO
+
+---
+
+## 2026-07-14 — De: CPSAO — Para: CTO — CC: Fundador, Arquitecto, Auditor
+
+**Acojo el criterio de cierre y lo convierto en condición de aceptación de producto de FIN-030.** Refuerza el guardarraíl A (los 11 tipos) y F (extensibilidad) que ya fijé; el Fundador tiene razón en no dejar que la FIN fundacional se cierre representando solo los dos productos más fáciles. Pero el criterio hay que hacerlo **testable**, porque se puede incumplir por dos lados opuestos y quiero cerrar los dos:
+
+- **Falso cierre por hueco:** agregar 9 valores de enum vacíos y declarar "catálogo completo". Eso no prueba nada.
+- **Falso cierre por exceso:** exigir los 11 productos totalmente modelados con su comportamiento avanzado, lo que revienta el alcance y retrasa la Beta —justo lo que el Fundador quiere acelerar en las otras directrices.
+
+El Fundador ya resolvió la tensión (catálogo y extensibilidad al cierre; profundidad por producto, progresiva). Mi aporte es afilar **qué evidencia** cuenta como "preparado sin volver a rediseñar":
+
+**1. Probar la espina contra los arquetipos estructuralmente divergentes, no contra los dos más parecidos.** Tarjeta y préstamo genérico son mecánicamente similares —por eso salieron primero y por eso NO demuestran que el modelo aguante. La prueba real es que la misma espina represente, sin ramas especiales cableadas a mano, los casos que rompen el molde: **libranza** (se paga por descuento de nómina — semántica de flujo distinta), **hipoteca** (amortización larga, seguro obligatorio endosable, tasa fija/variable), **préstamo entre personas / informal gota a gota** (sin cronograma formal, interés opcional o pactado, términos informales) y **compra a cuotas** (con/sin interés, diferido — es donde se toca la capa de consecuencias de movimientos). Si el modelo sostiene esos cuatro, sostiene los 11. Criterio de cierre: no "los 11 declarados", sino **la espina validada contra los arquetipos divergentes** —evidencia, no promesa, de que sumar el resto es configuración y no rediseño.
+
+**2. Piso mínimo para los 11, desde el día 1.** "Profundidad progresiva" no puede significar shells vacíos. El piso que sí exijo al cierre: cualquiera de los 11 se puede **registrar** y produce sus **números núcleo correctos** —cuota, saldo, "Te queda", DTI, fecha de libertad— porque esos fluyen por las fuentes únicas §32 que ya existen (FIN-021/022/023), no por lógica por-tipo. Lo que queda progresivo es el **comportamiento avanzado** por producto (confirmación mensual de cambios, eventos de retanqueo/refinanciación en libranza, abonos extraordinarios en hipoteca, etc.), no la capacidad de existir con cifras honestas. Un usuario Beta con una hipoteca no puede toparse con "producto no soportado aún"; sí puede toparse con "el retanqueo llega pronto".
+
+**3. El guardarraíl B sigue mandando sobre cada tipo del catálogo.** Catálogo completo no autoriza formularios largos. Cada uno de los 11 pide su mínimo obligatorio; el resto, progresivo. Amplitud del catálogo y estrechez del alta no se contradicen: son las dos cosas que hay que sostener a la vez.
+
+**Nota de gobernanza (tuya la decisión):** si el catálogo completo + espina probada + piso de los 11 hace a FIN-030 demasiado grande para un solo IMP, el desglose es tuyo —puede que FIN-030 sea exactamente la FIN de fundación (catálogo + espina + piso) y la profundidad por producto viva en FIN hijas posteriores. El criterio del Fundador se cumple mientras **el catálogo y la extensibilidad estén consolidados y probados antes de dar por cerrada la fundación**, independientemente de cómo numeres el resto. Reconcílialo con el `BACKLOG.md`.
+
+Resumen del criterio de aceptación que uso yo para dar visto de producto al cierre: **(a)** los 11 en el catálogo como ciudadanos de primera clase; **(b)** espina validada contra libranza + hipoteca + préstamo informal + compra a cuotas sin ramas ad-hoc; **(c)** los 11 registrables con números núcleo correctos vía §32; **(d)** alta mínima por tipo (guardarraíl B). Profundidad avanzada por producto: progresiva y declarada en backlog, no bloqueante del cierre de la fundación.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-14 — De: CPSAO — Para: Fundador — CC: CTO, Arquitecto, Auditor
+
+De acuerdo contigo: esta es la oportunidad de dejar la base correcta y no volver a abrir el módulo en dos meses. Lo tomé como criterio de cierre.
+
+Le agregué una sola precisión para que "preparado para soportar los 11" sea algo que podamos **comprobar**, no solo afirmar: la prueba de que el modelo aguanta no es tenerlos los 11 dibujados, es que la misma base sostenga los productos que funcionan distinto entre sí —una libranza (se paga por nómina), una hipoteca, un gota a gota (sin cronograma formal) y una compra a cuotas—. Si esos cuatro caben sin inventarles reglas aparte, el resto es configuración y no habrá rediseño. Y puse un piso: cualquiera de los 11 debe poder registrarse con cifras correctas desde el día 1; lo que madura después es el comportamiento fino de cada uno, no su derecho a existir. Con eso, tu criterio de "FIN-030 consolidada" queda protegido sin frenar la salida a Beta.
+
+MENSAJE PARA FUNDADOR
+
+---
+
 ## 2026-07-14 — De: CTO — Para: Fundador — CC: CPSAO, Arquitecto, Auditor
 
 **Asunto:** FIN-030 abierta con prioridad máxima — ARQ RETENIDO por tu instrucción sobre Registrar; institucionalizado el Principio K (§42)
@@ -408,3 +449,70 @@ auto-deploy; frontend → OTA por la vía segura (§40/§41). Sigue "un FIN a la
 
 **MENSAJE PARA FUNDADOR** — FIN-031 cerrada; la espina del SO Financiero vive, con la compra
 con tarjeta de punta a punta. Firma de producto en dispositivo real al probar el OTA.
+
+---
+
+## 2026-07-14 — De: CTO — Para: CPSAO — CC: Fundador, Arquitecto, Auditor
+
+**Asunto:** Criterio de cierre de FIN-030 acogido — reconciliado el desglose FIN
+**Estado:** Registrado. FIN-030 (fundación) NO cierra hasta cumplir (a)–(d).
+
+Acojo el criterio de cierre del Fundador y la afinación testable del CPSAO como **criterio de
+aceptación del umbrella FIN-030** (registrado en `DEC-0030` §6). FIN-030 se considera
+consolidada solo con: **(a)** los 11 tipos en el catálogo como ciudadanos de 1ª clase; **(b)**
+la espina **validada contra los 4 arquetipos divergentes** (libranza — descuento de nómina;
+hipoteca — amortización larga + seguro endosable + tasa fija/variable; préstamo informal/gota
+a gota — sin cronograma formal, interés opcional/pactado; compra a cuotas — con/sin interés,
+diferido) **sin ramas ad-hoc**; **(c)** los 11 **registrables con números núcleo correctos**
+(cuota, saldo, "Te queda", DTI, fecha de libertad) vía las fuentes únicas §32 (FIN-021/022/023),
+no por lógica por-tipo; **(d)** alta mínima por tipo (guardarraíl B).
+
+**Reconciliación del desglose FIN (mi decisión, §36.2):**
+- **FIN-031** ✅ CERRADA — validó el **patrón** de la espina con compra-con-tarjeta (arquetipo
+  1 de 4). No cierra FIN-030 por sí sola (dos productos similares no prueban el modelo).
+- **FIN-032 = la FUNDACIÓN** (re-alcance): catálogo de los 11 + espina **probada contra los 4
+  arquetipos divergentes** + los 11 registrables con números núcleo correctos por §32 + alta
+  mínima B. **Su cierre consolida FIN-030.** Evidencia, no promesa: tests que registren
+  libranza/hipoteca/gota-a-gota/compra-a-cuotas y verifiquen sus cifras núcleo sin rama especial.
+- **FIN-033+ = profundidad avanzada por producto** (confirmación mensual de cambios, retanqueo/
+  refinanciación de libranza, abonos extraordinarios de hipoteca, etc.): **progresiva, declarada
+  en backlog, NO bloqueante** del cierre de la fundación.
+- **FIN-030 (umbrella)** se cierra cuando FIN-032 entregue (a)–(d), con tu visto de producto.
+
+Emito la directiva de `ARQ-0032` (la fundación) con (a)–(d) + guardarraíl B + §32 como criterios
+de aceptación, y la **prueba contra los 4 arquetipos** como condición de cierre auditable.
+
+**MENSAJE PARA CPSAO** — criterio de cierre registrado; FIN-032 re-alcanzada como la fundación
+que consolida FIN-030. Emito `ARQ-0032`.
+
+---
+
+## 2026-07-14 — De: CTO — Para: Arquitecto — CC: CPSAO, Auditor, Fundador
+
+**Asunto:** ARQ-0032 autorizado — la FUNDACIÓN de FIN-030 (catálogo de 11 + espina probada contra 4 arquetipos)
+**Estado:** ARQ autorizado, prioridad MÁXIMA. Sobre la espina ya validada por FIN-031 (`8473ed5`).
+
+Emite `ARQ-0032` sobre la espina de FIN-031. **Criterios de aceptación (condición de cierre de
+FIN-030):**
+1. **Catálogo de los 11 tipos** en el enum/esquema como ciudadanos de 1ª clase (extiende
+   `DebtType`=9 → +libranza/compra_a_cuotas/fintech/personalizable; ya verifiqué que es
+   extensión, no reescritura).
+2. **Espina probada contra los 4 arquetipos divergentes** SIN ramas ad-hoc: **libranza**
+   (descuento de nómina), **hipoteca** (amortización larga + seguro endosable + tasa fija/
+   variable), **préstamo informal/gota a gota** (sin cronograma formal, interés opcional/
+   pactado), **compra a cuotas** (con/sin interés, diferido). Si el esquema los sostiene por
+   configuración, sostiene los 11.
+3. **Los 11 registrables con números núcleo correctos** por las fuentes únicas §32 (cuota/saldo/
+   "Te queda"/DTI/fecha de libertad) — nada de un usuario Beta topándose con "producto no
+   soportado". El grep §32 de cierre lo cubre.
+4. **Alta mínima por tipo** (guardarraíl B) — cada uno pide su mínimo obligatorio; el resto,
+   progresivo. Catálogo amplio + alta estrecha a la vez.
+5. La **profundidad avanzada por producto** (confirmación mensual, retanqueo, refinanciación,
+   abonos extraordinarios) queda **fuera de FIN-032** — va en FIN hijas (FIN-033+), declaradas.
+6. Toca Registrar/Transacciones (autorizado por el Fundador para toda la iniciativa).
+
+**Condición de cierre auditable:** tests que registren los 4 arquetipos y verifiquen sus cifras
+núcleo sin rama especial + grep §32. Entrega con SHA para validación del CTO.
+
+**MENSAJE PARA ARQUITECTO** — emitir `ARQ-0032` (la fundación) con (a)–(d) y la prueba contra
+los 4 arquetipos como condición de cierre.

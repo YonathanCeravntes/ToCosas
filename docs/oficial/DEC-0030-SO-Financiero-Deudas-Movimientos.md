@@ -82,3 +82,23 @@ piezas y por construcción §42:
   FIN-029). Roadmap; depende de FIN-029 (cerrada) y de la espina.
 
 El IMP sigue **uno a la vez** (§36.2). Emito la directiva de `ARQ-0031` al Arquitecto.
+
+## 6. Criterio de cierre del umbrella FIN-030 (Fundador + CPSAO, 2026-07-14)
+
+FIN-030 **NO se cierra** representando solo tarjeta + préstamo genérico. Criterio de
+aceptación (evidencia, no promesa), afinado por el CPSAO como testable:
+- **(a)** los **11 tipos** en el catálogo como ciudadanos de 1ª clase;
+- **(b)** la espina **validada contra los 4 arquetipos estructuralmente divergentes** —
+  **libranza** (descuento de nómina), **hipoteca** (amortización larga + seguro endosable +
+  tasa fija/variable), **préstamo informal/gota a gota** (sin cronograma formal, interés
+  opcional/pactado), **compra a cuotas** (con/sin interés, diferido) — **sin ramas ad-hoc**
+  (si esos 4 caben por configuración, los 11 caben);
+- **(c)** los **11 registrables con números núcleo correctos** (cuota/saldo/"Te queda"/DTI/
+  fecha de libertad) por las fuentes únicas §32 (FIN-021/022/023), no por lógica por-tipo —
+  ningún usuario Beta topándose con "producto no soportado aún";
+- **(d)** **alta mínima por tipo** (guardarraíl B): catálogo amplio + alta estrecha a la vez.
+
+La **profundidad avanzada por producto** (confirmación mensual, retanqueo/refinanciación,
+abonos extraordinarios) es **progresiva y declarada en backlog, NO bloqueante** del cierre de
+la fundación. **FIN-032** es la fundación que cumple (a)–(d); su cierre + el visto de producto
+del CPSAO consolidan FIN-030.
