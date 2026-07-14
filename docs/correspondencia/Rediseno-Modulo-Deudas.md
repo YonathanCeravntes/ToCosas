@@ -289,3 +289,66 @@ Fase 1** (espina + compra-con-tarjeta e2e) · `FIN-032` = resto de tipos (roadma
 
 **MENSAJE PARA ARQUITECTO** — emitir `ARQ-0031` (Fase 1) con la política de reversión declarada;
 entregar con SHA para validación del CTO.
+
+## 2026-07-14 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Estado**
+`ARQ-0031` (Fase 1) v1.0 emitido — `docs/arquitectura/ARQ-0031-Fase1-Espina-Compra-Tarjeta.md`, commit `HEAD` (rama de trabajo, §36.2). Alcance acotado: la espina + UN caso e2e (compra con tarjeta), NO los 11 tipos.
+
+**Conclusión**
+La condición de cierre —la política de reversión con dependientes (DEC-0030 §3.1)— está declarada como REGLA (§4.5), no como alternativa suelta: **sin cuotas pagadas → anulación limpia** (anular la transacción origen revierte la cascada por los mismos listeners); **con ≥1 cuota pagada → bloquear la anulación directa + ruta de corrección** (Alt A recomendada). Rechacé la reversión compensatoria (Alt B): un contra-asiento fantasma es reversible pero NO explicable — §42 exige ambas, y falsear el historial de una compra que ya movió plata real viola "nunca mentir hacia arriba". Es exactamente la protección de Confianza que el CPSAO pidió vigilar. El resto de la espina: cupo/saldo/cuotas DERIVADOS en un `CardService` hoja (§32, cero columna que se desincronice); la compra emite `CardPurchaseRegistered` con `sourceTransactionId` (causalidad G) y los consumidores existentes (Motor, teQueda) reaccionan sin fórmula nueva; sin duplicados (la compra actualiza la tarjeta, no crea 2ª deuda). **"Flujo de caja" queda FUERA de Fase 1** — no pasa el gate del DSS: "Te queda" ya responde su pregunta; solo se justificaría con la dimensión proyectiva de saldos futuros, que es otra FIN.
+
+**Puntos que pido verificar en tu AUD:** (1) que la política de reversión 4.5 cubre el borde §42 sin dejar un caso donde la cascada quede inconsistente; (2) que derivar saldo/cupo (no almacenarlos) es realmente §32-limpio y no introduce un problema de rendimiento; (3) que el modelo `CardPurchase`/`CardInstallment` no colisiona con la amortización única del `Debt` (son planos por compra, no el schedule del crédito).
+
+**Bloqueos**
+Ninguno. No implemento nada hasta el DEC-0031.
+
+MENSAJE PARA AUDITOR
+
+---
+
+## 2026-07-14 — De: Auditor — Para: CTO — CC: Arquitecto, CPSAO, Fundador
+
+**Estado**
+`AUD-0031` emitido. Veredicto: **APROBADO CON OBSERVACIONES**. Verificado contra `HEAD`.
+
+**Conclusión — tus 3 puntos (Arquitecto):**
+1. **Reversión §4.5:** cubre el borde §42 sin dejar cascada inconsistente. Alt A correcta; rechazo de Alt B bien razonado (reversible **y** explicable — un contra-asiento fantasma falsea el historial). Condición de cierre resuelta.
+2. **Derivar saldo/cupo:** §32-limpio (una fuente, cero columna que se desincronice); costo negligible, cache diferido bien declarado.
+3. **`CardInstallment` vs amortización del `Debt`:** no colisionan como *schedules* (planos por compra vs schedule del crédito) — **pero** aquí está la observación con peso: para una tarjeta, "lo comprometido" debe resolver a las `CardInstallment`, y hoy `SpendableService`/`DebtOutlayService` lo computan desde `Debt.monthlyPayment` (`debt-outlay.service.ts:40`), no desde un modelo de tarjeta.
+
+**Observación con peso (GAP §32):** las cuotas de tarjeta **no** fluyen solas a teQueda/desembolso. El IMP debe **extender `DebtOutlayService`** (autoridad única de "lo comprometido") para incluir `CardInstallment` — en **una** ruta, por inyección — nunca una 2ª ruta en `CardService` ni el `Debt.monthlyPayment` de la tarjeta como segundo origen. Corregir el §4.4/§8 del ARQ ("cero fórmula nueva/ya entra" es impreciso). El grep §32 de cierre debe cubrirlo — es donde el bug ×tipos entraría en Fase 1.
+
+**Bloqueos**
+Ninguno de diseño. El GAP es una corrección de encuadre + condición del grep de cierre, no un rediseño.
+
+MENSAJE PARA CTO
+
+---
+
+---
+
+## 2026-07-14 — De: CTO — Para: Arquitecto — CC: CPSAO, Auditor, Fundador
+
+**Asunto:** DEC-0031 emitida — IMP-0031 habilitado (Fase 1)
+**Estado:** Decidida. `IMP-0031` autorizado (primer IMP de la iniciativa FIN-030).
+
+Verifiqué el GAP §32 contra código: `DebtOutlayService.outlaysByUser` (`:40`) es la autoridad
+única de "lo comprometido" (la inyectan teQueda, presupuesto, Copiloto, Motor) y hoy computa
+desde `Debt.monthlyPayment` — las cuotas de tarjeta NO entran solas. El Auditor tiene razón.
+
+**Emite `IMP-0031` con los 4 cambios obligatorios de `DEC-0031` §3:**
+1. **Extiende `DebtOutlayService` para incluir `CardInstallment`** — UNA ruta, por inyección.
+   **Prohibido** una 2ª ruta en `CardService` o el `Debt.monthlyPayment` de la tarjeta como
+   segundo origen. Corrige el §4.4/§8 del ARQ. Con la extensión, todos los consumidores
+   (teQueda/presupuesto/Copiloto/Motor) incluyen las cuotas de tarjeta por construcción.
+2. **Grep §32 de cierre** cubre ese punto (una sola fuente de "lo comprometido" de la tarjeta).
+3. **Test de reversibilidad:** crear compra → efectos; anular sin cuotas pagadas → revierte;
+   anular con cuota pagada → bloqueado + ruta de corrección (política §4.5 aprobada).
+4. Alcance acotado: espina + compra-con-tarjeta. No los 11 tipos.
+
+Política de reversión §4.5 (Alt A) aprobada tal cual — rechazo de Alt B bien razonado.
+"Flujo de caja" fuera de Fase 1, correcto. Entrega con SHA.
+
+**MENSAJE PARA ARQUITECTO** — emitir `IMP-0031` con `DebtOutlayService` extendido (una autoridad);
+entregar con SHA para validación del CTO.
