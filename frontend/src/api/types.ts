@@ -27,9 +27,42 @@ export type DebtType =
   | 'educativo'
   | 'gota_a_gota'
   | 'prestamo_familiar'
-  | 'otro';
+  | 'otro'
+  // FIN-032: catálogo de 1ª clase.
+  | 'libranza'
+  | 'compra_a_cuotas'
+  | 'fintech';
 
 export type RateBasis = 'EA' | 'MV' | 'NMV' | 'NAMV';
+
+// --- FIN-032: catálogo de tipos (la única autoridad de tipo vive en el backend;
+// el frontend la CONSUME por /debts/catalog — cero literal de tipo en pantalla). ---
+export type ScheduleModel = 'amortizado' | 'cuotas_por_compra' | 'saldo_y_cuota_pactada';
+
+export interface ProductCapabilities {
+  creditLimit?: boolean;
+  installmentPurchases?: boolean;
+  endorsableInsurance?: boolean;
+}
+
+export interface ProductFieldSpec {
+  key: string;
+  label: string;
+  kind: 'text' | 'money' | 'int' | 'rate' | 'select';
+  placeholder?: string;
+  options?: Array<{ value: string; label: string }>;
+}
+
+export interface ProductTypeDescriptor {
+  debtType: DebtType;
+  label: string;
+  scheduleModel: ScheduleModel;
+  rate: 'fija' | 'fija_o_variable' | 'opcional';
+  paymentSource: 'cuenta' | 'nomina' | 'informal';
+  capabilities: ProductCapabilities;
+  requiredFields: ProductFieldSpec[];
+  optionalFields: ProductFieldSpec[];
+}
 
 /** Proyección del crédito calculada desde la tabla de amortización. */
 export interface DebtProjection {
@@ -58,6 +91,10 @@ export interface Debt {
   /** FIN-031: cupo total de una tarjeta de crédito (null en otros tipos). */
   creditLimit?: string | number | null;
   projection?: DebtProjection;
+  // FIN-032: el modelo/capacidades del tipo (del descriptor) — el detalle decide
+  // qué secciones muestra por MODELO, no por tipo.
+  scheduleModel?: ScheduleModel;
+  capabilities?: ProductCapabilities;
 }
 
 // --- FIN-031: tarjeta de crédito (cupo + compras a cuotas) ---

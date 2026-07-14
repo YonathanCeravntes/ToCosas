@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AmortizationService } from '../finance/amortization/amortization.service';
 import {
@@ -12,7 +12,8 @@ import { DebtOutlayService } from './debt-outlay.service';
 import { debtToAmortizationInput } from './debt-amortization.mapper';
 import { overdueDays } from './overdue.util';
 import { DebtInsuranceService } from './debt-insurance.service';
-import { CreateDebtDto, DebtTypeDto, UpdateDebtDto } from './dto/debt.dto';
+import { CreateDebtDto, UpdateDebtDto } from './dto/debt.dto';
+import { descriptorFor, productCatalog, scheduleModelFor } from './product-type.descriptor';
 
 @Injectable()
 export class DebtsService {
@@ -27,8 +28,18 @@ export class DebtsService {
   ) {}
 
   async create(userId: string, dto: CreateDebtDto) {
+    const model = scheduleModelFor(dto.debtType);
     const schedule = this.computeSchedule(dto);
     const nextDue = schedule.entries[0]?.dueDate ?? null;
+    // FIN-032: la cuota mensual (monthlyPayment = "lo comprometido") por modelo,
+    // sin ramificar por tipo:
+    //  - amortizado            → la cuota del plan de contrato;
+    //  - saldo_y_cuota_pactada → la cuota pactada que declara el usuario (informal);
+    //  - cuotas_por_compra     → null (se DERIVA de las compras — FIN-031).
+    const monthlyPayment =
+      model === 'amortizado' ? schedule.monthlyPayment
+      : model === 'saldo_y_cuota_pactada' ? (dto.monthlyPayment ?? null)
+      : null;
 
     // Deuda + evento de dominio en la misma transacción (patrón outbox, FIN-002).
     const debt = await this.outbox.withEvent(async (tx) => {
@@ -42,12 +53,13 @@ export class DebtsService {
           originalAmount: dto.originalAmount,
           currentBalance: dto.currentBalance,
           startDate: new Date(dto.startDate),
-          termMonths: dto.termMonths,
-          interestRate: dto.interestRate,
-          rateBasis: dto.rateBasis,
+          termMonths: dto.termMonths ?? null,
+          interestRate: dto.interestRate ?? 0,
+          rateBasis: dto.rateBasis ?? 'EA',
+          rateKind: dto.rateKind ?? 'fija',
           amortSystem: dto.amortSystem ?? 'frances',
-          monthlyPayment: schedule.monthlyPayment,
-          // FIN-031: cupo de la tarjeta (solo tarjeta de crédito; null para el resto).
+          monthlyPayment,
+          // FIN-031: cupo de la tarjeta (solo tarjetas con cupo; null para el resto).
           creditLimit: dto.creditLimit ?? null,
           paymentDay: dto.paymentDay ?? null,
           nextDueDate: nextDue ? new Date(nextDue) : null,
@@ -100,8 +112,12 @@ export class DebtsService {
 
     return debts.map((d) => {
       const g = byDebt.get(d.id);
+      const descriptor = descriptorFor(d.debtType);
       return {
         ...d,
+        // FIN-032: modelo/capacidades del tipo (una sola autoridad).
+        scheduleModel: descriptor.scheduleModel,
+        capabilities: descriptor.capabilities,
         // FIN-024 P2: estado de mora derivado en lectura (null = al día).
         overdueDays: overdueDays(d.nextDueDate),
         projection: {
@@ -124,8 +140,12 @@ export class DebtsService {
       },
     });
     if (!debt) throw new NotFoundException('Deuda no encontrada');
+    const descriptor = descriptorFor(debt.debtType);
     return {
       ...debt,
+      // FIN-032: el frontend decide qué secciones muestra por MODELO, no por tipo.
+      scheduleModel: descriptor.scheduleModel,
+      capabilities: descriptor.capabilities,
       // FIN-024 P2: para el bloque de conciliación del detalle.
       overdueDays: overdueDays(debt.nextDueDate),
       projection: this.projectionFromEntries(debt.amortization),
@@ -135,6 +155,11 @@ export class DebtsService {
         debt.insurances,
       ),
     };
+  }
+
+  /** FIN-032: el catálogo de tipos (guardarraíl A/B) que alimenta el alta del frontend. */
+  catalog() {
+    return productCatalog();
   }
 
   /** Proyección (intereses, total, cuotas, fecha fin) a partir de la tabla guardada. */
@@ -261,11 +286,12 @@ export class DebtsService {
   }
 
   private computeSchedule(dto: CreateDebtDto): AmortizationResult {
-    // FIN-031: una tarjeta de crédito NO tiene un plan de amortización de contrato
-    // (principal/plazo fijos). Su cuota mensual y su saldo se DERIVAN de las
-    // compras a cuotas (CardService / DebtOutlayService, §32). Por eso se crea sin
-    // tabla de amortización — evita amortizar un principal 0 (que además reventaría).
-    if (dto.debtType === DebtTypeDto.tarjeta_credito) {
+    // FIN-032: solo el modelo `amortizado` tiene un plan de contrato. La tarjeta
+    // (`cuotas_por_compra`, saldo/cuota DERIVADOS de las compras — FIN-031) y el
+    // informal (`saldo_y_cuota_pactada`, cuota pactada + saldo por pagos, SIN fecha
+    // de libertad falsa — §29.2) se crean sin tabla de amortización. El despacho es
+    // por `scheduleModel`, nunca por `debtType` (§32).
+    if (scheduleModelFor(dto.debtType) !== 'amortizado') {
       return {
         monthlyRate: 0,
         monthlyPayment: 0,
@@ -276,10 +302,13 @@ export class DebtsService {
         entries: [],
       };
     }
+    if (!dto.termMonths || dto.termMonths <= 0) {
+      throw new BadRequestException('Este producto necesita un plazo (número de cuotas) para calcular tu plan.');
+    }
     const input = debtToAmortizationInput({
       currentBalance: dto.currentBalance,
-      interestRate: dto.interestRate,
-      rateBasis: dto.rateBasis,
+      interestRate: dto.interestRate ?? 0,
+      rateBasis: dto.rateBasis ?? 'EA',
       termMonths: dto.termMonths,
       startDate: new Date(dto.startDate),
       amortSystem: dto.amortSystem,

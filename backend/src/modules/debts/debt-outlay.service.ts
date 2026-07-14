@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { paymentBreakdown } from './payment-breakdown.util';
+import { scheduleModelFor } from './product-type.descriptor';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -48,15 +49,17 @@ export class DebtOutlayService {
     const byDebt = new Map<string, DebtOutlay>();
     let total = 0;
     for (const d of debts) {
-      // Compromiso base de la tarjeta = suma de la PRÓXIMA cuota no pagada de
-      // cada compra viva (la factura del mes). Sin compras, cae a monthlyPayment
-      // (regresión: tarjeta sin el modelo nuevo se comporta como hoy).
+      // FIN-032: el compromiso base se despacha por `scheduleModel`, nunca por el
+      // tipo. Para `cuotas_por_compra` (tarjeta/fintech) es la suma de la PRÓXIMA
+      // cuota no pagada de cada compra viva (la factura del mes); sin compras cae a
+      // monthlyPayment (regresión). Para `amortizado` y `saldo_y_cuota_pactada`
+      // (informal, cuota pactada) es `monthlyPayment`. Una sola autoridad (§32).
       const cardMonthly = d.cardPurchases.reduce((acc, p) => {
         const next = p.installments[0];
         return acc + (next ? Number(next.amount) : 0);
       }, 0);
       const base =
-        d.debtType === 'tarjeta_credito' && d.cardPurchases.length > 0
+        scheduleModelFor(d.debtType) === 'cuotas_por_compra' && d.cardPurchases.length > 0
           ? cardMonthly
           : Number(d.monthlyPayment ?? 0);
       const b = paymentBreakdown(base, d.insurances);

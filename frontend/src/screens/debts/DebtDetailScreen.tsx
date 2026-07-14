@@ -45,16 +45,20 @@ export function DebtDetailScreen({ route }: Props) {
   }
 
   const amort = data.amortization ?? [];
-  // FIN-031: una tarjeta de crédito NO es un crédito de contrato: su saldo/cuota
-  // se derivan de las compras (CardService, §32). Por eso el detalle de una
-  // tarjeta muestra SOLO su sección de cupo/compras y oculta la UI de
-  // amortización (saldo fijo, plan de pago, abono a capital, simulador), que con
-  // saldo 0 mostraría "$0" y mentiría. La experiencia completa llega en el umbrella.
-  const isCard = data.debtType === 'tarjeta_credito';
+  // FIN-032: el detalle decide sus secciones por MODELO de cronograma (del
+  // descriptor), NUNCA por el tipo. Un solo despacho por `scheduleModel`:
+  //  - `cuotas_por_compra` (tarjeta/fintech): oculta el hero de saldo fijo y muestra
+  //    la sección de cupo/compras (la espina, FIN-031);
+  //  - `amortizado`: hero + toda la UI de amortización (plan, abono, simulador…);
+  //  - `saldo_y_cuota_pactada` (informal): hero de saldo + cuota pactada, SIN plan de
+  //    pago ni fecha de libertad falsa (§29.2).
+  const model = data.scheduleModel ?? 'amortizado';
+  const hasCard = !!data.capabilities?.installmentPurchases;
+  const isAmortized = model === 'amortizado';
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
-      {!isCard ? (
+      {model !== 'cuotas_por_compra' ? (
         <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
           <Text style={{ color: colors.textInverse, opacity: 0.8 }}>Saldo pendiente</Text>
           <Text style={{ color: colors.textInverse, fontSize: 30, fontWeight: '800' }}>
@@ -63,18 +67,24 @@ export function DebtDetailScreen({ route }: Props) {
           <Text style={{ color: colors.textInverse, opacity: 0.85, marginTop: 4 }}>
             Cuota mensual {formatMoney(toNumber(data.monthlyPayment))}
           </Text>
+          {/* Informal (§29.2): se dice la verdad — sin cronograma, no hay fecha falsa. */}
+          {model === 'saldo_y_cuota_pactada' ? (
+            <Text style={{ color: colors.textInverse, opacity: 0.7, marginTop: 6, fontSize: 12 }}>
+              Sin cronograma formal — registras el saldo y tu cuota pactada.
+            </Text>
+          ) : null}
         </Card>
       ) : null}
 
-      {/* FIN-031: tarjeta de crédito — cupo y compras a cuotas (la espina). */}
-      {isCard ? <CardSection debtId={debtId} onChanged={() => void reload()} /> : null}
+      {/* FIN-031/032: productos con cupo (tarjeta/fintech) — compras a cuotas. */}
+      {hasCard ? <CardSection debtId={debtId} onChanged={() => void reload()} /> : null}
 
       {/* FIN-024 P2: bloque de conciliación — solo si la cuota está vencida.
           Afirma lo OBSERVABLE ("no está registrada"), nunca el impago (§29.2). */}
       {data.overdueDays ? <OverdueBlock days={data.overdueDays} /> : null}
 
       {/* Resumen del crédito: cuándo termina, intereses y total a pagar */}
-      {!isCard && data.projection ? (
+      {isAmortized && data.projection ? (
         <Card>
           <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
             📅 Resumen del crédito
@@ -107,12 +117,12 @@ export function DebtDetailScreen({ route }: Props) {
       ) : null}
 
       {/* FIN-012: abono a capital y pago total anticipado (REALES) */}
-      {!isCard && data.status === 'activa' ? (
+      {isAmortized && data.status === 'activa' ? (
         <PrepaySection debtId={debtId} balance={toNumber(data.currentBalance)} onChanged={() => void reload()} />
       ) : null}
 
       {/* FIN-013: seguros del crédito y desglose de cuota real */}
-      {!isCard ? (
+      {isAmortized ? (
         <InsuranceSection
           debtId={debtId}
           insurances={data.insurances ?? []}
@@ -122,7 +132,7 @@ export function DebtDetailScreen({ route }: Props) {
       ) : null}
 
       {/* Simulador de abono extra */}
-      {!isCard ? (
+      {isAmortized ? (
       <Card>
         <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
           💡 Simulador de abono extra
@@ -163,8 +173,8 @@ export function DebtDetailScreen({ route }: Props) {
       </Card>
       ) : null}
 
-      {/* Tabla de amortización (primeras cuotas) — no aplica a una tarjeta. */}
-      {!isCard ? (
+      {/* Tabla de amortización (primeras cuotas) — solo para modelo amortizado. */}
+      {isAmortized ? (
         <>
           <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
             Plan de pago

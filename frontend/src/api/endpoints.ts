@@ -13,6 +13,7 @@ import {
   Dashboard,
   CardSummary,
   Debt,
+  ProductTypeDescriptor,
   DebtInsurance,
   DebtsSummary,
   HomeDashboard,
@@ -51,6 +52,8 @@ export const authApi = {
 export const debtsApi = {
   list: () => api.get<Debt[]>('/debts'),
   summary: () => api.get<DebtsSummary>('/debts/summary'),
+  // FIN-032: el catálogo de tipos (la única autoridad de tipo) que arma el alta.
+  catalog: () => api.get<ProductTypeDescriptor[]>('/debts/catalog'),
   get: (id: string) =>
     api.get<
       Debt & {
@@ -225,9 +228,13 @@ export interface CreateDebtInput {
   originalAmount: number;
   currentBalance: number;
   startDate: string;
-  termMonths: number;
-  interestRate: number;
-  rateBasis: string;
+  // FIN-032: opcionales — el servicio exige plazo solo para tipos amortizados y
+  // cuota pactada solo para informales (según el descriptor).
+  termMonths?: number;
+  interestRate?: number;
+  rateBasis?: string;
+  rateKind?: 'fija' | 'variable';
+  monthlyPayment?: number;
   paymentDay?: number;
   // FIN-031: cupo de la tarjeta de crédito (el saldo se deriva de sus compras).
   creditLimit?: number;

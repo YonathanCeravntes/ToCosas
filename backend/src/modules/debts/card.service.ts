@@ -4,6 +4,7 @@ import { OutboxService } from '../events/outbox.service';
 import { DomainEventType } from '../events/domain-events';
 import { AmortizationService } from '../finance/amortization/amortization.service';
 import { toMonthlyEffectiveRate } from '../finance/amortization/interest.util';
+import { descriptorFor } from './product-type.descriptor';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -176,8 +177,10 @@ export class CardService {
   private async ensureCardOwned(userId: string, debtId: string) {
     const debt = await this.prisma.debt.findFirst({ where: { id: debtId, userId, deletedAt: null } });
     if (!debt) throw new NotFoundException('Tarjeta no encontrada');
-    if (debt.debtType !== 'tarjeta_credito') {
-      throw new BadRequestException('Este producto no es una tarjeta de crédito');
+    // FIN-032: por CAPACIDAD del descriptor (tarjeta/fintech), no por el tipo — así
+    // un producto nuevo con compras a cuotas se habilita por configuración (§32/F).
+    if (!descriptorFor(debt.debtType).capabilities.installmentPurchases) {
+      throw new BadRequestException('Este producto no maneja compras a cuotas');
     }
     return debt;
   }

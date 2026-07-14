@@ -38,6 +38,11 @@ enum DebtType {
   gota_a_gota
   prestamo_familiar
   otro
+  // FIN-032: catálogo de 1ª clase — extensión pura (los descriptores viven en
+  // product-type.descriptor.ts). libranza/compra_a_cuotas/fintech completan los 11.
+  libranza
+  compra_a_cuotas
+  fintech
 }
 
 enum RateKind {

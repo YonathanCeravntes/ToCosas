@@ -23,6 +23,10 @@ export enum DebtTypeDto {
   gota_a_gota = 'gota_a_gota',
   prestamo_familiar = 'prestamo_familiar',
   otro = 'otro',
+  // FIN-032: catálogo de 1ª clase.
+  libranza = 'libranza',
+  compra_a_cuotas = 'compra_a_cuotas',
+  fintech = 'fintech',
 }
 
 export enum RateBasisDto {
@@ -30,6 +34,11 @@ export enum RateBasisDto {
   MV = 'MV',
   NMV = 'NMV',
   NAMV = 'NAMV',
+}
+
+export enum RateKindDto {
+  fija = 'fija',
+  variable = 'variable',
 }
 
 export enum AmortSystemDto {
@@ -69,25 +78,47 @@ export class CreateDebtDto {
   @IsISO8601()
   startDate!: string;
 
-  @ApiProperty({ example: 180 })
+  // FIN-032: opcional a nivel DTO — el servicio lo EXIGE solo para los tipos
+  // `amortizado` (según el descriptor); un gota a gota / tarjeta no lo necesita.
+  @ApiPropertyOptional({ example: 180 })
+  @IsOptional()
   @NormalizeNumber()
   @IsInt()
   @IsPositive()
-  termMonths!: number;
+  termMonths?: number;
 
   // BT-001: `interestRate` es Decimal(7,4) en BD (máx 999.9999). El @Max evita
   // que un valor fuera de rango desborde la columna y produzca un 500 — devuelve
   // un 400 claro. @NormalizeNumber acepta "15,35"/"15.35"/"1535" (formato regional).
-  @ApiProperty({ example: 12.5, description: 'Tasa en porcentaje' })
+  // FIN-032: opcional — informal (interés pactado/opcional) y tarjeta pueden no
+  // declararla; el servicio la trata como 0 si falta.
+  @ApiPropertyOptional({ example: 12.5, description: 'Tasa en porcentaje' })
+  @IsOptional()
   @NormalizeNumber()
   @IsNumber()
   @Min(0)
   @Max(999.9999)
-  interestRate!: number;
+  interestRate?: number;
 
-  @ApiProperty({ enum: RateBasisDto, default: RateBasisDto.EA })
+  @ApiPropertyOptional({ enum: RateBasisDto, default: RateBasisDto.EA })
+  @IsOptional()
   @IsEnum(RateBasisDto)
-  rateBasis!: RateBasisDto;
+  rateBasis?: RateBasisDto;
+
+  // FIN-032: hipoteca declara fija/variable; el resto queda fija por defecto.
+  @ApiPropertyOptional({ enum: RateKindDto, default: RateKindDto.fija })
+  @IsOptional()
+  @IsEnum(RateKindDto)
+  rateKind?: RateKindDto;
+
+  // FIN-032: cuota pactada — la fuente del compromiso para `saldo_y_cuota_pactada`
+  // (gota a gota / informal), que no tiene plan de amortización de contrato.
+  @ApiPropertyOptional({ example: 150000, description: 'Cuota mensual pactada (informal)' })
+  @IsOptional()
+  @NormalizeNumber()
+  @IsNumber()
+  @IsPositive()
+  monthlyPayment?: number;
 
   @ApiPropertyOptional({ enum: AmortSystemDto, default: AmortSystemDto.frances })
   @IsOptional()

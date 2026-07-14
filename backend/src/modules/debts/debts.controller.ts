@@ -38,6 +38,12 @@ export class DebtsController {
     return this.debts.summaryForUser(user.id);
   }
 
+  // FIN-032: catálogo de tipos (la única autoridad de tipo) — alimenta el alta.
+  @Get('catalog')
+  catalog() {
+    return this.debts.catalog();
+  }
+
   // --- FIN-031 · Tarjeta de crédito: cupo y compras a cuotas (antes de ':id') ---
 
   @Get('cards/:debtId')
