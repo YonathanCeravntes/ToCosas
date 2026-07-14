@@ -11,12 +11,13 @@
 | 🔒 **PIA** (evaluación de impacto en privacidad, DEC-0005 §14.4) | ⏳ Pendiente | CTO |
 | 🔒 **Revisión legal final** de la documentación completa (consentimiento, términos, DPA) | ⏳ Pendiente | Fundador + abogado |
 | 🔒 **Políticas de tienda** (Apple/Google) para apps financieras con IAP (DEC-0009 §9) | ⏳ Pendiente de validación antes del review de tienda | Fundador/CTO |
+| 🔒 **Validación legal formal del Score Millo** (DEC-0004 §10.3 / DEC-0001 §10.7) — el Score está activado en Beta cerrada por decisión ejecutiva (BT-006), pero esta validación es **obligatoria antes del lanzamiento PÚBLICO** | ⏳ Pendiente | Fundador + abogado |
 
 ## 2. Flags técnicos de producción (default: apagados)
 
 | Variable | Default | Se enciende cuando |
 |---|---|---|
-| `HEALTH_SCORE_PRODUCTION_ENABLED` | `false` | Revisión legal del Score aprobada (DEC-0004 §10.3) |
+| `HEALTH_SCORE_PRODUCTION_ENABLED` | ~~`false`~~ → **`true` en Beta Técnica cerrada** (decisión ejecutiva del Fundador, 2026-07-14, BT-006) | **Encendido para la Beta cerrada** porque el Score es 100% determinista (cero IA) y ya trae disclaimers ("no es puntaje crediticio", encuadre educativo) + guardarraíl Ley 1266. **⚠️ La revisión legal formal del Score (DEC-0004 §10.3 / DEC-0001 §10.7) SIGUE siendo OBLIGATORIA y bloqueante antes del lanzamiento PÚBLICO.** |
 | `COPILOT_PRODUCTION_ENABLED` | `false` | Revisión legal final aprobada (DEC-0005 §15) |
 | `ANTHROPIC_API_KEY` | vacía | DPA + PIA resueltos (DEC-0005 §14.3/§14.4) |
 | `MILLOPLUS_PRICE_COP` | `0` (placeholder) | El fundador fija precio con la telemetría de costo (`GET /billing/admin/cost-report`, DEC-0009 §10.5) |

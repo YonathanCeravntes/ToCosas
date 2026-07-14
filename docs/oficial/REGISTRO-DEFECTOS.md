@@ -16,7 +16,7 @@
 | BT-003 | La app mostraba "Sin conexión con el backend" pese a que Render/`/v1/health` respondían. **Incidente causado por el CTO** al publicar el primer OTA: `eas update` no hereda el `env` del perfil de build → el bundle cayó al fallback `localhost`. | **Defecto operativo/de configuración** (despliegue OTA). No es FIN. | ✅ **Corregido y publicado por OTA** | Ver detalle abajo. |
 | BT-004 | Un ingreso fijo **declarado** (perfil de ingresos, FIN-027) no aparece en "Te queda para gastar". | **Decisión de producto del Fundador** — cambia la definición §32 de "Te queda". | ✅ **Resuelto** (decisión del Fundador, 2026-07-14) — implementado y verificado | Análisis + resolución abajo. Commit del fix registrado. |
 | BT-005 | Al anular un pago de deuda desde la app, el botón "Guardar" queda cargando y "Anular" no se habilita (parece colgado). | **Defecto de experiencia** — el backend anula bien (0.93s, deuda regenerada); la petición se cuelga sin timeout cuando el backend está dormido (Render free). | ✅ **Corregido** (timeout en el cliente HTTP) + deuda del Fundador regenerada manualmente | Detalle abajo. |
-| BT-006 | Salud muestra "Score Millo: —" sin contexto. | **Dos partes:** (a) el Score está **apagado en producción por gate LEGAL** (`HEALTH_SCORE_PRODUCTION_ENABLED=false`, `DEC-0004` §10.3) → backend 503; (b) el frontend no manejaba ese 503 y mostraba un "—" mudo → **defecto de experiencia**. | (a) 🟡 **Escalado al Fundador** (encender el Score cruza el gate legal); (b) ✅ **Corregido** (mensaje contextual en vez de "—") | Detalle abajo. |
+| BT-006 | Salud muestra "Score Millo: —" sin contexto. | **Dos partes:** (a) el Score estaba **apagado en producción por gate LEGAL** (`HEALTH_SCORE_PRODUCTION_ENABLED=false`, `DEC-0004` §10.3) → backend 503; (b) el frontend no manejaba ese 503 y mostraba un "—" mudo → **defecto de experiencia**. | (a) ✅ **Score ACTIVADO en Beta cerrada** por decisión ejecutiva del Fundador (2026-07-14); (b) ✅ **Corregido** (mensaje contextual) | Detalle + resolución abajo. |
 
 ---
 
@@ -220,6 +220,19 @@ información suficiente.
 **Recomendación del CTO:** (b) resuelve tu requisito inmediato ("no un guion sin contexto")
 sin riesgo. (a) es una decisión aparte que conviene coordinar con la revisión legal del Score
 antes de exponerlo con datos reales.
+
+**Resolución (a) — Decisión ejecutiva del Fundador, 2026-07-14:** informe puntual del CTO —
+el Score es **100% determinista (cero IA)**, `health.service.ts:37` / `score.util.ts`; el
+gate es puramente legal (`HealthProductionGuard`, DEC-0004 §10.3 / DEC-0001 §10.7), no IA ni
+compartir a terceros (ya controlado, Ley 1266). El Fundador **autorizó activar el Score para
+la Beta Técnica CERRADA** con condiciones: identificado como indicador propio de Millo, **no**
+como score crediticio ni calificación oficial de riesgo, con textos de carácter educativo, y
+la **validación legal formal como requisito OBLIGATORIO antes del lanzamiento público**
+(registrado en `PRODUCCION.md` §1 y §2). Acción: `HEALTH_SCORE_PRODUCTION_ENABLED=true`
+(`render.yaml` + panel de Render). Las condiciones (disclaimer "no es puntaje crediticio",
+escala educativa, no-compartir) ya estaban construidas y aprobadas en el diseño de FIN-004.
+- **Estado:** ✅ Ambas partes resueltas. Validación del cálculo y la visualización tras
+  encender el flag.
 
 ## Historial
 - 2026-07-13 — Creación del registro. BT-001 corregido y verificado; BT-002 encauzado a
