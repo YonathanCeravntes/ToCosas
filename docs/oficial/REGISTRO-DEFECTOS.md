@@ -80,6 +80,16 @@ estaba operativo.
 **Lección permanente (documentada en `docs/tecnico/EAS-UPDATE.md`):** `eas update` no hereda
 el `env` del perfil de build; el fallback de URL debe ser producción, nunca `localhost`.
 
+**Cierre institucional (política del Fundador, `GOBERNANZA.md` §40):** BT-003 no cierra como
+"bug corregido" sino como **mejora permanente del proceso de despliegue**. Se construyó un
+**gate automático** (`frontend/scripts/deploy/preflight-ota.mjs`) que **bloquea** la
+publicación si detecta `localhost`/host local, variables faltantes, config inconsistente,
+canal/runtime inválidos o `/health` caído; y la **vía única** `npm run ota:publish`
+(`publish-ota.mjs`) que corre el gate y exige el **dispositivo centinela** antes de publicar.
+Verificado por el CTO en ambos sentidos: config correcta → pasa (exit 0); `localhost`
+reintroducido (simulación BT-003) → **bloquea** (exit 1). Prohibido correr `eas update`
+directamente.
+
 ## Historial
 - 2026-07-13 — Creación del registro. BT-001 corregido y verificado; BT-002 encauzado a
   FIN-028. Directriz de gestión de defectos institucionalizada (`GOBERNANZA.md` §38) e

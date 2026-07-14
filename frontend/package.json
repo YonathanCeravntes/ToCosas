@@ -8,7 +8,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint \"src/**/*.{ts,tsx}\""
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "ota:preflight": "node scripts/deploy/preflight-ota.mjs",
+    "ota:publish": "node scripts/deploy/publish-ota.mjs"
   },
   "dependencies": {
     "@react-native-community/datetimepicker": "8.4.4",

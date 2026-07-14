@@ -1,7 +1,7 @@
 # Gobernanza oficial del proyecto Milla
 
-- **Versión:** 3.16
-- **Fecha de adopción:** 2026-07-13
+- **Versión:** 3.17
+- **Fecha de adopción:** 2026-07-14
 - **Autor:** CTO, propuesta del CPSAO, ratificada por el Fundador (Yonathan Cervantes)
 - **Estado:** Vigente
 - **Historial de cambios:**
@@ -129,6 +129,13 @@
     numéricos** (sección 39), motivado por `BT-001` (un 500 al registrar `15,35`): todo
     campo numérico acepta coma/punto decimal y enteros, normalizado antes del Motor, sin
     error por formato regional.
+  - **v3.17 (2026-07-14) — esta versión.** Añade el **gate obligatorio de despliegue OTA**
+    (sección 40) a raíz de `BT-003` (un OTA llegó a usuarios apuntando a `localhost` por una
+    suposición sobre `eas update`): ningún OTA se publica solo porque compile; un gate
+    automático (`scripts/deploy/preflight-ota.mjs`) bloquea la publicación ante
+    `localhost`/variables faltantes/config inconsistente/`/health` caído; vía única de
+    publicación (`npm run ota:publish`, prohibido `eas update` directo); y dispositivo
+    centinela previo a ampliar a todos los usuarios.
 
 Todo cambio que afecte **lógica de negocio, arquitectura, base de datos, seguridad,
 IA, APIs, permisos, integraciones, monetización o experiencia funcional** sigue este
@@ -1109,6 +1116,36 @@ Todo DTO futuro con campos numéricos expuestos al usuario debe aplicar `@Normal
 
 **Ratificación:** decisión del Fundador (Yonathan Cervantes), 2026-07-13, en la misma
 instrucción de `BT-001`.
+
+## 40. Publicación segura — gate obligatorio de despliegue OTA (nueva en v3.17)
+
+**Origen (no hipotético):** `BT-003` (2026-07-14) — un OTA llegó a usuarios reales
+apuntando a `localhost` (el backend estaba operativo; falló el **proceso de liberación**,
+que dependió de una suposición sobre el comportamiento de `eas update`). El Fundador
+estableció que un CTO no construye héroes que resuelven incidentes, sino **procesos que
+hacen muy difícil que el incidente ocurra**.
+
+**Regla permanente:**
+1. **Ningún OTA se publica solo porque compile.** Antes de publicar debe validarse la
+   **configuración efectiva que recibirá el usuario**, no solo que el bundle exista.
+2. **Gate automático que bloquea** (`frontend/scripts/deploy/preflight-ota.mjs`): la
+   publicación se detiene automáticamente si detecta `localhost`/host local, variables
+   faltantes, configuración inconsistente, canal/runtime inválidos o `/health` caído.
+   Checklist mínimo: canal · runtime · **URL final de producción** · variables críticas ·
+   `/health` 200 · **ausencia total de referencias a `localhost`** en el bundle.
+3. **Vía única de publicación** (`npm run ota:publish`, `scripts/deploy/publish-ota.mjs`):
+   **prohibido** correr `eas update` directamente. El wrapper corre el gate y solo publica
+   si pasa.
+4. **Dispositivo centinela:** todo OTA se instala y verifica primero en un dispositivo
+   interno (apertura · autenticación · consumo del backend · navegación) antes de ampliarlo
+   al resto de usuarios; el operador lo declara explícitamente al publicar.
+5. **Aprendizaje institucional:** este proceso es el verdadero cierre de `BT-003` — si en el
+   futuro otro integrante publica un OTA, el procedimiento le impide repetir el mismo error.
+   Detalle operativo en `docs/tecnico/EAS-UPDATE.md`.
+
+**Ratificación:** instrucción directa del Fundador (Yonathan Cervantes), 2026-07-14
+("Llamado de atención formal — Incidente BT-003 y fortalecimiento obligatorio del proceso
+de despliegue").
 
 ---
 

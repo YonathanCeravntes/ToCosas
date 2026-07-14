@@ -65,12 +65,40 @@ Todos los comandos se corren desde `frontend/`. En Windows CMD:
 `set EAS_NO_VCS=1 && npx eas-cli <...>`.
 
 ### 4.1 Publicar una actualización OTA (el caso común, 99% de los cambios)
+
+**PROHIBIDO correr `eas update` directamente** (política obligatoria tras BT-003). La
+única vía autorizada es el wrapper con gate automático:
 ```
-set EAS_NO_VCS=1 && npx eas-cli update --branch preview --message "descripción del cambio"
+npm run ota:publish -- --branch preview --message "descripción" --sentinel "<dispositivo> — OK"
 ```
-- `--branch preview` → llega a los dispositivos con un build del perfil `preview`.
+El wrapper (`scripts/deploy/publish-ota.mjs`):
+1. corre el **gate `ota:preflight`** — si algo es inseguro, **no publica** (exit 1);
+2. exige la confirmación del **dispositivo centinela** (`--sentinel`);
+3. solo entonces ejecuta `eas update` con la URL de producción explícita.
+
+Para probar el gate sin publicar: `npm run ota:preflight -- preview`.
 - Para producción real: `--branch production`.
 - El usuario recibe el cambio **la próxima vez que abre la app** (política `ON_LOAD`).
+
+### 4.1.1 Checklist obligatorio de publicación OTA (automatizado — política del Fundador, BT-003)
+
+Ningún OTA se publica solo porque compile. El gate `preflight-ota.mjs` valida
+**automáticamente** la configuración efectiva que recibirá el usuario y **bloquea** si falla:
+
+| Validación | Cómo la comprueba el gate |
+|---|---|
+| Canal correcto | `development`/`preview`/`production` |
+| Runtime correcto | `runtimeVersion` presente en la config |
+| **URL final de producción** | `expo config` → `extra.apiUrl` === URL de producción, `https`, no local |
+| Variables críticas | `updates.url` presente (expo-updates configurado) |
+| **Ausencia total de `localhost`** | export del bundle + barrido de `//localhost`, `localhost:PORT`, `127.0.0.1` |
+| Endpoint `/health` | `GET <prod>/v1/health` → 200 |
+| **Dispositivo centinela** | el wrapper exige `--sentinel` (verificación manual en dispositivo interno) |
+
+**Dispositivo centinela (paso 4 de la política):** antes de ampliar a todos los usuarios, el
+OTA se instala y verifica en un dispositivo interno del equipo: apertura · autenticación ·
+consumo del backend · navegación básica. El operador lo declara con `--sentinel` (queda en
+el mensaje del update para trazabilidad).
 
 ### 4.2 Generar un build nuevo (solo primera instalación o cambio nativo)
 ```
