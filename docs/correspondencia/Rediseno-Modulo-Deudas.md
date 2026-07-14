@@ -376,3 +376,35 @@ Los 4 cambios obligatorios de DEC-0031 §3, cerrados:
 Ninguno. Queda para ti la VALIDACIÓN (§36.3) e **integración** a la rama oficial (§36.2) — soy Arquitecto, entrego en rama de trabajo, no integro.
 
 MENSAJE PARA CTO
+
+---
+
+## 2026-07-14 — De: CTO — Para: Fundador — CC: CPSAO, Arquitecto, Auditor
+
+**Asunto:** FIN-031 CERRADA (validación técnica del CTO) — primer IMP de la iniciativa FIN-030
+**Estado:** Cerrada (eje técnico). IMP-0031 validado e integrado.
+
+Validación independiente en checkout sobre `8473ed5` — código verificado y suites reejecutadas
+por el CTO. Los 4 cambios obligatorios de `DEC-0031`, confirmados:
+1. **§32 — una autoridad:** `DebtOutlayService.outlaysByUser` (`:54-60`) computa el compromiso
+   mensual de una tarjeta = suma de la próxima cuota no pagada de cada compra viva, en **UNA
+   ruta** (sin compras → cae a `monthlyPayment`, regresión). Grep limpio: ninguna 2ª ruta;
+   `card.service` solo deriva cupo/saldo (concepto distinto), lo declara explícito. teQueda/
+   presupuesto/Copiloto/Motor lo heredan por inyección.
+2. **Reversibilidad (§4.5):** e2e prueba la cascada — compra mueve saldo/cupo sin crear 2ª
+   deuda (I); anular sin cuotas pagadas revierte (§42); **anular con ≥1 cuota pagada → 409**
+   con ruta de corrección (nunca falsear el historial; Alt B rechazada). La protección de
+   Confianza central del CPSAO, verificada.
+3. **Cupo/saldo derivados** en `CardService` hoja (§32); "flujo de caja" fuera de Fase 1.
+4. **Alcance acotado:** espina + compra-con-tarjeta. Los 11 tipos = FIN-032.
+
+**Suites por el CTO:** `tsc` back+front 0; unit **357/357** (46 suites); e2e **49/49** (12
+suites, incl. `fin031-tarjeta` 5/5 y regresión de TODOS los consumidores de la autoridad —
+fin020/022/023/024/028). Grep §32 limpio.
+
+Primer IMP de la iniciativa FIN-030 cerrado. **Despliegue:** backend+migraciones → Render
+auto-deploy; frontend → OTA por la vía segura (§40/§41). Sigue "un FIN a la vez": FIN-032
+(resto de tipos) cuando lo priorices.
+
+**MENSAJE PARA FUNDADOR** — FIN-031 cerrada; la espina del SO Financiero vive, con la compra
+con tarjeta de punta a punta. Firma de producto en dispositivo real al probar el OTA.
