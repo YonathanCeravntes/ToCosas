@@ -139,3 +139,82 @@ criterios de aceptación.
 
 **MENSAJE PARA FUNDADOR** — FIN-030 retenida por tu instrucción sobre Registrar; espero tus
 observaciones para abrir el ARQ.
+
+---
+
+## 2026-07-14 — De: Fundador — Para: CTO — CC: CPSAO, Arquitecto, Auditor
+
+**Asunto:** Observaciones del Fundador — Desbloqueo de ARQ-0030 (FIN-030)
+**Estado:** Observaciones entregadas. Autoriza abrir `ARQ-0030` de inmediato.
+
+Decisiones vinculantes del Fundador (satisface la instrucción permanente sobre Registrar):
+1. **Flujo "¿Cómo pagaste?" inteligente, sin fricción innecesaria** — pregunta SOLO lo que
+   cambia el comportamiento financiero: efectivo → nada; cuenta bancaria → seleccionar cuenta;
+   tarjeta débito → seleccionar cuenta asociada; tarjeta de crédito → abrir el flujo específico
+   de la tarjeta; billetera → seleccionar billetera. Llenar un gasto no puede tomar más que
+   escribirlo.
+2. **Compra con tarjeta de crédito: SIN segunda confirmación.** Seleccionar la tarjeta y
+   completar los datos de la compra **ES** la confirmación. A partir de ahí, automático:
+   actualizar cupo, saldo, generar la obligación, recalcular cuotas, presupuesto, Score, flujo
+   — **todo visible y trazable**.
+3. **Consecuencias automáticas en dos grupos:**
+   - **SIN confirmación** (consecuencia natural de la acción): mover cupo, actualizar saldo,
+     recalcular cuotas, presupuesto, Score, proyecciones. No interrumpen la experiencia.
+   - **CON confirmación** (cuando se modifica información que el usuario NO ingresó
+     explícitamente): refinanciaciones, cambios de plazo, consolidaciones, modificaciones de
+     condiciones, sustitución de productos.
+4. **Filosofía de Registrar:** deja de ser un formulario; se vuelve el **punto de entrada del
+   ecosistema** — el usuario registra un hecho, Millo comprende automáticamente sus
+   implicaciones. "Registrar es el corazón operativo del producto."
+5. **Principio adicional FIN-030:** *"El usuario registra un hecho financiero; Millo registra
+   todas sus consecuencias."* Minimizar el trabajo manual sin sacrificar transparencia; cada
+   efecto automático permanece **visible, explicable y reversible** (§42).
+
+**MENSAJE PARA CTO** — autorizado abrir `ARQ-0030` de inmediato.
+
+---
+
+## 2026-07-14 — De: CTO — Para: Arquitecto — CC: CPSAO, Auditor, Fundador
+
+**Asunto:** ARQ-0030 autorizado — retención levantada (rediseño de Deudas + movimientos inteligentes, umbrella)
+**Estado:** ARQ autorizado, prioridad MÁXIMA. Diseño puede iniciar ya.
+
+El Fundador entregó sus observaciones sobre Registrar → **retención levantada**. Emites
+`ARQ-0030` (umbrella). **Criterios de aceptación duros:** guardarraíles **A–K** (CPSAO,
+arriba), **§31** (valor diferencial), **§32** (una sola definición por concepto — condición
+central: ni una fórmula nueva por tipo; cupo/saldo/cuotas/desembolso resuelven a fuentes
+únicas ya construidas — SpendableService, payment-breakdown FIN-023, attackOrder FIN-022,
+fondo FIN-021), y **§42** (una acción → todos los efectos, todos visibles/explicables/
+reversibles).
+
+**Lineamientos de diseño (traducción de las 5 decisiones del Fundador):**
+- **Flujo "¿Cómo pagaste?" por método**, preguntando solo el delta (guardarraíl H, heredar-no-
+  re-preguntar): efectivo→nada · cuenta→cuenta · débito→cuenta asociada · crédito→flujo de la
+  tarjeta · billetera→billetera. La baja fricción es criterio de aceptación, no un "nice to have".
+- **La compra con tarjeta ES la confirmación** (sin segundo paso): cascada automática
+  (cupo/saldo/obligación/cuotas/presupuesto/Score/flujo) **trazable a la acción y reversible**
+  (§42/G). **Sin duplicados** (I): la compra actualiza la tarjeta existente, no crea una 2ª deuda.
+- **Modelo de confirmación en dos niveles** (decisión 3, encódalo en el diseño): consecuencia
+  directa del hecho → sin confirmación; modificación de datos NO ingresados por el usuario
+  (refi, plazo, consolidación, condiciones, sustitución de producto) → confirmación explícita.
+- **Deuda-por-tipo:** ≥11 tipos, selección por tipo primero, **mínimo obligatorio + resto
+  progresivo** (guardarraíl B — nunca un formulario de banco); representación honesta sin
+  juzgar (D, incluye gota a gota); modelo **extensible** por esquema (F).
+- **Registrar como punto de entrada del ecosistema** — entra de lleno en Registrar/
+  Transacciones (autorizado por el Fundador); coordina con el servicio central de movimientos
+  de FIN-028 y el motor conversacional único de FIN-029 (app + Telegram por el mismo cerebro).
+- **Espina única:** productos financieros como **entidad de primera clase** + **capa de
+  consecuencias por evento** (sobre el bus/outbox de FIN-002). Una sola espina, no dos.
+
+**Faseo (mi decisión, §36.2 / un FIN a la vez para IMP):** el umbrella `ARQ-0030` define la
+espina y el modelo; el detalle campo-por-campo de cada tipo y cada cascada NO se diseña todo
+en un solo documento. **Fase 1** (primer FIN concreto que derive de este umbrella): espina
+(producto-entidad + capa de consecuencia visible/reversible) validada con **compra-con-tarjeta
+de punta a punta** — ejercita G/H/I/J juntos. Entrega el umbrella con su SHA; con él hago el
+desglose FIN en `BACKLOG.md` y el orden de IMP.
+
+**"Flujo de caja" (J):** si es indicador nuevo, pasa el gate del DSS (fuente única + responde
+una pregunta real de decisión que "Te queda" no dé ya) antes de existir.
+
+**MENSAJE PARA ARQUITECTO** — emitir `ARQ-0030` (umbrella) con A–K + §31/§32/§42 como criterios
+de aceptación explícitos; entregar con SHA para validación del CTO antes de cualquier IMP.

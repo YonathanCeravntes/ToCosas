@@ -1192,9 +1192,11 @@ elevó a decisión de producto y le pegó su contrapeso: la automatización que 
 pero la que falla es **corrupción silenciosa** de la verdad financiera del usuario (una compra
 mal interpretada ensucia nueve pantallas a la vez sin que la persona lo vea).
 
-**Regla permanente:** *una sola acción del usuario debe producir todos los efectos financieros
-necesarios — y todos esos efectos deben ser **visibles, explicables y reversibles** por el
-usuario.* La segunda mitad no es una nota al pie: es lo que separa un ecosistema en el que
+**Regla permanente (formulación canónica del Fundador, 2026-07-14):** *"El usuario registra un
+hecho financiero; Milla registra todas sus consecuencias."* Es decir: **una sola acción del
+usuario debe producir todos los efectos financieros necesarios — y todos esos efectos deben ser
+visibles, explicables y reversibles** por el usuario. La prioridad es minimizar el trabajo
+manual **sin sacrificar transparencia**. La segunda mitad no es una nota al pie: es lo que separa un ecosistema en el que
 confías de uno que te maneja la plata sin que entiendas cómo. Consecuencias operativas:
 1. **Trazabilidad de la cascada:** todo efecto automático debe poder rastrearse a la acción
    que lo originó ("esta cuota nació de tu compra del 12 en tal tarjeta") y **deshacerse**

@@ -6,8 +6,8 @@
 
 ---
 
-## FIN activa (en diseño, retenida)
-**FIN-030 — Umbrella: Deudas por tipo + movimientos inteligentes (SO Financiero Personal) — prioridad MÁXIMA.** ARQ **RETENIDO por el CTO** pendiente de las observaciones del Fundador sobre Registrar/Transacciones (instrucción permanente activada — el "cómo pagaste" ES el flujo de registro). Decisión de producto del Fundador + CPSAO, guardarraíles A–K, §42 institucionalizado. Faseo: Fase 1 = espina (producto como entidad + capa de consecuencias) con compra-con-tarjeta e2e. `docs/correspondencia/Rediseno-Modulo-Deudas.md`.
+## FIN activa (en diseño)
+**FIN-030 — Umbrella: Deudas por tipo + movimientos inteligentes (SO Financiero Personal) — prioridad MÁXIMA.** ✅ Observaciones del Fundador sobre Registrar entregadas → **retención levantada, `ARQ-0030` en curso** (directiva emitida al Arquitecto con A–K + §31/§32/§42). Decisiones clave: flujo "¿cómo pagaste?" inteligente por método; la compra con tarjeta ES la confirmación; confirmación en dos niveles (consecuencia directa vs. modificación no ingresada); Registrar como punto de entrada del ecosistema. Faseo: Fase 1 = espina (producto-entidad + capa de consecuencias) con compra-con-tarjeta e2e. En espera del `ARQ-0030` del Arquitecto. `docs/correspondencia/Rediseno-Modulo-Deudas.md`.
 
 ## Gobernanza vigente
 v3.19 (`docs/GOBERNANZA.md`) — última sección: §42 Automatización con Claridad Radical (una acción → todos los efectos, todos visibles/explicables/reversibles). Antes: §41 continuidad Beta (toda FIN cerrada llega al dispositivo Beta vía OTA por la vía segura de §40; los usuarios de prueba usan siempre la última versión aprobada; ciclo `Arquitecto→Auditor→CTO→Integración→GitHub→OTA→Beta`). Antes: §40 gate obligatorio de despliegue OTA, §38 gestión de defectos, §39 formato regional.
