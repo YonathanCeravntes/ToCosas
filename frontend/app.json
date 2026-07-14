@@ -34,7 +34,7 @@
       }
     },
     "extra": {
-      "apiUrl": "http://localhost:3000/v1",
+      "apiUrl": "https://milla-backend.onrender.com/v1",
       "eas": {
         "projectId": "523d23dc-5053-49c8-85b0-d94ebf1e708d"
       }

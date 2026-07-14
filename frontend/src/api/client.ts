@@ -8,11 +8,19 @@ import { AuthTokens } from './types';
  *  - normalización de errores.
  *
  * La URL base sale de EXPO_PUBLIC_API_URL o de app.json (extra.apiUrl).
+ *
+ * INCIDENTE 2026-07-14: `eas update` (OTA) NO hereda el `env` del perfil de
+ * build de eas.json, así que `EXPO_PUBLIC_API_URL` queda `undefined` en un
+ * bundle publicado por OTA y la resolución cae al fallback. Por eso el fallback
+ * DEBE ser producción (no `localhost`): un `localhost` aquí se traduce, en el
+ * teléfono, en "el propio teléfono" → "Sin conexión con el backend". El
+ * `extra.apiUrl` de `app.json` (que sí viaja en el manifiesto del OTA) también
+ * apunta a producción. Para desarrollo local se usa `EXPO_PUBLIC_API_URL`.
  */
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL ??
   (Constants.expoConfig?.extra as { apiUrl?: string })?.apiUrl ??
-  'http://localhost:3000/v1';
+  'https://milla-backend.onrender.com/v1';
 
 export class ApiError extends Error {
   constructor(

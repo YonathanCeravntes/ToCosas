@@ -111,6 +111,15 @@ los cambios, que era el objetivo del Fundador.
   exclusivamente cliente.
 - El **APK OTA-capaz** es un build nuevo (con `expo-updates`); el APK previo a esta
   configuración **no** recibe OTAs y se conserva solo como referencia de validación.
+- **⚠️ CUIDADO CRÍTICO (incidente BT-003, 2026-07-14): `eas update` NO hereda el `env` del
+  perfil de build de `eas.json`.** `eas build` sí inyecta `EXPO_PUBLIC_API_URL` desde el
+  perfil; `eas update` **no**. Si el bundle depende de esa variable, en el OTA queda
+  `undefined` y cae al fallback. **Consecuencia:** el fallback de la URL de API
+  (`app.json` `extra.apiUrl` y el literal en `client.ts`) **debe ser producción, nunca
+  `localhost`** — un `localhost` en un bundle OTA se traduce, en el teléfono, en "el propio
+  teléfono" y produce "Sin conexión con el backend" con el backend perfectamente operativo.
+  Al publicar un OTA, pasa `EXPO_PUBLIC_API_URL` explícito además:
+  `EXPO_PUBLIC_API_URL=https://milla-backend.onrender.com/v1 eas update --branch preview`.
 
 ---
 
