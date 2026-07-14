@@ -28,23 +28,36 @@ export interface TeQueda {
   /** Total comprometido pendiente del ciclo. */
   protectedTotal: number;
   pendingCommitments: PendingCommitment[];
-  /** Ingresos realmente recibidos en el ciclo (base de la interpretación §4.1-ter). */
+  /** Ingresos realmente recibidos en el ciclo (transacciones de ingreso). */
   receivedIncome: number;
+  /** BT-004 · Base de ingreso usada en el cálculo = max(take-home fijo, recibido).
+   *  Es el denominador de la interpretación §4.1-ter (misma base que el Score). */
+  incomeBase: number;
 }
 
 /**
  * FIN-020 · Fuente ÚNICA de "Te queda" (GOBERNANZA §32, ARQ-0020 P1/P2).
  *
- * Definición oficial (Alt A — "nunca mentir hacia arriba"):
- *   teQueda = ingresos REALES del ciclo
+ * Definición oficial (vigente desde la decisión del Fundador del 2026-07-14, BT-004):
+ *   teQueda = BASE de ingreso del ciclo
  *           − gastos y pagos REALES del ciclo
  *           − compromisos PENDIENTES del ciclo
- * donde los compromisos pendientes son:
- *   · TODOS los fijos de gasto activos, se haya pasado o no su fecha
- *     (§4.1-bis: la política adoptada solo puede sesgar hacia abajo), y
- *   · las cuotas de deuda con nextDueDate dentro de lo que RESTA del ciclo
- *     (su pago SÍ es observable — FIN-018 avanza la fecha al pagar).
- * Los ingresos futuros (fijos aún no recibidos) NO se cuentan.
+ * donde:
+ *   · BASE de ingreso = max( take-home del ingreso FIJO esperado , ingresos
+ *     realmente RECIBIDOS ). El take-home fijo = netFixedTotal + deducciones
+ *     auto-pagadas (que siguen contándose como compromiso, ver abajo). El `max`
+ *     evita el doble conteo cuando el ingreso fijo además se registra como
+ *     movimiento, y deja la base IDÉNTICA al `incomeRef` del Score
+ *     (`core-metrics`, §32 — Score y "Te queda" sobre la misma base).
+ *   · compromisos pendientes = TODOS los fijos de gasto activos (§4.1-bis),
+ *     las deducciones auto-pagadas (DEC-0027 P2) y las cuotas de deuda con
+ *     nextDueDate dentro de lo que RESTA del ciclo.
+ *
+ * CAMBIO BT-004 (decisión del Fundador, supersede el "Alt A / solo lo recibido"
+ * de FIN-020 para el ingreso fijo): un ingreso fijo recurrente es un flujo
+ * predecible y es el dato que la usuaria configura para planificar su mes; por
+ * tanto forma parte del cálculo principal aunque aún no se haya "recibido". Los
+ * ingresos VARIABLES siguen contando solo cuando se reciben (no son certeza).
  *
  * Este servicio es la ÚNICA implementación del concepto: Presupuesto e Inicio
  * lo inyectan — cualquier otra fórmula de "te queda" viola §32.
@@ -91,6 +104,12 @@ export class SpendableService {
     const sumKind = (k: string) =>
       Number(txByKind.find((t) => t.kind === k)?._sum.amount ?? 0);
     const receivedIncome = round2(sumKind('ingreso'));
+    // BT-004 (decisión del Fundador 2026-07-14): el ingreso fijo declarado forma
+    // parte de la base. Take-home fijo = neto + deducciones auto-pagadas (que se
+    // restan luego como compromiso). `max` con lo recibido evita doble conteo y
+    // deja la base igual a la del Score (`incomeRef`).
+    const fixedTakeHome = round2(income.netFixedTotal + income.selfPaidDeductionsTotal);
+    const incomeBase = Math.max(fixedTakeHome, receivedIncome);
     const realOut = round2(sumKind('gasto') + sumKind('pago_deuda'));
 
     const commitments: PendingCommitment[] = [];
@@ -155,7 +174,7 @@ export class SpendableService {
     });
 
     const protectedTotal = round2(commitments.reduce((acc, c) => acc + c.amount, 0));
-    const amount = round2(receivedIncome - realOut - protectedTotal);
+    const amount = round2(incomeBase - realOut - protectedTotal);
     const daysLeft = Math.max(1, Math.ceil((period.end.getTime() - startOfToday.getTime()) / DAY_MS));
 
     return {
@@ -166,6 +185,7 @@ export class SpendableService {
       protectedTotal,
       pendingCommitments: commitments,
       receivedIncome,
+      incomeBase,
     };
   }
 }

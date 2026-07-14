@@ -61,9 +61,9 @@ describe('FIN-020 · teQueda idéntico en Presupuesto e Inicio (§32)', () => {
       dayOfMonth: 5,
     });
     expect(fixed.status).toBe(201);
-    // FIN-027: el ingreso declarado ahora vive en el modelo de fuentes, no en
-    // FixedItem (§5.2 — sin coexistencia). Sigue sin contar en teQueda (Alt A:
-    // solo lo REALMENTE recibido cuenta).
+    // FIN-027: el ingreso declarado vive en el modelo de fuentes (§5.2).
+    // BT-004 (decisión del Fundador 2026-07-14): el ingreso fijo declarado
+    // AHORA SÍ forma parte de la base de teQueda (supersede Alt A para el fijo).
     const income = await req('POST', '/v1/income/sources', {
       kind: 'salario_fijo',
       name: 'Salario e2e',
@@ -102,24 +102,27 @@ describe('FIN-020 · teQueda idéntico en Presupuesto e Inicio (§32)', () => {
     expect(home.data.teQueda).toEqual(budget.data.teQueda);
   });
 
-  it('la cifra respeta Alt A: solo lo real menos lo pendiente (el salario declarado NO suma)', async () => {
+  it('BT-004: el ingreso fijo declarado SÍ entra en la base (max con lo recibido)', async () => {
     const { data } = await req('GET', '/v1/budget/monthly');
     const tq = data.teQueda;
-    expect(tq.receivedIncome).toBe(900_000); // solo el ingreso REAL del ciclo
+    expect(tq.receivedIncome).toBe(900_000); // el campo sigue reflejando lo REALMENTE recibido
     expect(tq.protectedTotal).toBe(1_200_000); // el arriendo pendiente (§4.1-bis)
-    expect(tq.amount).toBe(900_000 - 250_000 - 1_200_000); // = −550.000
-    expect(tq.perDay).toBeNull(); // sin margen no se sugiere gasto diario
+    // base = max(fijo take-home 4.000.000, recibido 900.000) = 4.000.000
+    expect(tq.incomeBase).toBe(4_000_000);
+    expect(tq.amount).toBe(4_000_000 - 250_000 - 1_200_000); // = 2.550.000
+    expect(tq.perDay).toBeGreaterThan(0); // con margen positivo sí se sugiere gasto diario
+    // el salario declarado NO es un compromiso, es base de ingreso
     expect(
       tq.pendingCommitments.some((c: { name: string }) => c.name === 'Salario e2e'),
     ).toBe(false);
   });
 
-  it('la interpretación del Inicio se deriva del teQueda (§4.1-ter), no del flujo estructural', async () => {
+  it('la interpretación del Inicio se deriva del teQueda (§4.1-ter) sobre la base de ingreso', async () => {
     const { data } = await req('GET', '/v1/dashboard/home');
-    // teQueda −550k ⇒ rojo con texto que NO culpa (los compromisos aún no vencen).
+    // teQueda +2.55M sobre base 4M ⇒ verde; libres = round(2.55M/4M·100) = 64.
     expect(data.interpretation.cashflow).toEqual({
-      level: 'rojo',
-      text: 'Lo que viene comprometido supera lo que te queda — mira qué puedes mover',
+      level: 'verde',
+      text: 'De cada $100 de tu ingreso, $64 quedan libres después de apartar lo que viene',
     });
   });
 });

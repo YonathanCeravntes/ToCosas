@@ -14,7 +14,7 @@
 | BT-001 | Registrar una tasa de interés con coma decimal (`15,35`) producía **500**: el frontend borraba la coma → `1535`, que desbordaba `interest_rate Decimal(7,4)` (máx 999.9999) en Prisma. | **Defecto de implementación** (parseo de entrada). No es FIN. | ✅ **Corregido y verificado** | Ver detalle abajo. Commit del fix + este registro en el mismo acto (§34). |
 | BT-002 | No se podían editar ni anular movimientos ya registrados. | Continúa dentro de **FIN-028** (decisiones del Fundador ya emitidas). | ✅ Cubierto por `FIN-028` (CERRADA, `65104e1`) | `docs/oficial/DEC-0028-Gestion-de-Movimientos.md` |
 | BT-003 | La app mostraba "Sin conexión con el backend" pese a que Render/`/v1/health` respondían. **Incidente causado por el CTO** al publicar el primer OTA: `eas update` no hereda el `env` del perfil de build → el bundle cayó al fallback `localhost`. | **Defecto operativo/de configuración** (despliegue OTA). No es FIN. | ✅ **Corregido y publicado por OTA** | Ver detalle abajo. |
-| BT-004 | Un ingreso fijo **declarado** (perfil de ingresos, FIN-027) no aparece en "Te queda para gastar". | **Defecto de experiencia de usuario** — NO de implementación (el cálculo es correcto y ratificado). Requiere **decisión de producto** (toca la definición §32 de "Te queda"). | 🟡 **Escalado al Fundador/CPSAO** — sin cambio de código hasta la decisión | Análisis abajo. |
+| BT-004 | Un ingreso fijo **declarado** (perfil de ingresos, FIN-027) no aparece en "Te queda para gastar". | **Decisión de producto del Fundador** — cambia la definición §32 de "Te queda". | ✅ **Resuelto** (decisión del Fundador, 2026-07-14) — implementado y verificado | Análisis + resolución abajo. Commit del fix registrado. |
 
 ---
 
@@ -131,6 +131,30 @@ registrarse como **movimiento** de ingreso (eso funciona — `fin020` e2e verde)
 
 Cualquiera de A/B es maintenance/UX; C sería un cambio de la definición §32 (requiere DEC y
 visto del CPSAO). Pendiente de la decisión del Fundador/CPSAO.
+
+**Resolución (decisión del Fundador, 2026-07-14 — supersede la propuesta del CTO):** el
+Fundador decidió, como autoridad de producto y sin re-escalar, que **el ingreso fijo
+recurrente declarado forma parte del cálculo principal ("Te queda")**, porque es un flujo
+predecible que la usuaria configura para planificar su mes; el impacto en credibilidad de que
+el indicador ignore ese ingreso supera el beneficio de la regla anterior. Esto **supersede el
+"Alt A / solo lo recibido" de FIN-020 para el ingreso fijo** (los ingresos VARIABLES siguen
+contando solo al recibirse — no son certeza).
+
+**Implementación (CTO), hecha con cuidado de NO romper §32 (una sola definición, consistente
+con el Score):**
+- `SpendableService` (fuente única de "Te queda"): la base de ingreso pasa de
+  `receivedIncome` a **`max(take-home del fijo esperado, recibido)`** donde
+  `take-home fijo = netFixedTotal + selfPaidDeductionsTotal`. El `max` **evita el doble
+  conteo** si el fijo además se registra como movimiento, y deja la base **idéntica al
+  `incomeRef` del Score** (`core-metrics`) — Score y "Te queda" sobre la misma base, §32.
+- Se expone `incomeBase` en el objeto `TeQueda` y `interpretCashflow` (interpretación §4.1-ter
+  del Inicio) pasa a dividir por `incomeBase` en vez de `receivedIncome` — si no, con ingreso
+  declarado daba proporciones absurdas ("$283 de cada $100"); copy ajustado a "de tu ingreso".
+- Como es la fuente única, Presupuesto e Inicio heredan el cambio automáticamente.
+- **Verificación del CTO:** `tsc` BE+FE 0; unit **355/355** (46 suites); e2e **43/43** (11
+  suites). e2e `fin020` actualizado: con salario declarado 4.000.000, arriendo 1.200.000 y
+  gasto 250.000, "Te queda" = **2.550.000** (antes −550.000) e interpretación verde.
+- **Despliegue (§41):** backend-only → llega a Beta por el auto-deploy de Render, sin OTA.
 
 ## Historial
 - 2026-07-13 — Creación del registro. BT-001 corregido y verificado; BT-002 encauzado a

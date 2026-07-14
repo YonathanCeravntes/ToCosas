@@ -60,6 +60,7 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     protectedTotal: 1_500_000,
     pendingCommitments: [],
     receivedIncome: 500_000,
+    incomeBase: 500_000,
   };
   const spendable = { compute: jest.fn().mockResolvedValue(teQuedaStub) } as never;
   // FIN-027: el ingreso fijo del home ahora viene de la fuente única del
@@ -152,6 +153,7 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
         protectedTotal: 0,
         pendingCommitments: [],
         receivedIncome: 0,
+        incomeBase: 0,
       }),
     } as never;
     const emptyIncome = {

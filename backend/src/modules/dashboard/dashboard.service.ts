@@ -163,7 +163,7 @@ export class DashboardService {
       // cifras PROPIAS del home — sin llamadas al Score (ruta (a)).
       interpretation: {
         // §4.1-ter: recalibrada para Alt A — base = ingresos REALES recibidos.
-        cashflow: interpretCashflow(teQueda.amount, teQueda.receivedIncome),
+        cashflow: interpretCashflow(teQueda.amount, teQueda.incomeBase),
         debt: interpretDebt(round2(debtPayments), round2(incomeTotal)),
         // FIN-021: habla del FONDO (lectura oficial del Motor), ya no del
         // ahorro total con fórmula propia — §32 por construcción.
@@ -203,24 +203,28 @@ const money = (n: number) => `$${Math.round(n).toLocaleString('es-CO')}`;
  * se mantiene (holgura relativa, independiente de la composición de la base);
  * compromiso §13: revisarlo con datos reales tras la RC integral.
  */
-function interpretCashflow(teQueda: number, receivedIncome: number): Interpretation | null {
-  if (receivedIncome <= 0) return null;
+// BT-004: el denominador es la BASE de ingreso (max take-home fijo / recibido),
+// la misma con la que se calculó teQueda — así "$ de cada $100" es coherente
+// (antes dividía por lo recibido, que con ingreso declarado daba proporciones
+// absurdas como "$283 de cada $100").
+function interpretCashflow(teQueda: number, incomeBase: number): Interpretation | null {
+  if (!incomeBase || incomeBase <= 0) return null;
   if (teQueda < 0) {
     return {
       level: 'rojo',
       text: 'Lo que viene comprometido supera lo que te queda — mira qué puedes mover',
     };
   }
-  if (teQueda < receivedIncome * 0.1) {
+  if (teQueda < incomeBase * 0.1) {
     return { level: 'amarillo', text: 'Vas justa: después de apartar lo que viene, queda poco' };
   }
   // FIN-018 D1-A (DEC-018): en verde, información NUEVA en vez de repetir el monto
   // del hero — proporción en el mismo formato "$ de cada $100" de la interpretación
   // de deuda (familia coherente, §29.2).
-  const free = Math.round((teQueda / receivedIncome) * 100);
+  const free = Math.round((teQueda / incomeBase) * 100);
   return {
     level: 'verde',
-    text: `De cada $100 que te entraron, $${free} quedan libres después de apartar lo que viene`,
+    text: `De cada $100 de tu ingreso, $${free} quedan libres después de apartar lo que viene`,
   };
 }
 
