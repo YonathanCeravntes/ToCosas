@@ -16,6 +16,7 @@
 | BT-003 | La app mostraba "Sin conexión con el backend" pese a que Render/`/v1/health` respondían. **Incidente causado por el CTO** al publicar el primer OTA: `eas update` no hereda el `env` del perfil de build → el bundle cayó al fallback `localhost`. | **Defecto operativo/de configuración** (despliegue OTA). No es FIN. | ✅ **Corregido y publicado por OTA** | Ver detalle abajo. |
 | BT-004 | Un ingreso fijo **declarado** (perfil de ingresos, FIN-027) no aparece en "Te queda para gastar". | **Decisión de producto del Fundador** — cambia la definición §32 de "Te queda". | ✅ **Resuelto** (decisión del Fundador, 2026-07-14) — implementado y verificado | Análisis + resolución abajo. Commit del fix registrado. |
 | BT-005 | Al anular un pago de deuda desde la app, el botón "Guardar" queda cargando y "Anular" no se habilita (parece colgado). | **Defecto de experiencia** — el backend anula bien (0.93s, deuda regenerada); la petición se cuelga sin timeout cuando el backend está dormido (Render free). | ✅ **Corregido** (timeout en el cliente HTTP) + deuda del Fundador regenerada manualmente | Detalle abajo. |
+| BT-006 | Salud muestra "Score Millo: —" sin contexto. | **Dos partes:** (a) el Score está **apagado en producción por gate LEGAL** (`HEALTH_SCORE_PRODUCTION_ENABLED=false`, `DEC-0004` §10.3) → backend 503; (b) el frontend no manejaba ese 503 y mostraba un "—" mudo → **defecto de experiencia**. | (a) 🟡 **Escalado al Fundador** (encender el Score cruza el gate legal); (b) ✅ **Corregido** (mensaje contextual en vez de "—") | Detalle abajo. |
 
 ---
 
@@ -190,6 +191,35 @@ el botón verde queda cargando y "Anular movimiento" no se habilita.
 - **Deuda del Fundador regenerada** manualmente por el CTO (anulado el pago desde su cuenta).
 - Causa de fondo (no un bug del código): el cold-start del plan free de Render. Mitigado con
   el timeout; eliminarlo requeriría plan pagado (no autorizado, §36.4).
+
+## BT-006 · "Score Millo: —" sin contexto
+
+**Reportado por:** Fundador (Beta Técnica, 2026-07-14) — Salud muestra un guion, pese a haber
+información suficiente.
+
+**Causa raíz (verificada por el CTO contra la cuenta real del Fundador):**
+- `GET /v1/health/score` responde **503**: *"Salud Financiera no está habilitada en producción
+  (pendiente validación legal)."* Es un **gate legal deliberado** (`HealthProductionGuard`,
+  `DEC-0004` §10.3 / `DEC-0001` §10.7 / `PRODUCCION.md` §2): en producción el Score está
+  APAGADO hasta que exista validación legal formal (`HEALTH_SCORE_PRODUCTION_ENABLED=false`).
+  **No es un bug de algoritmo ni falta de datos** — está desactivado a propósito.
+- El frontend (`HealthScreen.tsx`) tenía estado de "construcción" solo para `score:null`
+  (cold-start), pero ante el 503 `data` quedaba `null` y caía al guion mudo "—" (`:155`).
+
+**Dos partes, dos tratamientos:**
+- **(b) Defecto de experiencia — CORREGIDO por el CTO:** `ScoreCard` ahora, cuando no hay Score
+  disponible (`!data && !loading`, incluye el 503 gateado), muestra un mensaje honesto y con
+  agencia ("🌱 Tu Score financiero está en preparación… sigue registrando tus movimientos"),
+  nunca un "—" mudo. Frontend → OTA por §40. Cumple el requisito explícito del Fundador.
+- **(a) Encender el Score real — ESCALADO al Fundador:** mostrar un Score verdadero exige
+  poner `HEALTH_SCORE_PRODUCTION_ENABLED=true`, lo que **cruza un gate LEGAL** (validación
+  legal formal del Score, `PRODUCCION.md` §2). El CTO **no** enciende un gate legal
+  unilateralmente. Es decisión del Fundador y requiere la validación legal cerrada. Mientras
+  no lo esté, el mensaje de "en preparación" es la conducta honesta.
+
+**Recomendación del CTO:** (b) resuelve tu requisito inmediato ("no un guion sin contexto")
+sin riesgo. (a) es una decisión aparte que conviene coordinar con la revisión legal del Score
+antes de exponerlo con datos reales.
 
 ## Historial
 - 2026-07-13 — Creación del registro. BT-001 corregido y verificado; BT-002 encauzado a

@@ -112,6 +112,25 @@ function ScoreCard({
   loading: boolean;
   worst: HealthIndicator | null;
 }) {
+  // BT-006: si el Score no está disponible (p. ej. gate legal en producción → 503,
+  // o un error transitorio), NUNCA un "—" mudo. Se explica con contexto.
+  if (!data && !loading) {
+    return (
+      <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
+        <Text style={{ color: colors.textInverse, fontWeight: '700', fontSize: 18 }}>
+          🌱 Tu Score financiero está en preparación
+        </Text>
+        <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 6, lineHeight: 20 }}>
+          Muy pronto verás aquí un número de 0 a 1.000 que resume tu salud financiera — y qué
+          lo mueve. Estamos afinando los últimos detalles antes de mostrártelo.
+        </Text>
+        <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 8 }}>
+          Mientras tanto, sigue registrando tus movimientos: son la base con la que se calcula.
+        </Text>
+      </Card>
+    );
+  }
+
   // P5 — cold-start: estado de construcción, nunca un "—" mudo.
   if (data && data.score === null) {
     const days = Math.max(1, data.coldStart?.remainingDays ?? 0);
