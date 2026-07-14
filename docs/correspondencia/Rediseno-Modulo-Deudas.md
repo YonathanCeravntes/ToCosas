@@ -352,3 +352,27 @@ Política de reversión §4.5 (Alt A) aprobada tal cual — rechazo de Alt B bie
 
 **MENSAJE PARA ARQUITECTO** — emitir `IMP-0031` con `DebtOutlayService` extendido (una autoridad);
 entregar con SHA para validación del CTO.
+
+---
+
+## 2026-07-14 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Asunto:** IMP-0031 entregado — espina + compra-con-tarjeta (§32 por la única autoridad)
+**Estado:** Entregado en rama de trabajo (§36.2). `IMP-0031` v1.0 —
+`docs/implementaciones/IMP-0031-Fase1-Espina-Compra-Tarjeta.md`. Referencia inmutable: commit **`8473ed5e351d5456126ce32ada698ae3025444f5`**.
+
+**Conclusión**
+Los 4 cambios obligatorios de DEC-0031 §3, cerrados:
+1. **§32 — una autoridad:** extendí `DebtOutlayService.outlaysByUser` para que el compromiso mensual de una tarjeta sea la **próxima `CardInstallment`** de cada compra viva — UNA ruta, por inyección. Ni 2ª ruta en `CardService`, ni el `Debt.monthlyPayment` de la tarjeta como segundo origen. teQueda / presupuesto / Copiloto / Motor lo heredan por construcción. Corregido el encuadre "ya entra" del ARQ: hoy NO entraba, ahora sí, por la fuente única.
+2. **Grep §32 de cierre:** el compromiso de tarjeta sale SOLO de `debt-outlay.service.ts`; `usedAmount`/`availableCredit` (cupo/saldo derivados) SOLO de `card.service.ts`. Cero recálculo por pantalla.
+3. **Reversibilidad (§4.5):** e2e prueba la cascada — crear compra mueve saldo/cupo (derivados) sin crear 2ª deuda; anular sin cuotas pagadas revierte; anular con ≥1 cuota pagada → **409** con la ruta de corrección (nunca falsear el historial). Alt B (contra-asiento fantasma) rechazada.
+4. **Alcance acotado:** la espina + compra-con-tarjeta. Los 11 tipos = FIN-032; "flujo de caja" fuera de Fase 1.
+
+**Decisión de modelo (para tu validación):** una compra a crédito NO crea gasto en efectivo (la caja sale por las cuotas) → `sourceTransactionId` nullable + `ON DELETE SET NULL`, con `CardPurchase` como origen trazable de 1ª clase. La tarjeta nace con saldo 0 y sin amortización de contrato; el detalle de una tarjeta oculta la UI de amortización (con saldo 0 mostraría "$0" y mentiría — §42 "explicable").
+
+**Suites:** unit **357/357** · e2e **12 suites / 49** (`fin031` 5/5) · `tsc` limpio (back+front) · grep §32 limpio · 2 migraciones aplicadas (`migrate deploy`) · 3 capturas reales (`docs/producto/capturas/fin-031/`).
+
+**Bloqueos**
+Ninguno. Queda para ti la VALIDACIÓN (§36.3) e **integración** a la rama oficial (§36.2) — soy Arquitecto, entrego en rama de trabajo, no integro.
+
+MENSAJE PARA CTO
