@@ -14,6 +14,7 @@
 | BT-001 | Registrar una tasa de interés con coma decimal (`15,35`) producía **500**: el frontend borraba la coma → `1535`, que desbordaba `interest_rate Decimal(7,4)` (máx 999.9999) en Prisma. | **Defecto de implementación** (parseo de entrada). No es FIN. | ✅ **Corregido y verificado** | Ver detalle abajo. Commit del fix + este registro en el mismo acto (§34). |
 | BT-002 | No se podían editar ni anular movimientos ya registrados. | Continúa dentro de **FIN-028** (decisiones del Fundador ya emitidas). | ✅ Cubierto por `FIN-028` (CERRADA, `65104e1`) | `docs/oficial/DEC-0028-Gestion-de-Movimientos.md` |
 | BT-003 | La app mostraba "Sin conexión con el backend" pese a que Render/`/v1/health` respondían. **Incidente causado por el CTO** al publicar el primer OTA: `eas update` no hereda el `env` del perfil de build → el bundle cayó al fallback `localhost`. | **Defecto operativo/de configuración** (despliegue OTA). No es FIN. | ✅ **Corregido y publicado por OTA** | Ver detalle abajo. |
+| BT-004 | Un ingreso fijo **declarado** (perfil de ingresos, FIN-027) no aparece en "Te queda para gastar". | **Defecto de experiencia de usuario** — NO de implementación (el cálculo es correcto y ratificado). Requiere **decisión de producto** (toca la definición §32 de "Te queda"). | 🟡 **Escalado al Fundador/CPSAO** — sin cambio de código hasta la decisión | Análisis abajo. |
 
 ---
 
@@ -89,6 +90,47 @@ canal/runtime inválidos o `/health` caído; y la **vía única** `npm run ota:p
 Verificado por el CTO en ambos sentidos: config correcta → pasa (exit 0); `localhost`
 reintroducido (simulación BT-003) → **bloquea** (exit 1). Prohibido correr `eas update`
 directamente.
+
+## BT-004 · Ingreso fijo declarado no aparece en "Te queda para gastar"
+
+**Reportado por:** Fundador (Beta Técnica, 2026-07-14, P1) — registró un ingreso fijo, se
+almacenó, pero "Te queda para gastar" no lo refleja.
+
+**Investigación del CTO (evidencia, no hipótesis) — las 4 preguntas del Fundador:**
+1. **¿Se almacena?** Sí. `POST /v1/income/sources` persiste la fuente; `fin027` e2e:
+   `netFixedTotal = 3.740.000` tras deducciones.
+2. **¿El dashboard incluye el ingreso fijo?** Sí, en **"Ingresos fijos"**:
+   `dashboard.service.ts:101` `fixedIncome = income.netFixedTotal` (fuente FIN-027). e2e fija
+   `fixedIncome = 3.740.000`.
+3. **¿"Te queda" consume la estructura FIN-027?** Sí, pero solo para las **deducciones**
+   auto-pagadas, no como ingreso.
+4. **¿Caché/sincronización?** No: `SpendableService.compute` calcula en vivo por request.
+
+**Causa raíz (no es un defecto de implementación):** `SpendableService` (única definición de
+"Te queda", §32) es, por diseño ratificado (FIN-020 Alt A, "nunca mentir hacia arriba"):
+`amount = ingresos RECIBIDOS (transacciones) − gastos/pagos reales − compromisos pendientes`.
+El ingreso fijo **declarado** (no recibido aún) **no** cuenta — decisión ratificada en
+FIN-020/021/023/024 y **preservada a propósito por FIN-027** (documentado en
+`fin020-tequeda.e2e-spec.ts`: *"sigue sin contar en teQueda… solo lo REALMENTE recibido"*).
+El salario declarado SÍ aparece en "Ingresos fijos" y en el Score; "Te queda" lo sumaría al
+registrarse como **movimiento** de ingreso (eso funciona — `fin020` e2e verde).
+
+**Por qué no se corrige unilateralmente:** cambiar "Te queda" para contar dinero no recibido
+**rompería la definición §32** que el CPSAO y el Fundador ratificaron cuatro veces. Es una
+**decisión de producto**, no un fix de mantenimiento. Escalada al Fundador/CPSAO.
+
+**Opciones propuestas por el CTO (recomendación en negrita):**
+- **A (recomendada, honesta):** cuando una fuente fija declarada tiene día de pago ya
+  **pasado** en el ciclo y no hay un movimiento de ingreso que le corresponda, la app ofrece
+  un CTA de un toque: *"¿Ya recibiste tu salario del 28? Regístralo"* → crea el movimiento →
+  "Te queda" lo refleja. Cierra la brecha SIN romper "solo lo recibido cuenta".
+- B: dejar "Te queda" intacto y solo clarificar en la UI que cuenta lo recibido y que el
+  salario declarado vive en "Ingresos fijos" (copy).
+- C (no recomendada): contar el ingreso declarado con día pasado como recibido — asume el
+  pago, viola "nunca mentir hacia arriba" y §32.
+
+Cualquiera de A/B es maintenance/UX; C sería un cambio de la definición §32 (requiere DEC y
+visto del CPSAO). Pendiente de la decisión del Fundador/CPSAO.
 
 ## Historial
 - 2026-07-13 — Creación del registro. BT-001 corregido y verificado; BT-002 encauzado a
