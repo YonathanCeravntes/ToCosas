@@ -6,8 +6,11 @@
 
 ---
 
+## FIN activa (en diseño, retenida)
+**FIN-030 — Umbrella: Deudas por tipo + movimientos inteligentes (SO Financiero Personal) — prioridad MÁXIMA.** ARQ **RETENIDO por el CTO** pendiente de las observaciones del Fundador sobre Registrar/Transacciones (instrucción permanente activada — el "cómo pagaste" ES el flujo de registro). Decisión de producto del Fundador + CPSAO, guardarraíles A–K, §42 institucionalizado. Faseo: Fase 1 = espina (producto como entidad + capa de consecuencias) con compra-con-tarjeta e2e. `docs/correspondencia/Rediseno-Modulo-Deudas.md`.
+
 ## Gobernanza vigente
-v3.18 (`docs/GOBERNANZA.md`) — última sección: §41 continuidad Beta (toda FIN cerrada llega al dispositivo Beta vía OTA por la vía segura de §40; los usuarios de prueba usan siempre la última versión aprobada; ciclo `Arquitecto→Auditor→CTO→Integración→GitHub→OTA→Beta`). Antes: §40 gate obligatorio de despliegue OTA, §38 gestión de defectos, §39 formato regional.
+v3.19 (`docs/GOBERNANZA.md`) — última sección: §42 Automatización con Claridad Radical (una acción → todos los efectos, todos visibles/explicables/reversibles). Antes: §41 continuidad Beta (toda FIN cerrada llega al dispositivo Beta vía OTA por la vía segura de §40; los usuarios de prueba usan siempre la última versión aprobada; ciclo `Arquitecto→Auditor→CTO→Integración→GitHub→OTA→Beta`). Antes: §40 gate obligatorio de despliegue OTA, §38 gestión de defectos, §39 formato regional.
 
 ## Beta técnica (estado de despliegue)
 OTA vigente en `preview`: `f166ac42` — lleva **FIN-027** (perfil de ingresos), **FIN-028** (editar/anular movimientos), **BT-001** (formato regional) y el fix **BT-003** (URL de producción). Backend en Render actualizado (auto-deploy) — incluye **BT-004** (el ingreso fijo declarado entra en "Te queda", decisión del Fundador 2026-07-14, backend-only sin OTA). Próximo OTA (cuando haya cambios de frontend aprobados) se publica por `npm run ota:publish` (§40/§41).

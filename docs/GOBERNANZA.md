@@ -1,6 +1,6 @@
 # Gobernanza oficial del proyecto Milla
 
-- **Versión:** 3.18
+- **Versión:** 3.19
 - **Fecha de adopción:** 2026-07-14
 - **Autor:** CTO, propuesta del CPSAO, ratificada por el Fundador (Yonathan Cervantes)
 - **Estado:** Vigente
@@ -136,11 +136,17 @@
     `localhost`/variables faltantes/config inconsistente/`/health` caído; vía única de
     publicación (`npm run ota:publish`, prohibido `eas update` directo); y dispositivo
     centinela previo a ampliar a todos los usuarios.
-  - **v3.18 (2026-07-14) — esta versión.** Añade la **continuidad Beta** (sección 41): toda
+  - v3.18 (2026-07-14) — Añade la **continuidad Beta** (sección 41): toda
     `FIN` cerrada e integrada debe reflejarse en la app de los usuarios de prueba vía OTA
     (por la vía segura de §40); los usuarios de prueba trabajan siempre con la última versión
     aprobada salvo razón técnica justificada. Ciclo oficial hasta el dispositivo:
     `Arquitecto→Auditor→CTO→Integración→GitHub→OTA→Dispositivos Beta`.
+  - **v3.19 (2026-07-14) — esta versión.** Añade **Automatización con Claridad Radical**
+    (sección 42), del rediseño de Deudas / "movimientos inteligentes" hacia un SO Financiero
+    Personal: una sola acción del usuario produce todos sus efectos financieros — y todos
+    deben ser **visibles, explicables y reversibles** (trazabilidad de la cascada, heredar-no-
+    re-preguntar, sin duplicados/§32 al estado del producto). Principio del Fundador con el
+    contrapeso de Claridad Radical del CPSAO.
 
 Todo cambio que afecte **lógica de negocio, arquitectura, base de datos, seguridad,
 IA, APIs, permisos, integraciones, monetización o experiencia funcional** sigue este
@@ -1175,6 +1181,36 @@ Arquitecto → Auditor → CTO → Integración → GitHub → OTA → Dispositi
 
 **Ratificación:** directriz operativa del Fundador (Yonathan Cervantes), 2026-07-14 ("Cierre
 del incidente BT-003 y directriz para las próximas entregas").
+
+## 42. Automatización con Claridad Radical — una acción, todos los efectos, todos reversibles (nueva en v3.19)
+
+**Origen:** la directriz del Fundador (2026-07-14) de convertir a Milla en un "Sistema
+Operativo Financiero Personal" donde **una sola acción del usuario produce automáticamente
+todos sus efectos financieros** (registrar una compra a cuotas mueve saldo, cupo, próximas
+cuotas, presupuesto, flujo, capacidad, Score, simulaciones y recomendaciones). El CPSAO la
+elevó a decisión de producto y le pegó su contrapeso: la automatización que acierta es magia,
+pero la que falla es **corrupción silenciosa** de la verdad financiera del usuario (una compra
+mal interpretada ensucia nueve pantallas a la vez sin que la persona lo vea).
+
+**Regla permanente:** *una sola acción del usuario debe producir todos los efectos financieros
+necesarios — y todos esos efectos deben ser **visibles, explicables y reversibles** por el
+usuario.* La segunda mitad no es una nota al pie: es lo que separa un ecosistema en el que
+confías de uno que te maneja la plata sin que entiendas cómo. Consecuencias operativas:
+1. **Trazabilidad de la cascada:** todo efecto automático debe poder rastrearse a la acción
+   que lo originó ("esta cuota nació de tu compra del 12 en tal tarjeta") y **deshacerse**
+   desde ahí. Extiende la anulación lógica y trazabilidad de FIN-028 y el acuse explícito de
+   FIN-029 ("nunca cambiar el estado en silencio").
+2. **La automatización sirve a la Claridad Radical (§28/§29); nunca la reemplaza.** Si un
+   efecto no puede hacerse visible y reversible, no se automatiza en silencio.
+3. **Heredar, no re-preguntar** (baja fricción): una acción hereda lo que el producto ya sabe
+   y solo pregunta el delta de esa transacción.
+4. **Sin duplicados / §32 al estado del producto:** una compra con una tarjeta ya registrada
+   actualiza esa entidad, no crea una segunda deuda; cada número derivado (cupo disponible,
+   saldo utilizado, próximas cuotas) tiene una sola definición inyectada (§32).
+
+**Ratificación:** principio permanente del Fundador (Yonathan Cervantes), 2026-07-14, con el
+contrapeso de Claridad Radical añadido y ratificado por el CPSAO en la misma decisión
+(guardarraíles G–K del rediseño de Deudas / "movimientos inteligentes").
 
 ---
 
