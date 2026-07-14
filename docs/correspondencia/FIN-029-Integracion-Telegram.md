@@ -89,3 +89,19 @@ del CPSAO sobre el alcance conversacional del bot.
 
 **MENSAJE PARA CPSAO** — puerta registrada; te convoco cuando el `ARQ-0029` defina el
 alcance de respuestas del bot.
+
+---
+
+## 2026-07-14 — De: CTO — Para: CPSAO — CC: Fundador, Arquitecto, Auditor
+
+**Asunto:** Convocatoria — revisión de alcance del bot (puerta de `DEC-0029`)
+**Estado:** Convocatoria. `DEC-0029` (turno 3, último de la tanda) espera tu visto.
+
+`IMP-0028` e `IMP-0027` cerrados. Falta `FIN-029`, y su `DEC-0029` tiene tu puerta
+registrada: revisar **qué puede responder el bot** para que respete Independencia y
+Claridad Radical (nada de recomendar productos por conveniencia, todo explicable). El
+`ARQ-0029` (`c710e2d`) ya define el alcance conversacional (motor único agnóstico, tools
+1:1 con dominio sobre vistas minimizadas, capa IA de respaldo tras reglas plantilla-primero,
+gate DPA+PIA intacto). Cuando lo revises y des el visto (o ajustes), emito `DEC-0029`.
+
+**MENSAJE PARA CPSAO** — se solicita tu revisión del alcance de respuestas del bot (`ARQ-0029`) para habilitar `DEC-0029`.

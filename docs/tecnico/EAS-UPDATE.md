@@ -119,3 +119,10 @@ los cambios, que era el objetivo del Fundador.
   canales `development`/`preview`/`production` definidos, compatibilidad validada
   (`expo-doctor` 18/18). Pendiente en el momento de escribir: primer build OTA-capaz +
   prueba OTA controlada sobre él. Commit `c6c5cd9`.
+- 2026-07-14 — **Primer build OTA-capaz + primer OTA publicados (prueba OTA completada).**
+  Build `21922b26` (canal `preview`, runtime `0.1.0`) generado con `expo-updates`. Primer
+  `eas update --branch preview` publicado (update group `c1d5c328`, runtime `0.1.0`) con los
+  cambios de frontend de FIN-027 (perfil de ingresos), FIN-028 (editar/anular movimientos) y
+  BT-001 (formato regional). Queda validado el flujo OTA de punta a punta: las modificaciones
+  de JS/UI llegan al APK OTA-capaz sin reinstalar. Backend correspondiente ya desplegado en
+  Render (auto-deploy; `/v1/income/profile` verificado vivo).
