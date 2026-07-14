@@ -43,12 +43,14 @@ export interface TeQueda {
  *           − gastos y pagos REALES del ciclo
  *           − compromisos PENDIENTES del ciclo
  * donde:
- *   · BASE de ingreso = max( take-home del ingreso FIJO esperado , ingresos
- *     realmente RECIBIDOS ). El take-home fijo = netFixedTotal + deducciones
- *     auto-pagadas (que siguen contándose como compromiso, ver abajo). El `max`
- *     evita el doble conteo cuando el ingreso fijo además se registra como
- *     movimiento, y deja la base IDÉNTICA al `incomeRef` del Score
- *     (`core-metrics`, §32 — Score y "Te queda" sobre la misma base).
+ *   · BASE de ingreso = max( ingreso neto disponible del MES , ingresos
+ *     realmente RECIBIDOS ). El ingreso neto disponible del mes = take-home del
+ *     ingreso FIJO (netFixedTotal + deducciones auto-pagadas, que siguen como
+ *     compromiso) MÁS el ingreso VARIABLE estimado — es el "ingreso neto
+ *     disponible" que la usuaria configura para planificar (decisión del
+ *     Fundador 2026-07-14, BT-004: "es ingreso neto sumar salario y variable").
+ *     El `max` con lo recibido evita el doble conteo cuando ese ingreso además
+ *     se registra como movimiento.
  *   · compromisos pendientes = TODOS los fijos de gasto activos (§4.1-bis),
  *     las deducciones auto-pagadas (DEC-0027 P2) y las cuotas de deuda con
  *     nextDueDate dentro de lo que RESTA del ciclo.
@@ -104,12 +106,15 @@ export class SpendableService {
     const sumKind = (k: string) =>
       Number(txByKind.find((t) => t.kind === k)?._sum.amount ?? 0);
     const receivedIncome = round2(sumKind('ingreso'));
-    // BT-004 (decisión del Fundador 2026-07-14): el ingreso fijo declarado forma
-    // parte de la base. Take-home fijo = neto + deducciones auto-pagadas (que se
-    // restan luego como compromiso). `max` con lo recibido evita doble conteo y
-    // deja la base igual a la del Score (`incomeRef`).
-    const fixedTakeHome = round2(income.netFixedTotal + income.selfPaidDeductionsTotal);
-    const incomeBase = Math.max(fixedTakeHome, receivedIncome);
+    // BT-004 (decisión del Fundador 2026-07-14): la base es el INGRESO NETO
+    // DISPONIBLE DEL MES = fijo neto + variable estimado ("sumar salario y
+    // variable"). Take-home = netFixedTotal + deducciones auto-pagadas (que se
+    // restan luego como compromiso) + variable estimado. `max` con lo recibido
+    // evita el doble conteo si además se registra como movimiento.
+    const monthlyTakeHome = round2(
+      income.netFixedTotal + income.selfPaidDeductionsTotal + income.grossVariableEstimate,
+    );
+    const incomeBase = Math.max(monthlyTakeHome, receivedIncome);
     const realOut = round2(sumKind('gasto') + sumKind('pago_deuda'));
 
     const commitments: PendingCommitment[] = [];

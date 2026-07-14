@@ -180,4 +180,17 @@ describe('FIN-027 · ingreso neto único en Motor, Presupuesto y Te queda (§32)
     });
     expect(status).toBe(400);
   });
+
+  it('BT-004: el ingreso VARIABLE estimado también entra en la base de "Te queda"', async () => {
+    const before = (await req('GET', '/v1/budget/monthly')).data.teQueda.incomeBase;
+    const src = await req('POST', '/v1/income/sources', {
+      name: 'Comisiones e2e',
+      amount: 897_000,
+      isVariable: true,
+    });
+    expect(src.status).toBe(201);
+    const after = (await req('GET', '/v1/budget/monthly')).data.teQueda.incomeBase;
+    // sin ingresos recibidos, la base sube exactamente el variable estimado
+    expect(after).toBe(before + 897_000);
+  });
 });

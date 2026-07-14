@@ -140,13 +140,17 @@ el indicador ignore ese ingreso supera el beneficio de la regla anterior. Esto *
 "Alt A / solo lo recibido" de FIN-020 para el ingreso fijo** (los ingresos VARIABLES siguen
 contando solo al recibirse — no son certeza).
 
-**Implementación (CTO), hecha con cuidado de NO romper §32 (una sola definición, consistente
-con el Score):**
+**Aclaración del Fundador (2026-07-14, tras primera validación):** la base debe ser el
+**ingreso neto disponible del mes completo = salario + variable, menos deducciones** (su
+número real: 5.609.240 = fijo neto + variable). No solo el fijo.
+
+**Implementación (CTO), hecha con cuidado de NO romper §32 (una sola definición):**
 - `SpendableService` (fuente única de "Te queda"): la base de ingreso pasa de
-  `receivedIncome` a **`max(take-home del fijo esperado, recibido)`** donde
-  `take-home fijo = netFixedTotal + selfPaidDeductionsTotal`. El `max` **evita el doble
-  conteo** si el fijo además se registra como movimiento, y deja la base **idéntica al
-  `incomeRef` del Score** (`core-metrics`) — Score y "Te queda" sobre la misma base, §32.
+  `receivedIncome` a **`max(ingreso neto disponible del mes, recibido)`** donde
+  `ingreso neto disponible del mes = netFixedTotal + selfPaidDeductionsTotal +
+  grossVariableEstimate` (= `netMonthlyEstimate` en forma take-home). El `max` **evita el
+  doble conteo** si el ingreso además se registra como movimiento. Incluye el variable
+  estimado (decisión explícita del Fundador; se documenta que el variable es estimación).
 - Se expone `incomeBase` en el objeto `TeQueda` y `interpretCashflow` (interpretación §4.1-ter
   del Inicio) pasa a dividir por `incomeBase` en vez de `receivedIncome` — si no, con ingreso
   declarado daba proporciones absurdas ("$283 de cada $100"); copy ajustado a "de tu ingreso".
