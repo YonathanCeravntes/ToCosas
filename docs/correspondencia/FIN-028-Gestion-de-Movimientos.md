@@ -123,3 +123,56 @@ declarar explícitamente el impacto de la anulación retroactiva sobre cifras hi
 
 **MENSAJE PARA ARQUITECTO** — emitir `ARQ-0028`; una sola funcionalidad, diseño detallado
 propio, honrando las 10 decisiones del Fundador.
+
+---
+
+## 2026-07-13 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Estado**
+`ARQ-0028` v1.0 emitido — `docs/arquitectura/ARQ-0028-Gestion-de-Movimientos.md`, commit `7cdbdf0` (rama de trabajo, §36.2). Las 10 DEC-028 honradas pieza por pieza.
+
+**Conclusión**
+Dos incumplimientos REALES encontrados al verificar (no teóricos): (1) `update` y `remove` de movimientos NO emiten eventos de dominio hoy (`transactions.service.ts:160-178`, escriben directo sin outbox) — el Motor no recalcula tras una corrección hasta el job nocturno, DEC-028-005/006 rotas de raíz; (2) el `undoLast` de mensajería escribe por fuera del servicio central. El diseño: estado `anulada` + `voidedAt` (el enum TxStatus ya existe — Alt B de reutilizar `deletedAt` rechazada: mata la recuperación futura), mutaciones envueltas en el outbox con evento RICO (changedFields + before/after estructurados, sin texto libre — la forma que 004/008 exigen sin rediseñar BD), filtro compartido `ACTIVE_TX_FILTER` (los ~25 `deletedAt: null` repetidos mueren), y una regla de UX para movimientos ligados a deuda: campos neutros editables, monto/fecha se anulan-y-recrean (editar el monto de un pago de deuda sin recomputar dejaría el saldo mentiroso — meter esa reversión en la mutación violaría la 006).
+
+**Declarado como pediste:** la anulación retroactiva mueve cifras históricas (mismo tratamiento honesto que la mora de FIN-024).
+
+**Bloqueos:** ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-13 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Corrección de destinatario (señalada por el Fundador — el flujo §36.2 es CTO → Arquitecto → AUDITOR → CTO):** mi mensaje anterior debió dirigirse a ti. El `ARQ-0028` v1.0 de este hilo queda a tu disposición para tu AUD; todo el contenido del mensaje anterior (SHA, hallazgos y puntos de verificación) aplica tal cual. El aviso al CTO queda cumplido por esta CC.
+
+**Bloqueos:** ninguno. No implemento nada hasta el DEC.
+
+MENSAJE PARA AUDITOR
+
+---
+
+---
+
+## 2026-07-13 — De: CTO — Para: Arquitecto — CC: Auditor, CPSAO, Fundador
+
+**Asunto:** DEC-0028 emitida — IMP-0028 habilitado (con corrección de diseño)
+**Estado:** Decidida. `IMP-0028` autorizado, primero de la secuencia 028→027→029.
+
+Verifiqué el diseño contra el código (no sobre tu reporte). El bug del evento faltante es
+real y confirmado (`update`/`remove` sin outbox; los tipos `transaction.updated/deleted` y
+el listener del Motor ya existen — solo falta emitir). **Corrección de diseño obligatoria
+en `DEC-0028` §5.1:** no se añade `anulada` ni `voidedAt`. La anulación **ya existe** como
+`deletedAt` (tu `remove()` ya hace soft-delete en `:175`, y 97 filtros ya excluyen los
+anulados). Sumar un estado nuevo crearía un tercer concepto de anulación junto a
+`deletedAt` y al dormante `descartada` — §32 lo prohíbe. La etiqueta "Anulado" se deriva
+de `deletedAt != null`.
+
+Lo demás aprobado: outbox en `update`/`remove` (recálculo por el listener, cero lógica en
+la mutación), evento rico (`changedFields`+before/after) para auditoría/IA sin rediseñar
+BD, servicio central único (reencaminar `undoLast`), guardarraíl de movimientos ligados a
+deuda (anular-y-recrear el monto/fecha, no editar en sitio). **`ACTIVE_TX_FILTER` solo
+sobre consultas de `Transaction`, verificado por diff — no toques los 97 a ciegas.**
+
+**MENSAJE PARA ARQUITECTO** — emitir `IMP-0028` con los 4 cambios obligatorios de
+`DEC-0028`; entregar con SHA para validación del CTO antes de integrar.
