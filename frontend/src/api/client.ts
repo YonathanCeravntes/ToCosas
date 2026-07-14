@@ -93,11 +93,31 @@ async function request<T>(
   const token = handlers.getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  // BT-005: timeout duro. Sin esto, si el backend está dormido (Render free se
+  // apaga tras 15 min de inactividad) la petición se cuelga indefinidamente y la
+  // UI queda "cargando" para siempre (botón trabado). Con el AbortController el
+  // request SIEMPRE resuelve o falla con un mensaje claro — la UI nunca se cuelga.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 45000);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') {
+      throw new ApiError(
+        0,
+        'El servidor tardó demasiado (puede estar reactivándose). Espera unos segundos e intenta de nuevo.',
+      );
+    }
+    throw new ApiError(0, 'No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.');
+  } finally {
+    clearTimeout(timer);
+  }
 
   // Token expirado → intentar refrescar una vez y reintentar.
   if (res.status === 401 && !retried && handlers.getRefreshToken()) {

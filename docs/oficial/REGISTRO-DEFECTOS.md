@@ -15,6 +15,7 @@
 | BT-002 | No se podían editar ni anular movimientos ya registrados. | Continúa dentro de **FIN-028** (decisiones del Fundador ya emitidas). | ✅ Cubierto por `FIN-028` (CERRADA, `65104e1`) | `docs/oficial/DEC-0028-Gestion-de-Movimientos.md` |
 | BT-003 | La app mostraba "Sin conexión con el backend" pese a que Render/`/v1/health` respondían. **Incidente causado por el CTO** al publicar el primer OTA: `eas update` no hereda el `env` del perfil de build → el bundle cayó al fallback `localhost`. | **Defecto operativo/de configuración** (despliegue OTA). No es FIN. | ✅ **Corregido y publicado por OTA** | Ver detalle abajo. |
 | BT-004 | Un ingreso fijo **declarado** (perfil de ingresos, FIN-027) no aparece en "Te queda para gastar". | **Decisión de producto del Fundador** — cambia la definición §32 de "Te queda". | ✅ **Resuelto** (decisión del Fundador, 2026-07-14) — implementado y verificado | Análisis + resolución abajo. Commit del fix registrado. |
+| BT-005 | Al anular un pago de deuda desde la app, el botón "Guardar" queda cargando y "Anular" no se habilita (parece colgado). | **Defecto de experiencia** — el backend anula bien (0.93s, deuda regenerada); la petición se cuelga sin timeout cuando el backend está dormido (Render free). | ✅ **Corregido** (timeout en el cliente HTTP) + deuda del Fundador regenerada manualmente | Detalle abajo. |
 
 ---
 
@@ -167,6 +168,28 @@ número real: 5.609.240 = fijo neto + variable). No solo el fijo.
   activo), sin OTA. El Fundador solo debe recargar la app.
 - **Estado:** ✅ **Resuelto y verificado en producción.** Pendiente únicamente la confirmación
   visual del Fundador tras recargar la app (§41: no lo doy por cerrado hasta que él lo compruebe).
+
+## BT-005 · Botón "Guardar/Anular" trabado al anular un pago de deuda
+
+**Reportado por:** Fundador (Beta Técnica, 2026-07-14) — al intentar anular un pago de deuda,
+el botón verde queda cargando y "Anular movimiento" no se habilita.
+
+**Diagnóstico del CTO (evidencia):**
+- El **backend anula correctamente y rápido:** `DELETE /transactions/{id}` del pago de deuda
+  del Fundador → `{deleted:true}`, HTTP 200 en **0.93 s**, y la deuda **se regeneró**
+  (currentBalance 64.114.451, status `activa`) — la lógica de reverso de FIN-028 funciona.
+- Por tanto el "botón trabado" es de **frontend/red**: la petición se cuelga sin límite
+  cuando el backend está **dormido** (Render free se apaga tras 15 min de inactividad y
+  tarda ~30-60 s en despertar). El `EditTransactionModal` comparte el estado `busy` entre
+  "Guardar" y "Anular", así que ambos se ven trabados durante esa espera.
+
+**Solución aplicada:**
+- `client.ts`: **timeout duro de 45 s** vía `AbortController` — el request SIEMPRE resuelve
+  o falla con mensaje claro ("El servidor tardó demasiado, puede estar reactivándose…"). La
+  UI nunca queda colgada. También mejora el manejo de error de red. (Frontend → OTA por §40.)
+- **Deuda del Fundador regenerada** manualmente por el CTO (anulado el pago desde su cuenta).
+- Causa de fondo (no un bug del código): el cold-start del plan free de Render. Mitigado con
+  el timeout; eliminarlo requeriría plan pagado (no autorizado, §36.4).
 
 ## Historial
 - 2026-07-13 — Creación del registro. BT-001 corregido y verificado; BT-002 encauzado a
