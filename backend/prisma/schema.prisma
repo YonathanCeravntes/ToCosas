@@ -383,6 +383,10 @@ model Debt {
   rateBasis      RateBasis   @default(EA) @map("rate_basis")
   amortSystem    AmortSystem @default(frances) @map("amort_system")
   monthlyPayment Decimal?    @map("monthly_payment") @db.Decimal(18, 2)
+  // FIN-031: cupo total de una tarjeta de crédito (null para el resto de tipos).
+  // El saldo utilizado y el cupo disponible se DERIVAN (CardService), no se
+  // almacenan — §32.
+  creditLimit    Decimal?    @map("credit_limit") @db.Decimal(18, 2)
   paymentDay     Int?        @map("payment_day") @db.SmallInt
   nextDueDate    DateTime?   @map("next_due_date") @db.Date
   status         DebtStatus  @default(activa)
@@ -397,10 +401,60 @@ model Debt {
   transactions Transaction[]
   reminders    Reminder[]
   insurances   DebtInsurance[]
+  cardPurchases CardPurchase[]
 
   @@index([userId])
   @@index([nextDueDate])
   @@map("debts")
+}
+
+// ---------- FIN-031 · Compras a cuotas con tarjeta (espina del SO Financiero) ----------
+
+/**
+ * FIN-031 · Una compra hecha con una tarjeta de crédito. ACTUALIZA la tarjeta
+ * existente (guardarraíl I — no crea una 2ª deuda). `sourceTransactionId` es la
+ * causalidad (guardarraíl G/§42): la cuota "nació de esta compra" y la reversión
+ * parte de aquí. El saldo pendiente de la compra = Σ cuotas no pagadas.
+ */
+model CardPurchase {
+  id                  String    @id @default(uuid()) @db.Uuid
+  debtId              String    @map("debt_id") @db.Uuid
+  // La compra ES la acción de primera clase y su propio origen trazable (G/§42):
+  // NO crea un gasto en efectivo (la caja sale por las CUOTAS, no ahora — evita
+  // el doble conteo en "Te queda"). `sourceTransactionId` queda para un futuro
+  // asiento de liquidación; en Fase 1 es null.
+  sourceTransactionId String?   @unique @map("source_transaction_id") @db.Uuid
+  amount              Decimal   @db.Decimal(18, 2)
+  occurredAt          DateTime  @map("occurred_at")
+  installmentsCount   Int       @map("installments_count")
+  withInterest        Boolean   @default(false) @map("with_interest")
+  note                String?
+  createdAt           DateTime  @default(now()) @map("created_at")
+  deletedAt           DateTime? @map("deleted_at")
+
+  debt         Debt              @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  source       Transaction?      @relation(fields: [sourceTransactionId], references: [id], onDelete: SetNull)
+  installments CardInstallment[]
+
+  @@index([debtId, deletedAt])
+  @@map("card_purchases")
+}
+
+/** Una cuota de una compra a cuotas. `paidAt` marca el pago aplicado (define si
+ *  la compra puede anularse limpio — política de reversión §4.5). */
+model CardInstallment {
+  id             String    @id @default(uuid()) @db.Uuid
+  cardPurchaseId String    @map("card_purchase_id") @db.Uuid
+  periodNo       Int       @map("period_no")
+  dueDate        DateTime  @map("due_date") @db.Date
+  amount         Decimal   @db.Decimal(18, 2)
+  paidAt         DateTime? @map("paid_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  purchase CardPurchase @relation(fields: [cardPurchaseId], references: [id], onDelete: Cascade)
+
+  @@index([cardPurchaseId, deletedAt])
+  @@map("card_installments")
 }
 
 // ---------- FIN-013 · Seguros asociados al crédito ----------
@@ -503,6 +557,8 @@ model Transaction {
   entity   FinancialEntity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
   debt     Debt?            @relation(fields: [debtId], references: [id], onDelete: SetNull)
   account  Account?         @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  // FIN-031: si esta transacción originó una compra a cuotas (causalidad G).
+  cardPurchase CardPurchase?
 
   @@unique([userId, clientUuid])
   @@index([userId, occurredAt])

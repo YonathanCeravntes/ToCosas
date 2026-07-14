@@ -12,7 +12,7 @@ import { DebtOutlayService } from './debt-outlay.service';
 import { debtToAmortizationInput } from './debt-amortization.mapper';
 import { overdueDays } from './overdue.util';
 import { DebtInsuranceService } from './debt-insurance.service';
-import { CreateDebtDto, UpdateDebtDto } from './dto/debt.dto';
+import { CreateDebtDto, DebtTypeDto, UpdateDebtDto } from './dto/debt.dto';
 
 @Injectable()
 export class DebtsService {
@@ -47,6 +47,8 @@ export class DebtsService {
           rateBasis: dto.rateBasis,
           amortSystem: dto.amortSystem ?? 'frances',
           monthlyPayment: schedule.monthlyPayment,
+          // FIN-031: cupo de la tarjeta (solo tarjeta de crédito; null para el resto).
+          creditLimit: dto.creditLimit ?? null,
           paymentDay: dto.paymentDay ?? null,
           nextDueDate: nextDue ? new Date(nextDue) : null,
           amortization: {
@@ -259,6 +261,21 @@ export class DebtsService {
   }
 
   private computeSchedule(dto: CreateDebtDto): AmortizationResult {
+    // FIN-031: una tarjeta de crédito NO tiene un plan de amortización de contrato
+    // (principal/plazo fijos). Su cuota mensual y su saldo se DERIVAN de las
+    // compras a cuotas (CardService / DebtOutlayService, §32). Por eso se crea sin
+    // tabla de amortización — evita amortizar un principal 0 (que además reventaría).
+    if (dto.debtType === DebtTypeDto.tarjeta_credito) {
+      return {
+        monthlyRate: 0,
+        monthlyPayment: 0,
+        numberOfPayments: 0,
+        totalInterest: 0,
+        totalPaid: 0,
+        payoffDate: dto.startDate,
+        entries: [],
+      };
+    }
     const input = debtToAmortizationInput({
       currentBalance: dto.currentBalance,
       interestRate: dto.interestRate,

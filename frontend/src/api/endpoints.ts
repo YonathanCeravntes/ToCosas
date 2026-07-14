@@ -11,6 +11,7 @@ import {
   CopilotReply,
   Category,
   Dashboard,
+  CardSummary,
   Debt,
   DebtInsurance,
   DebtsSummary,
@@ -77,6 +78,12 @@ export const debtsApi = {
     api.patch<DebtInsurance>(`/debts/insurances/${insuranceId}`, input),
   removeInsurance: (insuranceId: string) =>
     api.delete<{ deleted: boolean }>(`/debts/insurances/${insuranceId}`),
+  // FIN-031: tarjeta de crédito — cupo y compras a cuotas.
+  cardSummary: (debtId: string) => api.get<CardSummary>(`/debts/cards/${debtId}`),
+  registerPurchase: (debtId: string, input: { amount: number; installments: number; withInterest?: boolean; note?: string }) =>
+    api.post<{ acknowledgment: string; summary: CardSummary }>(`/debts/cards/${debtId}/purchases`, input),
+  voidPurchase: (purchaseId: string) =>
+    api.delete<{ voided: boolean }>(`/debts/cards/purchases/${purchaseId}`),
 };
 
 export const transactionsApi = {
@@ -222,6 +229,8 @@ export interface CreateDebtInput {
   interestRate: number;
   rateBasis: string;
   paymentDay?: number;
+  // FIN-031: cupo de la tarjeta de crédito (el saldo se deriva de sus compras).
+  creditLimit?: number;
 }
 
 export interface CreateAccountInput {

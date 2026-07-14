@@ -5,7 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Card, Field, Row } from '../../components/ui';
 import { colors, radius, spacing } from '../../theme/colors';
 import { formatDate, formatMoney } from '../../utils/format';
-import { DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, toNumber } from '../../api/types';
+import { CardSummary, DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, toNumber } from '../../api/types';
 import { debtsApi, simulationsApi, SimulateResult } from '../../api/endpoints';
 import { useApi } from '../../utils/useApi';
 import { DebtsStackParamList } from '../../navigation/types';
@@ -45,25 +45,36 @@ export function DebtDetailScreen({ route }: Props) {
   }
 
   const amort = data.amortization ?? [];
+  // FIN-031: una tarjeta de crédito NO es un crédito de contrato: su saldo/cuota
+  // se derivan de las compras (CardService, §32). Por eso el detalle de una
+  // tarjeta muestra SOLO su sección de cupo/compras y oculta la UI de
+  // amortización (saldo fijo, plan de pago, abono a capital, simulador), que con
+  // saldo 0 mostraría "$0" y mentiría. La experiencia completa llega en el umbrella.
+  const isCard = data.debtType === 'tarjeta_credito';
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
-      <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-        <Text style={{ color: colors.textInverse, opacity: 0.8 }}>Saldo pendiente</Text>
-        <Text style={{ color: colors.textInverse, fontSize: 30, fontWeight: '800' }}>
-          {formatMoney(toNumber(data.currentBalance))}
-        </Text>
-        <Text style={{ color: colors.textInverse, opacity: 0.85, marginTop: 4 }}>
-          Cuota mensual {formatMoney(toNumber(data.monthlyPayment))}
-        </Text>
-      </Card>
+      {!isCard ? (
+        <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
+          <Text style={{ color: colors.textInverse, opacity: 0.8 }}>Saldo pendiente</Text>
+          <Text style={{ color: colors.textInverse, fontSize: 30, fontWeight: '800' }}>
+            {formatMoney(toNumber(data.currentBalance))}
+          </Text>
+          <Text style={{ color: colors.textInverse, opacity: 0.85, marginTop: 4 }}>
+            Cuota mensual {formatMoney(toNumber(data.monthlyPayment))}
+          </Text>
+        </Card>
+      ) : null}
+
+      {/* FIN-031: tarjeta de crédito — cupo y compras a cuotas (la espina). */}
+      {isCard ? <CardSection debtId={debtId} onChanged={() => void reload()} /> : null}
 
       {/* FIN-024 P2: bloque de conciliación — solo si la cuota está vencida.
           Afirma lo OBSERVABLE ("no está registrada"), nunca el impago (§29.2). */}
       {data.overdueDays ? <OverdueBlock days={data.overdueDays} /> : null}
 
       {/* Resumen del crédito: cuándo termina, intereses y total a pagar */}
-      {data.projection ? (
+      {!isCard && data.projection ? (
         <Card>
           <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
             📅 Resumen del crédito
@@ -96,19 +107,22 @@ export function DebtDetailScreen({ route }: Props) {
       ) : null}
 
       {/* FIN-012: abono a capital y pago total anticipado (REALES) */}
-      {data.status === 'activa' ? (
+      {!isCard && data.status === 'activa' ? (
         <PrepaySection debtId={debtId} balance={toNumber(data.currentBalance)} onChanged={() => void reload()} />
       ) : null}
 
       {/* FIN-013: seguros del crédito y desglose de cuota real */}
-      <InsuranceSection
-        debtId={debtId}
-        insurances={data.insurances ?? []}
-        breakdown={data.paymentBreakdown}
-        onChanged={() => void reload()}
-      />
+      {!isCard ? (
+        <InsuranceSection
+          debtId={debtId}
+          insurances={data.insurances ?? []}
+          breakdown={data.paymentBreakdown}
+          onChanged={() => void reload()}
+        />
+      ) : null}
 
       {/* Simulador de abono extra */}
+      {!isCard ? (
       <Card>
         <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
           💡 Simulador de abono extra
@@ -147,33 +161,177 @@ export function DebtDetailScreen({ route }: Props) {
           </View>
         ) : null}
       </Card>
+      ) : null}
 
-      {/* Tabla de amortización (primeras cuotas) */}
-      <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
-        Plan de pago
-      </Text>
-      {amort.slice(0, 12).map((e) => (
-        <Card key={e.periodNo} style={{ paddingVertical: spacing.sm }}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontWeight: '600' }}>#{e.periodNo} · {formatDate(e.dueDate)}</Text>
-            <Text style={{ fontWeight: '700' }}>{formatMoney(toNumber(e.payment))}</Text>
-          </Row>
-          <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-              Capital {formatMoney(toNumber(e.principalPart))}
+      {/* Tabla de amortización (primeras cuotas) — no aplica a una tarjeta. */}
+      {!isCard ? (
+        <>
+          <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
+            Plan de pago
+          </Text>
+          {amort.slice(0, 12).map((e) => (
+            <Card key={e.periodNo} style={{ paddingVertical: spacing.sm }}>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Text style={{ fontWeight: '600' }}>#{e.periodNo} · {formatDate(e.dueDate)}</Text>
+                <Text style={{ fontWeight: '700' }}>{formatMoney(toNumber(e.payment))}</Text>
+              </Row>
+              <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                  Capital {formatMoney(toNumber(e.principalPart))}
+                </Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                  Interés {formatMoney(toNumber(e.interestPart))}
+                </Text>
+              </Row>
+            </Card>
+          ))}
+          {amort.length > 12 ? (
+            <Text style={{ color: colors.textMuted, textAlign: 'center', marginBottom: spacing.lg }}>
+              … y {amort.length - 12} cuotas más
             </Text>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-              Interés {formatMoney(toNumber(e.interestPart))}
-            </Text>
-          </Row>
-        </Card>
-      ))}
-      {amort.length > 12 ? (
-        <Text style={{ color: colors.textMuted, textAlign: 'center', marginBottom: spacing.lg }}>
-          … y {amort.length - 12} cuotas más
-        </Text>
+          ) : null}
+        </>
       ) : null}
     </ScrollView>
+  );
+}
+
+/** FIN-031 · Tarjeta de crédito: cupo/saldo (derivados), compras a cuotas con
+ *  su trazabilidad (G) y registro de una compra nueva (baja fricción, H). */
+function CardSection({ debtId, onChanged }: { debtId: string; onChanged: () => void }) {
+  const { data, reload } = useApi(() => debtsApi.cardSummary(debtId), [debtId]);
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [installments, setInstallments] = useState('1');
+  const [withInterest, setWithInterest] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = () => {
+    void reload();
+    onChanged();
+  };
+
+  const add = async () => {
+    const value = parseFloat(amount.replace(/[^\d.]/g, ''));
+    const n = Math.max(1, parseInt(installments, 10) || 1);
+    if (!value) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await debtsApi.registerPurchase(debtId, { amount: value, installments: n, withInterest });
+      setAmount('');
+      setInstallments('1');
+      setWithInterest(false);
+      setOpen(false);
+      refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const voidPurchase = (id: string, canVoid: boolean) => {
+    if (!canVoid) {
+      Alert.alert(
+        'No se puede anular',
+        'Esta compra ya tiene pagos aplicados. Para corregirla, primero anula esos pagos o ajusta el saldo — no puedo borrarla sin falsear tu historial.',
+      );
+      return;
+    }
+    Alert.alert('Anular compra', '¿Anular esta compra y sus cuotas? Se revertirá el saldo de la tarjeta.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Anular',
+        style: 'destructive',
+        onPress: () => void debtsApi.voidPurchase(id).then(refresh),
+      },
+    ]);
+  };
+
+  if (!data) return null;
+
+  return (
+    <Card>
+      <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>💳 Tu tarjeta</Text>
+      {data.creditLimit != null ? (
+        <>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text style={{ color: colors.textMuted }}>Cupo disponible</Text>
+            <Text style={{ fontWeight: '800', color: colors.success }}>{formatMoney(data.availableCredit ?? 0)}</Text>
+          </Row>
+          <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
+            <Text style={{ color: colors.textMuted }}>Utilizado</Text>
+            <Text style={{ color: colors.text }}>
+              {formatMoney(data.usedAmount)} de {formatMoney(data.creditLimit)}
+            </Text>
+          </Row>
+        </>
+      ) : (
+        <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+          Registra el cupo de tu tarjeta al editarla para ver cuánto te queda.
+        </Text>
+      )}
+
+      {data.purchases.length > 0 ? (
+        <View style={{ marginTop: spacing.md }}>
+          <Text style={{ fontWeight: '600', color: colors.text, marginBottom: 6 }}>Tus compras a cuotas</Text>
+          {data.purchases.map((p) => (
+            <Pressable key={p.id} onPress={() => voidPurchase(p.id, p.canVoid)}>
+              <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text }} numberOfLines={1}>
+                    {p.note || `Compra de ${formatMoney(p.amount)}`}
+                  </Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                    {/* Trazabilidad (G): de dónde salió cada cuota. */}
+                    {p.installmentsCount} cuota{p.installmentsCount === 1 ? '' : 's'} · {formatDate(p.occurredAt)} ·{' '}
+                    {p.paidInstallments} pagada{p.paidInstallments === 1 ? '' : 's'}
+                  </Text>
+                </View>
+                <Text style={{ fontWeight: '700', color: colors.text }}>{formatMoney(p.pendingBalance)}</Text>
+              </Row>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
+      {open ? (
+        <View style={{ marginTop: spacing.sm }}>
+          <Field label="Monto de la compra" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="600000" />
+          <Field label="¿En cuántas cuotas?" value={installments} onChangeText={setInstallments} keyboardType="numeric" placeholder="3" />
+          <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
+            {[
+              { v: false, label: 'Sin interés' },
+              { v: true, label: 'Con interés' },
+            ].map((opt) => (
+              <Pressable
+                key={String(opt.v)}
+                onPress={() => setWithInterest(opt.v)}
+                style={{
+                  flex: 1,
+                  padding: spacing.sm,
+                  borderRadius: radius.md,
+                  alignItems: 'center',
+                  backgroundColor: withInterest === opt.v ? colors.primary : colors.surface,
+                  borderWidth: 1,
+                  borderColor: withInterest === opt.v ? colors.primary : colors.border,
+                }}
+              >
+                <Text style={{ color: withInterest === opt.v ? colors.textInverse : colors.text, fontSize: 12 }}>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            ))}
+          </Row>
+          {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
+          <Button title="Registrar compra" onPress={() => void add()} loading={saving} />
+        </View>
+      ) : (
+        <Button title="➕ Registrar una compra" variant="secondary" onPress={() => setOpen(true)} />
+      )}
+    </Card>
   );
 }
 

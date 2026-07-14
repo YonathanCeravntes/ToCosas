@@ -16,8 +16,16 @@ describe('DebtOutlayService (FIN-023, GOBERNANZA §32)', () => {
     deletedAt: null,
   });
 
-  const prismaWith = (debts: unknown[]) =>
-    ({ debt: { findMany: jest.fn().mockResolvedValue(debts) } }) as never;
+  // FIN-031: los debts ahora incluyen debtType + cardPurchases; los del caso
+  // FIN-023 son deudas normales sin compras (comportamiento idéntico).
+  const prismaWith = (debts: Array<Record<string, unknown>>) =>
+    ({
+      debt: {
+        findMany: jest.fn().mockResolvedValue(
+          debts.map((d) => ({ debtType: 'libre_inversion', cardPurchases: [], ...d })),
+        ),
+      },
+    }) as never;
 
   it('caso a mano: 500k + seguro aparte 45k + cuota de manejo aparte 30k = 575k', async () => {
     const svc = new DebtOutlayService(
@@ -104,5 +112,32 @@ describe('validación de semántica de cargos (DEC-0023 §5.1)', () => {
         endorsed: true,
       }),
     ).resolves.toMatchObject({ endorsed: true });
+  });
+});
+
+/** FIN-031 (DEC-0031 §3.1) · la tarjeta con compras: compromiso = próxima cuota. */
+describe('DebtOutlayService — cuotas de tarjeta como única autoridad (FIN-031)', () => {
+  const build = (debts: unknown[]) =>
+    new DebtOutlayService({ debt: { findMany: jest.fn().mockResolvedValue(debts) } } as never);
+
+  it('tarjeta con compras → suma la PRÓXIMA cuota de cada compra, no monthlyPayment', async () => {
+    const card = {
+      id: 'card1',
+      debtType: 'tarjeta_credito',
+      monthlyPayment: 50_000, // "cuota mínima" — NO debe usarse
+      insurances: [],
+      cardPurchases: [
+        { deletedAt: null, installments: [{ periodNo: 1, amount: 200_000, paidAt: null }, { periodNo: 2, amount: 200_000, paidAt: null }] },
+        { deletedAt: null, installments: [{ periodNo: 1, amount: 97_000, paidAt: null }] },
+      ],
+    };
+    const r = await build([card]).outlaysByUser('u1');
+    expect(r.byDebt.get('card1')!.outlay).toBe(297_000); // 200k + 97k, no 50k
+  });
+
+  it('tarjeta SIN compras → cae a monthlyPayment (regresión)', async () => {
+    const card = { id: 'card1', debtType: 'tarjeta_credito', monthlyPayment: 120_000, insurances: [], cardPurchases: [] };
+    const r = await build([card]).outlaysByUser('u1');
+    expect(r.byDebt.get('card1')!.outlay).toBe(120_000);
   });
 });

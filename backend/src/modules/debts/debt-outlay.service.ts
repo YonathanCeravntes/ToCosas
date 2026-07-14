@@ -32,12 +32,34 @@ export class DebtOutlayService {
   async outlaysByUser(userId: string): Promise<{ byDebt: Map<string, DebtOutlay>; totalOutlay: number }> {
     const debts = await this.prisma.debt.findMany({
       where: { userId, deletedAt: null, status: 'activa' },
-      include: { insurances: { where: { deletedAt: null } } },
+      include: {
+        insurances: { where: { deletedAt: null } },
+        // FIN-031 (DEC-0031 §3.1): para una tarjeta, "lo comprometido" son sus
+        // CUOTAS de compra, no `monthlyPayment`. Esta es la ÚNICA ruta — todos
+        // los consumidores (teQueda/presupuesto/Copiloto/Motor) las heredan por
+        // inyección. Prohibida una 2ª ruta en CardService o el monthlyPayment
+        // de la tarjeta como segundo origen.
+        cardPurchases: {
+          where: { deletedAt: null },
+          include: { installments: { where: { deletedAt: null, paidAt: null }, orderBy: { periodNo: 'asc' } } },
+        },
+      },
     });
     const byDebt = new Map<string, DebtOutlay>();
     let total = 0;
     for (const d of debts) {
-      const b = paymentBreakdown(Number(d.monthlyPayment ?? 0), d.insurances);
+      // Compromiso base de la tarjeta = suma de la PRÓXIMA cuota no pagada de
+      // cada compra viva (la factura del mes). Sin compras, cae a monthlyPayment
+      // (regresión: tarjeta sin el modelo nuevo se comporta como hoy).
+      const cardMonthly = d.cardPurchases.reduce((acc, p) => {
+        const next = p.installments[0];
+        return acc + (next ? Number(next.amount) : 0);
+      }, 0);
+      const base =
+        d.debtType === 'tarjeta_credito' && d.cardPurchases.length > 0
+          ? cardMonthly
+          : Number(d.monthlyPayment ?? 0);
+      const b = paymentBreakdown(base, d.insurances);
       byDebt.set(d.id, {
         basePayment: b.basePayment,
         separate: b.insuranceSeparate,

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsISO8601,
@@ -50,16 +51,18 @@ export class CreateDebtDto {
   @IsEnum(DebtTypeDto)
   debtType!: DebtTypeDto;
 
+  // FIN-031: una tarjeta de crédito nace con saldo 0 — su saldo real se DERIVA
+  // de las compras (CardService, §32). Por eso 0 es válido (antes @IsPositive).
   @ApiProperty({ example: 60000000 })
   @NormalizeNumber()
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   originalAmount!: number;
 
   @ApiProperty({ example: 49000000 })
   @NormalizeNumber()
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   currentBalance!: number;
 
   @ApiProperty({ example: '2023-01-15' })
@@ -103,9 +106,47 @@ export class CreateDebtDto {
   @IsOptional()
   @IsString()
   currency?: string;
+
+  // FIN-031: cupo total de una tarjeta de crédito (solo tarjetas).
+  @ApiPropertyOptional({ example: 5000000, description: 'Cupo total (solo tarjeta de crédito)' })
+  @IsOptional()
+  @NormalizeNumber()
+  @IsNumber()
+  @IsPositive()
+  creditLimit?: number;
 }
 
 export class UpdateDebtDto extends PartialType(CreateDebtDto) {}
+
+/** FIN-031 · Compra a cuotas con tarjeta — pide solo el delta de la compra (H). */
+export class CreateCardPurchaseDto {
+  @ApiProperty({ example: 600000 })
+  @NormalizeNumber()
+  @IsNumber()
+  @IsPositive()
+  amount!: number;
+
+  @ApiProperty({ example: 3, description: 'Número de cuotas (1 = una sola)' })
+  @NormalizeNumber()
+  @IsInt()
+  @IsPositive()
+  installments!: number;
+
+  @ApiPropertyOptional({ default: false, description: 'true = la compra a cuotas cobra interés' })
+  @IsOptional()
+  @IsBoolean()
+  withInterest?: boolean;
+
+  @ApiPropertyOptional({ example: '2026-07-12T13:00:00-05:00' })
+  @IsOptional()
+  @IsISO8601()
+  occurredAt?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
 
 export class SimulateExtraDto {
   @ApiProperty({ example: 100000 })

@@ -14,7 +14,8 @@ import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 import { DebtsService } from './debts.service';
 import { DebtInsuranceService } from './debt-insurance.service';
 import { DebtPrepaymentService } from './debt-prepayment.service';
-import { CreateDebtDto, PrepayDto, SimulateExtraDto, UpdateDebtDto } from './dto/debt.dto';
+import { CardService } from './card.service';
+import { CreateCardPurchaseDto, CreateDebtDto, PrepayDto, SimulateExtraDto, UpdateDebtDto } from './dto/debt.dto';
 import {
   CreateDebtInsuranceDto,
   UpdateDebtInsuranceDto,
@@ -29,11 +30,33 @@ export class DebtsController {
     private readonly debts: DebtsService,
     private readonly insurance: DebtInsuranceService,
     private readonly prepayment: DebtPrepaymentService,
+    private readonly cards: CardService,
   ) {}
 
   @Get('summary')
   summary(@CurrentUser() user: AuthUser) {
     return this.debts.summaryForUser(user.id);
+  }
+
+  // --- FIN-031 · Tarjeta de crédito: cupo y compras a cuotas (antes de ':id') ---
+
+  @Get('cards/:debtId')
+  cardSummary(@CurrentUser() user: AuthUser, @Param('debtId') debtId: string) {
+    return this.cards.summary(user.id, debtId);
+  }
+
+  @Post('cards/:debtId/purchases')
+  registerPurchase(
+    @CurrentUser() user: AuthUser,
+    @Param('debtId') debtId: string,
+    @Body() dto: CreateCardPurchaseDto,
+  ) {
+    return this.cards.registerPurchase(user.id, { debtId, ...dto });
+  }
+
+  @Delete('cards/purchases/:purchaseId')
+  voidPurchase(@CurrentUser() user: AuthUser, @Param('purchaseId') purchaseId: string) {
+    return this.cards.voidPurchase(user.id, purchaseId);
   }
 
   @Post()

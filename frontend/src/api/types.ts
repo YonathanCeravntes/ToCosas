@@ -55,7 +55,27 @@ export interface Debt {
   status: string;
   /** FIN-024: días de mora derivados por el backend (null = al día). */
   overdueDays?: number | null;
+  /** FIN-031: cupo total de una tarjeta de crédito (null en otros tipos). */
+  creditLimit?: string | number | null;
   projection?: DebtProjection;
+}
+
+// --- FIN-031: tarjeta de crédito (cupo + compras a cuotas) ---
+export interface CardSummary {
+  creditLimit: number | null;
+  usedAmount: number;
+  availableCredit: number | null;
+  purchases: Array<{
+    id: string;
+    amount: number;
+    occurredAt: string;
+    installmentsCount: number;
+    withInterest: boolean;
+    note: string | null;
+    pendingBalance: number;
+    paidInstallments: number;
+    canVoid: boolean;
+  }>;
 }
 
 // --- FIN-012: abono a capital y pago total anticipado (reales) ---
