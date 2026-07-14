@@ -158,7 +158,15 @@ número real: 5.609.240 = fijo neto + variable). No solo el fijo.
 - **Verificación del CTO:** `tsc` BE+FE 0; unit **355/355** (46 suites); e2e **43/43** (11
   suites). e2e `fin020` actualizado: con salario declarado 4.000.000, arriendo 1.200.000 y
   gasto 250.000, "Te queda" = **2.550.000** (antes −550.000) e interpretación verde.
-- **Despliegue (§41):** backend-only → llega a Beta por el auto-deploy de Render, sin OTA.
+- **Verificación en PRODUCCIÓN (CTO, backend en vivo, escenario exacto del Fundador):**
+  salario fijo 5.200.000 − deducciones 487.760 + variable 897.000 + arriendo 1.582.688 →
+  `income/summary.netMonthlyEstimate = 5.609.240` (el número exacto del Fundador) y
+  `budget/monthly.teQueda = { amount: 4.026.552, incomeBase: 5.609.240 }` — **positivo**.
+  El deploy nuevo confirmado activo (`incomeBase` incluye el variable).
+- **Despliegue (§41):** backend-only → llega a Beta por el auto-deploy de Render (confirmado
+  activo), sin OTA. El Fundador solo debe recargar la app.
+- **Estado:** ✅ **Resuelto y verificado en producción.** Pendiente únicamente la confirmación
+  visual del Fundador tras recargar la app (§41: no lo doy por cerrado hasta que él lo compruebe).
 
 ## Historial
 - 2026-07-13 — Creación del registro. BT-001 corregido y verificado; BT-002 encauzado a
