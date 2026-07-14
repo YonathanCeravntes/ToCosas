@@ -81,6 +81,10 @@ export const transactionsApi = {
   dashboard: () => api.get<Dashboard>('/transactions/dashboard'),
   create: (input: CreateTransactionInput) =>
     api.post<Transaction>('/transactions', input),
+  // FIN-028: editar (parcial) y anular (deletedAt) — servicio central único.
+  update: (id: string, input: Partial<CreateTransactionInput>) =>
+    api.patch<Transaction>(`/transactions/${id}`, input),
+  remove: (id: string) => api.delete<{ deleted: boolean }>(`/transactions/${id}`),
 };
 
 export const categoriesApi = {

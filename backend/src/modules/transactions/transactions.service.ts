@@ -8,6 +8,15 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OutboxService } from '../events/outbox.service';
 import { DomainEventType } from '../events/domain-events';
 import { CreateTransactionDto, UpdateTransactionDto } from './dto/transaction.dto';
+import { DEBT_LOCKED_FIELDS, diffTransaction } from './transaction-events.util';
+
+/**
+ * FIN-028 (DEC-0028 §5.2) · Filtro compartido de movimientos ACTIVOS — un solo
+ * lugar para "no anulado" (la anulación ES `deletedAt`, DEC §5.1). Aplica SOLO a
+ * consultas del modelo `Transaction`; NO se toca el `deletedAt: null` de otros
+ * modelos (accounts/debts/…). Consumidores mapeados consulta por consulta.
+ */
+export const ACTIVE_TX_FILTER = { deletedAt: null } as const;
 
 export interface TransactionQuery {
   kind?: string;
@@ -129,7 +138,7 @@ export class TransactionsService {
   async findAll(userId: string, q: TransactionQuery) {
     const where: Prisma.TransactionWhereInput = {
       userId,
-      deletedAt: null,
+      ...ACTIVE_TX_FILTER,
       ...(q.kind ? { kind: q.kind as Prisma.EnumTxKindFilter } : {}),
       ...(q.debtId ? { debtId: q.debtId } : {}),
       ...(q.categoryId ? { categoryId: q.categoryId } : {}),
@@ -151,28 +160,108 @@ export class TransactionsService {
 
   async findOne(userId: string, id: string) {
     const tx = await this.prisma.transaction.findFirst({
-      where: { id, userId, deletedAt: null },
+      where: { id, userId, ...ACTIVE_TX_FILTER },
     });
     if (!tx) throw new NotFoundException('Transacción no encontrada');
     return tx;
   }
 
+  /**
+   * FIN-028 (DEC-0028 P1/P2/P5/P6) · Edición del movimiento. La mutación NO
+   * contiene lógica financiera (DEC-028-006): solo cambia el registro y emite
+   * `TransactionUpdated` con el diff estructural; el Motor recalcula lo derivado
+   * desde su listener (patrón FIN-002). Guardarraíl P6: en un pago de deuda,
+   * monto/fecha/tipo/deuda NO se editan en sitio (dejarían el saldo mentiroso) —
+   * el usuario debe anular y recrear.
+   */
   async update(userId: string, id: string, dto: UpdateTransactionDto) {
-    await this.findOne(userId, id);
-    return this.prisma.transaction.update({
-      where: { id },
-      data: {
-        ...dto,
-        occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : undefined,
-      },
+    const prev = await this.findOne(userId, id);
+
+    const next: Record<string, unknown> = {
+      ...dto,
+      ...(dto.occurredAt ? { occurredAt: new Date(dto.occurredAt) } : {}),
+    };
+    const diff = diffTransaction(prev as unknown as Record<string, unknown>, next);
+
+    if (prev.kind === 'pago_deuda') {
+      const locked = diff.changedFields.filter((f) => (DEBT_LOCKED_FIELDS as readonly string[]).includes(f));
+      if (locked.length > 0) {
+        throw new BadRequestException(
+          'En un pago de deuda no se puede editar el monto, la fecha ni el tipo en sitio: anúlalo y regístralo de nuevo para que el saldo de la deuda quede correcto.',
+        );
+      }
+    }
+
+    // Nada cambió realmente: no se toca la BD ni se emite evento (idempotente).
+    if (diff.changedFields.length === 0) return prev;
+
+    return this.outbox.withEvent(async (tx) => {
+      const updated = await tx.transaction.update({
+        where: { id },
+        data: {
+          ...dto,
+          occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : undefined,
+        },
+      });
+      return {
+        result: updated,
+        event: {
+          aggregateType: 'transaction',
+          aggregateId: id,
+          eventType: DomainEventType.TransactionUpdated,
+          payload: {
+            userId,
+            source: prev.source,
+            changedFields: diff.changedFields,
+            before: diff.before,
+            after: diff.after,
+          },
+        },
+      };
     });
   }
 
+  /**
+   * FIN-028 (DEC-0028 §5.1) · Anular = `deletedAt` (único mecanismo; no hay
+   * estado `anulada`). Emite `TransactionDeleted` → el Motor recalcula. Si el
+   * movimiento anulado era un pago de deuda, REVIERTE el saldo de esa deuda de
+   * forma atómica (inverso del `create`; sin esto la deuda quedaría mentirosa)
+   * y avisa al Motor con `DebtUpdated`.
+   */
   async remove(userId: string, id: string) {
-    await this.findOne(userId, id);
-    await this.prisma.transaction.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+    const prev = await this.findOne(userId, id);
+    // Anulación + (si es pago de deuda) reverso del saldo + eventos, TODO en una
+    // sola transacción de BD — mismo patrón atómico que `create`.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.transaction.update({ where: { id }, data: { deletedAt: new Date() } });
+
+      if (prev.kind === 'pago_deuda' && prev.debtId) {
+        // Reverso del descuento del pago: devuelve el saldo y reactiva la deuda
+        // si había quedado 'pagada'. (La reconstrucción exacta de next_due_date
+        // no se intenta — limitación declarada en IMP-0028: no inventamos la
+        // fecha previa; el próximo pago la vuelve a anclar vía FIN-018.)
+        await tx.$executeRaw`
+          UPDATE debts
+             SET current_balance = current_balance + ${prev.amount},
+                 status = CASE WHEN status = 'pagada'::"DebtStatus" THEN 'activa'::"DebtStatus" ELSE status END,
+                 updated_at = now()
+           WHERE id = ${prev.debtId}::uuid AND user_id = ${userId}::uuid`;
+      }
+
+      await this.outbox.enqueue(tx, {
+        aggregateType: 'transaction',
+        aggregateId: id,
+        eventType: DomainEventType.TransactionDeleted,
+        payload: { userId, source: prev.source, kind: prev.kind, amount: Number(prev.amount) },
+      });
+      if (prev.kind === 'pago_deuda' && prev.debtId) {
+        await this.outbox.enqueue(tx, {
+          aggregateType: 'debt',
+          aggregateId: prev.debtId,
+          eventType: DomainEventType.DebtUpdated,
+          payload: { userId, reason: 'payment_voided' },
+        });
+      }
     });
     return { deleted: true };
   }

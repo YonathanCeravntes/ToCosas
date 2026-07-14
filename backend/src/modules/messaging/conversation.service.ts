@@ -189,10 +189,9 @@ export class ConversationService {
       orderBy: { createdAt: 'desc' },
     });
     if (!last) return 'No encontré un movimiento reciente para deshacer.';
-    await this.prisma.transaction.update({
-      where: { id: last.id },
-      data: { deletedAt: new Date() },
-    });
+    // FIN-028 (DEC-0028 P4): la anulación pasa por el servicio central único —
+    // así emite el evento y el Motor recalcula (antes escribía directo).
+    await this.transactions.remove(userId, last.id);
     return `🗑️ Listo, borré tu último movimiento de ${fmt(Number(last.amount))}.`;
   }
 

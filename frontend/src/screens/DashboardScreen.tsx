@@ -12,6 +12,7 @@ import { FlowSection, GamificationProfile } from '../api/types';
 import { useAuthStore } from '../store/auth.store';
 import { useSync } from '../offline/useSync';
 import { LocalTransaction, transactionsRepo } from '../offline/transactionsRepo';
+import { EditTransactionModal, EditableMovement } from './transactions/EditTransactionModal';
 
 const KIND_META: Record<string, { emoji: string; sign: string; color: string }> = {
   ingreso: { emoji: '💵', sign: '+', color: colors.success },
@@ -28,6 +29,8 @@ export function DashboardScreen() {
   const gamification = useApi(() => gamificationApi.profile(), []);
   const sync = useSync();
   const [recent, setRecent] = useState<LocalTransaction[]>([]);
+  // FIN-028: movimiento en edición (toque en una fila de "Movimientos recientes").
+  const [editing, setEditing] = useState<EditableMovement | null>(null);
 
   const loadRecent = useCallback(async () => {
     try {
@@ -245,27 +248,36 @@ export function DashboardScreen() {
           {dashboard.data.recentTransactions.slice(0, 4).map((t, i) => {
             const meta = KIND_META[t.kind] ?? KIND_META.transferencia;
             return (
-              <Row
+              /* FIN-028: cada fila abre la edición rápida (corregir tan fácil
+                 como registrar — DEC-028-010). La vista ejecutiva (FIN-018) no
+                 cambia de forma; solo gana el toque. */
+              <Pressable
                 key={t.id}
-                style={{
-                  justifyContent: 'space-between',
-                  paddingVertical: 7,
-                  borderTopWidth: i === 0 ? 0 : 1,
-                  borderTopColor: colors.border,
-                }}
+                onPress={() =>
+                  setEditing({ id: t.id, kind: t.kind, amount: t.amount, occurredAt: t.occurredAt, note: t.note })
+                }
               >
-                <Row style={{ gap: 8, flex: 1 }}>
-                  <Text style={{ fontSize: 15 }}>{t.category?.icon ?? meta.emoji}</Text>
-                  <Text style={{ color: colors.text, flex: 1, fontSize: 13 }} numberOfLines={1}>
-                    {t.note || t.category?.name || t.debtName || t.kind}
-                    <Text style={{ color: colors.textMuted }}> · {shortDate(t.occurredAt)}</Text>
+                <Row
+                  style={{
+                    justifyContent: 'space-between',
+                    paddingVertical: 7,
+                    borderTopWidth: i === 0 ? 0 : 1,
+                    borderTopColor: colors.border,
+                  }}
+                >
+                  <Row style={{ gap: 8, flex: 1 }}>
+                    <Text style={{ fontSize: 15 }}>{t.category?.icon ?? meta.emoji}</Text>
+                    <Text style={{ color: colors.text, flex: 1, fontSize: 13 }} numberOfLines={1}>
+                      {t.note || t.category?.name || t.debtName || t.kind}
+                      <Text style={{ color: colors.textMuted }}> · {shortDate(t.occurredAt)}</Text>
+                    </Text>
+                  </Row>
+                  <Text style={{ fontWeight: '700', color: meta.color, fontSize: 13 }}>
+                    {meta.sign}
+                    {formatMoney(t.amount)}
                   </Text>
                 </Row>
-                <Text style={{ fontWeight: '700', color: meta.color, fontSize: 13 }}>
-                  {meta.sign}
-                  {formatMoney(t.amount)}
-                </Text>
-              </Row>
+              </Pressable>
             );
           })}
           <Pressable
@@ -320,6 +332,13 @@ export function DashboardScreen() {
           Sin conexión con el backend. Tus datos locales siguen disponibles.
         </Text>
       ) : null}
+
+      {/* FIN-028: edición/anulación del movimiento tocado (servicio central). */}
+      <EditTransactionModal
+        movement={editing}
+        onClose={() => setEditing(null)}
+        onChanged={reload}
+      />
     </ScrollView>
   );
 }
