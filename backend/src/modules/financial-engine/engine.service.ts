@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DebtOutlayService } from '../debts/debt-outlay.service';
+import { NetIncomeService } from '../income/net-income.service';
 import { computeNetWorth } from '../accounts/networth.util';
 import { computeScore, SCORE_VERSION } from '../health/score.util';
 import { computeCoreMetrics, MetricValue } from './metrics/core-metrics';
@@ -22,6 +23,8 @@ export class EngineService {
     private readonly prisma: PrismaService,
     // FIN-023 (§32): el compromiso mensual de deuda es el desembolso REAL.
     private readonly debtOutlay: DebtOutlayService,
+    // FIN-027 (DEC-0027 P3): DTI/Score se calculan sobre el ingreso NETO.
+    private readonly netIncome: NetIncomeService,
   ) {}
 
   /** Recalcula y persiste las métricas core del mes corriente del usuario. */
@@ -29,7 +32,7 @@ export class EngineService {
     const from = monthStart(now);
     const to = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 1, 1));
 
-    const [txByKind, fixedItems, debts, accounts, assets, outlays] = await Promise.all([
+    const [txByKind, fixedItems, debts, accounts, assets, outlays, income] = await Promise.all([
       this.prisma.transaction.groupBy({
         by: ['kind'],
         where: { userId, deletedAt: null, occurredAt: { gte: from, lt: to } },
@@ -46,13 +49,17 @@ export class EngineService {
       }),
       this.prisma.asset.findMany({ where: { userId, deletedAt: null } }),
       this.debtOutlay.outlaysByUser(userId),
+      this.netIncome.compute(userId),
     ]);
 
     const sumKind = (k: string) =>
       Number(txByKind.find((t) => t.kind === k)?._sum.amount ?? 0);
-    const fixedIncome = fixedItems
-      .filter((i) => i.kind === 'ingreso')
-      .reduce((a, i) => a + Number(i.amount), 0);
+    // FIN-027 (DEC-0027 P3): el ingreso fijo de referencia para DTI/ahorro/Score
+    // es el NETO disponible — "nunca mentir hacia arriba" (mismo criterio de
+    // FIN-020/021/023). Sin fuentes configuradas, netFixedTotal es 0 — misma
+    // cifra que arrojaba el FixedItem-ingreso legado para un usuario sin
+    // configurar nada (regresión garantizada, DEC §5.4).
+    const fixedIncome = income.netFixedTotal;
     const fixedExpense = fixedItems
       .filter((i) => i.kind === 'gasto')
       .reduce((a, i) => a + Number(i.amount), 0);

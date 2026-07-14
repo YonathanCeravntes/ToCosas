@@ -22,8 +22,11 @@ import {
   FixedKind,
   GamificationProfile,
   HealthScore,
+  IncomeProfile,
+  IncomeSource,
   Insight,
   MonthlyBudget,
+  NetIncomeSummary,
   Recommendation,
   SimulationResult,
   SimulationHistoryEntry,
@@ -169,6 +172,18 @@ export const budgetApi = {
     api.patch<{ cycleStartDay: number }>('/budget/period', { cycleStartDay }),
 };
 
+export const incomeApi = {
+  summary: () => api.get<NetIncomeSummary>('/income/summary'),
+  getProfile: () => api.get<IncomeProfile | null>('/income/profile'),
+  setProfile: (workProfile: string) => api.post<IncomeProfile>('/income/profile', { workProfile }),
+  listSources: () => api.get<IncomeSource[]>('/income/sources'),
+  createSource: (input: CreateIncomeSourceInput) => api.post<IncomeSource>('/income/sources', input),
+  removeSource: (id: string) => api.delete<{ deleted: boolean }>(`/income/sources/${id}`),
+  createDeduction: (sourceId: string, input: CreateDeductionInput) =>
+    api.post(`/income/sources/${sourceId}/deductions`, input),
+  removeDeduction: (id: string) => api.delete<{ deleted: boolean }>(`/income/deductions/${id}`),
+};
+
 export const suggestionsApi = {
   list: () => api.get<Suggestion[]>('/suggestions'),
   compareStrategies: (extraBudget: number) =>
@@ -223,6 +238,24 @@ export interface CreateAssetInput {
   type: string;
   currentValue: number;
   includeInNetWorth?: boolean;
+}
+
+export interface CreateIncomeSourceInput {
+  kind?: string;
+  name: string;
+  amount: number;
+  isVariable?: boolean;
+  dayOfMonth?: number;
+}
+
+export interface CreateDeductionInput {
+  kind?: string;
+  name: string;
+  percent?: number;
+  fixedAmount?: number;
+  base?: string;
+  baseAmount?: number;
+  withheldAtSource?: boolean;
 }
 
 export interface CreateFixedItemInput {

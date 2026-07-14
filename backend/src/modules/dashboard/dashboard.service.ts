@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { computeNetWorth } from '../accounts/networth.util';
 import { financialPeriod } from '../budget/financial-period.util';
 import { SpendableService } from '../budget/spendable.service';
+import { NetIncomeService } from '../income/net-income.service';
 import { MetricKey } from '../financial-engine/engine.constants';
 import { EMERGENCY_FUND_MILESTONES } from '../financial-engine/metrics/emergency-fund.constants';
 import { monthStart } from '../financial-engine/metrics/series.util';
@@ -31,6 +32,8 @@ export class DashboardService {
     private readonly prisma: PrismaService,
     // FIN-020 (§32): "Te queda" viene de la MISMA fuente que Presupuesto.
     private readonly spendable: SpendableService,
+    // FIN-027 (§32): "Ingresos fijos" es el ingreso NETO de la fuente única.
+    private readonly netIncome: NetIncomeService,
   ) {}
 
   async home(userId: string) {
@@ -38,7 +41,7 @@ export class DashboardService {
     // FIN-016: el Inicio respeta el ciclo financiero del usuario.
     const period = financialPeriod(new Date(), settings?.cycleStartDay ?? 1);
 
-    const [accounts, assets, debts, fixedItems, periodTxs, recent, teQueda, fundReading] = await Promise.all([
+    const [accounts, assets, debts, fixedItems, periodTxs, recent, teQueda, fundReading, income] = await Promise.all([
       this.prisma.account.findMany({ where: { userId, deletedAt: null } }),
       this.prisma.asset.findMany({ where: { userId, deletedAt: null } }),
       this.prisma.debt.findMany({ where: { userId, deletedAt: null, status: 'activa' } }),
@@ -69,6 +72,7 @@ export class DashboardService {
           metricKey: MetricKey.EmergencyFundMonths,
         },
       }),
+      this.netIncome.compute(userId),
     ]);
 
     // Patrimonio (util pura de FIN-002, misma fuente que /net-worth).
@@ -92,7 +96,9 @@ export class DashboardService {
     const totalSavings = savingsAccounts.reduce((acc, a) => acc + Number(a.currentBalance), 0);
 
     // Fijo (compromisos declarados) vs variable (transacciones del ciclo).
-    const fixedIncome = sumFixed(fixedItems, 'ingreso');
+    // FIN-027 (§32): el ingreso fijo es el NETO de la fuente única (los
+    // FixedItem-ingreso legados fueron migrados; ya no se leen aquí).
+    const fixedIncome = income.netFixedTotal;
     const fixedExpense = sumFixed(fixedItems, 'gasto');
 
     const incomeByCat = new Map<string, CategoryBucket>();

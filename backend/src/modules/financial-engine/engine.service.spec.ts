@@ -38,12 +38,17 @@ function buildPrisma(overrides: Partial<Record<string, unknown>> = {}) {
 const outlayStub = (total = 500_000) =>
   ({ outlaysByUser: jest.fn().mockResolvedValue({ byDebt: new Map(), totalOutlay: total }) }) as never;
 
+// FIN-027: stub del ingreso neto — sin fuentes configuradas, netFixedTotal=0
+// (regresión: mismo comportamiento que el FixedItem-ingreso legado vacío).
+const netIncomeStub = (netFixedTotal = 0) =>
+  ({ compute: jest.fn().mockResolvedValue({ netFixedTotal, grossFixedTotal: netFixedTotal, grossVariableEstimate: 0, deductions: [], netMonthlyEstimate: netFixedTotal, selfPaidDeductionsTotal: 0, hasDeductions: false }) }) as never;
+
 describe('EngineService', () => {
   const now = new Date('2026-07-15T12:00:00Z');
 
   it('recompute calcula y hace upsert de las métricas del mes', async () => {
     const prisma = buildPrisma();
-    const service = new EngineService(prisma, outlayStub());
+    const service = new EngineService(prisma, outlayStub(), netIncomeStub());
     const metrics = await service.recompute('u1', now);
 
     const get = (k: string) => metrics.find((m) => m.metricKey === k)?.value;
@@ -70,7 +75,7 @@ describe('EngineService', () => {
 
   it('recompute repetido produce los mismos upserts (estado absoluto)', async () => {
     const prisma = buildPrisma();
-    const service = new EngineService(prisma, outlayStub());
+    const service = new EngineService(prisma, outlayStub(), netIncomeStub());
     const a = await service.recompute('u1', now);
     const b = await service.recompute('u1', now);
     expect(b).toEqual(a); // mismo resultado — el upsert no duplica filas
@@ -79,7 +84,7 @@ describe('EngineService', () => {
   describe('coldStartStatus (DEC-0003 §10.2, umbral global)', () => {
     it('usuario con ≥60 días de historial → habilitado', async () => {
       const prisma = buildPrisma(); // primera tx 2026-04-01, now 2026-07-15 → 105 días
-      const service = new EngineService(prisma, outlayStub());
+      const service = new EngineService(prisma, outlayStub(), netIncomeStub());
       const cold = await service.coldStartStatus('u1', now);
       expect(cold.enabled).toBe(true);
       expect(cold.historyDays).toBeGreaterThanOrEqual(COLD_START_DAYS);
@@ -93,7 +98,7 @@ describe('EngineService', () => {
           findFirst: jest.fn().mockResolvedValue({ occurredAt: new Date('2026-07-05T00:00:00Z') }),
         },
       });
-      const service = new EngineService(prisma, outlayStub());
+      const service = new EngineService(prisma, outlayStub(), netIncomeStub());
       const cold = await service.coldStartStatus('u1', now);
       expect(cold.enabled).toBe(false);
       expect(cold.remainingDays).toBe(COLD_START_DAYS - 10);
@@ -106,7 +111,7 @@ describe('EngineService', () => {
           findFirst: jest.fn().mockResolvedValue(null),
         },
       });
-      const service = new EngineService(prisma, outlayStub());
+      const service = new EngineService(prisma, outlayStub(), netIncomeStub());
       const cold = await service.coldStartStatus('u1', now);
       expect(cold.enabled).toBe(false);
       expect(cold.remainingDays).toBe(COLD_START_DAYS);

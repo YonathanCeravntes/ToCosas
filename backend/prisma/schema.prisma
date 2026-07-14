@@ -316,6 +316,8 @@ model User {
   challenges      Challenge[]
   subscriptions   Subscription[]
   settings        UserSettings?
+  incomeProfile   IncomeProfile?
+  incomeSources   IncomeSource[]
 
   @@map("users")
 }
@@ -1041,6 +1043,106 @@ model AiInteractionLog {
 
   @@index([userId, createdAt])
   @@map("ai_interaction_logs")
+}
+
+// ---------- FIN-027 · Modelo de ingresos personales (DEC-0027) ----------
+
+enum WorkProfile {
+  empleado
+  independiente
+  empresario
+  pensionado
+  estudiante
+  otro
+}
+
+enum IncomeSourceKind {
+  salario_fijo
+  salario_variable
+  comisiones
+  bonificaciones
+  honorarios
+  otro
+}
+
+enum DeductionKind {
+  salud
+  pension
+  otra
+}
+
+enum DeductionBase {
+  total
+  parcial
+}
+
+/** Perfil laboral declarado UNA vez (DEC-0027 P1). 1:1 con el usuario. */
+model IncomeProfile {
+  id           String      @id @default(uuid()) @db.Uuid
+  userId       String      @unique @map("user_id") @db.Uuid
+  workProfile  WorkProfile @map("work_profile")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("income_profiles")
+}
+
+/**
+ * Fuente de ingreso (DEC-0027 P1): fijas y variables COEXISTEN (n por usuario).
+ * `isVariable=false` → `amount` es el monto mensual fijo (reemplaza a
+ * `FixedItem(kind='ingreso')`, migrado aquí — DEC §5.2, sin coexistencia).
+ * `isVariable=true` → `amount` es el ESTIMADO mensual (se presenta como
+ * estimación, nunca como certeza — §29).
+ */
+model IncomeSource {
+  id         String           @id @default(uuid()) @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  kind       IncomeSourceKind @default(otro)
+  name       String
+  amount     Decimal          @db.Decimal(18, 2)
+  isVariable Boolean          @default(false) @map("is_variable")
+  dayOfMonth Int?             @map("day_of_month") @db.SmallInt
+  isActive   Boolean          @default(true) @map("is_active")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  deletedAt  DateTime?        @map("deleted_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deductions  Deduction[]
+
+  @@index([userId, isActive])
+  @@map("income_sources")
+}
+
+/**
+ * Deducción de una fuente de ingreso (DEC-0027 P1/P2). `base=parcial` exige
+ * `baseAmount` (monto de la porción sobre la que aplica el % — requisito duro
+ * del Fundador: sin esto el neto es incorrecto para una parte real de usuarios).
+ * `withheldAtSource`: true = retenida por el pagador (NO sale del bolsillo,
+ * solo reduce el neto); false = la paga la usuaria (además es COMPROMISO del
+ * ciclo — fluye a "Te queda" por inyección, DEC-0027 P2).
+ */
+model Deduction {
+  id               String        @id @default(uuid()) @db.Uuid
+  incomeSourceId   String        @map("income_source_id") @db.Uuid
+  kind             DeductionKind @default(otra)
+  name             String
+  percent          Decimal?      @db.Decimal(5, 2)
+  fixedAmount      Decimal?      @map("fixed_amount") @db.Decimal(18, 2)
+  base             DeductionBase @default(total)
+  baseAmount       Decimal?      @map("base_amount") @db.Decimal(18, 2)
+  withheldAtSource Boolean       @default(true) @map("withheld_at_source")
+  isActive         Boolean       @default(true) @map("is_active")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  deletedAt        DateTime?     @map("deleted_at")
+
+  incomeSource IncomeSource @relation(fields: [incomeSourceId], references: [id], onDelete: Cascade)
+
+  @@index([incomeSourceId, isActive])
+  @@map("deductions")
 }
 
 model WebhookEvent {

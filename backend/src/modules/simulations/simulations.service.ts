@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, Logger } from '@ne
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EntitlementsService } from '../billing/entitlements.service';
+import { NetIncomeService } from '../income/net-income.service';
 import { computeNetWorth } from '../accounts/networth.util';
 import { MetricKey } from '../financial-engine/engine.constants';
 import { monthStart } from '../financial-engine/metrics/series.util';
@@ -37,6 +38,8 @@ export class SimulationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly entitlements: EntitlementsService,
+    // FIN-027 (§32): el ingreso fijo simulado es el NETO de la fuente única.
+    private readonly netIncome: NetIncomeService,
   ) {}
 
   async run(
@@ -137,7 +140,7 @@ export class SimulationsService {
   async loadState(userId: string): Promise<FinancialState> {
     const from = monthStart(new Date());
     const to = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 1, 1));
-    const [txByKind, fixedItems, debts, accounts, assets, trend] = await Promise.all([
+    const [txByKind, fixedItems, debts, accounts, assets, trend, income] = await Promise.all([
       this.prisma.transaction.groupBy({
         by: ['kind'],
         where: { userId, deletedAt: null, occurredAt: { gte: from, lt: to } },
@@ -157,6 +160,7 @@ export class SimulationsService {
       this.prisma.metricReading.findFirst({
         where: { userId, metricKey: MetricKey.TrendNetWorth, period: 'month', capturedAt: from },
       }),
+      this.netIncome.compute(userId),
     ]);
 
     const sumKind = (k: string) => Number(txByKind.find((t) => t.kind === k)?._sum.amount ?? 0);
@@ -175,7 +179,9 @@ export class SimulationsService {
       income: sumKind('ingreso'),
       expense: sumKind('gasto'),
       debtPayments: sumKind('pago_deuda'),
-      fixedIncome: fixedItems.filter((i) => i.kind === 'ingreso').reduce((a, i) => a + Number(i.amount), 0),
+      // FIN-027 (§32): el ingreso fijo simulado es el NETO de la fuente única
+      // (los FixedItem-ingreso legados fueron migrados; ya no se leen aquí).
+      fixedIncome: income.netFixedTotal,
       fixedExpense: fixedItems.filter((i) => i.kind === 'gasto').reduce((a, i) => a + Number(i.amount), 0),
       debts: debts.map((d, i) => ({
         id: d.id,

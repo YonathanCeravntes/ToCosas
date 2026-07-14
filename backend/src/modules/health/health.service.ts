@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EntitlementsService } from '../billing/entitlements.service';
 import { EngineService } from '../financial-engine/engine.service';
+import { NetIncomeService } from '../income/net-income.service';
 import { MetricKey } from '../financial-engine/engine.constants';
 import { monthStart, monthStartMinus } from '../financial-engine/metrics/series.util';
 import { PILLAR_WEIGHTS, PillarKey, scoreBand, SCORE_VERSION } from './score.util';
@@ -43,15 +44,19 @@ export class HealthService {
     private readonly prisma: PrismaService,
     private readonly engine: EngineService,
     private readonly entitlements: EntitlementsService,
+    // FIN-027 (DEC-0027 §5.1): nota de copy obligatoria cuando el Score usa
+    // ingreso NETO (cambio de base) — costo de honestidad, no regaño.
+    private readonly netIncome: NetIncomeService,
   ) {}
 
   async score(userId: string, now: Date = new Date()) {
     const current = monthStart(now);
     const previous = monthStartMinus(now, 1);
-    const [readings, prevReadings, cold] = await Promise.all([
+    const [readings, prevReadings, cold, income] = await Promise.all([
       this.readMonth(userId, current),
       this.readMonth(userId, previous),
       this.engine.coldStartStatus(userId, now),
+      this.netIncome.compute(userId),
     ]);
 
     const score = readings.get('score') ?? null;
@@ -82,6 +87,11 @@ export class HealthService {
       pillars,
       coldStart: cold,
       indicators: this.buildIndicators(readings),
+      // FIN-027 (DEC-0027 §5.1): requisito del DEC, no opcional. Neutraliza el
+      // riesgo de que configurar bien los datos se sienta como castigo (§29.2).
+      netIncomeNotice: income.hasDeductions
+        ? 'Tu Score se calcula con tu ingreso real después de deducciones — es más preciso, no que hayas empeorado.'
+        : null,
       disclaimer:
         'El Score Millo y sus indicadores son información educativa sobre tus hábitos financieros. ' +
         'No son asesoría financiera ni un puntaje crediticio, y no se comparten con entidades.',

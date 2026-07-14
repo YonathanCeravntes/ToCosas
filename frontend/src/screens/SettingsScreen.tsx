@@ -77,6 +77,22 @@ export function SettingsScreen() {
         <Text style={{ color: colors.textMuted }}>{user?.email}</Text>
       </Card>
 
+      {/* FIN-027: perfil de ingresos — se configura una vez, Milla lo reutiliza
+          en toda la app (§32). */}
+      <Card>
+        <Pressable onPress={() => navigation.navigate('IncomeProfile')}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <View style={{ flex: 1, paddingRight: spacing.md }}>
+              <Text style={{ fontWeight: '700', color: colors.text }}>💼 Mi perfil de ingresos</Text>
+              <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13 }}>
+                Configura tu perfil laboral, fuentes de ingreso y deducciones — una sola vez.
+              </Text>
+            </View>
+            <Text style={{ color: colors.primary, fontWeight: '700' }}>→</Text>
+          </Row>
+        </Pressable>
+      </Card>
+
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>
           <View style={{ flex: 1, paddingRight: spacing.md }}>

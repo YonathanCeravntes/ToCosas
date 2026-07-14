@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { DebtOutlayModule } from '../debts/debt-outlay.module';
+import { IncomeModule } from '../income/income.module';
 import { InsightsModule } from '../insights/insights.module';
 import { EngineController } from './engine.controller';
 import { EngineService } from './engine.service';
@@ -17,7 +18,8 @@ import { RetentionJob } from './jobs/retention.job';
  */
 @Module({
   // DebtOutlayModule (FIN-023): `debtMonthly` del Motor = desembolso REAL.
-  imports: [AuthModule, InsightsModule, DebtOutlayModule],
+  // IncomeModule (FIN-027): `fixedIncome` de referencia = ingreso NETO.
+  imports: [AuthModule, InsightsModule, DebtOutlayModule, IncomeModule],
   controllers: [EngineController],
   providers: [EngineService, EngineListener, InsightsGenerator, SnapshotJob, TrendsJob, RetentionJob],
   exports: [EngineService, SnapshotJob],

@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OutboxService } from '../events/outbox.service';
 import { DomainEventType } from '../events/domain-events';
 import { CreateFixedItemDto, UpdateFixedItemDto } from './dto/fixed-item.dto';
 import { DebtOutlayService } from '../debts/debt-outlay.service';
+import { NetIncomeService } from '../income/net-income.service';
 import { clampCycleDay, financialPeriod } from './financial-period.util';
 import { SpendableService } from './spendable.service';
 
@@ -16,9 +17,21 @@ export class BudgetService {
     private readonly outbox: OutboxService,
     private readonly spendable: SpendableService,
     private readonly debtOutlay: DebtOutlayService,
+    // FIN-027 (DEC-0027 §5.2): el ingreso vive en el modelo de fuentes — sin
+    // coexistencia con FixedItem.
+    private readonly netIncome: NetIncomeService,
   ) {}
 
   async create(userId: string, dto: CreateFixedItemDto) {
+    // FIN-027 (DEC-0027 §5.2): el ingreso ya no se declara como FixedItem — se
+    // configura en "Mi perfil de ingresos" (fuentes + deducciones). Sin esto,
+    // un alta aquí crearía un FixedItem-ingreso que NINGÚN consumidor lee (el
+    // §32 exige un solo camino, no dos que uno quede mudo).
+    if (dto.kind === 'ingreso') {
+      throw new BadRequestException(
+        'Los ingresos se configuran en tu perfil de ingresos (Ajustes → Mi perfil de ingresos), no aquí.',
+      );
+    }
     // Compromiso fijo + evento de dominio en la misma transacción (outbox, FIN-002).
     return this.outbox.withEvent(async (tx) => {
       const item = await tx.fixedItem.create({
@@ -83,7 +96,7 @@ export class BudgetService {
    *   disponible = ingresos fijos − gastos fijos − cuotas de deuda
    */
   async monthlySummary(userId: string) {
-    const [fixedItems, debts, settings, teQueda, outlays] = await Promise.all([
+    const [fixedItems, debts, settings, teQueda, outlays, income, sources] = await Promise.all([
       this.prisma.fixedItem.findMany({
         where: { userId, deletedAt: null, isActive: true },
       }),
@@ -95,13 +108,16 @@ export class BudgetService {
       this.spendable.compute(userId),
       // FIN-023: lo comprometido con deudas = desembolso REAL (fuente única).
       this.debtOutlay.outlaysByUser(userId),
+      // FIN-027 (§32): el ingreso fijo es el NETO de la fuente única.
+      this.netIncome.compute(userId),
+      this.prisma.incomeSource.findMany({
+        where: { userId, deletedAt: null, isActive: true, isVariable: false },
+      }),
     ]);
     // FIN-016: ciclo financiero activo (con día 1 = mes calendario, sin cambio).
     const period = financialPeriod(new Date(), settings?.cycleStartDay ?? 1);
 
-    const fixedIncome = fixedItems
-      .filter((i) => i.kind === 'ingreso')
-      .reduce((acc, i) => acc + Number(i.amount), 0);
+    const fixedIncome = income.netFixedTotal;
     const fixedExpense = fixedItems
       .filter((i) => i.kind === 'gasto')
       .reduce((acc, i) => acc + Number(i.amount), 0);
@@ -142,9 +158,14 @@ export class BudgetService {
       expenses: fixedItems
         .filter((i) => i.kind === 'gasto')
         .map((i) => ({ id: i.id, name: i.name, amount: Number(i.amount), dayOfMonth: i.dayOfMonth })),
-      incomes: fixedItems
-        .filter((i) => i.kind === 'ingreso')
-        .map((i) => ({ id: i.id, name: i.name, amount: Number(i.amount), dayOfMonth: i.dayOfMonth })),
+      // FIN-027 (§32): las fuentes de ingreso FIJAS reemplazan al FixedItem
+      // legado (migrado); las variables no aparecen aquí (no son "fijas").
+      incomes: sources.map((s) => ({
+        id: s.id,
+        name: s.name,
+        amount: Number(s.amount),
+        dayOfMonth: s.dayOfMonth,
+      })),
     };
   }
 

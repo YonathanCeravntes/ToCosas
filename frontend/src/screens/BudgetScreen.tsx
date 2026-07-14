@@ -6,8 +6,8 @@ import { RootStackParamList } from '../navigation/types';
 import { Button, Card, Field, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { formatMoney } from '../utils/format';
-import { FixedKind, MonthlyBudget, Recommendation, TeQueda, toNumber } from '../api/types';
-import { budgetApi, recommendationsApi } from '../api/endpoints';
+import { MonthlyBudget, Recommendation, TeQueda, toNumber } from '../api/types';
+import { budgetApi, incomeApi, recommendationsApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
 
 /**
@@ -16,11 +16,12 @@ import { useApi } from '../utils/useApi';
  * Zona de decisión primero (número → por día → protegido → destino), casa de
  * los compromisos después (P6). El "Te queda" viene del servicio ÚNICO del
  * backend (§32) — esta pantalla NO calcula nada.
+ *
+ * FIN-027 (DEC-0027 §5.2): el ingreso ya NO se declara aquí — vive en "Mi
+ * perfil de ingresos" (fuentes + deducciones, sin coexistencia con FixedItem).
+ * Esta pantalla solo administra GASTOS fijos; los ingresos se listan como
+ * referencia con un puente a su casa real.
  */
-const KINDS: Array<{ key: FixedKind; label: string; emoji: string }> = [
-  { key: 'gasto', label: 'Gasto fijo', emoji: '🏠' },
-  { key: 'ingreso', label: 'Ingreso fijo', emoji: '💵' },
-];
 
 export function BudgetScreen() {
   const { data, loading, reload } = useApi(() => budgetApi.monthly(), []);
@@ -56,11 +57,10 @@ export function BudgetScreen() {
 
       {data ? (
         <>
-          <FixedList
-            title="💵 Ingresos fijos"
+          <IncomesReferenceCard
             items={data.incomes}
-            color={colors.success}
-            onRemove={onRemove}
+            onGoToProfile={() => navigation.navigate('IncomeProfile')}
+            onChanged={reload}
           />
           <FixedList
             title="🏠 Gastos fijos"
@@ -267,10 +267,12 @@ function FreeMoneyBridge({ teQueda, recs }: { teQueda: TeQueda; recs: Recommenda
   );
 }
 
-/** P6: alta de compromiso con tap honesto — colapsado anuncia su contenido. */
+/**
+ * P6: alta de GASTO fijo con tap honesto — colapsado anuncia su contenido.
+ * FIN-027 (§5.2): el ingreso ya no se declara aquí (ver IncomesReferenceCard).
+ */
 function NewFixedForm({ onSaved }: { onSaved: () => Promise<unknown> }) {
   const [open, setOpen] = useState(false);
-  const [kind, setKind] = useState<FixedKind>('gasto');
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [day, setDay] = useState('');
@@ -282,7 +284,7 @@ function NewFixedForm({ onSaved }: { onSaved: () => Promise<unknown> }) {
     setSaving(true);
     try {
       await budgetApi.createFixed({
-        kind,
+        kind: 'gasto',
         name: name.trim(),
         amount: value,
         dayOfMonth: day ? Math.min(31, Math.max(1, parseInt(day, 10))) : undefined,
@@ -301,46 +303,68 @@ function NewFixedForm({ onSaved }: { onSaved: () => Promise<unknown> }) {
     <Card>
       <Pressable onPress={() => setOpen((v) => !v)}>
         <Text style={{ fontWeight: '700', fontSize: 16 }}>
-          ➕ Nuevo compromiso fijo {open ? '' : '(gasto o ingreso) →'}
+          🏠 Nuevo gasto fijo {open ? '' : '→'}
         </Text>
       </Pressable>
       {open ? (
         <View style={{ marginTop: spacing.sm }}>
-          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
-            {KINDS.map((k) => (
-              <Pressable
-                key={k.key}
-                onPress={() => setKind(k.key)}
-                style={{
-                  flex: 1,
-                  padding: spacing.sm,
-                  borderRadius: radius.md,
-                  alignItems: 'center',
-                  backgroundColor: kind === k.key ? colors.primary : colors.surface,
-                  borderWidth: 1,
-                  borderColor: kind === k.key ? colors.primary : colors.border,
-                }}
-              >
-                <Text style={{ fontSize: 18 }}>{k.emoji}</Text>
-                <Text
-                  style={{
-                    marginTop: 2,
-                    fontSize: 12,
-                    fontWeight: '600',
-                    color: kind === k.key ? colors.textInverse : colors.text,
-                  }}
-                >
-                  {k.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <Field label="Nombre" value={name} onChangeText={setName} placeholder="Arriendo, salario…" />
+          <Field label="Nombre" value={name} onChangeText={setName} placeholder="Arriendo, servicios…" />
           <Field label="Monto mensual" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="1200000" />
           <Field label="Día del mes (opcional)" value={day} onChangeText={setDay} keyboardType="numeric" placeholder="5" />
           <Button title="Agregar" onPress={onAdd} loading={saving} />
         </View>
       ) : null}
+    </Card>
+  );
+}
+
+/**
+ * FIN-027 (DEC-0027 §5.2): los ingresos ya no se administran aquí — son
+ * referencia de solo lectura con puente a su casa real ("Mi perfil de
+ * ingresos"). Eliminar una fuente usa el endpoint de ingresos, no el de
+ * compromisos fijos (son modelos distintos, aunque compartan forma visual).
+ */
+function IncomesReferenceCard({
+  items,
+  onGoToProfile,
+  onChanged,
+}: {
+  items: Array<{ id: string; name: string; amount: number; dayOfMonth: number | null }>;
+  onGoToProfile: () => void;
+  onChanged: () => Promise<unknown>;
+}) {
+  const onRemove = async (id: string) => {
+    await incomeApi.removeSource(id);
+    await onChanged();
+  };
+  return (
+    <Card>
+      <Text style={{ fontWeight: '700', marginBottom: spacing.sm }}>💵 Ingresos fijos</Text>
+      {items.length === 0 ? (
+        <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm }}>
+          Aún no configuras tus fuentes de ingreso.
+        </Text>
+      ) : (
+        items.map((i) => (
+          <Row key={i.id} style={{ justifyContent: 'space-between', marginBottom: 8 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text }}>{i.name}</Text>
+              {i.dayOfMonth ? (
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>Día {i.dayOfMonth}</Text>
+              ) : null}
+            </View>
+            <Text style={{ fontWeight: '700', color: colors.success }}>{formatMoney(i.amount)}</Text>
+            <Pressable onPress={() => void onRemove(i.id)} style={{ marginLeft: spacing.md }}>
+              <Text style={{ color: colors.textMuted, fontSize: 18 }}>🗑️</Text>
+            </Pressable>
+          </Row>
+        ))
+      )}
+      <Pressable onPress={onGoToProfile}>
+        <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
+          💼 Administrar en Mi perfil de ingresos →
+        </Text>
+      </Pressable>
     </Card>
   );
 }

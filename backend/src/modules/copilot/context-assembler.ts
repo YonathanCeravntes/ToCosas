@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DebtOutlayService } from '../debts/debt-outlay.service';
+import { NetIncomeService } from '../income/net-income.service';
 import { MetricKey } from '../financial-engine/engine.constants';
 import { monthStart, monthStartMinus } from '../financial-engine/metrics/series.util';
 import { computeNetWorth } from '../accounts/networth.util';
@@ -57,6 +58,8 @@ export class ContextAssembler {
   constructor(
     private readonly prisma: PrismaService,
     private readonly debtOutlay: DebtOutlayService,
+    // FIN-027 (§32): el ingreso fijo del snapshot es el NETO de la fuente única.
+    private readonly netIncome: NetIncomeService,
   ) {}
 
   async buildInitialContext(userId: string, now = new Date()): Promise<MinimizedContext> {
@@ -146,9 +149,9 @@ export class ContextAssembler {
       .filter((i) => i.kind === 'gasto')
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
     const byAmount = [...sorted].sort((a, b) => Number(b.amount) - Number(a.amount));
-    const fixedIncomeTotal = fixedItems
-      .filter((i) => i.kind === 'ingreso')
-      .reduce((a, i) => a + Number(i.amount), 0);
+    // FIN-027 (§32): el ingreso fijo del contexto es el NETO de la fuente
+    // única (los FixedItem-ingreso legados fueron migrados; ya no se leen).
+    const fixedIncomeTotal = (await this.netIncome.compute(userId)).netFixedTotal;
     const fixedExpenseTotal = sorted.reduce((a, i) => a + Number(i.amount), 0);
     // FIN-023 (DEC-0023 §5.4): el contexto razona con el desembolso REAL.
     // Nota: su `available` NO se unifica con teQueda — solo mejora este insumo.

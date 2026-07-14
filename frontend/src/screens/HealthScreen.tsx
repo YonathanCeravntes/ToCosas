@@ -80,6 +80,15 @@ export function HealthScreen() {
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
       <ScoreCard data={data} loading={loading} worst={worst} />
+      {/* FIN-027 (DEC-0027 §5.1): costo de honestidad, requisito del DEC — el
+          Score usa ingreso neto; esto explica por qué, sin sonar a regaño. */}
+      {data?.netIncomeNotice ? (
+        <Card style={{ borderColor: colors.primary, borderWidth: 1 }}>
+          <Text style={{ color: colors.textMuted, fontSize: 13, lineHeight: 19 }}>
+            💡 {data.netIncomeNotice}
+          </Text>
+        </Card>
+      ) : null}
       <JugadaCard recs={recs.data ?? []} worst={worst} hasScore={!!data?.score} />
       {data?.indicators.map((ind) => <IndicatorCard key={ind.key} ind={ind} />)}
       <HistorySection />

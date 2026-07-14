@@ -323,6 +323,8 @@ export interface HealthScore {
   pillars: ScorePillar[];
   coldStart: { historyDays: number; requiredDays: number; enabled: boolean; remainingDays: number };
   indicators: HealthIndicator[];
+  /** FIN-027 (DEC-0027 §5.1): costo de honestidad — el Score usa ingreso neto. */
+  netIncomeNotice: string | null;
   disclaimer: string;
 }
 
@@ -499,6 +501,51 @@ export interface MonthlyBudget {
   debts: Array<{ debtId: string; name: string; amount: number; nextDueDate: string | null }>;
   expenses: Array<{ id: string; name: string; amount: number; dayOfMonth: number | null }>;
   incomes: Array<{ id: string; name: string; amount: number; dayOfMonth: number | null }>;
+}
+
+// --- FIN-027: modelo de ingresos personales ---
+
+export type WorkProfile = 'empleado' | 'independiente' | 'empresario' | 'pensionado' | 'estudiante' | 'otro';
+export type IncomeSourceKind = 'salario_fijo' | 'salario_variable' | 'comisiones' | 'bonificaciones' | 'honorarios' | 'otro';
+export type DeductionKind = 'salud' | 'pension' | 'otra';
+export type DeductionBase = 'total' | 'parcial';
+
+export interface IncomeDeduction {
+  id: string;
+  kind: DeductionKind;
+  name: string;
+  percent: string | number | null;
+  fixedAmount: string | number | null;
+  base: DeductionBase;
+  baseAmount: string | number | null;
+  withheldAtSource: boolean;
+  isActive: boolean;
+}
+
+export interface IncomeSource {
+  id: string;
+  kind: IncomeSourceKind;
+  name: string;
+  amount: string | number;
+  isVariable: boolean;
+  dayOfMonth: number | null;
+  isActive: boolean;
+  deductions: IncomeDeduction[];
+}
+
+export interface IncomeProfile {
+  workProfile: WorkProfile;
+}
+
+/** LA definición oficial del ingreso neto disponible (§32, FIN-027). */
+export interface NetIncomeSummary {
+  grossFixedTotal: number;
+  grossVariableEstimate: number;
+  deductions: Array<{ name: string; kind: string; amount: number; withheldAtSource: boolean }>;
+  netFixedTotal: number;
+  netMonthlyEstimate: number;
+  selfPaidDeductionsTotal: number;
+  hasDeductions: boolean;
 }
 
 export interface Suggestion {

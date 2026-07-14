@@ -27,6 +27,7 @@ export type RootStackParamList = {
   LinkWhatsApp: undefined;
   LinkTelegram: undefined;
   Accounts: undefined;
+  IncomeProfile: undefined;
   // FIN-026 P1: las jugadas llegan con la pregunta armada (escenario + params).
   Simulator: { scenario?: string; params?: Record<string, string | number> } | undefined;
   Achievements: undefined;

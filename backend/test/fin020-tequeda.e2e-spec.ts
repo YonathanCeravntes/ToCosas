@@ -61,8 +61,11 @@ describe('FIN-020 · teQueda idéntico en Presupuesto e Inicio (§32)', () => {
       dayOfMonth: 5,
     });
     expect(fixed.status).toBe(201);
-    const income = await req('POST', '/v1/budget/fixed-items', {
-      kind: 'ingreso',
+    // FIN-027: el ingreso declarado ahora vive en el modelo de fuentes, no en
+    // FixedItem (§5.2 — sin coexistencia). Sigue sin contar en teQueda (Alt A:
+    // solo lo REALMENTE recibido cuenta).
+    const income = await req('POST', '/v1/income/sources', {
+      kind: 'salario_fijo',
       name: 'Salario e2e',
       amount: 4_000_000,
       dayOfMonth: 28,

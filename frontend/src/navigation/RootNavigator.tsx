@@ -9,6 +9,7 @@ import { MainTabs } from './MainTabs';
 import { LinkWhatsAppScreen } from '../screens/whatsapp/LinkWhatsAppScreen';
 import { LinkTelegramScreen } from '../screens/telegram/LinkTelegramScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
+import { IncomeProfileScreen } from '../screens/IncomeProfileScreen';
 import { SimulatorScreen } from '../screens/SimulatorScreen';
 import { AchievementsScreen } from '../screens/AchievementsScreen';
 import { MilloPlusScreen } from '../screens/MilloPlusScreen';
@@ -57,6 +58,11 @@ export function RootNavigator() {
               name="Accounts"
               component={AccountsScreen}
               options={{ headerShown: true, title: 'Cuentas y patrimonio' }}
+            />
+            <Stack.Screen
+              name="IncomeProfile"
+              component={IncomeProfileScreen}
+              options={{ headerShown: true, title: 'Mi perfil de ingresos' }}
             />
             <Stack.Screen
               name="Simulator"

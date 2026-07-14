@@ -18,6 +18,7 @@ import { RemindersModule } from './modules/reminders/reminders.module';
 import { SyncModule } from './modules/sync/sync.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { BudgetModule } from './modules/budget/budget.module';
+import { IncomeModule } from './modules/income/income.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { EventsModule } from './modules/events/events.module';
 import { AccountsModule } from './modules/accounts/accounts.module';
@@ -53,6 +54,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     RemindersModule,
     SyncModule,
     BudgetModule,
+    IncomeModule,
     NotificationsModule,
     AccountsModule,
     FinancialEngineModule,

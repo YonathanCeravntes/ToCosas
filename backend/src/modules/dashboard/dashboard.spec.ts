@@ -62,9 +62,22 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     receivedIncome: 500_000,
   };
   const spendable = { compute: jest.fn().mockResolvedValue(teQuedaStub) } as never;
+  // FIN-027: el ingreso fijo del home ahora viene de la fuente única del
+  // ingreso neto (4M, coherente con el FixedItem-ingreso legado del mock).
+  const netIncome = {
+    compute: jest.fn().mockResolvedValue({
+      netFixedTotal: 4_000_000,
+      grossFixedTotal: 4_000_000,
+      grossVariableEstimate: 0,
+      deductions: [],
+      netMonthlyEstimate: 4_000_000,
+      selfPaidDeductionsTotal: 0,
+      hasDeductions: false,
+    }),
+  } as never;
 
   it('compone patrimonio, ahorro, fijo+variable y flujo de forma consistente con las fuentes', async () => {
-    const svc = new DashboardService(prisma, spendable);
+    const svc = new DashboardService(prisma, spendable, netIncome);
     const home = await svc.home('u1');
 
     // Patrimonio idéntico al util auditado de FIN-002 (misma entrada, misma salida).
@@ -141,7 +154,18 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
         receivedIncome: 0,
       }),
     } as never;
-    const home = await new DashboardService(empty, emptySpendable).home('u2');
+    const emptyIncome = {
+      compute: jest.fn().mockResolvedValue({
+        netFixedTotal: 0,
+        grossFixedTotal: 0,
+        grossVariableEstimate: 0,
+        deductions: [],
+        netMonthlyEstimate: 0,
+        selfPaidDeductionsTotal: 0,
+        hasDeductions: false,
+      }),
+    } as never;
+    const home = await new DashboardService(empty, emptySpendable, emptyIncome).home('u2');
     expect(home.interpretation.cashflow).toBeNull(); // sin ingreso recibido → sin línea
     expect(home.interpretation.savings).toBeNull(); // sin lectura del Motor → sin línea
     expect(home.interpretation.debt).toBeNull(); // sin pagos en el ciclo → sin línea

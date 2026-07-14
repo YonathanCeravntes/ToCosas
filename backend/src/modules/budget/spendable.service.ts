@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DebtOutlayService } from '../debts/debt-outlay.service';
+import { NetIncomeService } from '../income/net-income.service';
 import { financialPeriod } from './financial-period.util';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -55,6 +56,10 @@ export class SpendableService {
     // FIN-023 (§32): la cuota comprometida es el desembolso REAL (cuota +
     // seguros/cargos aparte) — fuente única, nunca monthlyPayment a secas.
     private readonly debtOutlay: DebtOutlayService,
+    // FIN-027 (DEC-0027 P2): las deducciones que la usuaria paga ELLA (no
+    // retenidas en la fuente) son compromiso del ciclo — se inyectan, nunca
+    // se recalculan aquí.
+    private readonly netIncome: NetIncomeService,
   ) {}
 
   async compute(userId: string, now = new Date()): Promise<TeQueda> {
@@ -62,7 +67,7 @@ export class SpendableService {
     const period = financialPeriod(now, settings?.cycleStartDay ?? 1);
     const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-    const [txByKind, fixedItems, debts, outlays] = await Promise.all([
+    const [txByKind, fixedItems, debts, outlays, income] = await Promise.all([
       this.prisma.transaction.groupBy({
         by: ['kind'],
         where: {
@@ -80,6 +85,7 @@ export class SpendableService {
         where: { userId, deletedAt: null, status: 'activa', nextDueDate: { not: null } },
       }),
       this.debtOutlay.outlaysByUser(userId),
+      this.netIncome.compute(userId),
     ]);
 
     const sumKind = (k: string) =>
@@ -101,6 +107,26 @@ export class SpendableService {
       commitments.push({
         name: f.name,
         amount: Number(f.amount),
+        kind: 'fijo',
+        date: date ? date.toISOString() : null,
+        datePassed: date ? date < startOfToday : false,
+      });
+    }
+
+    // Deducciones auto-pagadas (FIN-027, DEC-0027 P2): una deducción NO
+    // retenida en la fuente sale del bolsillo de la usuaria — es un compromiso
+    // del ciclo, igual que un fijo de gasto. Se ancla al día de SU fuente.
+    for (const d of income.deductions) {
+      if (d.withheldAtSource) continue;
+      let date: Date | null = null;
+      if (d.sourceDayOfMonth) {
+        const inStartMonth = new Date(Date.UTC(period.start.getUTCFullYear(), period.start.getUTCMonth(), Math.min(d.sourceDayOfMonth, 28)));
+        date = inStartMonth >= period.start ? inStartMonth : new Date(Date.UTC(period.start.getUTCFullYear(), period.start.getUTCMonth() + 1, Math.min(d.sourceDayOfMonth, 28)));
+        if (date >= period.end) date = new Date(period.end.getTime() - DAY_MS);
+      }
+      commitments.push({
+        name: d.name,
+        amount: d.amount,
         kind: 'fijo',
         date: date ? date.toISOString() : null,
         datePassed: date ? date < startOfToday : false,

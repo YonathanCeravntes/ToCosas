@@ -113,7 +113,9 @@ describe('ContextAssembler — minimización (DEC-0005 §10.1)', () => {
   // FIN-023: el contexto toma el desembolso real de la fuente única (stub =
   // suma de cuotas del mock, sin cargos aparte — cifras idénticas a antes).
   const outlayStub = { outlaysByUser: jest.fn().mockResolvedValue({ byDebt: new Map(), totalOutlay: 200_000 }) } as never;
-  const assembler = new ContextAssembler(buildPrisma(), outlayStub);
+  // FIN-027: fuente única del ingreso neto — stub simple (sin aserciones sobre su valor).
+  const netIncomeStub = { compute: jest.fn().mockResolvedValue({ netFixedTotal: 5_000_000, deductions: [], grossFixedTotal: 5_000_000, grossVariableEstimate: 0, netMonthlyEstimate: 5_000_000, selfPaidDeductionsTotal: 0, hasDeductions: false }) } as never;
+  const assembler = new ContextAssembler(buildPrisma(), outlayStub, netIncomeStub);
 
   async function allViewsSerialized(): Promise<string> {
     const [ctx, snapshot, debts, score, memory] = await Promise.all([
