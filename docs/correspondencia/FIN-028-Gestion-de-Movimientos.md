@@ -176,3 +176,62 @@ sobre consultas de `Transaction`, verificado por diff — no toques los 97 a cie
 
 **MENSAJE PARA ARQUITECTO** — emitir `IMP-0028` con los 4 cambios obligatorios de
 `DEC-0028`; entregar con SHA para validación del CTO antes de integrar.
+
+---
+
+## 2026-07-13 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Estado**
+`IMP-0028` entregado en rama de trabajo (§36.2) — commit `65104e1d38b3ba84efdd9fa6f4db7db54deb7824`; `IMP-0028` v1.0 en `docs/implementaciones/`. A la espera de tu validación e integración.
+
+**Conclusión**
+Los 4 cambios obligatorios acatados: (1) anular = `deletedAt`, sin `anulada`/`voidedAt` — tenías razón, tu corrección hizo el diseño más pequeño y evitó el tercer concepto de anulación; (2) `ACTIVE_TX_FILTER` solo en las consultas de `Transaction` del servicio, los ~97 de otros modelos intactos; (3) impacto retroactivo declarado; (4) infraestructura y gate DPA+PIA sin tocar. El bug real cerrado: `update`/`remove` emiten eventos por outbox y el Motor recalcula (e2e lo prueba: editar un gasto mueve el flujo persistido sin intervención). Anular un pago de deuda revierte el saldo atómicamente; `undoLast` de mensajería reencaminado al servicio central. Suites: unit 331/331, e2e 27/27, tsc limpio, cero migraciones.
+
+**Reserva que pido evaluar explícitamente (IMP §4):** al anular un pago de deuda, el reverso restaura saldo y estado pero **NO reconstruye `next_due_date`** (no inventamos la fecha previa; el próximo pago la re-ancla). Es la limitación de mayor peso — si el Auditor la considera insuficiente para iteración 1, es una pieza adicional acotada, no un rediseño. Segundo dato: la UX vive en las filas del Inicio porque no existe una pantalla de lista completa de movimientos en el frontend (el DEC asumía una).
+
+**Bloqueos**
+Ninguno. Listo para tu checkout de validación; no abro IMP-0027 hasta que cierres este (un IMP a la vez).
+
+MENSAJE PARA CTO
+
+---
+
+---
+
+## 2026-07-13 — De: CTO — Para: Fundador — CC: CPSAO, Arquitecto, Auditor
+
+**Asunto:** FIN-028 CERRADA (validación técnica del CTO)
+**Estado:** Cerrada (eje técnico). IMP-0028 validado e integrado.
+
+Validación independiente en checkout sobre `65104e1` (ancestro de HEAD) — verifiqué el
+código y reejecuté las suites yo mismo, no sobre el reporte:
+
+- **Los 4 cambios obligatorios de `DEC-0028`, confirmados:** (1) **sin `anulada`/`voidedAt`**
+  (grep limpio; la anulación es `deletedAt`, único mecanismo — mi corrección acatada);
+  (2) `ACTIVE_TX_FILTER = {deletedAt:null}` aplicado **solo** a consultas de `Transaction`
+  (el diff no tocó otros modelos; los 97 filtros restantes intactos); (3) impacto
+  retroactivo declarado; (4) infra y gate DPA+PIA sin tocar.
+- **Bug cerrado:** `update`/`remove` ahora emiten `TransactionUpdated`/`TransactionDeleted`
+  vía outbox (payload rico `changedFields`+before/after para auditoría/IA, sin rediseñar
+  BD); `undoLast` de mensajería **reencaminado** al servicio central (`remove()`);
+  anular un pago de deuda **revierte el saldo atómicamente** + `DebtUpdated`; guardarraíl
+  P6 (`DEBT_LOCKED_FIELDS`) bloquea editar monto/fecha/tipo/deuda en sitio → 400.
+- **Suites reejecutadas por el CTO:** `tsc --noEmit` exit 0; unit **331/331** (43 suites);
+  e2e **27/27** (8 suites), incl. `fin028-movimientos` (4/4: editar recalcula el Motor;
+  anular excluye pero conserva en BD; anular pago de deuda revierte saldo; guardarraíl 400)
+  y sin regresión en FIN-020/021/022/023/024/012.
+
+**Dos limitaciones declaradas por el Arquitecto — mi dictamen:**
+1. **Anular un pago de deuda no reconstruye `next_due_date`** (el próximo pago la re-ancla
+   vía FIN-018). Aceptada para iteración 1 (honesta, acotada; misma línea que el impacto
+   retroactivo de la mora en FIN-024). **La registro como seguimiento** para que no quede
+   en el limbo — si al usarla se siente confusa, es una pieza adicional acotada, no un
+   rediseño.
+2. **La UX de editar/anular vive en las filas de Inicio** (no existe una pantalla de lista
+   completa de movimientos en el frontend; el DEC la asumía). Aceptable para iteración 1;
+   la firma de producto en dispositivo real la das tú al probar la app.
+
+Con esto, FIN-028 queda cerrada en el eje técnico. Sigue la secuencia: **FIN-027 (DEC,
+turno 2)** — pero tiene una decisión de producto pendiente (DTI/Score sobre neto o bruto).
+
+**MENSAJE PARA FUNDADOR** — FIN-028 cerrada; queda tu firma de producto al usar editar/anular en la app.
