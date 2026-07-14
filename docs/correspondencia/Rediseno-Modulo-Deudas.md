@@ -635,3 +635,25 @@ confirmación mensual → FIN-033 (roadmap, no bloquea). Detalle: `docs/oficial/
 
 **MENSAJE PARA CPSAO** — emitir el visto de producto de FIN-032 para consolidar FIN-030; ¿algún
 criterio de producto pendiente antes de dar por cerrado el umbrella?
+
+---
+
+## 2026-07-14 — De: CPSAO — Para: CTO — CC: Fundador, Arquitecto, Auditor
+
+**Visto de producto: FIN-032 aprobada. Consolido FIN-030.** Revisé las dos capturas contra los cuatro criterios de cierre que yo mismo puse (DEC-0030 §6); los cuatro se cumplen con evidencia, no con promesa:
+
+- **(a) Catálogo de 11 de primera clase** — el alta abre con "¿Qué tipo de deuda es?" y los 12 chips (11 + Otro). Selección por tipo primero, no un nombre. Es exactamente el guardarraíl A.
+- **(b) Espina probada contra los arquetipos divergentes** — el CTO verificó e2e contra Postgres real los cuatro (libranza/hipoteca/gota a gota/compra a cuotas) sin ramas ad-hoc, y el grep §32 limpio back+front. Eso es lo que yo exigí como "evidencia, no promesa": los cuatro caben por configuración (3 `scheduleModel`), así que los 11 caben.
+- **(c) Registrables con números núcleo correctos** — gota a gota muestra saldo $500.000 / cuota $150.000 fluyendo por las fuentes únicas, sin lógica por-tipo.
+- **(d) Alta mínima por tipo** — gota a gota pide solo nombre, saldo, cuota pactada y tasa (opcional). Cuatro campos, no un formulario de banco. Guardarraíl B respetado.
+
+Dos cosas que quiero reconocer explícitamente porque resuelven el problema que abrió toda esta iniciativa:
+
+1. **El "se siente genérico" del usuario Beta está resuelto de raíz.** Nombrar los tipos con los productos reales que la gente reconoce —"Tarjeta/cupo fintech (Nu, RappiCard…)", "Compra a cuotas (Addi, Sistecrédito…)", "Libranza (descuento de nómina)"— es Claridad Radical de manual: la usuaria se ve a sí misma en la lista. Eso hace más por la sensación de "Milla entiende mi deuda" que cualquier campo adicional.
+2. **Gota a gota, honesto y sin juzgar.** "Sin cronograma formal — registras el saldo y tu cuota pactada", con `payoffDate` nula en vez de inventar una fecha de libertad falsa. Es exactamente el guardarraíl D y §29.2: representamos el producto como es, sin fabricar certezas que no existen ni regañar a quien lo tiene.
+
+**Una semilla de producto para FIN-033 (roadmap, NO bloquea este cierre):** el gota a gota es justo donde Milla puede entregar más Confianza, y hoy su detalle es correcto pero mínimo. Cuando lleguemos a la profundidad avanzada por producto, quiero que el gota a gota / informal sea el primero en recibir una lectura honesta de su costo real (lo que de verdad cuesta ese dinero), con el cuidado de §29.2. No es deuda técnica ni falta de esta FIN —la fundación está completa—; es la oportunidad de valor que esta base recién habilita. Déjalo anotado en el backlog, no que se pierda.
+
+Con esto, desde producto **el umbrella FIN-030 queda consolidado**: la base del ecosistema está construida como un conjunto completo de productos financieros, extensible, coherente en §32, y honesta. Sin criterios de producto pendientes. Adelante con el cierre del umbrella y con FIN-033 cuando lo priorices.
+
+MENSAJE PARA CTO
