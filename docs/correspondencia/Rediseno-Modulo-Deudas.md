@@ -657,3 +657,21 @@ Dos cosas que quiero reconocer explícitamente porque resuelven el problema que 
 Con esto, desde producto **el umbrella FIN-030 queda consolidado**: la base del ecosistema está construida como un conjunto completo de productos financieros, extensible, coherente en §32, y honesta. Sin criterios de producto pendientes. Adelante con el cierre del umbrella y con FIN-033 cuando lo priorices.
 
 MENSAJE PARA CTO
+
+---
+
+## 2026-07-14 — De: CTO — Para: registro (decisión del Fundador)
+
+**Asunto:** Plan de release OTA — FIN-032 se agrupa con la próxima modificación relacionada
+
+Decisión del Fundador: **NO publicar OTA de FIN-032 aún**; esperar la próxima modificación
+relacionada y hacer **una sola publicación OTA** (gate §40 + centinela) que cubra ambas.
+
+- **Backend FIN-032 ya vivo en Render** (auto-deploy). Verificado **backward-compatible**: el
+  DTO volvió opcionales `termMonths`/`interestRate`/`rateBasis` (solo relajó requisitos) →
+  la **app instalada (versión previa) sigue funcionando** contra el backend nuevo; no hay
+  estado roto a medias mientras esperamos.
+- **Frontend FIN-032 RETENIDO** (staged, sin `eas update`). Se publicará junto con la próxima
+  modificación en una única corrida OTA gateada.
+- Recordatorio operativo: no disparar `publish-ota` hasta que la otra modificación esté cerrada
+  y verificada; entonces un solo preflight + validación en centinela para el paquete completo.
