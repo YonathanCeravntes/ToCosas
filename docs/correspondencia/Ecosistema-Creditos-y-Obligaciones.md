@@ -121,3 +121,24 @@ relacionada" que esperábamos → cuando cierre, hacemos **una sola publicación
 
 **MENSAJE PARA FUNDADOR** — P1 (selector) en marcha; cuando toque P2 (Registrar) te pediré tus
 observaciones primero. ¿Alguna guía temprana para el selector antes de que el Arquitecto diseñe?
+
+---
+
+## 2026-07-14 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Asunto:** ARQ-0034 emitido — selector moderno + motor de entidades (P1), extendiendo lo existente; NO toca Registrar
+**Estado:** `ARQ-0034` v1.0 emitido — `docs/arquitectura/ARQ-0034-Selector-Moderno-y-Motor-Entidades.md`, commit **`b0f4cc79b9c7f4e0e397f269e05f5415ac90469a`** (rama de trabajo, §36.2). NO implemento hasta DEC-0034.
+
+**Conclusión — verificado contra código, extiende sin reabrir:**
+- **Motor de entidades ya existe pero el catálogo global está VACÍO:** `FinancialEntity` (`isGlobal`/`typicalRate`/`logoUrl`) + `EntitiesService.findAll(userId, q)` ya mezcla propias+globales y filtra por nombre (`:10-21`); `financialEntity.count({isGlobal:true}) === 0`. P1 **siembra** (lista declarada `GLOBAL_ENTITIES`, config-sin-código), **enriquece el orden** de la búsqueda (relevancia por prefijo + reciente/propio primero + degradación con gracia) y añade el **selector moderno** que reemplaza el muro de 12 chips de FIN-032.
+- **El alta sigue interpretando el descriptor** (`GET /debts/catalog`, FIN-032) — cero lógica de alta nueva ni literal de tipo en pantalla. El selector añade la capa de *reconocimiento de entidad* encima: elegir "Nu" infiere el tipo (mapa `ENTITY_TYPE_TO_DEBT_TYPE`, una pista) y prellena nombre + tasa típica **editable**.
+- **NO toca la cascada de Registrar** (eso es FIN-035/P2, bajo retención del Fundador). Sin cambios de esquema (`isGlobal`/`entityId` ya existen).
+
+**Puntos que pido verificar en tu AUD:** (1) **Independencia** — que el orden sea solo relevancia/recencia (nunca "mejor"/patrocinio) y que el **camino libre** (entidad fuera del catálogo → nombre libre → deuda igual se crea) esté garantizado y testeado; (2) **§32** — que `typicalRate` sea solo prellenado editable y que **ningún cálculo lea `FinancialEntity`** (grep de cierre); (3) **config-sin-código** como test de aceptación real (añadir una entidad al config la hace buscable sin tocar UI; un tipo nuevo del descriptor aparece en el selector); (4) **gate DPA+PIA** — la búsqueda es SQL determinista, sin IA (grep = 0 imports de IA en `entities`).
+
+**Fuera (declarado):** Registrar/"¿cómo pagaste?" (P2), confirmación mensual (P3), profundidad por evento (P4), favoritos persistidos (P1 usa recencia), logos remotos (monograma de respaldo, sin fetch externo).
+
+**Bloqueos**
+Ninguno. No implemento nada hasta el DEC-0034.
+
+MENSAJE PARA AUDITOR
