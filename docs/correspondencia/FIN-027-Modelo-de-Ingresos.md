@@ -152,3 +152,61 @@ lo inyectan; **(4) regresión: sin perfil, cifras idénticas a hoy** (test). `wi
 aprobado. DTI/Score sobre NETO. Si el IMP roza el módulo Registrar, detente y avísame.
 
 **MENSAJE PARA ARQUITECTO** — emitir `IMP-0027` con los 4 cambios obligatorios de `DEC-0027`; entregar con SHA para validación del CTO.
+
+---
+
+## 2026-07-14 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Estado**
+`IMP-0027` entregado en rama de trabajo (§36.2) — commit `67cf375b9863ed42e635f70a2f045f64dd6a64b2`; `IMP-0027` v1.0 en `docs/implementaciones/`. A la espera de tu validación e integración.
+
+**Conclusión**
+Los 4 cambios obligatorios acatados: (1) nota de copy en Salud con el texto EXACTO del DEC, verificada en vivo (Score de la demo bajó de 715 a 706 al activar sus deducciones); (2) migración sin coexistencia — el "Salario" de la demo migró solo a `IncomeSource` y `budget.service.create` rechaza `kind='ingreso'` (400) para que no pueda nacer un FixedItem-ingreso mudo; (3) `NetIncomeService` en módulo hoja, único cálculo del neto, inyectado por los 6 consumidores (Motor con DTI/Score sobre NETO, Presupuesto, teQueda, Copiloto, Simulador, Salud); (4) regresión garantizada — sin fuentes configuradas, todo en 0. El hallazgo `withheldAtSource` quedó implementado tal como aprobaste: la deducción retenida solo reduce el neto, la auto-pagada aparece además como compromiso en `teQueda`. Suites: unit 345/345, e2e 40/40, tsc limpio, migración verificada. Capturas reales en `docs/producto/capturas/fin-027/`.
+
+**Reservas para la validación (IMP §4):** (1) sin cálculo automático de retefuente — la usuaria declara %/monto, decisión consciente del ARQ; (2) las fuentes VARIABLES no soportan deducciones propias (solo las fijas) — semilla si aparece el caso real; (3) el frontend del alta de deducciones solo expone el modo porcentual (el backend ya soporta monto fijo y está probado) — ajuste pequeño si se pide.
+
+**Acciones**
+Queda en tus manos activar la validación del Auditor y, con su concepto, el cierre. Con esto se completa la secuencia 028→027→029 — sigue `IMP-0029` cuando lo actives.
+
+**Bloqueos**
+Ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+---
+
+## 2026-07-14 — De: CTO — Para: Fundador — CC: CPSAO, Arquitecto, Auditor
+
+**Asunto:** FIN-027 CERRADA (validación técnica del CTO)
+**Estado:** Cerrada (eje técnico). IMP-0027 validado e integrado.
+
+Validación independiente en checkout sobre `67cf375` (ancestro de HEAD) — código verificado
+y suites reejecutadas por el CTO, no sobre el reporte. Los 4 cambios obligatorios de
+`DEC-0027`, confirmados:
+
+1. **Copy en Salud** (`health.service.ts:92`): *"Tu Score se calcula con tu ingreso real
+   después de deducciones — es más preciso, no que hayas empeorado."*, condicionado a
+   `income.hasDeductions`. Coincide con lo exigido por el CPSAO; el texto vive en el backend
+   (fuente única), el frontend solo lo pinta.
+2. **Migración sin coexistencia** (`budget.service.ts:30`, introducido por este commit):
+   `create` rechaza `kind='ingreso'` con 400 — imposible nazca un FixedItem-ingreso mudo.
+3. **`NetIncomeService`** módulo hoja (importa solo Prisma), único cálculo del neto;
+   `engine.service.ts` usa `income.netFixedTotal` → **DTI/Score sobre NETO** (`fixedIncome`
+   ya no suma FixedItems). `withheldAtSource` implementado.
+4. **Regresión:** sin fuentes, `netFixedTotal = 0` → cifras idénticas (e2e `fin020` sigue
+   verde con la base neta).
+
+**Suites por el CTO:** `tsc` BE+FE exit 0; unit **345/345** (45 suites); e2e **40/40** (10
+suites, incl. `fin027-modelo-ingresos` y regresión `fin020/021/023/024`).
+
+**3 reservas declaradas por el Arquitecto — aceptadas para iteración 1:** (1) sin cálculo
+automático de retefuente (la usuaria declara %/monto); (2) fuentes variables sin deducciones
+propias (solo fijas); (3) el frontend de deducciones expone solo el modo porcentual (el
+backend ya soporta monto fijo y está probado). Semillas acotadas, no rediseños.
+
+Firma de producto en dispositivo real: el Fundador. **Secuencia:** `IMP-0028` ✅ ·
+`IMP-0027` ✅ · falta `DEC-0029` (con la puerta de revisión del CPSAO) antes de `IMP-0029`.
+
+**MENSAJE PARA FUNDADOR** — FIN-027 cerrada; queda tu firma de producto en la app.
