@@ -516,3 +516,26 @@ núcleo sin rama especial + grep §32. Entrega con SHA para validación del CTO.
 
 **MENSAJE PARA ARQUITECTO** — emitir `ARQ-0032` (la fundación) con (a)–(d) y la prueba contra
 los 4 arquetipos como condición de cierre.
+
+---
+
+## 2026-07-14 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Asunto:** ARQ-0032 emitido — la fundación (catálogo + los 4 arquetipos por configuración, sin ramas ad-hoc)
+**Estado:** `ARQ-0032` v1.0 emitido — `docs/arquitectura/ARQ-0032-Fundacion-Catalogo-Tipos-y-Arquetipos.md`, commit **`8361cbc148dc28ba678cc30c6ca5b2f4bed43e01`** (rama de trabajo, §36.2). NO implemento hasta DEC-0032.
+
+**Conclusión — la tesis que pido auditar**
+La fundación cumple (a)–(d) de DEC-0030 §6 por **configuración, no por lógica por-tipo**:
+- **(a) Catálogo:** enum `DebtType` 9 → 12 por extensión pura (+`libranza`, +`compra_a_cuotas`, +`fintech`; `otro` = personalizable, escape de guardarraíl F). 11 de 1ª clase + comodín.
+- **(b) Los 4 arquetipos → 3 `scheduleModel`, TODOS ya existentes:** `amortizado` (FIN-012) cubre hipoteca y libranza; `cuotas_por_compra` (FIN-031) cubre compra a cuotas y tarjeta; `saldo_y_cuota_pactada` (nombra la ruta "sin cronograma" que FIN-031 ya abrió para la tarjeta) cubre gota a gota / informal. La **única pieza nueva es nombrar** ese tercer modelo. Lo divergente de cada arquetipo es un **flag de datos** (libranza = `paymentSource:'nomina'`; hipoteca = seguro endosable FIN-013 + tasa `fija_o_variable`; gota a gota = `rate:'opcional'` + `informal`), no un número aparte.
+- **(c) Números núcleo por §32:** cuota/saldo/fecha por `scheduleModel`; "lo comprometido" sigue en la autoridad única `DebtOutlayService` (extiendo solo el brazo informal); "Te queda" en `SpendableService`; **DTI = `DebtOutlayService.totalOutlay` ÷ `NetIncomeService.netIncome`** (composición de dos fuentes únicas, cero fórmula nueva). La **autoridad única de tipo** es un registro de configuración (`PRODUCT_TYPE_DESCRIPTORS`) — el único lugar con `debtType`.
+- **(d) Alta mínima:** `descriptor.requiredFields` renderiza el alta; ningún tipo pide más que su mínimo.
+
+**Puntos que pido verificar en tu AUD:** (1) que los 4 arquetipos realmente caben en los 3 `scheduleModel` **sin** que ninguno fuerce una rama ad-hoc — especialmente **libranza** (que no se doble-cuente como deducción de ingreso FIN-027 y a la vez compromiso) y **gota a gota** (no inventar una fecha de libertad que no existe); (2) que el grep §32 de cierre es cumplible: `debtType===` solo en el descriptor + el único `switch(scheduleModel)`, cero en pantallas/otros servicios (hoy solo existen las 3 ramas sancionadas de FIN-031, `debt-outlay.service.ts:59` / `debts.service.ts:268` / `DebtDetailScreen.tsx:53`); (3) que la extensión del enum + `saldo_y_cuota_pactada` no reescribe `Debt` ni rompe las cifras de los 9 tipos existentes (regresión).
+
+**Fuera (declarado):** profundidad avanzada por producto (retanqueo/refinanciación/abonos extraordinarios), re-proyección por tasa variable y confirmación mensual → FIN-033+, no bloquean el cierre. "Flujo de caja" sigue fuera del gate DSS.
+
+**Bloqueos**
+Ninguno. No implemento nada hasta el DEC-0032.
+
+MENSAJE PARA AUDITOR
