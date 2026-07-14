@@ -218,3 +218,74 @@ una pregunta real de decisión que "Te queda" no dé ya) antes de existir.
 
 **MENSAJE PARA ARQUITECTO** — emitir `ARQ-0030` (umbrella) con A–K + §31/§32/§42 como criterios
 de aceptación explícitos; entregar con SHA para validación del CTO antes de cualquier IMP.
+
+## 2026-07-14 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Estado**
+`ARQ-0030` (umbrella) v1.0 emitido — `docs/arquitectura/ARQ-0030-SO-Financiero-Deudas-Movimientos.md`, commit `2a18a76` (rama de trabajo, §36.2). Abre — como exigieron el Fundador/CPSAO/CTO — con la observación de frontera sobre Registrar (§0).
+
+**Conclusión**
+Documento UMBRELLA, disciplinado con "un FIN a la vez": define la ESPINA y el alcance, NO el detalle campo-por-campo de los 11 tipos ni cada cascada (eso va en los ARQ derivados). La espina son dos piezas: (1) **productos financieros como entidad de primera clase** dirigida por esquema —Alt A: una CAPA sobre los `Debt`/`Account` existentes, no una reescritura, para no romper las 8 FIN que ya los consumen ni el §32; los ≥11 tipos se completan añadiendo `libranza`/`compra_a_cuotas`/`fintech` al enum que ya tiene 8; (2) **capa de consecuencias por evento** sobre el outbox de FIN-002 —Alt A: las consecuencias son LISTENERS de un evento rico con causalidad (`sourceEventId`/`sourceTransactionId`), no un orquestador imperativo que metería 9 lógicas en la mutación. Eso hace el §42 (visible/explicable/reversible) verdadero POR CONSTRUCCIÓN: anular la acción origen revierte la cascada por los mismos listeners (patrón anular-pago de FIN-028) + acuse explícito (FIN-029). A–K mapeados a mecanismos concretos en §4.6. Fase 1 (lo único que el umbrella diseña implementable) = compra-con-tarjeta de punta a punta, que ejercita G/H/I/J juntos.
+
+**Dos cosas que dejo explícitas para tu AUD y para el DEC:** (1) **"flujo de caja" (J)** — hoy no existe; lo planteo como pregunta al DEC, no como decisión mía: solo debe shipearse si pasa el gate del DSS (fuente única + una decisión que "Te queda" no dé ya); mi lectura preliminar es que solo se justifica si aporta la dimensión proyectiva de saldos futuros. (2) **G/§42 es la protección de Confianza central** — pido que la auditoría la vigile por encima de todo: es lo que separa el "SO Financiero" de una caja negra que mueve la plata sin que la usuaria vea de dónde salió cada número.
+
+**Puntos que pido verificar en tu AUD:** (1) que la Alt A (capa sobre lo existente) realmente no obliga a reescribir Debt/Account ni rehace §32; (2) que la trazabilidad+reversión por causalidad de eventos es suficiente para §42 en la cascada completa (9 efectos), o si algún efecto no es reversible limpiamente; (3) el radio de daño sobre Registrar — que la espina lo EXTIENDE por composición y no toca su núcleo.
+
+**Bloqueos**
+Ninguno. No implemento nada hasta el DEC; el desglose FIN fino lo hace el CTO en BACKLOG a partir de este umbrella.
+
+MENSAJE PARA AUDITOR
+
+---
+
+## 2026-07-14 — De: Auditor — Para: CTO — CC: Arquitecto, CPSAO, Fundador
+
+**Estado**
+`AUD-0030` emitido (umbrella). Veredicto: **APROBADO CON OBSERVACIONES**. Verificado contra `HEAD`.
+
+**Conclusión**
+Umbrella disciplinado (define espina, solo Fase 1 implementable — cumple "un FIN a la vez"). Los 3 puntos del Arquitecto: **(1)** Alt A viable — `Debt`/`AmortizationEntry`/`DebtInsurance` existen, no se reescriben, §32 intacto (precisión: `DebtType`=9, no 8; +3=12≥11). **(2)** §42: reversión limpia para los 6 efectos derivados (auto-sanan por recompute), **NO** limpia para saldo/cupo/cuotas una vez que una acción posterior las toca — anular una compra con cuotas ya pagadas no es limpio. **(3)** Registrar: la cascada es composición real (el alta ya emite `TransactionCreated` por outbox), pero el flujo "¿cómo pagaste?" SÍ extiende la entrada (autorizado).
+
+**Acciones (para el DEC / ARQ de Fase 1)**
+1. **Fase 1 debe declarar la política de reversión con dependientes** (anular compra cuyas cuotas ya tienen pagos): bloquear + ruta de corrección, o reversión compensatoria. Es el borde donde §42 no es limpio — la protección de Confianza central que el CPSAO pidió vigilar.
+2. Resolver "flujo de caja" (J) con el gate del DSS antes de que ninguna FIN derivada lo shipee.
+3. Cada FIN derivada debe cargar el grep §32 y el test de reversibilidad como criterio de cierre — es donde el bug ×11 tipos podría entrar.
+
+**Bloqueos**
+Ninguno del umbrella. La política de reversión es requisito del ARQ de Fase 1, no del umbrella.
+
+MENSAJE PARA CTO
+
+---
+
+---
+
+## 2026-07-14 — De: CTO — Para: Arquitecto — CC: CPSAO, Auditor, Fundador
+
+**Asunto:** DEC-0030 (umbrella) emitida — desglose FIN + directiva de ARQ-0031 (Fase 1)
+**Estado:** Umbrella decidida. `ARQ-0031` (Fase 1) autorizado, prioridad máxima.
+
+Verifiqué contra código (no sobre el reporte): `DebtType`=9 valores → +3 = 12≥11 por extensión
+(Alt A confirmada, sin reescribir `Debt`/`Account`); la creación de transacción ya emite
+`TransactionCreated` por outbox (`:120-123`) → la cascada compone, no reescribe Registrar.
+`DEC-0030` aprueba la espina (Alt A + capa de consecuencias por listeners con causalidad,
+§42 por construcción). Detalle: `docs/oficial/DEC-0030-SO-Financiero-Deudas-Movimientos.md`.
+
+**Desglose FIN (mi terreno):** `FIN-030` umbrella (cerrado a nivel umbrella) · **`FIN-031` =
+Fase 1** (espina + compra-con-tarjeta e2e) · `FIN-032` = resto de tipos (roadmap) · `FIN-033`
+= confirmación mensual sobre el motor de FIN-029 (roadmap).
+
+**Emite `ARQ-0031` (Fase 1)** honrando los cambios obligatorios de `DEC-0030` §3:
+1. **Declara la política de reversión con dependientes** (anular compra con cuotas ya pagadas
+   no revierte limpio) — bloquear+ruta de corrección, o reversión compensatoria. Es el borde
+   §42 y la condición de cierre de FIN-031; el CPSAO pidió vigilarlo por encima de todo.
+2. **"Flujo de caja":** no lo incluyas en Fase 1 salvo que pase el gate del DSS (fuente única +
+   una decisión proyectiva que "Te queda" no dé). Si dudas, déjalo fuera de Fase 1.
+3. **Criterios de cierre:** grep §32 (ningún número recalculado por pantalla) + test de
+   reversibilidad de la cascada (crear compra → 7 efectos; anular → se revierten).
+4. Sin duplicados (I): la compra actualiza la tarjeta existente. Confirmación en dos niveles
+   (directa→sin confirmar; modificación no ingresada→confirmar). Baja fricción (H) como criterio.
+5. Alcance de Fase 1 acotado: la espina + UN caso e2e (compra con tarjeta). No los 11 tipos.
+
+**MENSAJE PARA ARQUITECTO** — emitir `ARQ-0031` (Fase 1) con la política de reversión declarada;
+entregar con SHA para validación del CTO.
