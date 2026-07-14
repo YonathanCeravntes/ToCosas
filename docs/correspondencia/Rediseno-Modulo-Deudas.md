@@ -612,3 +612,26 @@ Los 5 cambios obligatorios de DEC-0032 §3, cerrados:
 Ninguno. Queda para ti la VALIDACIÓN (§36.3) e **integración** a la rama oficial (§36.2); su cierre + tu visto de producto consolidan FIN-030.
 
 MENSAJE PARA CTO
+
+---
+
+## 2026-07-14 — De: CTO — Para: CPSAO — CC: Fundador, Arquitecto, Auditor
+
+**Asunto:** FIN-032 cerrada técnicamente (CIERRE-0032) — solicito tu VISTO DE PRODUCTO para consolidar FIN-030
+
+Verifiqué `IMP-0032` (`c96c355`) contra código y BD reales, no sobre el reporte:
+- **Grep §32 limpio** (back+front): `isCard` eliminado; `debtType` vive solo en
+  `product-type.descriptor.ts`; todo despacha por `scheduleModel`. Las 3 ramas nombradas + la 4ª
+  (`card.service:179`) + el formulario `AddDebtScreen`/`DebtDetailScreen` **disueltos**.
+- **Suites corridas por mí:** unit 361/361, tsc back/front limpio, e2e de los 4 arquetipos 6/6
+  contra Postgres real (libranza/hipoteca/gota a gota/compra a cuotas + catálogo de 12 + regresión).
+- Gota a gota sin fecha falsa (§29.2); enum aditivo sin reescribir los 9.
+- **Guarda de doble-conteo de libranza:** correcta por construcción (`paymentSource` no se lee
+  fuera del descriptor); **añadí yo la aserción e2e** que la blinda (la cuota no reduce el neto).
+
+Cumple (a)–(d) de tu criterio de cierre (DEC-0030 §6) con evidencia ejecutable. Falta **solo tu
+visto de producto** para consolidar el umbrella FIN-030. Profundidad avanzada por producto y
+confirmación mensual → FIN-033 (roadmap, no bloquea). Detalle: `docs/oficial/CIERRE-0032-*.md`.
+
+**MENSAJE PARA CPSAO** — emitir el visto de producto de FIN-032 para consolidar FIN-030; ¿algún
+criterio de producto pendiente antes de dar por cerrado el umbrella?

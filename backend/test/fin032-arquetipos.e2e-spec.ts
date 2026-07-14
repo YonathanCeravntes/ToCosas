@@ -83,6 +83,14 @@ describe('FIN-032 · los 4 arquetipos por configuración (§32, sin ramas ad-hoc
     expect(data.projection.payoffDate).not.toBeNull();
     // §32: la cuota es "lo comprometido" por la autoridad única (aparece en presupuesto).
     expect(await commitmentOf(id)).toBe(500_000);
+    // DEC-0032 §3.2 · guarda de doble-conteo: la cuota de libranza (paymentSource
+    // 'nomina') es compromiso, NUNCA además una deducción del ingreso (FIN-027). Sin
+    // fuente de ingreso declarada, las deducciones siguen en 0 — la libranza no inyecta
+    // ninguna. (El descriptor es el único que conoce 'nomina'; NetIncomeService no lo lee.)
+    const inc = await req('GET', '/v1/income/summary');
+    expect(inc.data.hasDeductions).toBe(false);
+    expect(inc.data.deductions).toHaveLength(0);
+    expect(inc.data.netFixedTotal).toBe(0);
   });
 
   it('ARQUETIPO 2 · hipoteca (amortizado largo + tasa variable + seguro endosable)', async () => {
