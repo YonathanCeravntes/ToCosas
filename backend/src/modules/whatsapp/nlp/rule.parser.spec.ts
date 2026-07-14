@@ -64,6 +64,18 @@ describe('ruleParse — intents utilitarios', () => {
   it('detecta consulta mis deudas', () => {
     expect(ruleParse('muéstrame mis deudas', { today }).intent).toBe('consulta_resumen');
   });
+  it('detecta anular como deshacer (FIN-029)', () => {
+    expect(ruleParse('anular', { today }).intent).toBe('deshacer');
+  });
+  // FIN-029 (§5.3): "simular" es escenario hipotético, NO un registro real.
+  it('detecta simulación de abono con monto', () => {
+    const r = ruleParse('¿qué pasa si abono $200.000 a mi deuda?', { today });
+    expect(r.intent).toBe('consulta_simulacion');
+    expect(r.amount).toBe(200000);
+  });
+  it('"pagué 200 mil a la tarjeta" NO se confunde con simulación (es registro real)', () => {
+    expect(ruleParse('pagué 200 mil a la tarjeta', { today }).intent).toBe('registrar_transaccion');
+  });
 });
 
 describe('ruleParse — fechas', () => {

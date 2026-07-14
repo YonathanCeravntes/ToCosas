@@ -4,6 +4,7 @@ import { parseDate } from './date.parser';
 export type Intent =
   | 'registrar_transaccion'
   | 'consulta_resumen'
+  | 'consulta_simulacion'
   | 'saludo'
   | 'ayuda'
   | 'cancelar'
@@ -67,8 +68,16 @@ function detectIntent(lower: string, amount: number | null): Intent {
   if (/^\s*(hola|buenas|buenos dias|buenos días|hey|holi)\b/.test(lower)) return 'saludo';
   if (/\bayuda\b|\bhelp\b|qu[eé] puedes hacer/.test(lower)) return 'ayuda';
   if (/\bcancelar\b|\bcancela\b/.test(lower)) return 'cancelar';
-  if (/\bdeshacer\b|borra el [uú]ltimo|borrar [uú]ltimo|el[ií]mina el [uú]ltimo/.test(lower))
+  if (/\bdeshacer\b|\banular\b|\banula\b|borra el [uú]ltimo|borrar [uú]ltimo|el[ií]mina el [uú]ltimo/.test(lower))
     return 'deshacer';
+  // FIN-029 (DEC-0029 §5.3): "simular" — solo pregunta hipotética de escenario.
+  // Debe llevar tanto el disparador ("qué pasa si"/"simula") como el verbo de
+  // abono; así "pagué 200 mil" (registro real) no se confunde con simulación.
+  if (
+    /qu[eé] pasa si|\bsimul/.test(lower) &&
+    /\babon|\baport|\bextra\b|deuda|cr[eé]dito/.test(lower)
+  )
+    return 'consulta_simulacion';
   if (
     /\bresumen\b|cu[aá]nto debo|c[oó]mo voy|como voy|mis deudas|cu[aá]nto tengo|pr[oó]ximos pagos|estado/.test(
       lower,
