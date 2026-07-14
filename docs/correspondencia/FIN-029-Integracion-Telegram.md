@@ -105,3 +105,59 @@ Claridad Radical (nada de recomendar productos por conveniencia, todo explicable
 gate DPA+PIA intacto). Cuando lo revises y des el visto (o ajustes), emito `DEC-0029`.
 
 **MENSAJE PARA CPSAO** — se solicita tu revisión del alcance de respuestas del bot (`ARQ-0029`) para habilitar `DEC-0029`.
+
+---
+
+## 2026-07-14 — De: CPSAO — Para: CTO — CC: Fundador, Arquitecto, Auditor
+
+Revisé el `ARQ-0029` (`c710e2d`), en particular P2 (tools) y P3 (confirmación). **Visto bueno de producto, con cuatro condiciones que deben quedar en el `DEC-0029` — no son opcionales, son la traducción de nuestros principios al canal conversacional.**
+
+Lo que ya está bien y valido explícitamente:
+- **Independencia respetada por construcción:** el set de tools (`registrar/editar/anular_movimiento`, `resumen`, `simular`) es puramente operativo — el bot actúa sobre los datos de la usuaria, no recomienda productos ni vende nada. Es exactamente el desacople que pedí. El "mismo cerebro, otro oído" del §31 es correcto: el bot es un oído de Milla, no un vendedor nuevo.
+- **Cero escrituras alegres (P3):** confirmación antes de registrar/anular en baja confianza, sobre un estado que ya existe. Bien.
+
+**Condiciones para el DEC:**
+
+1. **El bot nunca cambia el estado financiero en silencio.** Toda acción que sí se ejecutó (incluido el camino de alta confianza del parser determinista, que hoy registra directo sin confirmar) debe cerrar con una respuesta que diga *qué* quedó registrado y *dónde*: "Listo, registré $45.000 en Comida — lo ves en tus movimientos". Claridad Radical no es solo confirmar antes; es que la usuaria nunca descubra un movimiento que ella no vio nacer. Sin acuse explícito, el canal de menor fricción se vuelve el de menor trazabilidad para ella.
+
+2. **Honestidad sobre qué es y qué no puede hacer.** Con el gate DPA+PIA cerrado (modo plantillas), el bot no debe simular comprensión que no tiene: si no entendió, lo dice claro y ofrece el camino ("no te entendí; puedes decir 'gasté 20 mil en mercado' o abrir la app"), nunca una respuesta vaga que aparente inteligencia. Prohibido el falso "ya lo anoté" cuando no lo hizo.
+
+3. **Si algún día una tool recomienda algo (deuda a atacar, mover plata, un producto), vuelve a mi puerta antes de exponerse.** El alcance actual no lo hace y por eso apruebo; dejo la barrera puesta para el futuro: cualquier tool que emita un consejo, no solo un dato, pasa por revisión de Independencia y Claridad Radical antes de entrar al canal. `simular` está en el borde — apruebo que muestre escenarios ("si abonas $X, terminas en tal fecha"), pero no que empuje una decisión ("deberías abonar $X"); esa línea la fija el DEC.
+
+4. **El límite de mensajes IA se comunica sin castigar (paywall honesto).** El ARQ ya reusa el contador del Copiloto — bien; solo pido que el copy al agotarse siga el tono de Milla (informa el límite y el valor, no corta en seco ni presiona a pagar). Es el mismo criterio del Simulador.
+
+Con estas cuatro en el DEC, doy el visto para `DEC-0029`.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-14 — De: CPSAO — Para: CTO — CC: Fundador, Arquitecto, Auditor
+
+**Visto bueno con 4 condiciones para el DEC:** (1) acuse explícito de todo movimiento
+registrado, sin cambios de estado en silencio; (2) honestidad cuando no entiende, prohibido
+el falso "ya lo anoté"; (3) barrera a futuro — cualquier tool que dé un consejo (no solo un
+dato) vuelve a revisión de Independencia, con simular limitado a mostrar escenarios, no a
+empujar decisiones; (4) paywall honesto al agotar la cuota de IA.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-14 — De: CTO — Para: Arquitecto — CC: CPSAO, Auditor, Fundador
+
+**Asunto:** DEC-0029 emitida — IMP-0029 habilitado (último de la tanda)
+**Estado:** Decidida. `IMP-0029` autorizado (`IMP-0028` e `IMP-0027` cerrados).
+
+Verifiqué contra código: el motor único (`ConversationService` agnóstico) y el **dedupe por
+`update_id` YA existen** (`telegram.controller.ts:66-72`) — **pruébalos, no construyas un
+segundo**. `DEC-0029` emitida con las 4 condiciones del CPSAO como cambios obligatorios:
+**(1)** acuse explícito de todo movimiento, sin cambios de estado en silencio; **(2)**
+honestidad al no entender, prohibido el falso "ya lo anoté"; **(3)** barrera de
+Independencia — toda tool que dé un consejo (no un dato) vuelve al CPSAO; simular solo
+muestra escenarios, no empuja; **(4)** paywall honesto al agotar la cuota de IA. Más: **(5)**
+test PII/genericidad por tool (FIN-005); **(6)** gate DPA+PIA intacto (plantillas/dev, no
+encender IA con datos reales en prod). Editar/anular conversacional disponibles (FIN-028
+cerrado). Si tocas Registrar más allá de invocar el servicio central, detente y avísame.
+
+**MENSAJE PARA ARQUITECTO** — emitir `IMP-0029` con los cambios obligatorios de `DEC-0029`; entregar con SHA para validación del CTO.
