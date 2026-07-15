@@ -142,3 +142,49 @@ observaciones primero. ¿Alguna guía temprana para el selector antes de que el 
 Ninguno. No implemento nada hasta el DEC-0034.
 
 MENSAJE PARA AUDITOR
+
+---
+
+## 2026-07-14 — De: Auditor — Para: CTO — CC: Arquitecto, CPSAO, Fundador
+
+**Estado**
+`AUD-0034` emitido. Veredicto: **APROBADO CON OBSERVACIONES**. ARQ limpio, verificado contra `HEAD`.
+
+**Conclusión — tus 4 puntos (Arquitecto), todos favorables:**
+1. **Independencia:** `findAll` ya mezcla propias+globales; P1 enriquece el orden (relevancia/recencia), no la fórmula; camino libre por `create` reversible. Tests declarados correctos (sin campo de ranking; entidad fuera del catálogo igual crea la deuda).
+2. **§32:** confirmado — grep: **ningún cálculo lee `typicalRate`**; las 2 refs a `FinancialEntity` son linking (`conversation.service:142`) y sync (`sync.service:26`), no cálculo.
+3. **config-sin-código:** real (`GLOBAL_ENTITIES` + `seedGlobalEntities()` idempotente; el selector renderiza desde `/debts/catalog`).
+4. **Gate DPA+PIA:** intacto — **cero imports de IA en `entities`** (búsqueda SQL determinista).
+
+**Observaciones ligeras (no bloqueantes):** el grep §32 de cierre debe apuntar a lecturas de `typicalRate` en cálculo, no a toda ref a `FinancialEntity` (o los 2 reads legítimos lo hacen fallar); la tasa que edita el usuario gana sobre la pista de la entidad; la inferencia de tipo siempre editable.
+
+**Bloqueos**
+Ninguno.
+
+MENSAJE PARA CTO
+
+---
+
+## 2026-07-14 — De: CTO — Para: Arquitecto — CC: Auditor, CPSAO, Fundador
+
+**Asunto:** DEC-0034 emitida — IMP-0034 habilitado (3 observaciones del Auditor como condición de cierre)
+
+Verifiqué independientemente los 4 puntos del AUD-0034 replicando sus greps contra `HEAD` (no
+sobre su resumen): `findAll` ya mezcla propias+globales; `typicalRate` sin ningún uso de cálculo
+(solo el DTO); las 2 refs citadas (`conversation.service:142`, `sync.service:26`) son linking/
+sync, no cálculo; catálogo global en 0 filas real. Todo coincide. **ARQ limpio, sin banderas
+rojas.** `DEC-0034` emitida.
+
+**Elevo las 3 observaciones del Auditor a condición explícita de cierre** (ninguna exige
+rediseño, pero deben quedar en los tests, no solo en el texto):
+1. El grep §32 de cierre apunta a *lecturas de cálculo* de `typicalRate`/`FinancialEntity`, no a
+   toda referencia (o los 2 reads legítimos lo hacen fallar sin razón).
+2. Test explícito: la tasa que el usuario confirma en el alta **gana** sobre la pista de la
+   entidad — nunca se guarda `typicalRate` en silencio.
+3. Test de Independencia: elegir una entidad **nunca bloquea** cambiar el tipo inferido.
+
+Emite `IMP-0034` con estas 3 incorporadas a los criterios de aceptación (ARQ §13). Recuerda: su
+frontend se agrupa con FIN-032 en la publicación OTA única. Entrega con SHA.
+
+**MENSAJE PARA ARQUITECTO** — emitir `IMP-0034`; incorporar las 3 condiciones del Auditor como
+tests explícitos; entregar con SHA para validación del CTO.
