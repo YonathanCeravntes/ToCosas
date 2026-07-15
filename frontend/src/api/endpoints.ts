@@ -13,6 +13,7 @@ import {
   Dashboard,
   CardSummary,
   Debt,
+  FinancialEntity,
   ProductTypeDescriptor,
   DebtInsurance,
   DebtsSummary,
@@ -87,6 +88,19 @@ export const debtsApi = {
     api.post<{ acknowledgment: string; summary: CardSummary }>(`/debts/cards/${debtId}/purchases`, input),
   voidPurchase: (purchaseId: string) =>
     api.delete<{ voided: boolean }>(`/debts/cards/purchases/${purchaseId}`),
+};
+
+// FIN-034: catálogo de entidades (reconocimiento, no recomendación).
+export const entitiesApi = {
+  search: (q?: string, type?: string) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (type) params.set('type', type);
+    const qs = params.toString();
+    return api.get<FinancialEntity[]>(`/entities${qs ? `?${qs}` : ''}`);
+  },
+  create: (input: { name: string; type: string; typicalRate?: number }) =>
+    api.post<FinancialEntity>('/entities', input),
 };
 
 export const transactionsApi = {
@@ -238,6 +252,8 @@ export interface CreateDebtInput {
   paymentDay?: number;
   // FIN-031: cupo de la tarjeta de crédito (el saldo se deriva de sus compras).
   creditLimit?: number;
+  // FIN-034: la entidad reconocida (opcional — el camino libre no la exige).
+  entityId?: string;
 }
 
 export interface CreateAccountInput {

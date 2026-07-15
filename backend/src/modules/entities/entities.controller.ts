@@ -22,9 +22,14 @@ import { CreateEntityDto, UpdateEntityDto } from './dto/entity.dto';
 export class EntitiesController {
   constructor(private readonly entities: EntitiesService) {}
 
+  // FIN-034: búsqueda/autocomplete del selector (relevancia + recencia + tipo).
   @Get()
-  findAll(@CurrentUser() user: AuthUser, @Query('q') q?: string) {
-    return this.entities.findAll(user.id, q);
+  findAll(
+    @CurrentUser() user: AuthUser,
+    @Query('q') q?: string,
+    @Query('type') type?: string,
+  ) {
+    return this.entities.search(user.id, q, type);
   }
 
   @Post()

@@ -97,6 +97,21 @@ export interface Debt {
   capabilities?: ProductCapabilities;
 }
 
+// --- FIN-034: motor de entidades (catálogo global + búsqueda) ---
+export type EntityType = 'banco' | 'cooperativa' | 'fintech' | 'prestamista_particular' | 'tarjeta' | 'otro';
+
+export interface FinancialEntity {
+  id: string;
+  name: string;
+  type: EntityType;
+  typicalRate?: string | number | null;
+  rateType?: string | null;
+  logoUrl?: string | null;
+  isGlobal: boolean;
+  /** FIN-034: tipo de deuda sugerido (pista editable, nunca imposición). */
+  suggestedDebtType?: DebtType | null;
+}
+
 // --- FIN-031: tarjeta de crédito (cupo + compras a cuotas) ---
 export interface CardSummary {
   creditLimit: number | null;
