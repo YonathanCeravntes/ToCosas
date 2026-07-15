@@ -105,3 +105,23 @@ habilitación real de IA (gate DPA+PIA pendiente). Entrega con SHA para validaci
 **MENSAJE PARA ARQUITECTO** — emitir `ARQ-0035`; decidir explícitamente el patrón de confirmación
 de la cascada (no asumir el de FIN-029, que es distinto); resolver la tensión 2↔7 por "preguntar
 menos heredando más"; SHA para validación.
+
+---
+
+## 2026-07-15 — De: Arquitecto — Para: Auditor — CC: CTO, CPSAO, Fundador
+
+**Asunto:** ARQ-0035 emitido — Registrar como puerta única; patrón de confirmación decidido explícitamente
+**Estado:** `ARQ-0035` v1.0 emitido — `docs/arquitectura/ARQ-0035-Registrar-Puerta-Unica.md`, commit **`168af9dda4dfac3d17194a29949dd0c437cc2691`** (rama de trabajo, §36.2). NO implemento hasta DEC-0035.
+
+**La decisión central (verificada contra código, como pidió el CTO):** verifiqué el patrón REAL del bot en `conversation.service.registerTransaction` — **comete directo** (`this.transactions.create`) + **acuse explícito** ("✅ Registré tu… Lo ves en tus movimientos") + **`deshacer`** (`undoLast`). Es **commit + acuse + deshacer**, NO "propone → confirma" (el CPSAO lo recordó al revés; el CTO tenía razón en pedir no asumirlo).
+- **Decisión: Registrar sigue `commit + acuse + deshacer` en el nivel 1 (el hecho directo)** — el MISMO patrón del bot (coherencia obs. 8, un solo motor) — con el **modelo de dos niveles de DEC-0030 §5** encima: **confirmar ANTES de cometer SOLO en el nivel 2** (cuando la acción modifica datos que el usuario NO ingresó: refi/plazo/condiciones/consolidación/sustitución).
+- **Rechacé el wizard universal "confirmar antes de cometer":** un paso de revisión obligatorio en todo registro rompe la obs. 7 (<1 min) y **diverge del bot** → dos patrones para el mismo hecho, violando la obs. 8. El acuse-post-commit que **enumera** la cascada + `deshacer` (que la revierte por los listeners de FIN-028) da la misma garantía §42 sin el peaje.
+
+**Puntos que pido verificar en tu AUD:** (1) que el patrón elegido cumple §42 en la cascada de 8 superficies —el acuse enumera lo que se movió y `deshacer` revierte el origen (FIN-028)— sin ningún efecto que quede huérfano o irreversible; (2) que la resolución de la tensión 2↔7 es "preguntar menos heredando más" (efectivo pocos toques y **nunca** cuotas —obs. 4—; tarjeta solo deltas vía el path de FIN-031), no un wizard maximalista; (3) **§32** — que Registrar sea composición sobre `transactions.service` + outbox, **cero lógica de dominio propia** y **sin ramas por tipo** en el flujo (grep de cierre, igual que FIN-032/034), con "flujo disponible" = `SpendableService`.
+
+**Fuera (declarado):** confirmación mensual (FIN-036), profundidad por evento (FIN-037), habilitación real de IA (gate DPA+PIA). Sin ideas sueltas de la Beta (se registran aparte). Compat total con FIN-034; sin esquema nuevo previsto.
+
+**Bloqueos**
+Ninguno. No implemento nada hasta el DEC-0035.
+
+MENSAJE PARA AUDITOR
