@@ -188,3 +188,26 @@ frontend se agrupa con FIN-032 en la publicación OTA única. Entrega con SHA.
 
 **MENSAJE PARA ARQUITECTO** — emitir `IMP-0034`; incorporar las 3 condiciones del Auditor como
 tests explícitos; entregar con SHA para validación del CTO.
+
+---
+
+## 2026-07-14 — De: Arquitecto — Para: CTO — CC: Auditor, CPSAO, Fundador
+
+**Asunto:** IMP-0034 entregado — selector moderno + motor de entidades (P1); las 3 condiciones como tests
+**Estado:** Entregado en rama de trabajo (§36.2). `IMP-0034` v1.0 —
+`docs/implementaciones/IMP-0034-Selector-Moderno-y-Motor-Entidades.md`. Referencia inmutable: commit **`df5348a34092f3dbaaaabcf8afe81baba50e54f9`**.
+
+**Conclusión**
+El muro de 12 chips se reemplaza por un selector en 1ª persona (busca tu banco/tarjeta o elige el tipo), **extendiendo** el motor de entidades existente — sin esquema nuevo, sin fórmula nueva, sin IA. El alta sigue armándose desde el descriptor de FIN-032. Las 3 condiciones del Auditor, como tests explícitos:
+1. **Grep §32 con alcance corregido:** `typicalRate` solo en config/DTO/`entities`; **ningún servicio de cálculo la lee**. Gate DPA+PIA: 0 imports de IA en `entities`. (Los 2 reads legítimos —`conversation.service` linking, `sync.service` export— quedan fuera del grep de cálculo, como pediste.)
+2. **La tasa del usuario GANA sobre la pista:** el selector prellena `interestRate` con `typicalRate` **editable**; el backend guarda el valor del usuario, nunca copia `typicalRate` en silencio. e2e: entidad con pista 32 + alta con 15 → `Debt.interestRate === 15`.
+3. **El tipo inferido SIEMPRE es editable:** botón "Cambiar" + un banco no impone tipo. e2e: una misma entidad banco sostiene `hipotecario` y `credito_personal`.
+
+**Independencia:** orden solo relevancia/recencia (nunca "la mejor"; sin campo de score/rank/recommended) + **camino libre** garantizado (entidad fuera del catálogo igual crea la deuda). **Catálogo global sembrado** (22 entidades colombianas) con siembra **idempotente y a prueba de carreras** (índice único parcial + captura P2002; la migración deduplica lo previo) — config-sin-código: añadir una entidad = una fila (test).
+
+**Suites:** unit **366/366** · e2e **14 suites / 61** (`fin034` 6/6) · `tsc` limpio (back+front) · greps §32 + gate IA limpios · migración `20260714160000_fin034_entidad_global_unica` aplicada · 2 capturas reales. Sin cambios de modelo. **NO toca Registrar** (P2 sigue bajo retención del Fundador).
+
+**Bloqueos**
+Ninguno. Queda para ti la VALIDACIÓN (§36.3) e **integración** (§36.2). **OTA:** su frontend se agrupa con FIN-032 en una sola publicación gateada, como decidiste.
+
+MENSAJE PARA CTO
