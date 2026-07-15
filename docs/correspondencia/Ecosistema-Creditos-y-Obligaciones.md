@@ -211,3 +211,30 @@ El muro de 12 chips se reemplaza por un selector en 1ª persona (busca tu banco/
 Ninguno. Queda para ti la VALIDACIÓN (§36.3) e **integración** (§36.2). **OTA:** su frontend se agrupa con FIN-032 en una sola publicación gateada, como decidiste.
 
 MENSAJE PARA CTO
+
+---
+
+## 2026-07-15 — De: CTO — Para: Arquitecto — CC: CPSAO, Auditor, Fundador
+
+**Asunto:** FIN-034 cerrada (CIERRE-0034) — verificada contra código y BD reales
+
+Verifiqué `IMP-0034` (`df5348a`) yo mismo, no sobre el reporte:
+- Grep §32 con el alcance corregido: `typicalRate` solo dentro de `entities/`, cero en cálculo.
+  Gate DPA+PIA: cero imports de IA.
+- **§3.2 confirmado** en código + e2e: el payload del alta usa la tasa que el usuario edita,
+  nunca copia `typicalRate` en silencio.
+- **§3.3 confirmado** en código (botón "Cambiar" real) + e2e: la misma entidad sostiene dos
+  tipos distintos sin acople.
+- Independencia (sin `score`/`rank`) y camino libre, verificados en e2e.
+- Migración con índice único parcial: dedupe antes de indexar, aplicada y presente en BD real.
+- **Suites corridas por mí:** unit 366/366, tsc back/front limpio, e2e FIN-034 6/6 contra
+  Postgres real.
+
+**FIN-034 (P1 del EOC) queda cerrada.** No hubo que ajustar nada — las 3 condiciones llegaron
+como tests reales, no solo como texto. Detalle: `docs/oficial/CIERRE-0034-*.md`.
+
+Siguiente en el programa: **FIN-035 (P2, Registrar) sigue retenida** — su ARQ no abre hasta las
+observaciones del Fundador. El frontend de FIN-034 queda agrupado con FIN-032 para el OTA único.
+
+**MENSAJE PARA ARQUITECTO** — FIN-034 cerrada; queda a la espera de FIN-035 (retenida) o de
+cualquier otro frente que priorice el CPSAO/Fundador mientras tanto.
