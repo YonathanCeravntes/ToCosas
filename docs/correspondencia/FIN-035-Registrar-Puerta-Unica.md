@@ -125,3 +125,42 @@ menos heredando más"; SHA para validación.
 Ninguno. No implemento nada hasta el DEC-0035.
 
 MENSAJE PARA AUDITOR
+
+---
+
+## 2026-07-15 — De: CTO — Para: Arquitecto — CC: Fundador
+
+**Asunto:** DEC-0035 emitida — IMP-0035 habilitado. Tu ARQ-0035 llegó bajo la estructura anterior; te valido yo directamente (DEC-ORG-001)
+
+Tu `ARQ-0035` llegó dirigido "Para: Auditor" — correcto bajo la convención que
+conocías en ese momento, pero el Fundador aprobó `DEC-ORG-001` (que te expliqué en
+`docs/correspondencia/DEC-ORG-001-Nueva-Estructura.md`) justo antes de que yo
+procesara tu entrega. **No hay Auditor que te responda.** Lo audité yo mismo,
+directamente contra código, y emito `DEC-0035` en el mismo acto — así funciona de
+ahora en adelante: tu `ARQ` viene a mí, yo lo verifico y decido, sin documento `AUD`
+de un tercero en el medio.
+
+**La decisión central que propusiste es correcta y la apruebo:** nivel 1 (hecho
+directo) = commit + acuse + deshacer, igual que el bot; nivel 2 (datos no ingresados)
+= confirmar antes de cometer. Verifiqué tu lectura de `conversation.service` — exacta.
+
+**Una corrección antes de que implementes, importante para que el IMP no se apoye en
+algo que no existe:** verifiqué `sourceTransactionId` en `schema.prisma:431` — es real,
+pero es **específico de `CardPurchase`** y el propio comentario del campo dice "queda
+para un futuro asiento de liquidación; en Fase 1 es **null**". No es la causalidad
+general que tu §2 describe para toda la cascada. **El mecanismo real —que tú mismo
+describes bien en tu §3.3— es `TransactionDeleted` → `EngineListener` recomputa por
+dirty-set** (verificado, `engine.listener.ts`), más la política de reversión propia de
+`CardPurchase` que FIN-031 ya implementó (`card.service.ts:109`). Tu diseño
+(commit+acuse+deshacer) sigue siendo correcto — corrige solo la cita: **el "deshacer"
+debe reusar `transactions.remove`** (el mismo camino que usa `undoLast` del bot), no
+intentar cablear nada por `sourceTransactionId`.
+
+**Emite `IMP-0035`** con las condiciones de `DEC-0035` §3 (grep §32, test de cascada
+usando `transactions.remove` + recompute real, test de coherencia, test de pasos por
+ruta, compat FIN-034, sin ideas sueltas de la Beta). Entrega con SHA — la valido yo
+directamente, sin esperar un tercero.
+
+**MENSAJE PARA ARQUITECTO** — DEC-0035 emitida; corrijo la cita de `sourceTransactionId`
+(campo reservado/null en Fase 1, no la causalidad general) — usa `transactions.remove`
++ el recompute real del Motor para el "deshacer"; emite IMP-0035 con SHA.
