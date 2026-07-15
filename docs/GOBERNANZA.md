@@ -1,10 +1,21 @@
 # Gobernanza oficial del proyecto Milla
 
-- **Versión:** 3.19
-- **Fecha de adopción:** 2026-07-14
-- **Autor:** CTO, propuesta del CPSAO, ratificada por el Fundador (Yonathan Cervantes)
+- **Versión:** 3.20
+- **Fecha de adopción:** 2026-07-15
+- **Autor:** Fundador (Yonathan Cervantes) — `DEC-ORG-001`, incorporada por el CTO
 - **Estado:** Vigente
 - **Historial de cambios:**
+  - v3.20 (2026-07-15) — `DEC-ORG-001`: simplificación de la estructura de
+    gobernanza (sección 43). Elimina los roles CPSAO y Auditor como actores
+    independientes; sus funciones son absorbidas por el Fundador (Dirección de
+    Producto) y el CTO (auditoría técnica), respectivamente. Nuevo flujo oficial
+    `Fundador → CTO → Arquitecto → CTO`; el Arquitecto no cambia. Añade la autoridad
+    correctiva inmediata del CTO ante bugs/incidentes/regresiones (sin autorización
+    previa, documenta después), con la excepción dura de reglas de negocio/UX/
+    alcance/gobernanza (sigue requiriendo escalar antes de implementar). Actualiza
+    las secciones estructurales (§1, §2, §4, §5, §7, §8, §15, §17, §18, §33, §36.2,
+    §41) para reflejar la nueva estructura; las menciones a CPSAO/Auditor en
+    secciones anteriores quedan como registro histórico.
   - v1.0 (2026-07-04) — flujo original `ARQ → AUD → DEC → IMP`, backlog, numeración.
   - v2.0 (2026-07-06) — organigrama formal (Fundador/CPO/CTO/Arquitecto/Auditor),
     fase `VALIDACIÓN` explícita, Blueprint, reglas permanentes acumuladas hasta esa
@@ -159,57 +170,63 @@ visuales sin cambio funcional, bugs simples). Ante la duda → gobernanza.
 
 ## 1. Organigrama
 
+> **⚠️ Estructura vigente desde `DEC-ORG-001` (2026-07-15, sección 43).** Los roles
+> CPSAO y Auditor **ya no existen como actores independientes**. Sus funciones fueron
+> absorbidas por el Fundador (dirección de producto) y el CTO (auditoría técnica),
+> respectivamente. Las menciones a CPSAO/Auditor en secciones posteriores de este
+> documento son **registro histórico** de decisiones tomadas bajo la estructura
+> anterior — no implican que el rol siga activo. Ver sección 43 para el detalle
+> completo y la razón del cambio.
+
 ```
-                     FUNDADOR
-               (Yonathan Cervantes)
-                         │
-                         ▼
-     CPSAO — Chief Product, Strategy & AI Officer
-                    (ChatGPT)
-                         │
-                         ▼
-                CTO (Claude — Líder)
-                         │
-         ┌───────────────┴───────────────┐
-         ▼                               ▼
-Arquitecto (Claude)            Auditor (Claude)
+                   FUNDADOR
+        (Producto · Estrategia · DEC)
+                      │
+                      ▼
+                     CTO
+    (Tecnología · Auditoría · Calidad)
+                      │
+                      ▼
+               ARQUITECTO
+      (Arquitectura · Diseño técnico)
 ```
 
-**Jerarquía.** El CTO es el líder técnico del proyecto. Toda comunicación relacionada
-con desarrollo pasa por el CTO. Ningún agente inicia trabajo por iniciativa propia.
+**Jerarquía.** El CTO es el líder técnico del proyecto y ahora también el auditor
+técnico único. Toda comunicación relacionada con desarrollo pasa por el CTO. Ningún
+agente inicia trabajo por iniciativa propia.
 
-**El CPSAO no es una autoridad jerárquica sobre el CTO.** Aunque aparece por encima
-en el organigrama de flujo de propuestas, su función es exclusivamente estratégica:
-propone, nunca ordena. El CTO mantiene la autoridad absoluta sobre arquitectura,
-desarrollo, Backlog, Blueprint, implementación y validación técnica.
+**El Fundador es la máxima autoridad y ejerce directamente la Dirección de Producto**
+(antes CPSAO). No es una capa adicional sobre el CTO: da la instrucción, el CTO la
+analiza, organiza y determina si requiere arquitectura (sección 43, flujo oficial).
 
 ## 2. Responsabilidades
 
 **Fundador** — visión de negocio, decisiones finales, prioridades, objetivos
-estratégicos. Es la máxima autoridad.
+estratégicos, y (desde `DEC-ORG-001`) **Dirección de Producto directa**: define
+visión de producto, prioriza el Backlog, aprueba funcionalidades, emite decisiones de
+producto (`DEC`), define experiencia de usuario, resuelve conflictos funcionales,
+aprueba cambios de alcance, consolida retroalimentación de clientes. Es la máxima
+autoridad. Toda comunicación antes dirigida al CPSAO se dirige ahora al Fundador.
 
-**CPSAO (ChatGPT)** — innovación, experiencia de usuario, estrategia, capacidades de
-IA a nivel de producto, monetización, retención, benchmarking competitivo, roadmap
-estratégico a 1/3/5 años (ver Parte II). El CPSAO **no** diseña arquitectura, no
-programa, no modifica el Backlog, no implementa. Su trabajo termina al entregar una
-propuesta estratégica (`IDEA-XXXX`) o funcional.
-
-**CTO** — es el líder del proyecto y el **guardián de la gobernanza**. Responsable de
-evaluar propuestas, aprobar o rechazar iniciativas, definir prioridades, administrar el
-Backlog, coordinar Arquitecto y Auditor, emitir decisiones oficiales (`DEC`), y
-controlar el cumplimiento del proceso — incluyendo detener de inmediato cualquier fase
-que avance sin haber cerrado la anterior. El CTO **no modifica** documentos emitidos
-por el Arquitecto o el Auditor (`ARQ`, `AUD`); únicamente emite decisiones (`DEC`)
-sobre ellos (principio de independencia de roles, sección 17).
+**CTO** — es el líder del proyecto, el **guardián de la gobernanza**, y (desde
+`DEC-ORG-001`) **el auditor técnico único**: desarrollo técnico, auditoría técnica,
+validación de arquitectura implementada, revisión de calidad/pruebas/cobertura/deuda
+técnica, aprobación técnica final, devolución de implementaciones cuando corresponda.
+Evalúa propuestas, aprueba o rechaza iniciativas, define prioridades, administra el
+Backlog, coordina al Arquitecto, emite decisiones oficiales (`DEC`) y controla el
+cumplimiento del proceso — incluyendo detener de inmediato cualquier fase que avance
+sin haber cerrado la anterior. El CTO **no modifica** documentos emitidos por el
+Arquitecto (`ARQ`); únicamente emite decisiones (`DEC`) sobre ellos. Tiene autoridad
+para corregir bugs, incidentes de producción y regresiones **de inmediato, sin pedir
+autorización previa**, documentando después (sección 43, observación adicional) —
+distinto de un cambio de reglas de negocio, experiencia, alcance o gobernanza, que
+sigue requiriendo escalar al Fundador antes de implementar.
 
 **Arquitecto** — diseña soluciones técnicas, crea Blueprints y documentos `ARQ`,
 implementa únicamente funcionalidades aprobadas, documenta la implementación (`IMP`).
 No decide prioridades. No inicia trabajo sin autorización del CTO. No audita su
-propio trabajo.
-
-**Auditor** — revisa arquitectura e implementación, detecta riesgos, emite
-observaciones, valida calidad. Nunca modifica código. Nunca emite `DEC`. Nunca aprueba
-implementaciones — esa autoridad es exclusiva del CTO.
+propio trabajo. No implementa sin `DEC`. No aprueba. Diseña. **Sin cambios por
+`DEC-ORG-001`.**
 
 ## 3. Flujo de una nueva idea
 
@@ -230,16 +247,23 @@ A partir de que una `FIN` entra al Backlog comienza el desarrollo. **Se trabaja
 únicamente UNA funcionalidad a la vez.** El flujo obligatorio:
 
 ```
-FIN → ARQ → AUD → DEC → IMP → VALIDACIÓN → CERRADO
+FIN → ARQ → DEC → IMP → VALIDACIÓN → CERRADO
 ```
+
+**Desde `DEC-ORG-001` (sección 43) el CTO absorbe la función de auditoría técnica
+(antes `AUD`, Auditor independiente).** El CTO audita como parte de su propia lectura
+del `ARQ` — no como una fase ni un actor separado — y esa auditoría queda documentada
+dentro del `DEC` (o, si el CTO lo considera útil para el registro, en un documento
+`AUD` que el propio CTO firma). No es una fase adicional: es el mismo principio de
+siempre —verificación independiente contra código real antes de decidir— ahora sin
+depender de un segundo agente para producirla.
 
 | Fase | Responsable | Acción |
 |---|---|---|
 | `ARQ` | Arquitecto | Diseña la funcionalidad. No implementa todavía. |
-| `AUD` | Auditor | Analiza calidad, riesgos, seguridad, arquitectura, cumplimiento. Entrega observaciones. |
-| `DEC` | CTO | Lee `ARQ` + `AUD`. Decide: ✓ Aprobar · ✓ Aprobar con condiciones · ✗ Rechazar. **Sin `DEC` no existe autorización para implementar.** |
+| `DEC` | CTO | Lee `ARQ`, lo audita contra código real (calidad, riesgos, seguridad, arquitectura, cumplimiento), y decide: ✓ Aprobar · ✓ Aprobar con condiciones · ✗ Rechazar. **Sin `DEC` no existe autorización para implementar.** |
 | `IMP` | Arquitecto/Desarrollador | Implementa exactamente lo aprobado. No agrega funcionalidades nuevas ni cambia el alcance. |
-| `VALIDACIÓN` | Auditor + CTO | El Auditor comprueba que la implementación coincide con el `DEC`, cumple la arquitectura, no genera regresiones y mantiene calidad. El CTO valida de forma independiente (checkout aislado) antes de autorizar el cierre. |
+| `VALIDACIÓN` | CTO | El CTO comprueba que la implementación coincide con el `DEC`, cumple la arquitectura, no genera regresiones y mantiene calidad — corriendo las suites y greps de cierre él mismo, de forma independiente, antes de autorizar el cierre. |
 | `CERRADO` | CTO | Confirma el cierre. Actualiza Backlog, Estado y Roadmap. Solo entonces puede iniciar la siguiente `FIN`. |
 
 Solo cuando una `FIN` queda **CERRADO** puede el Arquitecto iniciar el diseño (`ARQ`)
@@ -252,20 +276,19 @@ Está prohibido:
 - Implementar sin `DEC`.
 - Diseñar varias `FIN` simultáneamente para desarrollo.
 - Emitir `DEC` agrupados para múltiples funcionalidades.
-- Emitir `AUD` agrupados para múltiples funcionalidades.
 - Modificar el alcance durante `IMP`.
 - Saltarse fases.
-- Que un agente ejerza simultáneamente dos etapas consecutivas del mismo proceso de
-  decisión (ver Independencia de Roles, sección 17).
+- Que el Arquitecto audite o valide su propio `IMP` — esa verificación es siempre del
+  CTO, de forma independiente (ver Independencia de Roles, sección 17).
 
-Cada `FIN` debe tener: `ARQ` propio, `AUD` propio, `DEC` propio, `IMP` propio,
-Validación propia, Cierre propio.
+Cada `FIN` debe tener: `ARQ` propio, `DEC` propio (con la auditoría del CTO
+incorporada), `IMP` propio, Validación propia, Cierre propio.
 
 **Ningún agente puede aceptar instrucciones directas que alteren el producto sin que
-hayan pasado por el CTO**, excepto el CPSAO cuando elabora propuestas estratégicas
-solicitadas directamente por el Fundador (sección 3 / Parte II). Esta regla existe
-para que el CTO, como guardián de la gobernanza, tenga visibilidad de toda instrucción
-que pueda alterar alcance, arquitectura o prioridad antes de que se ejecute.
+hayan pasado por el CTO**, excepto el Fundador, que instruye directamente al CTO
+(Paso 1 del flujo oficial, sección 43). Esta regla existe para que el CTO, como
+guardián de la gobernanza, tenga visibilidad de toda instrucción que pueda alterar
+alcance, arquitectura o prioridad antes de que se ejecute.
 
 ## 6. Blueprint
 
@@ -278,23 +301,25 @@ y en qué orden. **Ningún Blueprint modifica el Backlog por sí mismo.**
 ## 7. Backlog
 
 El Backlog (`docs/roadmap/BACKLOG.md`) es administrado **exclusivamente por el CTO**.
-El Arquitecto no puede agregar funcionalidades. El Auditor no puede modificar
-prioridades. El CPSAO no puede cambiar el Backlog directamente — sus propuestas
-(`IDEA-XXXX`, Blueprints) llegan al CTO, quien decide si entran y en qué posición.
-**Ninguna `IDEA` autoriza desarrollo.**
+El Arquitecto no puede agregar funcionalidades ni modificar prioridades. Las
+propuestas e instrucciones del Fundador (antes también `IDEA-XXXX`/Blueprints del
+CPSAO) llegan al CTO, quien decide si entran y en qué posición. **Ninguna instrucción
+autoriza desarrollo por sí sola** — requiere pasar por `ARQ → DEC → IMP`.
 
-Regla operativa: cada vez que se genere un documento (`ARQ`, `AUD`, `DEC`, `IMP`) se
-debe actualizar el Backlog reflejando el nuevo estado de la funcionalidad.
+Regla operativa: cada vez que se genere un documento (`ARQ`, `DEC`, `IMP`) se debe
+actualizar el Backlog reflejando el nuevo estado de la funcionalidad.
 
 ## 8. Autoridad
 
 ```
-Fundador → CPSAO → CTO → Arquitecto → Auditor
+Fundador → CTO → Arquitecto → CTO
 ```
 
-Todas las decisiones técnicas se canalizan a través del CTO. Esta cadena describe el
-flujo de propuestas y coordinación, **no** una jerarquía de mando sobre el CTO: el
-CPSAO propone, nunca ordena (sección 1).
+Todas las decisiones técnicas se canalizan a través del CTO. El Fundador instruye
+directamente al CTO (sin capa intermedia, desde `DEC-ORG-001`); el CTO organiza y
+solicita `ARQ` al Arquitecto cuando corresponde; el Arquitecto entrega, y el CTO
+audita, valida y aprueba o devuelve. Esta cadena describe el flujo de propuestas y
+coordinación — el Arquitecto diseña, nunca ordena (sección 1).
 
 ## 9. Objetivo de la Gobernanza del Desarrollo
 
@@ -307,14 +332,15 @@ el desarrollo con burocracia.
 
 # PARTE II — Gobernanza Estratégica del Producto (nueva en v3.0)
 
-## 10. El rol CPSAO y su frontera en Inteligencia Artificial
+## 10. El rol CPSAO y su frontera en Inteligencia Artificial (histórico — función absorbida por el Fundador, `DEC-ORG-001` sección 43)
 
-El CPSAO (Chief Product, Strategy & AI Officer) piensa permanentemente el futuro del
+El CPSAO (Chief Product, Strategy & AI Officer) pensaba permanentemente el futuro del
 producto: nuevas funcionalidades, experiencia de usuario, estrategia de mercado,
 capacidades de IA, innovación, análisis competitivo, monetización, retención, y
-roadmap a 1/3/5 años.
+roadmap a 1/3/5 años. **Esa función la ejerce hoy el Fundador directamente**; el
+principio de frontera que sigue vigente:
 
-**Frontera obligatoria en IA:** el CPSAO propone capacidades de IA desde la
+**Frontera obligatoria en IA:** las propuestas de capacidades de IA se hacen desde la
 perspectiva de producto (qué valor aportaría al usuario), **nunca** aspectos técnicos
 de arquitectura, modelos, datos o privacidad — eso sigue siendo competencia exclusiva
 del CTO/Arquitecto, bajo la regla ya vigente de "vistas minimizadas obligatorias para
@@ -396,14 +422,14 @@ estas tres condiciones:
 Objetivo: mantener el foco de "un FIN a la vez" sin impedir que el producto evolucione
 de forma continua en el laboratorio.
 
-## 15. Verificación de hechos del CPSAO
+## 15. Verificación de hechos (histórico: "del CPSAO"; hoy aplica a toda instrucción del Fundador y todo entregable del Arquitecto)
 
-Toda propuesta del CPSAO relacionada con mercado, competencia, tendencias,
-estadísticas, tecnologías o comportamiento de usuarios se considera **hipótesis
-estratégica** hasta que el CTO la valide contra fuentes verificables (búsqueda real,
-no asumida) cuando corresponda — el mismo estándar de rigor ya aplicado a cualquier
-afirmación técnica de Arquitecto o Auditor a lo largo de todo el proyecto (nunca
-aprobar por informe, siempre verificar contra la fuente).
+Toda propuesta relacionada con mercado, competencia, tendencias, estadísticas,
+tecnologías o comportamiento de usuarios se considera **hipótesis estratégica** hasta
+que el CTO la valide contra fuentes verificables (búsqueda real, no asumida) cuando
+corresponda — el mismo estándar de rigor aplicado a cualquier afirmación técnica del
+Arquitecto a lo largo de todo el proyecto (nunca aprobar por informe, siempre
+verificar contra la fuente/el código real).
 
 ## 16. Principios estratégicos permanentes
 
@@ -425,15 +451,22 @@ Estratégica del Producto (Parte II).
 
 ## 17. Independencia de Roles
 
-Cada rol conserva independencia técnica y funcional. Ningún agente ejerce
-simultáneamente dos etapas consecutivas del mismo proceso de decisión. En concreto:
-- El Arquitecto no audita su propio trabajo.
-- El Auditor no emite `DEC`.
-- El CPSAO no incorpora directamente ideas al Backlog.
-- El CTO no modifica documentos emitidos por el Arquitecto o el Auditor (`ARQ`,
-  `AUD`); únicamente emite decisiones (`DEC`) sobre ellos.
+Cada rol conserva independencia técnica y funcional. Ningún agente evalúa su propio
+trabajo. En concreto:
+- El Arquitecto no audita ni valida su propio `ARQ`/`IMP` — esa verificación es
+  siempre del CTO, un agente distinto de quien diseñó/implementó.
+- El CTO no modifica documentos emitidos por el Arquitecto (`ARQ`); únicamente emite
+  decisiones (`DEC`) sobre ellos.
 
-Este principio protege la objetividad del proceso: ninguna fase se autoevalúa.
+**Ajuste por `DEC-ORG-001` (sección 43):** el CTO absorbió formalmente la auditoría
+técnica (antes Auditor independiente) y ahora audita y decide en el mismo acto
+(`DEC`). Esto es una concentración deliberada de velocidad, no una relajación del
+rigor — la independencia que protege sigue intacta porque el CTO nunca audita algo
+que él mismo diseñó o implementó (eso lo hace el Arquitecto), y la contrapartida
+explícita es que el CTO **verifica siempre contra código y pruebas reales**, nunca
+aprueba por el resumen de un reporte (principio ya practicado de facto en cada `DEC`
+de este proyecto). Este principio protege la objetividad del proceso: ninguna fase se
+autoevalúa.
 
 ## 18. Trazabilidad completa — referencias cruzadas obligatorias
 
@@ -441,13 +474,15 @@ Todo documento debe incluir referencias cruzadas a los documentos relacionados, 
 forma que cualquier decisión pueda reconstruirse incluso varios años después:
 
 ```
-IDEA → Blueprint → FIN → ARQ → AUD → DEC → IMP → VALIDACIÓN → CERRADO
+IDEA → Blueprint → FIN → ARQ → DEC → IMP → VALIDACIÓN → CERRADO
 ```
 
-Cada documento nuevo (`IDEA`, Blueprint, `ARQ`, `AUD`, `DEC`, `IMP`) debe citar
+Cada documento nuevo (`IDEA`, Blueprint, `ARQ`, `DEC`, `IMP`) debe citar
 explícitamente el/los documento(s) que lo originan (número y, cuando aplique, sección
 exacta) — el mismo estándar que ya se practica de facto en cada `DEC` emitido hasta
-ahora ("Documentos base"), ahora extendido formalmente a `IDEA` y Blueprint.
+ahora ("Documentos base"), ahora extendido formalmente a `IDEA` y Blueprint. Si el CTO
+opta por dejar la auditoría como documento propio (`AUD`, ahora firmado por el CTO en
+vez de un Auditor independiente), también se cita.
 
 ## 19. Versionado documental
 
@@ -834,12 +869,12 @@ varios párrafos.
 **5. Cadena de comunicación formal:**
 
 ```
-CPSAO ←→ CTO ←→ { Arquitecto, Auditor }
+Fundador ←→ CTO ←→ Arquitecto
 ```
 
 Sin comunicación cruzada entre roles fuera de esta estructura. El CTO sigue siendo
-el único canal entre la capa estratégica (CPSAO/Fundador) y la capa técnica
-(Arquitecto/Auditor) — consistente con la Jerarquía ya vigente (sección 1).
+el único canal entre el Fundador y la capa técnica (Arquitecto) — consistente con la
+Jerarquía ya vigente (sección 1) y actualizado por `DEC-ORG-001` (sección 43).
 
 **6. Rúbrica de evaluación**, obligatoria al cierre de toda entrega (`ARQ`, `AUD`,
 `DEC`, `IMP`, `VALIDACIÓN`, y equivalentes):
@@ -888,15 +923,15 @@ IMP", regla permanente heredada de v1.0/v2.0): un documento sin commit no es, en
 práctica, un artefacto verificable.
 
 **Responsabilidad:**
-- Cada rol que produce un documento oficial (CTO, Arquitecto, Auditor, y el CPSAO
-  cuando corresponda para `docs/producto/`) es responsable de commitearlo antes de
-  cerrar su turno de trabajo — no delegarlo a una sesión futura.
+- Cada rol que produce un documento oficial (CTO, Arquitecto, y el Fundador cuando
+  corresponda para `docs/producto/`) es responsable de commitearlo antes de cerrar su
+  turno de trabajo — no delegarlo a una sesión futura.
 - El CTO, como administrador exclusivo de `BACKLOG.md`/`ESTADO_PROYECTO.md` (sección
   7, Paso 5 de `PROCEDIMIENTO-ARRANQUE-EN-FRIO.md`), verifica en cada cierre de `FIN`
   que `git status` no reporte documentación oficial pendiente de commit — extensión
   directa de su responsabilidad de correspondencia exacta `DEC→IMP→Código→Evidencia`
   (regla permanente heredada) al dominio documental, no solo al de código.
-- Si una IA (CTO, Arquitecto o Auditor) no tiene permiso de ejecutar `git commit` de
+- Si una IA (CTO o Arquitecto) no tiene permiso de ejecutar `git commit` de
   forma autónoma en su entorno, debe declararlo explícitamente en su entrega y
   solicitar la ejecución del commit antes de dar por cerrada la fase — nunca asumir
   que "el archivo existe en disco" equivale a "el archivo es un artefacto oficial
@@ -979,8 +1014,8 @@ comercial sensible futura. (Coherente con lo ya vigente: todo secreto en `render
 es `sync: false` y nunca se commitea.)
 
 ### 36.2 Flujo oficial permanente — el CTO es el único integrador
-Queda establecido el flujo permanente:
-`Fundador → CPSAO → CTO → Arquitecto → Auditor → CTO → GitHub`.
+Queda establecido el flujo permanente (actualizado por `DEC-ORG-001`, sección 43):
+`Fundador → CTO → Arquitecto → CTO → GitHub`.
 **El CTO es el único responsable de integrar cambios oficiales.** No existen commits
 oficiales directos del Arquitecto (ni de ningún otro rol) hacia la rama oficial.
 Pueden existir ramas de trabajo, pero **ninguna modificación llega a la rama oficial
@@ -1169,7 +1204,7 @@ que usan los usuarios de prueba**. Las funcionalidades no pueden quedarse solo e
 en local. El ciclo oficial extiende el flujo de integración (§36.2) hasta el dispositivo:
 
 ```
-Arquitecto → Auditor → CTO → Integración → GitHub → OTA → Dispositivos Beta
+Arquitecto → CTO (audita+valida) → Integración → GitHub → OTA → Dispositivos Beta
 ```
 
 - Al cerrar una `FIN` con cambios de frontend, el CTO publica el OTA correspondiente **por
@@ -1214,6 +1249,109 @@ confías de uno que te maneja la plata sin que entiendas cómo. Consecuencias op
 contrapeso de Claridad Radical añadido y ratificado por el CPSAO en la misma decisión
 (guardarraíles G–K del rediseño de Deudas / "movimientos inteligentes").
 
+## 43. Simplificación de la estructura de gobernanza — `DEC-ORG-001` (nueva en v3.20)
+
+**Origen:** decisión del Fundador, 2026-07-15, tras la experiencia de la Beta Técnica.
+Documento oficial: `docs/oficial/DEC-ORG-001-Simplificacion-Gobernanza.md`.
+
+**Objetivo:** reducir los tiempos de decisión, eliminar capas administrativas
+innecesarias y mantener los controles técnicos esenciales. La estructura anterior
+generó valor pero tenía margen para ser más ágil sin sacrificar calidad.
+
+### 43.1 Eliminación del rol CPSAO
+
+El rol CPSAO deja de existir como actor independiente. Sus funciones pasan a ser
+asumidas directamente por el **Fundador**, quien ejerce la Dirección de Producto:
+definir la visión del producto, priorizar el Backlog, aprobar funcionalidades, emitir
+decisiones de producto (`DEC`), definir experiencia de usuario, resolver conflictos
+funcionales, aprobar cambios de alcance, consolidar retroalimentación de clientes,
+definir prioridades estratégicas. Toda comunicación antes dirigida al CPSAO se dirige
+ahora al Fundador.
+
+### 43.2 Eliminación del rol Auditor
+
+El rol independiente de Auditor deja de existir. Sus responsabilidades técnicas son
+asumidas por el **CTO**: desarrollo técnico, auditoría técnica, validación de
+arquitectura implementada, revisión de calidad, validación de pruebas, revisión de
+cobertura, revisión de deuda técnica, aprobación técnica final, devolución de
+implementaciones cuando sea necesario.
+
+### 43.3 Arquitecto — sin modificaciones
+
+El Arquitecto permanece igual: diseña la arquitectura, define contratos, mantiene
+coherencia técnica, emite documentos `ARQ`, propone soluciones. No implementa sin
+`DEC`. No aprueba. Diseña.
+
+### 43.4 Nuevo flujo oficial
+
+```
+Paso 1 — Fundador: define necesidad, define prioridad, emite instrucciones.
+Paso 2 — CTO: analiza, organiza, determina si requiere arquitectura, solicita ARQ.
+Paso 3 — Arquitecto: diseña, genera ARQ, entrega al CTO.
+Paso 4 — CTO: audita, valida, prueba, aprueba, devuelve o solicita ajustes.
+Paso 5 — Si el CTO identifica, durante la auditoría, una decisión que modifica
+         principios de producto, arquitectura transversal o gobernanza, DETIENE
+         la implementación y eleva de inmediato al Fundador para una DEC. No
+         continúa implementando hasta recibir esa decisión.
+```
+
+```
+                   FUNDADOR
+        (Producto · Estrategia · DEC)
+                      │
+                      ▼
+                     CTO
+    (Tecnología · Auditoría · Calidad)
+                      │
+                      ▼
+               ARQUITECTO
+      (Arquitectura · Diseño técnico)
+```
+
+### 43.5 Principio de rapidez
+
+Las decisiones no permanecen detenidas por burocracia: si hay información suficiente
+para decidir, se decide; si hay información suficiente para implementar, se
+implementa; si hay información suficiente para corregir, se corrige.
+
+### 43.6 Conservación del control
+
+La reducción de roles no elimina controles — concentra responsabilidades. El CTO
+sigue siendo responsable de impedir: deuda técnica, pérdida de calidad, incumplimiento
+arquitectónico, regresiones, despliegues inseguros.
+
+### 43.7 Autoridad correctiva inmediata del CTO ante bugs/incidentes/regresiones
+
+**Observación adicional del Fundador, incorporada como regla permanente:** el CTO
+**no necesita autorización previa del Fundador** para corregir bugs, incidentes de
+producción o regresiones — tiene autoridad para corregirlos de inmediato y
+documentarlos después (extiende §38, que ya daba al CTO la clasificación de
+defectos; ahora también la corrección inmediata, sin esperar). **Excepción dura:**
+todo cambio que afecte reglas de negocio, experiencia de usuario, alcance del
+producto o gobernanza **sigue requiriendo escalar al Fundador antes de implementar**
+— exactamente el Paso 5 de 43.4. La línea divisoria es simple: ¿arregla algo que ya
+se decidió que debía funcionar así (corrección) o cambia lo que se decidió que debía
+pasar (decisión de producto/gobernanza)? Lo primero, el CTO actúa ya; lo segundo,
+espera la `DEC` del Fundador.
+
+### 43.8 Filosofía
+
+La organización debe ser lo suficientemente pequeña para decidir rápido y lo
+suficientemente rigurosa para mantener calidad. El objetivo no es tener más cargos —
+es construir mejor producto.
+
+### 43.9 Efecto sobre este documento
+
+Las secciones anteriores de este documento (§1–§42) que mencionan CPSAO o Auditor
+como actores activos describen la estructura **vigente en el momento en que se
+escribieron** — quedan como registro histórico de las decisiones tomadas bajo ella
+(trazabilidad, sección 18). Las secciones estructurales (§1, §2, §4, §5, §7, §8, §15,
+§17, §18, §33, §36.2, §41 y las reglas permanentes acumuladas) se actualizaron en el
+mismo acto de esta sección para reflejar la estructura vigente. Ante cualquier
+contradicción aparente entre una sección histórica y esta sección 43, **prevalece la
+43** por ser la más reciente y explícita (principio general de versionado, sección
+19).
+
 ---
 
 # Reglas permanentes acumuladas (heredadas de v1.0/v2.0, sin cambios en v3.0)
@@ -1256,20 +1394,20 @@ ARQ **umbrella** (análogo a ARQ-0001) puede definir el alcance y la relación e
 varias funcionalidades futuras, pero **no puede contener el diseño técnico detallado**
 de más de una funcionalidad a la vez (endpoints, modelos de datos, algoritmos). Cada
 `FIN-XXXX` es una iniciativa independiente y debe completar su propio ciclo completo
-(`ARQ → AUD → DEC → IMP → Validación del CTO → Cerrado`) antes de que el Arquitecto
-inicie el diseño detallado del siguiente `FIN`. Queda prohibido, sin excepción expresa
-del CTO: diseñar varias funcionalidades por adelantado, auditar varias funcionalidades
-en un solo documento, emitir una única decisión (`DEC`) para múltiples funcionalidades,
-o implementar una funcionalidad cuyo `DEC` propio no exista. El CTO es responsable de
-detener el proceso y devolver la iniciativa al estado correcto si detecta que un agente
-avanza una fase sin haber cerrado la anterior. Cualquier excepción a esta regla (p. ej.
-paralelizar el diseño de dos módulos independientes por razones estratégicas) requiere
-autorización expresa y documentada del CTO, nunca iniciativa propia del Arquitecto o el
-Auditor.
+(`ARQ → DEC (con auditoría del CTO incorporada) → IMP → Validación del CTO →
+Cerrado`) antes de que el Arquitecto inicie el diseño detallado del siguiente `FIN`.
+Queda prohibido, sin excepción expresa del CTO: diseñar varias funcionalidades por
+adelantado, auditar varias funcionalidades en un solo documento, emitir una única
+decisión (`DEC`) para múltiples funcionalidades, o implementar una funcionalidad cuyo
+`DEC` propio no exista. El CTO es responsable de detener el proceso y devolver la
+iniciativa al estado correcto si detecta que un agente avanza una fase sin haber
+cerrado la anterior. Cualquier excepción a esta regla (p. ej. paralelizar el diseño de
+dos módulos independientes por razones estratégicas) requiere autorización expresa y
+documentada del CTO, nunca iniciativa propia del Arquitecto.
 
 ## La documentación oficial es la única fuente de verdad
-Ni el Fundador, ni el CPSAO, ni el Arquitecto, ni el Auditor, ni el CTO pueden asumir la
-existencia de decisiones, observaciones o requisitos que no estén expresamente
+Ni el Fundador, ni el Arquitecto, ni el CTO pueden asumir la existencia de decisiones,
+observaciones o requisitos que no estén expresamente
 documentados en `docs/oficial/`, `docs/arquitectura/`, `docs/auditoria/`,
 `docs/implementaciones/` o `docs/producto/`. **Toda decisión debe poder rastrearse
 hasta un documento oficial concreto** (número de `DEC`/`ARQ`/`AUD`/`IMP`/`IDEA` y
@@ -1302,8 +1440,8 @@ Cuando un `DEC` contenga observaciones obligatorias o acciones correctivas expl�
 (sección "Cambios obligatorios" u observaciones aceptadas con corrección pendiente), el
 Arquitecto puede implementarlas sin abrir una `FIN` nueva, siempre que: (1) los cambios
 se limiten exclusivamente a lo solicitado en ese `DEC` — ninguna funcionalidad nueva ni
-cambio de alcance; (2) al finalizar, el Auditor valide específicamente que la
-observación fue atendida (no una auditoría genérica); (3) el CTO emita el cierre
+cambio de alcance; (2) al finalizar, el CTO valide específicamente contra código real
+que la observación fue atendida (no una auditoría genérica); (3) el CTO emita el cierre
 definitivo de esa acción correctiva, referenciando el `DEC` y la observación puntual que
 la origina. **Esta regla no aplica cuando el `DEC` de la funcionalidad no registra
 ninguna observación obligatoria** — en ese caso cualquier cambio sobre un módulo ya
