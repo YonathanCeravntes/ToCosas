@@ -1,0 +1,124 @@
+import { EngineService } from './engine.service';
+import { COLD_START_DAYS, MetricKey } from './engine.constants';
+
+/** Prisma mock mínimo para recompute/coldStart. */
+function buildPrisma(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    transaction: {
+      groupBy: jest.fn().mockResolvedValue([
+        { kind: 'ingreso', _sum: { amount: 4_000_000 } },
+        { kind: 'gasto', _sum: { amount: 1_000_000 } },
+        { kind: 'pago_deuda', _sum: { amount: 500_000 } },
+      ]),
+      findFirst: jest.fn().mockResolvedValue({ occurredAt: new Date('2026-04-01T00:00:00Z') }),
+    },
+    fixedItem: { findMany: jest.fn().mockResolvedValue([]) },
+    debt: {
+      findMany: jest.fn().mockResolvedValue([
+        { monthlyPayment: 500_000, currentBalance: 10_000_000 },
+      ]),
+    },
+    account: {
+      findMany: jest.fn().mockResolvedValue([
+        { currentBalance: 3_000_000, isLiquid: true, includeInNetWorth: true, isEmergencyFund: false },
+      ]),
+    },
+    asset: { findMany: jest.fn().mockResolvedValue([]) },
+    metricReading: {
+      upsert: jest.fn().mockResolvedValue({}),
+      // Usado por la integración del Score (FIN-004) para leer trend.net_worth.
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
+    ...overrides,
+  } as never;
+}
+
+// FIN-023: stub de la fuente única de desembolso — sin cargos aparte, el
+// outlay ES la cuota (regresión: mismas cifras que antes de FIN-023).
+const outlayStub = (total = 500_000) =>
+  ({ outlaysByUser: jest.fn().mockResolvedValue({ byDebt: new Map(), totalOutlay: total }) }) as never;
+
+// FIN-027: stub del ingreso neto — sin fuentes configuradas, netFixedTotal=0
+// (regresión: mismo comportamiento que el FixedItem-ingreso legado vacío).
+const netIncomeStub = (netFixedTotal = 0) =>
+  ({ compute: jest.fn().mockResolvedValue({ netFixedTotal, grossFixedTotal: netFixedTotal, grossVariableEstimate: 0, deductions: [], netMonthlyEstimate: netFixedTotal, selfPaidDeductionsTotal: 0, hasDeductions: false }) }) as never;
+
+// BT-006: stub de "Te queda" — el Motor toma de aquí la Capacidad de ahorro.
+const spendableStub = (amount = 0, incomeBase = 0) =>
+  ({ compute: jest.fn().mockResolvedValue({ amount, incomeBase, perDay: null, daysLeft: 30, until: '', protectedTotal: 0, pendingCommitments: [], receivedIncome: 0 }) }) as never;
+
+describe('EngineService', () => {
+  const now = new Date('2026-07-15T12:00:00Z');
+
+  it('recompute calcula y hace upsert de las métricas del mes', async () => {
+    const prisma = buildPrisma();
+    const service = new EngineService(prisma, outlayStub(), netIncomeStub(), spendableStub());
+    const metrics = await service.recompute('u1', now);
+
+    const get = (k: string) => metrics.find((m) => m.metricKey === k)?.value;
+    expect(get(MetricKey.Cashflow)).toBe(2_500_000); // 4M − 1M − 0.5M
+    expect(get(MetricKey.Dti)).toBe(0.125); // 500k / max(0, 4M)
+    expect(get(MetricKey.NetWorth)).toBe(-7_000_000); // 3M − 10M
+
+    // Upsert idempotente: ancla del mes + clave compuesta única. Además de las
+    // métricas core, el ciclo persiste el Score y sus pilares (FIN-004).
+    const upsert = (prisma as never as { metricReading: { upsert: jest.Mock } })
+      .metricReading.upsert;
+    const keys = upsert.mock.calls.map(
+      (c) => c[0].where.userId_metricKey_period_capturedAt.metricKey as string,
+    );
+    expect(keys.filter((k) => !k.startsWith('score'))).toHaveLength(metrics.length);
+    expect(keys).toContain('score');
+    expect(keys).toContain('score.version');
+    const call = upsert.mock.calls[0][0];
+    expect(call.where.userId_metricKey_period_capturedAt.capturedAt.toISOString()).toBe(
+      '2026-07-01T00:00:00.000Z',
+    );
+    expect(call.where.userId_metricKey_period_capturedAt.period).toBe('month');
+  });
+
+  it('recompute repetido produce los mismos upserts (estado absoluto)', async () => {
+    const prisma = buildPrisma();
+    const service = new EngineService(prisma, outlayStub(), netIncomeStub(), spendableStub());
+    const a = await service.recompute('u1', now);
+    const b = await service.recompute('u1', now);
+    expect(b).toEqual(a); // mismo resultado — el upsert no duplica filas
+  });
+
+  describe('coldStartStatus (DEC-0003 §10.2, umbral global)', () => {
+    it('usuario con ≥60 días de historial → habilitado', async () => {
+      const prisma = buildPrisma(); // primera tx 2026-04-01, now 2026-07-15 → 105 días
+      const service = new EngineService(prisma, outlayStub(), netIncomeStub(), spendableStub());
+      const cold = await service.coldStartStatus('u1', now);
+      expect(cold.enabled).toBe(true);
+      expect(cold.historyDays).toBeGreaterThanOrEqual(COLD_START_DAYS);
+      expect(cold.remainingDays).toBe(0);
+    });
+
+    it('usuario nuevo → deshabilitado con días restantes', async () => {
+      const prisma = buildPrisma({
+        transaction: {
+          groupBy: jest.fn().mockResolvedValue([]),
+          findFirst: jest.fn().mockResolvedValue({ occurredAt: new Date('2026-07-05T00:00:00Z') }),
+        },
+      });
+      const service = new EngineService(prisma, outlayStub(), netIncomeStub(), spendableStub());
+      const cold = await service.coldStartStatus('u1', now);
+      expect(cold.enabled).toBe(false);
+      expect(cold.remainingDays).toBe(COLD_START_DAYS - 10);
+    });
+
+    it('usuario sin transacciones → deshabilitado', async () => {
+      const prisma = buildPrisma({
+        transaction: {
+          groupBy: jest.fn().mockResolvedValue([]),
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+      });
+      const service = new EngineService(prisma, outlayStub(), netIncomeStub(), spendableStub());
+      const cold = await service.coldStartStatus('u1', now);
+      expect(cold.enabled).toBe(false);
+      expect(cold.remainingDays).toBe(COLD_START_DAYS);
+    });
+  });
+});

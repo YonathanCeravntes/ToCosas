@@ -1,0 +1,1220 @@
+// Esquema Prisma de ToCosas — derivado de docs/03-esquema-base-datos.md
+// Fuente de verdad: PostgreSQL. Todas las cifras monetarias usan Decimal(18,2).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum EntityType {
+  banco
+  cooperativa
+  fintech
+  prestamista_particular
+  tarjeta
+  otro
+}
+
+enum TxKind {
+  ingreso
+  gasto
+  pago_deuda
+  transferencia
+}
+
+enum DebtType {
+  tarjeta_credito
+  credito_personal
+  hipotecario
+  libre_inversion
+  vehiculo
+  educativo
+  gota_a_gota
+  prestamo_familiar
+  otro
+  // FIN-032: catálogo de 1ª clase — extensión pura (los descriptores viven en
+  // product-type.descriptor.ts). libranza/compra_a_cuotas/fintech completan los 11.
+  libranza
+  compra_a_cuotas
+  fintech
+}
+
+enum RateKind {
+  fija
+  variable
+}
+
+enum RateBasis {
+  EA
+  NMV
+  NAMV
+  MV
+}
+
+enum DebtStatus {
+  activa
+  en_mora
+  pagada
+  refinanciada
+  cancelada
+}
+
+enum AmortSystem {
+  frances
+  aleman
+  americano
+  cuota_fija
+  tarjeta_rotativo
+}
+
+enum TxSource {
+  app
+  whatsapp
+  telegram
+  ocr
+  import
+  system
+}
+
+enum TxStatus {
+  confirmada
+  pendiente_confirmacion
+  descartada
+}
+
+enum ReminderChannel {
+  push
+  whatsapp
+  telegram
+  email
+}
+
+enum WaLinkStatus {
+  pending
+  verified
+  revoked
+}
+
+enum SuggestionType {
+  priorizar_deuda
+  recorte_gasto
+  alerta_sobregiro
+  abono_extra
+  felicitacion
+  otro
+}
+
+// Tipo de compromiso mensual recurrente: ingreso fijo (salario) o gasto fijo.
+enum FixedKind {
+  ingreso
+  gasto
+}
+
+// ---------- FIN-002 · Fundaciones de datos ----------
+
+// Cuenta monetaria (saldo líquido o casi líquido) del usuario.
+enum AccountType {
+  efectivo
+  ahorros
+  corriente
+  billetera
+  otro
+}
+
+// Activo de patrimonio (no monetario o de menor liquidez).
+enum AssetType {
+  inmueble
+  vehiculo
+  inversion
+  negocio
+  otro
+}
+
+// Estado de un evento en el outbox transaccional.
+enum OutboxStatus {
+  pending
+  processing
+  processed
+  failed
+}
+
+// Granularidad de una lectura de métrica en la serie de tiempo.
+enum MetricPeriod {
+  day
+  month
+}
+
+// Origen de un registro histórico de saldo.
+enum BalanceEntrySource {
+  manual
+  import
+}
+
+// Plan del usuario (señal de monetización FIN-004, DEC-0001 §10.8). Sin billing
+// real todavía: el flag se activa manualmente para testing.
+enum Plan {
+  free
+  premium
+}
+
+// ---------- FIN-005 · Copiloto Financiero ----------
+
+enum MessageRole {
+  user
+  assistant
+}
+
+// Origen de la respuesta: plantilla determinista (costo 0) o LLM.
+enum MessageSource {
+  template
+  llm
+}
+
+enum AiLogDirection {
+  request
+  response
+}
+
+// ---------- FIN-006 · Insights y memoria ----------
+
+enum InsightType {
+  anomalia
+  riesgo
+  oportunidad
+  logro
+  cambio_tendencia
+}
+
+enum InsightSeverity {
+  info
+  warning
+  critical
+}
+
+enum InsightStatus {
+  new
+  seen
+  dismissed
+}
+
+enum MemoryFactKind {
+  recurrencia
+  fecha_clave
+  habito
+  cambio
+}
+
+// ---------- FIN-007 · Simulador y recomendaciones ----------
+
+enum SimulationType {
+  abono_extra
+  nueva_deuda
+  reducir_gastos
+  cambio_ingreso
+  estrategia_deudas
+  vender_activo
+  refinanciar
+  proyeccion_ahorro
+}
+
+enum SimulationSource {
+  app
+  copilot
+}
+
+enum RecommendationStatus {
+  new
+  seen
+  dismissed
+  done
+}
+
+enum NotificationChannel {
+  push
+  whatsapp
+  telegram
+}
+
+enum NotificationKind {
+  recordatorio
+  proactivo
+}
+
+// ---------- FIN-008 · Gamificación ----------
+
+enum StreakKind {
+  registro_semanal
+}
+
+enum ChallengeStatus {
+  active
+  completed
+  failed
+}
+
+// ---------- FIN-009 · Monetización ----------
+
+enum SubscriptionStatus {
+  trial
+  active
+  canceled
+  expired
+}
+
+enum PaymentProviderKind {
+  manual
+  promo
+  revenuecat
+}
+
+// ---------- Modelos ----------
+
+model User {
+  id             String   @id @default(uuid()) @db.Uuid
+  email          String?  @unique
+  phoneE164      String?  @unique @map("phone_e164")
+  passwordHash   String?  @map("password_hash")
+  fullName       String?  @map("full_name")
+  authProvider   String   @default("local") @map("auth_provider")
+  externalUid    String?  @map("external_uid")
+  currency       String   @default("COP") @db.Char(3)
+  locale         String   @default("es-CO")
+  timezone       String   @default("America/Bogota")
+  emailVerified  Boolean  @default(false) @map("email_verified")
+  onboardingDone Boolean  @default(false) @map("onboarding_done")
+  // DEC-0009 §10.2: sin ruta de auto-escalación — solo modificable por
+  // operación manual del fundador en BD, nunca por un endpoint de la API.
+  isAdmin        Boolean  @default(false) @map("is_admin")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  entities     FinancialEntity[]
+  debts        Debt[]
+  transactions Transaction[]
+  categories   Category[]
+  reminders    Reminder[]
+  devices      Device[]
+  suggestions  Suggestion[]
+  waLinks      WhatsappLink[]
+  fixedItems    FixedItem[]
+  tgLinks       TelegramLink[]
+  accounts      Account[]
+  assets        Asset[]
+  snapshots     FinancialSnapshot[]
+  metrics       MetricReading[]
+  conversations Conversation[]
+  aiLogs        AiInteractionLog[]
+  insights        Insight[]
+  memoryFacts     FinancialMemoryFact[]
+  simulations     Simulation[]
+  recommendations Recommendation[]
+  notifLogs       NotificationLog[]
+  streaks         Streak[]
+  achievements    Achievement[]
+  challenges      Challenge[]
+  subscriptions   Subscription[]
+  settings        UserSettings?
+  incomeProfile   IncomeProfile?
+  incomeSources   IncomeSource[]
+
+  @@map("users")
+}
+
+model FinancialEntity {
+  id           String     @id @default(uuid()) @db.Uuid
+  userId       String?    @map("user_id") @db.Uuid
+  name         String
+  type         EntityType @default(otro)
+  contactPhone String?    @map("contact_phone")
+  website      String?
+  typicalRate  Decimal?   @map("typical_rate") @db.Decimal(6, 3)
+  rateType     String?    @map("rate_type")
+  logoUrl      String?    @map("logo_url")
+  isGlobal     Boolean    @default(false) @map("is_global")
+  notes        String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  deletedAt    DateTime?  @map("deleted_at")
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  debts        Debt[]
+  transactions Transaction[]
+  accounts     Account[]
+
+  @@index([userId])
+  @@map("financial_entities")
+}
+
+model Category {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String?   @map("user_id") @db.Uuid
+  name      String
+  kind      TxKind
+  icon      String?
+  color     String?
+  isGlobal  Boolean   @default(false) @map("is_global")
+  keywords  String[]
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId])
+  @@map("categories")
+}
+
+model Debt {
+  id             String      @id @default(uuid()) @db.Uuid
+  userId         String      @map("user_id") @db.Uuid
+  entityId       String?     @map("entity_id") @db.Uuid
+  name           String
+  debtType       DebtType    @default(otro) @map("debt_type")
+  currency       String      @default("COP") @db.Char(3)
+  originalAmount Decimal     @map("original_amount") @db.Decimal(18, 2)
+  currentBalance Decimal     @map("current_balance") @db.Decimal(18, 2)
+  startDate      DateTime    @map("start_date") @db.Date
+  termMonths     Int?        @map("term_months")
+  interestRate   Decimal     @map("interest_rate") @db.Decimal(7, 4)
+  rateKind       RateKind    @default(fija) @map("rate_kind")
+  rateBasis      RateBasis   @default(EA) @map("rate_basis")
+  amortSystem    AmortSystem @default(frances) @map("amort_system")
+  monthlyPayment Decimal?    @map("monthly_payment") @db.Decimal(18, 2)
+  // FIN-031: cupo total de una tarjeta de crédito (null para el resto de tipos).
+  // El saldo utilizado y el cupo disponible se DERIVAN (CardService), no se
+  // almacenan — §32.
+  creditLimit    Decimal?    @map("credit_limit") @db.Decimal(18, 2)
+  paymentDay     Int?        @map("payment_day") @db.SmallInt
+  nextDueDate    DateTime?   @map("next_due_date") @db.Date
+  status         DebtStatus  @default(activa)
+  notes          String?
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  deletedAt      DateTime?   @map("deleted_at")
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity       FinancialEntity?     @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  amortization AmortizationEntry[]
+  transactions Transaction[]
+  reminders    Reminder[]
+  insurances   DebtInsurance[]
+  cardPurchases CardPurchase[]
+
+  @@index([userId])
+  @@index([nextDueDate])
+  @@map("debts")
+}
+
+// ---------- FIN-031 · Compras a cuotas con tarjeta (espina del SO Financiero) ----------
+
+/**
+ * FIN-031 · Una compra hecha con una tarjeta de crédito. ACTUALIZA la tarjeta
+ * existente (guardarraíl I — no crea una 2ª deuda). `sourceTransactionId` es la
+ * causalidad (guardarraíl G/§42): la cuota "nació de esta compra" y la reversión
+ * parte de aquí. El saldo pendiente de la compra = Σ cuotas no pagadas.
+ */
+model CardPurchase {
+  id                  String    @id @default(uuid()) @db.Uuid
+  debtId              String    @map("debt_id") @db.Uuid
+  // La compra ES la acción de primera clase y su propio origen trazable (G/§42):
+  // NO crea un gasto en efectivo (la caja sale por las CUOTAS, no ahora — evita
+  // el doble conteo en "Te queda"). `sourceTransactionId` queda para un futuro
+  // asiento de liquidación; en Fase 1 es null.
+  sourceTransactionId String?   @unique @map("source_transaction_id") @db.Uuid
+  amount              Decimal   @db.Decimal(18, 2)
+  occurredAt          DateTime  @map("occurred_at")
+  installmentsCount   Int       @map("installments_count")
+  withInterest        Boolean   @default(false) @map("with_interest")
+  note                String?
+  createdAt           DateTime  @default(now()) @map("created_at")
+  deletedAt           DateTime? @map("deleted_at")
+
+  debt         Debt              @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  source       Transaction?      @relation(fields: [sourceTransactionId], references: [id], onDelete: SetNull)
+  installments CardInstallment[]
+
+  @@index([debtId, deletedAt])
+  @@map("card_purchases")
+}
+
+/** Una cuota de una compra a cuotas. `paidAt` marca el pago aplicado (define si
+ *  la compra puede anularse limpio — política de reversión §4.5). */
+model CardInstallment {
+  id             String    @id @default(uuid()) @db.Uuid
+  cardPurchaseId String    @map("card_purchase_id") @db.Uuid
+  periodNo       Int       @map("period_no")
+  dueDate        DateTime  @map("due_date") @db.Date
+  amount         Decimal   @db.Decimal(18, 2)
+  paidAt         DateTime? @map("paid_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  purchase CardPurchase @relation(fields: [cardPurchaseId], references: [id], onDelete: Cascade)
+
+  @@index([cardPurchaseId, deletedAt])
+  @@map("card_installments")
+}
+
+// ---------- FIN-013 · Seguros asociados al crédito ----------
+
+enum DebtInsuranceKind {
+  vida_deudor
+  incendio_terremoto
+  todo_riesgo
+  desempleo
+  // FIN-023: cargo bancario de tarjetas — dato del USUARIO, sin default.
+  // Convive en este modelo por decisión DEC-0023 P1 Alt A (deuda semántica
+  // declarada: `endorsed`/`insurer` no aplican y el API los rechaza).
+  cuota_manejo
+  otro
+}
+
+// Modelo mínimo (DEC-0011 §8: prima mensual plana, sin cálculo actuarial).
+// FIN-023 (DEC-0023) saldó la deuda declarada de DEC-0011 §4.2: los cargos
+// APARTE ahora SÍ impactan "lo comprometido" (Motor, teQueda, Presupuesto,
+// Copiloto, mensajería) vía la fuente única `outlaysByUser`.
+model DebtInsurance {
+  id             String            @id @default(uuid()) @db.Uuid
+  debtId         String            @map("debt_id") @db.Uuid
+  kind           DebtInsuranceKind @default(otro)
+  name           String
+  monthlyPremium Decimal           @map("monthly_premium") @db.Decimal(18, 2)
+  // financiado = la prima va DENTRO de la cuota del crédito.
+  financed       Boolean           @default(true)
+  // endosado = póliza propia del usuario (típico ahorro en libranzas).
+  endorsed       Boolean           @default(false)
+  insurer        String?
+  notes          String?
+  active         Boolean           @default(true)
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  deletedAt      DateTime?         @map("deleted_at")
+
+  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@index([debtId, active])
+  @@map("debt_insurances")
+}
+
+model AmortizationEntry {
+  id            String    @id @default(uuid()) @db.Uuid
+  debtId        String    @map("debt_id") @db.Uuid
+  periodNo      Int       @map("period_no")
+  dueDate       DateTime  @map("due_date") @db.Date
+  openingBal    Decimal   @map("opening_bal") @db.Decimal(18, 2)
+  payment       Decimal   @db.Decimal(18, 2)
+  interestPart  Decimal   @map("interest_part") @db.Decimal(18, 2)
+  principalPart Decimal   @map("principal_part") @db.Decimal(18, 2)
+  extraPayment  Decimal   @default(0) @map("extra_payment") @db.Decimal(18, 2)
+  closingBal    Decimal   @map("closing_bal") @db.Decimal(18, 2)
+  isProjected   Boolean   @default(true) @map("is_projected")
+  paidAt        DateTime? @map("paid_at")
+
+  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@unique([debtId, periodNo])
+  @@index([debtId])
+  @@map("amortization_entries")
+}
+
+// FIN-012 (DEC-0012 §11.1): tipo de pago de deuda para trazabilidad.
+enum PaymentType {
+  cuota
+  abono_capital
+  pago_total
+}
+
+model Transaction {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  kind            TxKind
+  // Solo relevante cuando kind = pago_deuda; default retrocompatible.
+  paymentType     PaymentType @default(cuota) @map("payment_type")
+  amount          Decimal   @db.Decimal(18, 2)
+  currency        String    @default("COP") @db.Char(3)
+  occurredAt      DateTime  @map("occurred_at")
+  categoryId      String?   @map("category_id") @db.Uuid
+  entityId        String?   @map("entity_id") @db.Uuid
+  debtId          String?   @map("debt_id") @db.Uuid
+  note            String?
+  tags            String[]
+  source          TxSource  @default(app)
+  status          TxStatus  @default(confirmada)
+  rawMessage      String?   @map("raw_message")
+  attachmentUrl   String?   @map("attachment_url")
+  parseConfidence Decimal?  @map("parse_confidence") @db.Decimal(4, 3)
+  waMessageId     String?   @unique @map("wa_message_id")
+  clientUuid      String?   @map("client_uuid") @db.Uuid
+  accountId       String?   @map("account_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  entity   FinancialEntity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  debt     Debt?            @relation(fields: [debtId], references: [id], onDelete: SetNull)
+  account  Account?         @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  // FIN-031: si esta transacción originó una compra a cuotas (causalidad G).
+  cardPurchase CardPurchase?
+
+  @@unique([userId, clientUuid])
+  @@index([userId, occurredAt])
+  @@index([debtId])
+  @@map("transactions")
+}
+
+model Reminder {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  debtId      String?           @map("debt_id") @db.Uuid
+  title       String
+  dueDate     DateTime          @map("due_date") @db.Date
+  offsetsDays Int[]             @default([3, 1, 0]) @map("offsets_days")
+  channels    ReminderChannel[] @default([push])
+  amount      Decimal?          @db.Decimal(18, 2)
+  isActive    Boolean           @default(true) @map("is_active")
+  lastSentAt  DateTime?         @map("last_sent_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  deletedAt   DateTime?         @map("deleted_at")
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  debt Debt? @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@index([dueDate])
+  @@map("reminders")
+}
+
+model WhatsappLink {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  phoneE164    String       @unique @map("phone_e164")
+  waId         String?      @map("wa_id")
+  status       WaLinkStatus @default(pending)
+  otpCodeHash  String?      @map("otp_code_hash")
+  otpExpiresAt DateTime?    @map("otp_expires_at")
+  verifiedAt   DateTime?    @map("verified_at")
+  optIn        Boolean      @default(false) @map("opt_in")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("whatsapp_links")
+}
+
+model TelegramLink {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  chatId       String?      @unique @map("chat_id")
+  username     String?
+  status       WaLinkStatus @default(pending)
+  otpCodeHash  String?      @map("otp_code_hash")
+  otpExpiresAt DateTime?    @map("otp_expires_at")
+  verifiedAt   DateTime?    @map("verified_at")
+  optIn        Boolean      @default(false) @map("opt_in")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("telegram_links")
+}
+
+model Device {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  platform     String
+  fcmToken     String?   @map("fcm_token")
+  appVersion   String?   @map("app_version")
+  lastSyncedAt DateTime? @map("last_synced_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fcmToken])
+  @@map("devices")
+}
+
+model Suggestion {
+  id         String         @id @default(uuid()) @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  type       SuggestionType
+  title      String
+  body       String
+  payload    Json?
+  score      Decimal?       @db.Decimal(5, 2)
+  status     String         @default("new")
+  validUntil DateTime?      @map("valid_until")
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("suggestions")
+}
+
+// Compromiso mensual recurrente: ingreso fijo (p. ej. salario) o gasto fijo
+// inflexible (arriendo, servicios, suscripciones). Un crédito NO se registra
+// aquí: sus cuotas ya se cuentan desde el modelo Debt.
+model FixedItem {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  kind       FixedKind
+  name       String
+  amount     Decimal   @db.Decimal(18, 2)
+  currency   String    @default("COP") @db.Char(3)
+  dayOfMonth Int?      @map("day_of_month") @db.SmallInt
+  categoryId String?   @map("category_id") @db.Uuid
+  isActive   Boolean   @default(true) @map("is_active")
+  startDate  DateTime? @map("start_date") @db.Date
+  endDate    DateTime? @map("end_date") @db.Date
+  notes      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@map("fixed_items")
+}
+
+// ---------- FIN-002 · Cuentas, activos, patrimonio ----------
+
+// Cuenta monetaria del usuario (efectivo, ahorros, corriente, billetera).
+// El saldo manual es la fuente de verdad (sin derivación automática en FIN-002).
+model Account {
+  id                String      @id @default(uuid()) @db.Uuid
+  userId            String      @map("user_id") @db.Uuid
+  entityId          String?     @map("entity_id") @db.Uuid
+  name              String
+  type              AccountType @default(otro)
+  currency          String      @default("COP") @db.Char(3)
+  currentBalance    Decimal     @default(0) @map("current_balance") @db.Decimal(18, 2)
+  isLiquid          Boolean     @default(true) @map("is_liquid")
+  includeInNetWorth Boolean     @default(true) @map("include_in_net_worth")
+  isEmergencyFund   Boolean     @default(false) @map("is_emergency_fund")
+  archivedAt        DateTime?   @map("archived_at")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+  deletedAt         DateTime?   @map("deleted_at")
+
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity         FinancialEntity?      @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  balanceEntries AccountBalanceEntry[]
+  transactions   Transaction[]
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+// Historial de saldos de una cuenta (se escribe en cada cambio de saldo).
+model AccountBalanceEntry {
+  id         String             @id @default(uuid()) @db.Uuid
+  accountId  String             @map("account_id") @db.Uuid
+  balance    Decimal            @db.Decimal(18, 2)
+  recordedAt DateTime           @default(now()) @map("recorded_at")
+  source     BalanceEntrySource @default(manual)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, recordedAt])
+  @@map("account_balance_entries")
+}
+
+// Activo de patrimonio (inmueble, vehículo, inversión, negocio).
+model Asset {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  name              String
+  type              AssetType @default(otro)
+  currency          String    @default("COP") @db.Char(3)
+  currentValue      Decimal   @map("current_value") @db.Decimal(18, 2)
+  acquisitionValue  Decimal?  @map("acquisition_value") @db.Decimal(18, 2)
+  acquisitionDate   DateTime? @map("acquisition_date") @db.Date
+  isLiquid          Boolean   @default(false) @map("is_liquid")
+  includeInNetWorth Boolean   @default(true) @map("include_in_net_worth")
+  notes             String?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("assets")
+}
+
+// ---------- FIN-002 · Eventos (outbox transaccional) y series ----------
+
+// Outbox transaccional: el evento de dominio se escribe en la MISMA transacción
+// que el cambio de negocio. Un despachador (cron) lo consume con claim atómico.
+model OutboxEvent {
+  id            String       @id @default(uuid()) @db.Uuid
+  aggregateType String       @map("aggregate_type")
+  aggregateId   String       @map("aggregate_id")
+  eventType     String       @map("event_type")
+  payload       Json
+  status        OutboxStatus @default(pending)
+  attempts      Int          @default(0)
+  availableAt   DateTime     @default(now()) @map("available_at")
+  processedAt   DateTime?    @map("processed_at")
+  error         String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  @@index([status, availableAt])
+  @@map("outbox_events")
+}
+
+// Foto financiera periódica del usuario. Creada aquí; poblada por FIN-003.
+model FinancialSnapshot {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  capturedAt       DateTime @map("captured_at")
+  netWorth         Decimal  @map("net_worth") @db.Decimal(18, 2)
+  totalAssets      Decimal  @map("total_assets") @db.Decimal(18, 2)
+  totalLiquid      Decimal  @map("total_liquid") @db.Decimal(18, 2)
+  totalLiabilities Decimal  @map("total_liabilities") @db.Decimal(18, 2)
+  extra            Json?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, capturedAt])
+  @@map("financial_snapshots")
+}
+
+// Serie de tiempo genérica de indicadores (poblada por el Motor, FIN-003).
+// Tabla particionada por rango mensual sobre `captured_at` (DEC-0002 §4.5 /
+// DEC-0003): por eso la PK es compuesta (id, captured_at) — PostgreSQL exige
+// que toda constraint única incluya la columna de partición. El índice único
+// (user, metric, period, captured_at) es la clave del upsert idempotente.
+model MetricReading {
+  id         String       @default(uuid()) @db.Uuid
+  userId     String       @map("user_id") @db.Uuid
+  metricKey  String       @map("metric_key")
+  value      Decimal      @db.Decimal(18, 4)
+  capturedAt DateTime     @map("captured_at")
+  period     MetricPeriod @default(month)
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([id, capturedAt])
+  @@unique([userId, metricKey, period, capturedAt])
+  @@index([userId, metricKey, capturedAt])
+  @@map("metric_readings")
+}
+
+model UserSettings {
+  userId             String   @id @map("user_id") @db.Uuid
+  plan               Plan     @default(free)
+  // Consentimiento de IA (FIN-005, §4.2 del ARQ): opt-in versionado y revocable.
+  aiConsentAt        DateTime? @map("ai_consent_at")
+  aiConsentVersion   Int?      @map("ai_consent_version")
+  // Avisos proactivos (FIN-006 §4.5).
+  proactiveEnabled   Boolean  @default(true) @map("proactive_enabled")
+  reminderDefaults   Int[]    @default([3, 1, 0]) @map("reminder_defaults")
+  notifPush          Boolean  @default(true) @map("notif_push")
+  notifWhatsapp      Boolean  @default(false) @map("notif_whatsapp")
+  quietHours         Json?    @map("quiet_hours")
+  suggestionStrategy String   @default("avalanche") @map("suggestion_strategy")
+  // FIN-016: día de inicio del ciclo financiero (1–28). SOLO lo consumen
+  // Presupuesto y Dashboard; Score/Motor/Gamificación siguen en mes calendario.
+  cycleStartDay      Int      @default(1) @map("cycle_start_day")
+  dataConsentAt      DateTime? @map("data_consent_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+// ---------- FIN-006 · Insights y memoria financiera ----------
+
+// Conocimiento accionable detectado por el Motor (anomalía/riesgo/logro/…).
+// Idempotencia (DEC-0006 §10.3): `dedupeKey` es la clave natural documentada —
+// mensual para condiciones recurrentes (p. ej. "riesgo_dti:2026-07") y por
+// entidad para eventos únicos (p. ej. "logro_deuda_saldada:<debtId>").
+model Insight {
+  id                String          @id @default(uuid()) @db.Uuid
+  userId            String          @map("user_id") @db.Uuid
+  type              InsightType
+  severity          InsightSeverity @default(info)
+  title             String
+  body              String
+  metricKey         String?         @map("metric_key")
+  dedupeKey         String          @map("dedupe_key")
+  payload           Json?
+  status            InsightStatus   @default(new)
+  validUntil        DateTime?       @map("valid_until")
+  deliveredAt       DateTime?       @map("delivered_at")
+  deliveredChannels String[]        @map("delivered_channels")
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, status, createdAt])
+  @@map("insights")
+}
+
+// Hecho de memoria financiera (FIN-006 §4.4). `content` SIEMPRE es texto
+// generado por plantilla del Motor — nunca texto libre del usuario — lo que lo
+// hace seguro para la vista minimizada del Copiloto.
+model FinancialMemoryFact {
+  id              String         @id @default(uuid()) @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  kind            MemoryFactKind
+  content         String
+  tags            String[]
+  dedupeKey       String         @map("dedupe_key")
+  payload         Json?
+  confidence      Decimal        @default(0.8) @db.Decimal(4, 3)
+  observedAt      DateTime       @map("observed_at")
+  lastConfirmedAt DateTime       @map("last_confirmed_at")
+  staleAt         DateTime?      @map("stale_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  deletedAt       DateTime?      @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, kind])
+  @@map("financial_memory_facts")
+}
+
+// ---------- FIN-007 · Simulaciones, recomendaciones y presupuesto de avisos ----------
+
+// Historial de simulaciones "¿qué pasa si…?" (nunca modifican datos reales).
+model Simulation {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      SimulationType
+  params    Json
+  result    Json
+  source    SimulationSource @default(app)
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("simulations")
+}
+
+// Recomendación cuantificada (FIN-007 §4.3). Regla de desplazamiento
+// (DEC-0007 §10.2): una nueva con prioridad estrictamente mayor desplaza a la
+// activa de menor prioridad (status=dismissed, dismissReason=superseded).
+model Recommendation {
+  id            String               @id @default(uuid()) @db.Uuid
+  userId        String               @map("user_id") @db.Uuid
+  kind          String
+  title         String
+  body          String
+  whatIfNot     String               @map("what_if_not")
+  priorityScore Decimal              @map("priority_score") @db.Decimal(6, 4)
+  impact        Json
+  status        RecommendationStatus @default(new)
+  dismissReason String?              @map("dismiss_reason")
+  dedupeKey     String               @map("dedupe_key")
+  validUntil    DateTime?            @map("valid_until")
+  createdAt     DateTime             @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, status])
+  @@map("recommendations")
+}
+
+// Registro de toda notificación saliente (recordatorios + proactivos), base del
+// presupuesto global (DEC-0007 §10.3: reparto FIJO 2+1, sin reasignación).
+model NotificationLog {
+  id      String              @id @default(uuid()) @db.Uuid
+  userId  String              @map("user_id") @db.Uuid
+  channel NotificationChannel
+  kind    NotificationKind
+  sentAt  DateTime            @default(now()) @map("sent_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sentAt])
+  @@map("notification_logs")
+}
+
+// ---------- FIN-009 · Monetización (Millo+) ----------
+
+// Suscripción — FUENTE DE VERDAD del acceso premium (DEC-0009 §10.4: toda
+// autorización lee esta tabla; UserSettings.plan es solo caché de visualización).
+model Subscription {
+  id               String              @id @default(uuid()) @db.Uuid
+  userId           String              @map("user_id") @db.Uuid
+  plan             Plan                @default(premium)
+  status           SubscriptionStatus
+  provider         PaymentProviderKind
+  providerRef      String?             @map("provider_ref")
+  currentPeriodEnd DateTime?           @map("current_period_end")
+  trialEndsAt      DateTime?           @map("trial_ends_at")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("subscriptions")
+}
+
+// Código promocional (DEC-0009 §10.6: maxUses SIEMPRE obligatorio; §10.1: el
+// canje incrementa used_count de forma ATÓMICA — patrón del outbox).
+model PromoCode {
+  id           String    @id @default(uuid()) @db.Uuid
+  codeHash     String    @unique @map("code_hash")
+  durationDays Int       @default(30) @map("duration_days")
+  maxUses      Int       @map("max_uses")
+  usedCount    Int       @default(0) @map("used_count")
+  expiresAt    DateTime? @map("expires_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("promo_codes")
+}
+
+// Log INMUTABLE de acciones administrativas (DEC-0009 §10.2): solo inserción;
+// la API no expone update/delete sobre esta tabla.
+model AdminActionLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  adminUserId  String   @map("admin_user_id") @db.Uuid
+  targetUserId String   @map("target_user_id") @db.Uuid
+  action       String
+  reason       String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([adminUserId, createdAt])
+  @@map("admin_action_logs")
+}
+
+// ---------- FIN-008 · Gamificación ----------
+
+// Racha de constancia (semanas ISO consecutivas con ≥1 movimiento).
+model Streak {
+  id         String     @id @default(uuid()) @db.Uuid
+  userId     String     @map("user_id") @db.Uuid
+  kind       StreakKind @default(registro_semanal)
+  current    Int        @default(0)
+  best       Int        @default(0)
+  lastPeriod String?    @map("last_period") // YYYY-Www (ISO)
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind])
+  @@map("streaks")
+}
+
+// Logro desbloqueado (catálogo curado en código; se gana una sola vez).
+model Achievement {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  code       String
+  unlockedAt DateTime  @default(now()) @map("unlocked_at")
+  seenAt     DateTime? @map("seen_at") // para la celebración in-app
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, code])
+  @@map("achievements")
+}
+
+// Reto mensual (1 por usuario/mes, asignado por elegibilidad DEC-0008 §10.2).
+model Challenge {
+  id        String          @id @default(uuid()) @db.Uuid
+  userId    String          @map("user_id") @db.Uuid
+  code      String
+  month     String // YYYY-MM
+  target    Json?
+  progress  Json?
+  status    ChallengeStatus @default(active)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, code, month])
+  @@index([userId, month])
+  @@map("challenges")
+}
+
+// ---------- FIN-005 · Conversaciones del Copiloto ----------
+
+model Conversation {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  title     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([userId, updatedAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String        @id @default(uuid()) @db.Uuid
+  conversationId String        @map("conversation_id") @db.Uuid
+  role           MessageRole
+  content        String
+  source         MessageSource @default(template)
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+// Log de auditoría de interacciones con IA (§4.4 del ARQ): registra QUÉ grupos
+// de campos se enviaron y tokens/costo — NUNCA el texto (minimiza también el log).
+model AiInteractionLog {
+  id                 String         @id @default(uuid()) @db.Uuid
+  userId             String         @map("user_id") @db.Uuid
+  conversationId     String?        @map("conversation_id") @db.Uuid
+  direction          AiLogDirection
+  model              String?
+  purpose            String // chat | explain_indicator | consent_granted | consent_revoked | llm_error | premium_intent
+  contextFieldGroups String[]       @map("context_field_groups")
+  inputTokens        Int?           @map("input_tokens")
+  outputTokens       Int?           @map("output_tokens")
+  costEstimate       Decimal?       @map("cost_estimate") @db.Decimal(10, 6)
+  createdAt          DateTime       @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("ai_interaction_logs")
+}
+
+// ---------- FIN-027 · Modelo de ingresos personales (DEC-0027) ----------
+
+enum WorkProfile {
+  empleado
+  independiente
+  empresario
+  pensionado
+  estudiante
+  otro
+}
+
+enum IncomeSourceKind {
+  salario_fijo
+  salario_variable
+  comisiones
+  bonificaciones
+  honorarios
+  otro
+}
+
+enum DeductionKind {
+  salud
+  pension
+  otra
+}
+
+enum DeductionBase {
+  total
+  parcial
+}
+
+/** Perfil laboral declarado UNA vez (DEC-0027 P1). 1:1 con el usuario. */
+model IncomeProfile {
+  id           String      @id @default(uuid()) @db.Uuid
+  userId       String      @unique @map("user_id") @db.Uuid
+  workProfile  WorkProfile @map("work_profile")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("income_profiles")
+}
+
+/**
+ * Fuente de ingreso (DEC-0027 P1): fijas y variables COEXISTEN (n por usuario).
+ * `isVariable=false` → `amount` es el monto mensual fijo (reemplaza a
+ * `FixedItem(kind='ingreso')`, migrado aquí — DEC §5.2, sin coexistencia).
+ * `isVariable=true` → `amount` es el ESTIMADO mensual (se presenta como
+ * estimación, nunca como certeza — §29).
+ */
+model IncomeSource {
+  id         String           @id @default(uuid()) @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  kind       IncomeSourceKind @default(otro)
+  name       String
+  amount     Decimal          @db.Decimal(18, 2)
+  isVariable Boolean          @default(false) @map("is_variable")
+  dayOfMonth Int?             @map("day_of_month") @db.SmallInt
+  isActive   Boolean          @default(true) @map("is_active")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  deletedAt  DateTime?        @map("deleted_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deductions  Deduction[]
+
+  @@index([userId, isActive])
+  @@map("income_sources")
+}
+
+/**
+ * Deducción de una fuente de ingreso (DEC-0027 P1/P2). `base=parcial` exige
+ * `baseAmount` (monto de la porción sobre la que aplica el % — requisito duro
+ * del Fundador: sin esto el neto es incorrecto para una parte real de usuarios).
+ * `withheldAtSource`: true = retenida por el pagador (NO sale del bolsillo,
+ * solo reduce el neto); false = la paga la usuaria (además es COMPROMISO del
+ * ciclo — fluye a "Te queda" por inyección, DEC-0027 P2).
+ */
+model Deduction {
+  id               String        @id @default(uuid()) @db.Uuid
+  incomeSourceId   String        @map("income_source_id") @db.Uuid
+  kind             DeductionKind @default(otra)
+  name             String
+  percent          Decimal?      @db.Decimal(5, 2)
+  fixedAmount      Decimal?      @map("fixed_amount") @db.Decimal(18, 2)
+  base             DeductionBase @default(total)
+  baseAmount       Decimal?      @map("base_amount") @db.Decimal(18, 2)
+  withheldAtSource Boolean       @default(true) @map("withheld_at_source")
+  isActive         Boolean       @default(true) @map("is_active")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  deletedAt        DateTime?     @map("deleted_at")
+
+  incomeSource IncomeSource @relation(fields: [incomeSourceId], references: [id], onDelete: Cascade)
+
+  @@index([incomeSourceId, isActive])
+  @@map("deductions")
+}
+
+model WebhookEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  provider    String    @default("whatsapp")
+  externalId  String?   @unique @map("external_id")
+  payload     Json
+  status      String    @default("received")
+  error       String?
+  receivedAt  DateTime  @default(now()) @map("received_at")
+  processedAt DateTime? @map("processed_at")
+
+  @@map("webhook_events")
+}

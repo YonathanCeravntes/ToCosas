@@ -1,0 +1,93 @@
+# Blueprint de Render para el backend de Millo (docs/INFRAESTRUCTURA.md, Fase 0).
+# Despliegue: conecta el repo en https://dashboard.render.com/blueprints —
+# Render detecta este archivo y crea el servicio automáticamente.
+#
+# Base de datos: Neon PostgreSQL (elegida por el Fundador, NO la Postgres
+# gestionada de Render) — por eso DATABASE_URL es `sync: false`: se pega el
+# connection string de Neon a mano en el dashboard, una sola vez.
+#
+# Runtime: Node nativo (NO Docker), verificado en producción el 2026-07-13
+# (servicio `milla-backend`, https://milla-backend.onrender.com — /v1/health
+# y /v1/ready responden 200 contra Neon real). `rootDir: backend` porque el
+# backend vive en un subdirectorio, no en la raíz del repo. `npm ci
+# --include=dev` es obligatorio: con NODE_ENV=production ya seteado, npm se
+# salta devDependencies por defecto y `nest build` falla con "nest: not
+# found" — `--include=dev` lo fuerza pese al NODE_ENV.
+
+services:
+  - type: web
+    name: tocosas-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm run start:prod
+    plan: free
+    region: oregon
+    healthCheckPath: /v1/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false # Connection string DIRECTO de Neon (sin "-pooler" en el host)
+      - key: NODE_ENV
+        value: production
+      # Secretos de JWT generados automáticamente por Render.
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: "3600"
+
+      # Gates de producción (docs/PRODUCCION.md §2).
+      # HEALTH_SCORE: ENCENDIDO por decisión ejecutiva del Fundador (2026-07-14,
+      # BT-006) para la Beta Técnica CERRADA — el Score es 100% determinista (cero
+      # IA) y ya trae disclaimers ("no es puntaje crediticio", encuadre educativo)
+      # + guardarraíl Ley 1266 (no se comparte a terceros). La validación legal
+      # formal (DEC-0001 §10.7) SIGUE siendo obligatoria antes del lanzamiento
+      # PÚBLICO. El valor efectivo se fija también en el panel de Render.
+      - key: HEALTH_SCORE_PRODUCTION_ENABLED
+        value: "true"
+      # COPILOT: SIGUE APAGADO — depende de IA con datos reales, bloqueado por el
+      # gate DPA+PIA (docs/PRODUCCION.md §1). No encender sin cerrar ese gate.
+      - key: COPILOT_PRODUCTION_ENABLED
+        value: "false"
+      - key: MILLOPLUS_PRICE_COP
+        value: "0"
+
+      # WhatsApp / Telegram / LLM: se configuran en el panel cuando se conecten
+      # los canales reales — vacíos no rompen el arranque (valores opcionales).
+      - key: WHATSAPP_PROVIDER
+        value: meta
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        value: MilloBot
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+
+      # Copiloto/LLM — bloqueado por gate legal DPA+PIA (docs/PRODUCCION.md §1);
+      # no activar ANTHROPIC_API_KEY con datos reales hasta cerrarlo.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: claude-haiku-4-5-20251001
+
+      # Monetización / push — opcionales en Fase 0.
+      - key: REVENUECAT_WEBHOOK_SECRET
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
