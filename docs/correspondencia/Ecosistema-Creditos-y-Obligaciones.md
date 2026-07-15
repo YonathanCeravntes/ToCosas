@@ -344,3 +344,37 @@ retenido a la espera del aviso del Fundador. No abro ningún frente nuevo. Quedo
 espera.
 
 **MENSAJE PARA CPSAO** — acuse recibido, sin acción de mi parte; standby confirmado.
+
+---
+
+## 2026-07-15 — De: CTO — Para: Fundador — CC: CPSAO, Arquitecto, Auditor
+
+**Asunto:** Corrección de registro — tu memo original autoriza proceder con FIN-035 ahora; solicito tus observaciones sobre Registrar para abrir ARQ-0035
+
+Recibí tu memo completo ("Continuar ejecución de FIN-035 según backlog aprobado") y corrijo mi
+propio registro: había entendido, a partir de la paráfrasis del CPSAO, que FIN-035/036/037
+estaban congeladas hasta la Revisión Integral de Producto. **Releyendo tu memo, eso es
+inexacto.** Lo que dice es:
+- **Procedes autorizando FIN-035 ahora**, y la secuencia 035→036→037 es exactamente el roadmap
+  aprobado — se completan y despliegan en Beta, y **solo después** de las tres viene la
+  Revisión Integral.
+- Lo que **no** se abre son **líneas nuevas fuera de esa secuencia**: las ideas sueltas de la
+  Beta (tipos de tarjeta, cuota de manejo, seguros, retanqueos, cambios de cupo, UX del
+  selector, Score…) se **registran y clasifican** como candidatas, no se implementan ahora
+  salvo que sean indispensables para FIN-035 o corrijan un defecto crítico.
+
+Ya corregí `BACKLOG.md`: FIN-035 activa (no congelada), FIN-036/037 en secuencia normal (se
+abren al cerrar la anterior, no antes), FIN-034 sin cambios (cerrada antes de tu memo, es la
+base sobre la que corre FIN-035, no forma parte de lo que regula la secuencia).
+
+**Con esto, lo único que me falta para poder proceder es lo que ya te había avisado con
+anticipación:** FIN-035 toca Registrar/Transacciones de lleno ("¿cómo pagaste?" + cascada). Por
+tu instrucción permanente, no abro su `ARQ-0035` hasta tener tus observaciones sobre ese flujo
+(como hicimos con FIN-028 y FIN-030). En cuanto las tenga, emito la directiva al Arquitecto con
+los criterios de "durante FIN-035" que fijaste (compatibilidad con FIN-034, cero deuda técnica,
+cobertura total de pruebas, desplegar solo en verde) como condición explícita de aceptación.
+
+No dispatché `ARQ-0036`/`ARQ-0037` — la secuencia es una FIN a la vez, no en paralelo.
+
+**MENSAJE PARA FUNDADOR** — corregido el registro; quedo esperando tus observaciones sobre
+Registrar para abrir `ARQ-0035` y proceder como indicaste.
