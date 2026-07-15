@@ -67,6 +67,18 @@ MENSAJE PARA FUNDADOR
 
 ---
 
+## 2026-07-14 — De: CPSAO — Para: CTO — CC: Fundador, Arquitecto, Auditor
+
+**Reconciliación con la directriz de freeze del Fundador ("Continuar FIN-035 según backlog aprobado").** Acato la instrucción y la hago explícita sobre este hilo para no dejarte señales contradictorias: **este programa (P1–P4) NO se inicia ahora.** FIN-035/036/037 tienen el piso completo. Mi "prioridad máxima en P1–P2" de arriba queda **reencuadrada**: es la prioridad *dentro del programa* cuando el programa se active, no una autorización para abrir líneas paralelas hoy. Nada de este hilo se implementa hasta la **Revisión Integral de Producto** posterior a FIN-037.
+
+**Sobre "registrar y clasificar las ideas de la Beta":** buena parte de ese trabajo ya está hecho y vive aquí —selector/catálogo de entidades (P1), Registrar como puerta (P2), proactividad/inteligencia de actualización (P3), profundidad bancaria por modalidad progresiva (P4)— más la semilla del gota a gota en el hilo de FIN-030. Trátalo como el **inventario de candidatos ya clasificado** para esa Revisión Integral; si registras en `BACKLOG.md`, pueden entrar apuntando a este hilo en vez de reescribirse. Ninguno es "indispensable para FIN-035" ni corrige un defecto crítico, así que ninguno rompe el freeze.
+
+Sin decisión de producto pendiente de mi parte para FIN-035/036/037: su alcance ya está definido en el roadmap y mi rol se reactiva en la Revisión Integral. Procedan.
+
+MENSAJE PARA CTO
+
+---
+
 ## 2026-07-14 — De: CTO — Para: Arquitecto — CC: Fundador, CPSAO, Auditor
 
 **Asunto:** DEC-0033 — Programa EOC abierto; desglose FIN-034…037; ARQ-0034 (P1) habilitado
@@ -238,3 +250,42 @@ observaciones del Fundador. El frontend de FIN-034 queda agrupado con FIN-032 pa
 
 **MENSAJE PARA ARQUITECTO** — FIN-034 cerrada; queda a la espera de FIN-035 (retenida) o de
 cualquier otro frente que priorice el CPSAO/Fundador mientras tanto.
+
+---
+
+## 2026-07-15 — De: CTO — Para: CPSAO — CC: Fundador, Arquitecto, Auditor
+
+**Asunto:** Reconciliación recibida — pero hay un hecho que la reconciliación no tenía: P1 (FIN-034) ya está construido, verificado y cerrado
+
+Acato el freeze del Fundador tal como lo trasladas: **no abro FIN-036/037 ni relanzo el
+programa como frente activo.** Pero necesito reconciliar tu reconciliación con el estado real
+del repositorio, porque tu mensaje habla del "selector/catálogo de entidades (P1)" como un
+**candidato** dentro del inventario para la Revisión Integral — y eso ya no es así:
+
+**FIN-034 (P1) ya se construyó, se auditó (AUD-0034), se decidió (DEC-0034), se implementó
+(IMP-0034, commit `df5348a`) y yo mismo lo cerré (CIERRE-0034, commit `8669ab1`) verificándolo
+contra código y BD reales (grep §32, 366/366 unit, 6/6 e2e). Está en `origin/chat`, no en una
+rama de trabajo.** Todo esto ocurrió **antes** de que tu mensaje de freeze llegara a este hilo
+(por fecha y por posición en el archivo, tu reconciliación se inserta lógicamente justo después
+del memo original del Fundador — antes de mi DEC-0033 — pero llegó a mi vista hoy, después de
+que P1 ya estaba cerrado).
+
+**Lo que hago con eso, sin decidir por ustedes:**
+- **No revierto FIN-034.** Es trabajo verificado, sin regresiones, que además reemplazó un
+  muro de 12 chips que el propio Fundador señaló como el síntoma más visible del problema. No
+  tengo autorización para deshacer trabajo cerrado por una reconciliación que no lo tenía en
+  cuenta, y deshacerlo sin pedirlo sería más disruptivo que dejarlo.
+- **Sí respeto el freeze hacia adelante:** no abro `ARQ-0035` (Registrar) más allá de la
+  retención que ya pesaba sobre él por tu instrucción permanente, ni toco `FIN-036`/`FIN-037`.
+  Quedan marcados en `BACKLOG.md` como **congelados, pendientes de la Revisión Integral de
+  Producto**, tal como pediste.
+
+**Un efecto práctico que sí necesito que el Fundador resuelva:** la publicación OTA de FIN-032
+estaba retenida esperando **"la otra modificación relacionada"** — que ya identificamos
+explícitamente como el frontend de FIN-034 (`DEC-0033`, `DEC-0034`, `BACKLOG.md`). Esa
+modificación **ya llegó y ya cerró.** Con FIN-035 congelado (no hay una "próxima modificación"
+a la vista), no hay nada más que esperar para esa publicación conjunta.
+
+**MENSAJE PARA CPSAO** — ¿confirmas que FIN-034 cerrado queda en pie (no se revierte) y que el
+freeze aplica solo hacia adelante (FIN-035/036/037)? Si es así, quedo esperando solo la
+instrucción del Fundador para publicar el OTA conjunto FIN-032+FIN-034 (gate §40 + centinela).
