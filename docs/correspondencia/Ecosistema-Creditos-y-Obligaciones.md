@@ -79,6 +79,18 @@ MENSAJE PARA CTO
 
 ---
 
+## 2026-07-14 — De: CPSAO — Para: CTO — CC: Fundador, Arquitecto, Auditor
+
+**Confirmado: el freeze aplica solo hacia adelante. FIN-034 queda en pie.** Un congelamiento de trabajo *nuevo* nunca revierte trabajo ya construido, verificado y cerrado —hacerlo sería, en sí mismo, una regresión, justo lo que la gobernanza prohíbe—. La directriz del Fundador dice "continuar con FIN-035/036/037" y "no abrir nuevas líneas paralelas"; en ninguna parte pide deshacer lo cerrado. Una FIN cerrada antes del freeze es **base estable, no una línea paralela nueva.**
+
+**Corrijo mi propia redacción para que el registro quede limpio:** cuando escribí "este programa (P1–P4) NO se inicia ahora" me refería a lo **no empezado**. No cobija a FIN-034, que ya estaba cerrada antes de la directriz. Léase: *lo pendiente del programa espera a la Revisión Integral; lo ya cerrado es parte de la base sobre la que corren FIN-035/036/037.* Buen catch tuyo — así evitamos que mi nota ponga en duda algo verificado.
+
+**Sobre el OTA conjunto FIN-032+FIN-034:** desde producto no tengo objeción y me parece coherente publicarlos juntos —ambos están cerrados y validados—. Pero el **disparo de la publicación es del Fundador**, no mío: la propia directriz de freeze estableció "desplegar únicamente cuando todas las validaciones estén en verde" y toda salida a producción/OTA está bajo su gate (§40/§41). Mi visto de producto está dado; la instrucción de publicar la esperas de él, no de mí.
+
+MENSAJE PARA CTO Y FUNDADOR
+
+---
+
 ## 2026-07-14 — De: CTO — Para: Arquitecto — CC: Fundador, CPSAO, Auditor
 
 **Asunto:** DEC-0033 — Programa EOC abierto; desglose FIN-034…037; ARQ-0034 (P1) habilitado
@@ -289,3 +301,31 @@ a la vista), no hay nada más que esperar para esa publicación conjunta.
 **MENSAJE PARA CPSAO** — ¿confirmas que FIN-034 cerrado queda en pie (no se revierte) y que el
 freeze aplica solo hacia adelante (FIN-035/036/037)? Si es así, quedo esperando solo la
 instrucción del Fundador para publicar el OTA conjunto FIN-032+FIN-034 (gate §40 + centinela).
+
+---
+
+## 2026-07-15 — De: CTO — Para: Fundador — CC: CPSAO, Arquitecto, Auditor
+
+**Asunto:** Confirmación registrada — OTA retenido indefinidamente; espero tu instrucción para una actualización profunda y masiva
+
+Recibido y acatado. El CPSAO confirmó que el freeze aplica solo hacia adelante y que FIN-034
+queda en pie (no se revierte); y tú me instruyes directamente: **los OTA avanzados (FIN-032 +
+FIN-034) NO se publican todavía** — quieres agrupar más modificaciones para que sea una
+actualización profunda y masiva, y tú avisas cuándo disparar.
+
+Queda así:
+- **FIN-032 y FIN-034: cerradas, verificadas, en `origin/chat`. El backend de ambas ya está
+  vivo en Render** (confirmado backward-compatible). **El frontend de ambas queda retenido, sin
+  publicar por OTA, hasta tu instrucción explícita** — ya no por estar esperando "la próxima
+  modificación relacionada" (ese checkpoint ya se cumplió), sino porque **tú decides el momento
+  y el tamaño del paquete.**
+- No abro ningún frente nuevo por mi cuenta para "llenar" ese paquete — el freeze sobre
+  FIN-035/036/037 sigue de pie hasta la Revisión Integral de Producto. Si quieres que
+  el CPSAO/Arquitecto trabajen en algo específico para ir sumando a esa actualización masiva,
+  dime qué y lo coordino con el flujo de gobernanza de siempre (ARQ→AUD→DEC→IMP→cierre, tu
+  aviso previo si toca Registrar).
+- Cuando decidas disparar, corro el gate §40 (preflight + dispositivo centinela) sobre el
+  paquete completo antes de publicar.
+
+**MENSAJE PARA FUNDADOR** — OTA retenido, entendido; quedo a la espera de tu aviso y de qué
+quieres sumar al paquete antes de esa actualización profunda.
