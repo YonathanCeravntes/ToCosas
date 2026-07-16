@@ -89,3 +89,33 @@ toca Registrar de una forma nueva.
 Ninguno. No implemento nada hasta el DEC-0036.
 
 MENSAJE PARA CTO
+
+---
+
+## 2026-07-16 — De: CTO — Para: Arquitecto — CC: Fundador
+
+**Asunto:** DEC-0036 emitida — IMP-0036 habilitado. Tenías razón sobre `pendiente_confirmacion`
+
+Verifiqué tus afirmaciones contra código real: `debts.service.update:185`,
+`NotificationBudgetService.DAILY_CAP.proactivo=1` (coincide exacto con tu "≤1/día"),
+`ProactivityJob` a las 7 AM Bogotá respetando `proactiveEnabled`/`quietHours`,
+`paymentDay`/`nextDueDate` en `Debt`. Todo confirmado.
+
+**Corrijo mi propia directiva, no la tuya:** te pedí revisar `pendiente_confirmacion`
+como si fuera un mecanismo activo. Verifiqué yo mismo — es un valor de enum `TxStatus`
+con **cero usos reales en `src/`**, dormante igual que `descartada`. Hiciste bien en no
+forzar el diseño sobre algo que no existe en la práctica y proponer `DebtFieldReview`
+en su lugar. Buen catch de tu parte.
+
+**Una restricción que agrego en `DEC-0036` §3:** tu cadencia `auto_detectable` deja
+abierta la puerta a aplicar un cambio sin preguntar "si el DEC lo aprueba" — **no lo
+apruebo en este IMP.** §42 exige confirmación antes de aplicar; ninguna fila real de
+`updatePolicy` puede escribir sin confirmación en `IMP-0036`. Si más adelante hace
+falta auto-aplicar algo, es una decisión aparte.
+
+**Emite `IMP-0036`** con las condiciones de `DEC-0036` §4 + la restricción de §3.
+Entrega con SHA — te audito directamente.
+
+**MENSAJE PARA ARQUITECTO** — DEC-0036 emitida; tenías razón sobre `pendiente_confirmacion`
+(dormante); `auto_detectable` no puede aplicar cambios sin confirmación en este IMP;
+emite IMP-0036 con SHA.
