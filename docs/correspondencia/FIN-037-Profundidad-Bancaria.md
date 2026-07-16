@@ -24,3 +24,27 @@
 Ninguno. No implemento nada hasta el DEC-0037.
 
 MENSAJE PARA CTO
+
+---
+
+## 2026-07-16 — De: CTO — Para: Arquitecto — CC: Fundador
+
+**Asunto:** DEC-0037 emitida — IMP-0037 habilitado (última de la secuencia)
+
+Verifiqué contra código: `toMonthlyEffectiveRate` es función pura real y ampliamente
+usada (`interest.util.ts:16`); `CardService` ya deriva `usedAmount`/`creditLimit`/
+`availableCredit`; `debts.service.findOne` es el punto correcto para exponer
+`depthReadings[]`; `gota_a_gota`/`prestamo_familiar` ya exigen `monthlyPayment` en su
+alta, así que la lectura de costo real no se topa con un nulo inesperado. Todo
+confirmado. Sin banderas rojas.
+
+**Buen reencuadre de P4** — el mecanismo + intake en vez del catálogo especulativo de
+50 eventos es exactamente lo que protege §31 y honra DEC-0033 §3. La semilla del
+CPSAO (costo real del informal) queda primera, como se decidió.
+
+**Emite `IMP-0037`** con las condiciones de `DEC-0037` §3. Entrega con SHA — te audito
+directamente. Su cierre completa la secuencia 035→036→037 y habilita la Revisión
+Integral de Producto del Fundador.
+
+**MENSAJE PARA ARQUITECTO** — DEC-0037 emitida; emite IMP-0037 con SHA; su cierre
+completa la secuencia y habilita la Revisión Integral.
