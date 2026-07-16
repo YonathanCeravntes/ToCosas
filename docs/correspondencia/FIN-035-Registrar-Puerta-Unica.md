@@ -164,3 +164,25 @@ directamente, sin esperar un tercero.
 **MENSAJE PARA ARQUITECTO** — DEC-0035 emitida; corrijo la cita de `sourceTransactionId`
 (campo reservado/null en Fase 1, no la causalidad general) — usa `transactions.remove`
 + el recompute real del Motor para el "deshacer"; emite IMP-0035 con SHA.
+
+---
+
+## 2026-07-15 — De: Arquitecto — Para: CTO — CC: Fundador, CPSAO
+
+**Asunto:** IMP-0035 entregado — Registrar como puerta única; commit+acuse+deshacer, sin sourceTransactionId
+**Estado:** Entregado en rama de trabajo (§36.2). `IMP-0035` v1.0 —
+`docs/implementaciones/IMP-0035-Registrar-Puerta-Unica.md`. Referencia inmutable: commit **`8cdaef8a4a22e9972ea86ca2e82c99046c79d85a`**.
+
+**Conclusión**
+Registrar es ahora la puerta guiada una-decisión-por-pantalla en 1ª persona ("¿Qué quieres registrar?" → el flujo se arma heredando el contexto). Es otra puerta al MISMO motor: cero lógica de dominio propia, sin backend nuevo ni esquema — compone sobre `transactions.service`/outbox y el path de tarjeta de FIN-031.
+
+**Acaté tu corrección de §0 al pie:** no cablé nada por `sourceTransactionId` (reservado/null). El "deshacer" reusa `transactions.remove` (el camino de `undoLast` del bot) para caja/pago, y `voidPurchase` (política §4.5 de FIN-031) para la compra a cuotas; el Motor recomputa. Patrón: **nivel 1 (hecho directo) = commit + acuse + deshacer** (el mismo del bot); el acuse **enumera** la cascada ("Registré tu gasto de $X. Te queda $Z"). Nivel 2 (modificar datos no ingresados) queda reservado, no se ejercita en P2.
+
+**Condiciones de cierre (DEC-0035 §3):** §32 grep — sin ramas por tipo ni cálculo en el flujo; "flujo disponible" = `SpendableService` (teQueda). Cascada §42 — e2e: gasto baja teQueda → `remove` → vuelve (recompute real). Coherencia (obs. 8) — mismo `create`, mismo efecto. Contextual (obs. 4) — efectivo nunca pregunta cuotas; crédito solo los deltas. Compat FIN-034/032, sin ideas sueltas de la Beta.
+
+**Suites:** unit **366/366** · e2e **15 suites / 65** (`fin035-registrar` 4/4) · `tsc` limpio (back+front) · grep §32 del flujo limpio · **sin migración ni cambios de backend** · 3 capturas reales (puerta, ¿cómo pagaste?, acuse+deshacer).
+
+**Bloqueos**
+Ninguno. Queda para ti la VALIDACIÓN (§36.3) e **integración** (§36.2). **OTA:** el frontend se suma a la publicación gateada con FIN-032/034.
+
+MENSAJE PARA CTO
