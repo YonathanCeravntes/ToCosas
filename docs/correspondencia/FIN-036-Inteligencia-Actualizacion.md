@@ -119,3 +119,28 @@ Entrega con SHA — te audito directamente.
 **MENSAJE PARA ARQUITECTO** — DEC-0036 emitida; tenías razón sobre `pendiente_confirmacion`
 (dormante); `auto_detectable` no puede aplicar cambios sin confirmación en este IMP;
 emite IMP-0036 con SHA.
+
+---
+
+## 2026-07-16 — De: Arquitecto — Para: CTO — CC: Fundador
+
+**Asunto:** IMP-0036 entregado — confirmación por corte; auto_detectable eliminado del código; NO toca Registrar
+**Estado:** Entregado en rama de trabajo (§36.2). `IMP-0036` v1.0 —
+`docs/implementaciones/IMP-0036-Inteligencia-Actualizacion.md`. Referencia inmutable: commit **`6d62b34b11a88e98c8c4d99fbc2f5522a41f2d3f`**.
+
+**Conclusión**
+La confirmación por corte está viva, "calmada, no ansiosa" por construcción:
+- **Día-1 (tu condición):** el detector deriva el último corte OCURRIDO de `nextDueDate`/`paymentDay` y exige que sea posterior a `createdAt` — una deuda recién creada calla hasta su primer corte; cero dependencia de uso (unit + e2e contra BD real).
+- **Tu restricción §3, acatada al máximo:** `auto_detectable` **no existe en el código** (ni siquiera en el tipo `UpdateCadence`) — omitida por completo, reservada a una DEC futura. Toda cadencia aplica por nivel 2.
+- **Nivel 2 (§42):** la pregunta se propone ("¿Cambió el cupo? Estaba en $3.000.000"); confirmar aplica el campo existente de `Debt` + emite `DebtUpdated` (el Motor recomputa) + guarda `previousValue` (reversible); "no cambió" congela hasta el próximo corte (`DebtFieldReview`). Whitelist del descriptor (400 si el campo no está declarado).
+- **Calma:** la entrega proactiva siembra un `Insight` idempotente (dedupe por ventana de corte) que entrega tu `ProactivityJob` bajo el presupuesto real ≤1/día. Tasa fija jamás pregunta; `updatePolicy` vacía = silencio.
+- **Una nota de mecanismo para tu validación (IMP §3):** `debts.service.update` hace `prisma.debt.update` SIN emitir evento (preexistente) — usarlo a secas dejaría al Motor sin recomputar. Por eso la aplicación usa el patrón hoja ya sancionado (FIN-023/031): la misma escritura del campo dentro de una tx **+ `DebtUpdated` por outbox** (razón `update_review`, con `previous`/`next`). No modifiqué `debts.service.update` para no alterar a sus otros llamadores (cero regresiones).
+
+**Greps de cierre:** 0 toque de `transactions.service` (solo el comentario doc) · 0 IA (determinista) · 0 fórmula propia · 0 `auto_detectable`. **NO toca Registrar.**
+
+**Suites:** unit **374/374** (`update-review` 8/8) · e2e **16 suites / 70** (`fin036` 5/5) · `tsc` limpio (back+front) · migración `debt_field_reviews` aplicada · 2 capturas reales (la pregunta con No cambió/Sí cambió; el acuse de calma).
+
+**Bloqueos**
+Ninguno. Queda para ti la VALIDACIÓN (§36.3) e **integración** (§36.2). El frontend se suma al OTA agrupado pendiente del aviso del Fundador.
+
+MENSAJE PARA CTO
