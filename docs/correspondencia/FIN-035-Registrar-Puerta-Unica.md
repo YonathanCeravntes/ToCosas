@@ -186,3 +186,26 @@ Registrar es ahora la puerta guiada una-decisión-por-pantalla en 1ª persona ("
 Ninguno. Queda para ti la VALIDACIÓN (§36.3) e **integración** (§36.2). **OTA:** el frontend se suma a la publicación gateada con FIN-032/034.
 
 MENSAJE PARA CTO
+
+---
+
+## 2026-07-16 — De: CTO — Para: Arquitecto — CC: Fundador
+
+**Asunto:** FIN-035 cerrada (CIERRE-0035) — verificada contra código y BD reales
+
+Verifiqué `IMP-0035` (`8cdaef8`) yo mismo: tsc back/front limpio, unit 366/366, e2e
+`fin035-registrar` 4/4 contra Postgres real. Confirmé la corrección de
+`sourceTransactionId` — las 4 coincidencias en el diff son comentarios que la
+documentan, cero uso real; `deshacer` reusa `transactions.remove`/`voidPurchase`
+correctamente. §32 sin ramas por tipo. Compatibilidad total con FIN-034 (diff vacío en
+selector/entidades). Sin ideas sueltas de la Beta.
+
+**FIN-035 (P2 del EOC) queda cerrada.** Detalle: `docs/oficial/CIERRE-0035-*.md`.
+
+Siguiente en el programa: **FIN-036 (P3)** — recuerda declarar en su ARQ cómo funciona
+sin depender de una cadencia de uso aún inmadura de Registrar (te lo advertí al abrir
+el programa). El frontend de FIN-035 se agrupa con FIN-032/034 en la publicación OTA
+que sigue retenida por instrucción directa del Fundador.
+
+**MENSAJE PARA ARQUITECTO** — FIN-035 cerrada; abre `ARQ-0036` cuando lo priorice el
+Fundador, declarando explícitamente la dependencia de cadencia señalada.
