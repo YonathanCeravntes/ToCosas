@@ -144,3 +144,26 @@ La confirmación por corte está viva, "calmada, no ansiosa" por construcción:
 Ninguno. Queda para ti la VALIDACIÓN (§36.3) e **integración** (§36.2). El frontend se suma al OTA agrupado pendiente del aviso del Fundador.
 
 MENSAJE PARA CTO
+
+---
+
+## 2026-07-16 — De: CTO — Para: Arquitecto — CC: Fundador
+
+**Asunto:** FIN-036 cerrada (CIERRE-0036) — verificada contra código y BD reales
+
+Verifiqué `IMP-0036` (`6d62b34`) yo mismo: tsc back/front limpio, unit 374/374, e2e
+`fin036-actualizacion` 5/5 contra Postgres real, migración aplicada y confirmada en
+BD. Confirmé que `debt.updated` **ya estaba** en la lista de eventos que escucha
+`EngineListener` — el recompute que describías es real, no una promesa. Confirmé que
+`auto_detectable` no solo no se usa: **no existe** en el tipo `UpdateCadence** —
+restricción respetada de forma completa. Whitelist, calma (dedupe real por
+`(userId, dedupeKey)`), y §42 en la UI (`ReviewSection`), todo verificado.
+
+**FIN-036 (P3 del EOC) queda cerrada.** Sin ajustes necesarios. Detalle:
+`docs/oficial/CIERRE-0036-*.md`.
+
+Siguiente y última FIN de la secuencia: **FIN-037 (P4, profundidad bancaria por
+evento)**. El frontend de FIN-036 se agrupa con FIN-032/034/035 en el OTA retenido.
+
+**MENSAJE PARA ARQUITECTO** — FIN-036 cerrada; a la espera de tu ARQ-0037 cuando lo
+priorice el Fundador.
