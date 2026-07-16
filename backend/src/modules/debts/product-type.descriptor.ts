@@ -40,6 +40,24 @@ export interface ProductCapabilities {
   endorsableInsurance?: boolean;
 }
 
+// --- FIN-036 · Política de actualización por modalidad (config-sin-código) ---
+/**
+ * Cuándo se pregunta por un campo. `nunca` = calma (jamás se repregunta);
+ * `al_corte_si_variable` = solo si la deuda declaró tasa variable (condición
+ * determinista sobre `Debt.rateKind`, no heurística). Por DEC-0036 §3 NO existe
+ * una cadencia que escriba sin confirmación: toda cadencia aplica por nivel 2
+ * (propuesto → confirmado → reversible); auto-aplicar queda para una DEC futura.
+ */
+export type UpdateCadence = 'al_corte' | 'al_corte_si_variable' | 'anual' | 'una_vez' | 'nunca';
+
+export interface UpdatePolicyRule {
+  /** Campo EXISTENTE de `Debt` que la confirmación puede actualizar (§32). */
+  field: 'creditLimit' | 'interestRate' | 'monthlyPayment';
+  /** Cómo se nombra en la pregunta ("¿Cambió …?"). */
+  label: string;
+  cadence: UpdateCadence;
+}
+
 export interface ProductTypeDescriptor {
   debtType: string;
   label: string;
@@ -49,6 +67,8 @@ export interface ProductTypeDescriptor {
   capabilities: ProductCapabilities;
   requiredFields: FieldSpec[];
   optionalFields: FieldSpec[];
+  /** FIN-036: qué campos se revisan y con qué cadencia (vacío = nunca pregunta). */
+  updatePolicy: UpdatePolicyRule[];
 }
 
 // --- Campos reutilizables (para no repetir la spec en cada tipo) ---
@@ -74,67 +94,76 @@ const AMORTIZADO_REQ = [F.name, F.balance, F.plazo, F.tasa];
 const PACTADA_REQ = [F.name, F.balance, F.cuotaPactada];
 const CARD_REQ = [F.name, F.cupo];
 
+// FIN-036 · Reglas de actualización compartidas (agregar una regla = una fila).
+const R = {
+  cupoAlCorte: { field: 'creditLimit', label: 'el cupo total', cadence: 'al_corte' } as UpdatePolicyRule,
+  tasaSiVariable: { field: 'interestRate', label: 'la tasa', cadence: 'al_corte_si_variable' } as UpdatePolicyRule,
+  cuotaPactadaAlCorte: { field: 'monthlyPayment', label: 'la cuota pactada', cadence: 'al_corte' } as UpdatePolicyRule,
+};
+// Un contrato de tasa fija NO se repregunta (calma): updatePolicy vacío.
+const CARD_POLICY = [R.cupoAlCorte, R.tasaSiVariable];
+
 export const PRODUCT_TYPE_DESCRIPTORS: Record<string, ProductTypeDescriptor> = {
   tarjeta_credito: {
     debtType: 'tarjeta_credito', label: 'Tarjeta de crédito', scheduleModel: 'cuotas_por_compra',
     rate: 'fija', paymentSource: 'cuenta', capabilities: { creditLimit: true, installmentPurchases: true },
-    requiredFields: CARD_REQ, optionalFields: [F.tasa, F.diaPago],
+    requiredFields: CARD_REQ, updatePolicy: CARD_POLICY, optionalFields: [F.tasa, F.diaPago],
   },
   fintech: {
     debtType: 'fintech', label: 'Tarjeta/cupo fintech (Nu, RappiCard…)', scheduleModel: 'cuotas_por_compra',
     rate: 'fija', paymentSource: 'cuenta', capabilities: { creditLimit: true, installmentPurchases: true },
-    requiredFields: CARD_REQ, optionalFields: [F.tasa, F.diaPago],
+    requiredFields: CARD_REQ, updatePolicy: CARD_POLICY, optionalFields: [F.tasa, F.diaPago],
   },
   compra_a_cuotas: {
     debtType: 'compra_a_cuotas', label: 'Compra a cuotas (Addi, Sistecrédito…)', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'cuenta', capabilities: {},
-    requiredFields: [F.name, F.monto, F.cuotasN, F.tasaOpcional], optionalFields: [F.diaPago],
+    requiredFields: [F.name, F.monto, F.cuotasN, F.tasaOpcional], updatePolicy: [], optionalFields: [F.diaPago],
   },
   credito_personal: {
     debtType: 'credito_personal', label: 'Crédito personal', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'cuenta', capabilities: {},
-    requiredFields: AMORTIZADO_REQ, optionalFields: [F.diaPago],
+    requiredFields: AMORTIZADO_REQ, updatePolicy: [], optionalFields: [F.diaPago],
   },
   libre_inversion: {
     debtType: 'libre_inversion', label: 'Libre inversión', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'cuenta', capabilities: {},
-    requiredFields: AMORTIZADO_REQ, optionalFields: [F.diaPago],
+    requiredFields: AMORTIZADO_REQ, updatePolicy: [], optionalFields: [F.diaPago],
   },
   libranza: {
     debtType: 'libranza', label: 'Libranza (descuento de nómina)', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'nomina', capabilities: {},
-    requiredFields: AMORTIZADO_REQ, optionalFields: [F.diaPago],
+    requiredFields: AMORTIZADO_REQ, updatePolicy: [], optionalFields: [F.diaPago],
   },
   hipotecario: {
     debtType: 'hipotecario', label: 'Hipoteca', scheduleModel: 'amortizado',
     rate: 'fija_o_variable', paymentSource: 'cuenta', capabilities: { endorsableInsurance: true },
-    requiredFields: AMORTIZADO_REQ, optionalFields: [F.tasaKind, F.diaPago],
+    requiredFields: AMORTIZADO_REQ, updatePolicy: [R.tasaSiVariable], optionalFields: [F.tasaKind, F.diaPago],
   },
   vehiculo: {
     debtType: 'vehiculo', label: 'Crédito de vehículo', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'cuenta', capabilities: { endorsableInsurance: true },
-    requiredFields: AMORTIZADO_REQ, optionalFields: [F.diaPago],
+    requiredFields: AMORTIZADO_REQ, updatePolicy: [], optionalFields: [F.diaPago],
   },
   educativo: {
     debtType: 'educativo', label: 'Crédito educativo', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'cuenta', capabilities: {},
-    requiredFields: AMORTIZADO_REQ, optionalFields: [F.diaPago],
+    requiredFields: AMORTIZADO_REQ, updatePolicy: [], optionalFields: [F.diaPago],
   },
   gota_a_gota: {
     debtType: 'gota_a_gota', label: 'Gota a gota', scheduleModel: 'saldo_y_cuota_pactada',
     rate: 'opcional', paymentSource: 'informal', capabilities: {},
-    requiredFields: PACTADA_REQ, optionalFields: [F.tasaOpcional],
+    requiredFields: PACTADA_REQ, updatePolicy: [R.cuotaPactadaAlCorte], optionalFields: [F.tasaOpcional],
   },
   prestamo_familiar: {
     debtType: 'prestamo_familiar', label: 'Préstamo familiar / entre personas', scheduleModel: 'saldo_y_cuota_pactada',
     rate: 'opcional', paymentSource: 'informal', capabilities: {},
-    requiredFields: PACTADA_REQ, optionalFields: [F.tasaOpcional],
+    requiredFields: PACTADA_REQ, updatePolicy: [R.cuotaPactadaAlCorte], optionalFields: [F.tasaOpcional],
   },
   // Comodín (guardarraíl F): un producto no catalogado usa el descriptor por defecto.
   otro: {
     debtType: 'otro', label: 'Otro', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'cuenta', capabilities: {},
-    requiredFields: [F.name, F.balance, F.plazo], optionalFields: [F.tasa, F.diaPago],
+    requiredFields: [F.name, F.balance, F.plazo], updatePolicy: [], optionalFields: [F.tasa, F.diaPago],
   },
 };
 

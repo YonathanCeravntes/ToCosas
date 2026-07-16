@@ -79,6 +79,9 @@ export function DebtDetailScreen({ route }: Props) {
       {/* FIN-031/032: productos con cupo (tarjeta/fintech) — compras a cuotas. */}
       {hasCard ? <CardSection debtId={debtId} onChanged={() => void reload()} /> : null}
 
+      {/* FIN-036: confirmación de actualización por corte (nivel 2, §42). */}
+      <ReviewSection debtId={debtId} onChanged={() => void reload()} />
+
       {/* FIN-024 P2: bloque de conciliación — solo si la cuota está vencida.
           Afirma lo OBSERVABLE ("no está registrada"), nunca el impago (§29.2). */}
       {data.overdueDays ? <OverdueBlock days={data.overdueDays} /> : null}
@@ -341,6 +344,91 @@ function CardSection({ debtId, onChanged }: { debtId: string; onChanged: () => v
       ) : (
         <Button title="➕ Registrar una compra" variant="secondary" onPress={() => setOpen(true)} />
       )}
+    </Card>
+  );
+}
+
+/** FIN-036 · Confirmación de actualización por corte (nivel 2, §42): la pregunta
+ *  se PROPONE ("¿Cambió el cupo? Estaba en $X"), el usuario confirma o descarta —
+ *  nunca un cambio silencioso. "No cambió" congela hasta el próximo corte (calma). */
+function ReviewSection({ debtId, onChanged }: { debtId: string; onChanged: () => void }) {
+  const { data, reload } = useApi(() => debtsApi.pendingReviews(), [debtId]);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [newValue, setNewValue] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [ack, setAck] = useState<string | null>(null);
+
+  const mine = (data ?? []).filter((r) => r.debtId === debtId);
+  if (mine.length === 0 && !ack) return null;
+
+  const answer = async (field: string, changed: boolean) => {
+    const value = changed ? parseFloat(newValue.replace(/[^\d.]/g, '')) : undefined;
+    if (changed && !value) return;
+    setBusy(true);
+    try {
+      const r = await debtsApi.answerReview(debtId, field, { changed, newValue: value });
+      setAck(r.acknowledgment);
+      setEditing(null);
+      setNewValue('');
+      void reload();
+      // Solo un CAMBIO confirmado recarga el detalle (el nuevo valor debe verse).
+      // "No cambió" no recarga nada: así el acuse de calma queda visible (§42).
+      if (changed) onChanged();
+    } catch {
+      /* la pregunta sigue visible; sin cambio silencioso */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
+      <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>🔎 Una confirmación rápida</Text>
+      {ack ? (
+        <Text style={{ color: colors.textMuted, marginTop: 6, fontSize: 13 }}>{ack}</Text>
+      ) : null}
+      {mine.map((r) => (
+        <View key={r.field} style={{ marginTop: spacing.sm }}>
+          <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>
+            ¿Cambió {r.label}?
+            {r.currentValue != null ? ` Estaba en ${formatMoney(r.currentValue)}.` : ''}
+          </Text>
+          {editing === r.field ? (
+            <View style={{ marginTop: spacing.sm }}>
+              <Field
+                label={`Nuevo valor de ${r.label}`}
+                value={newValue}
+                onChangeText={setNewValue}
+                keyboardType="numeric"
+                placeholder={r.currentValue != null ? String(r.currentValue) : ''}
+              />
+              <Button title="Confirmar el cambio" onPress={() => void answer(r.field, true)} loading={busy} />
+            </View>
+          ) : (
+            <Row style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+              <Pressable
+                onPress={() => void answer(r.field, false)}
+                disabled={busy}
+                style={{ flex: 1, padding: spacing.sm, borderRadius: radius.md, alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+              >
+                <Text style={{ color: colors.text, fontSize: 13 }}>No cambió</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setEditing(r.field)}
+                disabled={busy}
+                style={{ flex: 1, padding: spacing.sm, borderRadius: radius.md, alignItems: 'center', backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primary }}
+              >
+                <Text style={{ color: colors.textInverse, fontSize: 13 }}>Sí, cambió</Text>
+              </Pressable>
+            </Row>
+          )}
+        </View>
+      ))}
+      {mine.length === 0 && ack ? (
+        <Text style={{ color: colors.textMuted, marginTop: 6, fontSize: 12 }}>
+          No te lo vuelvo a preguntar hasta el próximo corte.
+        </Text>
+      ) : null}
     </Card>
   );
 }

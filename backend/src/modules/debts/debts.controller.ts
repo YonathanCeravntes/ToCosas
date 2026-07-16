@@ -15,7 +15,8 @@ import { DebtsService } from './debts.service';
 import { DebtInsuranceService } from './debt-insurance.service';
 import { DebtPrepaymentService } from './debt-prepayment.service';
 import { CardService } from './card.service';
-import { CreateCardPurchaseDto, CreateDebtDto, PrepayDto, SimulateExtraDto, UpdateDebtDto } from './dto/debt.dto';
+import { UpdateReviewService } from './update-review.service';
+import { AnswerReviewDto, CreateCardPurchaseDto, CreateDebtDto, PrepayDto, SimulateExtraDto, UpdateDebtDto } from './dto/debt.dto';
 import {
   CreateDebtInsuranceDto,
   UpdateDebtInsuranceDto,
@@ -31,6 +32,7 @@ export class DebtsController {
     private readonly insurance: DebtInsuranceService,
     private readonly prepayment: DebtPrepaymentService,
     private readonly cards: CardService,
+    private readonly reviews: UpdateReviewService,
   ) {}
 
   @Get('summary')
@@ -42,6 +44,23 @@ export class DebtsController {
   @Get('catalog')
   catalog() {
     return this.debts.catalog();
+  }
+
+  // --- FIN-036 · Confirmación de actualización por corte (antes de ':id') ---
+
+  @Get('reviews')
+  pendingReviews(@CurrentUser() user: AuthUser) {
+    return this.reviews.pendingReviews(user.id);
+  }
+
+  @Post(':id/reviews/:field')
+  answerReview(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('field') field: string,
+    @Body() dto: AnswerReviewDto,
+  ) {
+    return this.reviews.answer(user.id, id, field, dto);
   }
 
   // --- FIN-031 · Tarjeta de crédito: cupo y compras a cuotas (antes de ':id') ---

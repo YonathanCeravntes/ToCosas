@@ -179,6 +179,20 @@ export class CreateCardPurchaseDto {
   note?: string;
 }
 
+/** FIN-036 · Respuesta a una confirmación de actualización (nivel 2, §42). */
+export class AnswerReviewDto {
+  @ApiProperty({ example: true, description: 'true = el valor cambió; false = sigue igual' })
+  @IsBoolean()
+  changed!: boolean;
+
+  @ApiPropertyOptional({ example: 3500000, description: 'El nuevo valor (solo si cambió)' })
+  @IsOptional()
+  @NormalizeNumber()
+  @IsNumber()
+  @IsPositive()
+  newValue?: number;
+}
+
 export class SimulateExtraDto {
   @ApiProperty({ example: 100000 })
   @NormalizeNumber()

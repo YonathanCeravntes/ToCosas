@@ -112,6 +112,16 @@ export interface FinancialEntity {
   suggestedDebtType?: DebtType | null;
 }
 
+// --- FIN-036: confirmación de actualización por corte (nivel 2, §42) ---
+export interface PendingReview {
+  debtId: string;
+  debtName: string;
+  field: 'creditLimit' | 'interestRate' | 'monthlyPayment';
+  label: string;
+  currentValue: number | null;
+  cutDate: string;
+}
+
 // --- FIN-031: tarjeta de crédito (cupo + compras a cuotas) ---
 export interface CardSummary {
   creditLimit: number | null;

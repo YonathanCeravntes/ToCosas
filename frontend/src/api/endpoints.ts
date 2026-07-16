@@ -14,6 +14,7 @@ import {
   CardSummary,
   Debt,
   FinancialEntity,
+  PendingReview,
   ProductTypeDescriptor,
   DebtInsurance,
   DebtsSummary,
@@ -82,6 +83,13 @@ export const debtsApi = {
     api.patch<DebtInsurance>(`/debts/insurances/${insuranceId}`, input),
   removeInsurance: (insuranceId: string) =>
     api.delete<{ deleted: boolean }>(`/debts/insurances/${insuranceId}`),
+  // FIN-036: confirmación de actualización por corte (nivel 2, §42).
+  pendingReviews: () => api.get<PendingReview[]>('/debts/reviews'),
+  answerReview: (debtId: string, field: string, input: { changed: boolean; newValue?: number }) =>
+    api.post<{ reviewed: boolean; changed: boolean; acknowledgment: string }>(
+      `/debts/${debtId}/reviews/${field}`,
+      input,
+    ),
   // FIN-031: tarjeta de crédito — cupo y compras a cuotas.
   cardSummary: (debtId: string) => api.get<CardSummary>(`/debts/cards/${debtId}`),
   registerPurchase: (debtId: string, input: { amount: number; installments: number; withInterest?: boolean; note?: string }) =>

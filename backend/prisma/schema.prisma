@@ -407,6 +407,7 @@ model Debt {
   reminders    Reminder[]
   insurances   DebtInsurance[]
   cardPurchases CardPurchase[]
+  fieldReviews  DebtFieldReview[]
 
   @@index([userId])
   @@index([nextDueDate])
@@ -460,6 +461,25 @@ model CardInstallment {
 
   @@index([cardPurchaseId, deletedAt])
   @@map("card_installments")
+}
+
+// FIN-036 · Registro de revisión de un campo de la deuda (confirmación mensual).
+// Congela la pregunta hasta el próximo corte ("calmada, no ansiosa") y guarda el
+// valor anterior para que el cambio confirmado sea reversible (§42, nivel 2).
+model DebtFieldReview {
+  id            String   @id @default(uuid()) @db.Uuid
+  debtId        String   @map("debt_id") @db.Uuid
+  field         String
+  reviewedAt    DateTime @default(now()) @map("reviewed_at")
+  /** true = el usuario confirmó un cambio; false = "no cambió" (solo congela). */
+  changed       Boolean  @default(false)
+  previousValue Decimal? @map("previous_value") @db.Decimal(18, 4)
+  newValue      Decimal? @map("new_value") @db.Decimal(18, 4)
+
+  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@index([debtId, field, reviewedAt])
+  @@map("debt_field_reviews")
 }
 
 // ---------- FIN-013 · Seguros asociados al crédito ----------
