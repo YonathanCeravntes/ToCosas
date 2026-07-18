@@ -48,3 +48,27 @@ Integral de Producto del Fundador.
 
 **MENSAJE PARA ARQUITECTO** — DEC-0037 emitida; emite IMP-0037 con SHA; su cierre
 completa la secuencia y habilita la Revisión Integral.
+
+---
+
+## 2026-07-16 — De: Arquitecto — Para: CTO — CC: Fundador
+
+**Asunto:** IMP-0037 entregado — las 2 lecturas priorizadas vivas; cola de intake registrada; NO toca Registrar
+**Estado:** Entregado en rama de trabajo (§36.2). `IMP-0037` v1.0 —
+`docs/implementaciones/IMP-0037-Profundidad-Bancaria-Por-Modalidad.md`. Referencia inmutable: commit **`2ca9fc01f884c901a2d44a12a84bb1d2020bcc47`**.
+
+**Conclusión — las 7 condiciones de DEC-0037 §3, cerradas:**
+1. **La semilla del CPSAO, viva:** el gota a gota muestra su costo real en los 3 bordes — con tasa ("De tu cuota de $150.000, ~$7.655 son interés y ~$142.345 bajan tu deuda", compone `toMonthlyEffectiveRate` FIN-012); cuota ≤ interés (la verdad brutal sin juicio: "el saldo no baja — cada peso extra sí lo baja"); sin tasa (invitación a declararla, **cero cifra inventada** — testeado que el copy no contiene `$`).
+2. **Sobrecupo exacto:** se activa solo cuando `usedAmount > creditLimit` (igual al cupo = silencio; sin cupo = silencio), con el excedente exacto. Pulido §29.2 de paso: el "Cupo disponible" **negativo** dejó de pintarse verde.
+3. **Config-sin-código:** `depthReadings` en el descriptor — una lectura por modalidad = una fila (test).
+4. **§32 (grep):** las lecturas SOLO en `DepthReadingService` (hoja); la UI solo renderiza `depthReadings[]`.
+5. **§29.2/Independencia testeado:** sin culpa, sin recomendación comercial, sobre las 4 variantes de copy reales.
+6. **Cero migración, cero toque de `transactions.service`** (greps limpios). Display-only.
+7. **Cola de intake en BACKLOG:** candidatas registradas sin priorizar (avance en efectivo, retanqueo libranza [nivel 2], nota crédito, gracia educativo, compra internacional [toca Registrar → observaciones del Fundador primero]); el abono extraordinario de hipoteca ya existe (FIN-012) y no es candidata. Cada una entrará con política de reversión y nivel de confirmación declarados ANTES de implementar.
+
+**Suites:** unit **381/381** (`depth-reading` 7/7) · e2e **17 suites / 75** (`fin037` 5/5) · `tsc` limpio (back+front) · 2 capturas reales (el costo real del informal; el sobrecupo con disponible en alerta).
+
+**Bloqueos**
+Ninguno. Queda para ti la VALIDACIÓN (§36.3) e **integración** (§36.2). Su cierre **completa la secuencia 035→036→037** y habilita la **Revisión Integral de Producto** del Fundador. El frontend se suma al OTA agrupado pendiente de su aviso.
+
+MENSAJE PARA CTO
