@@ -82,6 +82,20 @@ export function DebtDetailScreen({ route }: Props) {
       {/* FIN-036: confirmación de actualización por corte (nivel 2, §42). */}
       <ReviewSection debtId={debtId} onChanged={() => void reload()} />
 
+      {/* FIN-037: lecturas de profundidad — derivadas por la única autoridad del
+          backend; aquí SOLO se renderizan (§32). Informan sin culpar (§29.2). */}
+      {(data.depthReadings ?? []).map((r) => (
+        <Card
+          key={r.kind}
+          style={r.severity === 'warning' ? { borderColor: colors.warning, borderWidth: 2 } : undefined}
+        >
+          <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
+            {r.severity === 'warning' ? '⚠️' : '💡'} {r.title}
+          </Text>
+          <Text style={{ color: colors.text, marginTop: 6, fontSize: 13, lineHeight: 19 }}>{r.body}</Text>
+        </Card>
+      ))}
+
       {/* FIN-024 P2: bloque de conciliación — solo si la cuota está vencida.
           Afirma lo OBSERVABLE ("no está registrada"), nunca el impago (§29.2). */}
       {data.overdueDays ? <OverdueBlock days={data.overdueDays} /> : null}
@@ -272,7 +286,10 @@ function CardSection({ debtId, onChanged }: { debtId: string; onChanged: () => v
         <>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text style={{ color: colors.textMuted }}>Cupo disponible</Text>
-            <Text style={{ fontWeight: '800', color: colors.success }}>{formatMoney(data.availableCredit ?? 0)}</Text>
+            {/* FIN-037: en sobrecupo el disponible es negativo — verde mentiría (§29.2). */}
+            <Text style={{ fontWeight: '800', color: (data.availableCredit ?? 0) < 0 ? colors.warning : colors.success }}>
+              {formatMoney(data.availableCredit ?? 0)}
+            </Text>
           </Row>
           <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
             <Text style={{ color: colors.textMuted }}>Utilizado</Text>

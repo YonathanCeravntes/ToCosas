@@ -11,6 +11,7 @@ import { DebtOutlayModule } from './debt-outlay.module';
 import { DebtPrepaymentService } from './debt-prepayment.service';
 import { CardService } from './card.service';
 import { UpdateReviewService } from './update-review.service';
+import { DepthReadingService } from './depth-reading.service';
 
 @Module({
   // SimulationsModule: el summary expone el orden de ataque DEL MOTOR (FIN-022,
@@ -20,7 +21,7 @@ import { UpdateReviewService } from './update-review.service';
   // gobiernan el ProactivityJob/presupuesto anti-fatiga existentes).
   imports: [FinanceModule, AuthModule, RemindersModule, SimulationsModule, DebtOutlayModule, InsightsModule],
   controllers: [DebtsController],
-  providers: [DebtsService, DebtInsuranceService, DebtPrepaymentService, CardService, UpdateReviewService],
+  providers: [DebtsService, DebtInsuranceService, DebtPrepaymentService, CardService, UpdateReviewService, DepthReadingService],
   exports: [DebtsService],
 })
 export class DebtsModule {}

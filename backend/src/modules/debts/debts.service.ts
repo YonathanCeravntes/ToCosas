@@ -14,6 +14,7 @@ import { overdueDays } from './overdue.util';
 import { DebtInsuranceService } from './debt-insurance.service';
 import { CreateDebtDto, UpdateDebtDto } from './dto/debt.dto';
 import { descriptorFor, productCatalog, scheduleModelFor } from './product-type.descriptor';
+import { DepthReadingService } from './depth-reading.service';
 
 @Injectable()
 export class DebtsService {
@@ -25,6 +26,7 @@ export class DebtsService {
     private readonly insurance: DebtInsuranceService,
     private readonly simulations: SimulationsService,
     private readonly debtOutlay: DebtOutlayService,
+    private readonly depthReadings: DepthReadingService,
   ) {}
 
   async create(userId: string, dto: CreateDebtDto) {
@@ -146,6 +148,8 @@ export class DebtsService {
       // FIN-032: el frontend decide qué secciones muestra por MODELO, no por tipo.
       scheduleModel: descriptor.scheduleModel,
       capabilities: descriptor.capabilities,
+      // FIN-037: lecturas de profundidad (única autoridad; la UI solo renderiza).
+      depthReadings: await this.depthReadings.forDebt(userId, debt),
       // FIN-024 P2: para el bloque de conciliación del detalle.
       overdueDays: overdueDays(debt.nextDueDate),
       projection: this.projectionFromEntries(debt.amortization),

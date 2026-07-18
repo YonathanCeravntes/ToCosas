@@ -95,6 +95,8 @@ export interface Debt {
   // qué secciones muestra por MODELO, no por tipo.
   scheduleModel?: ScheduleModel;
   capabilities?: ProductCapabilities;
+  // FIN-037: lecturas de profundidad (la UI solo renderiza — §32).
+  depthReadings?: DepthReading[];
 }
 
 // --- FIN-034: motor de entidades (catálogo global + búsqueda) ---
@@ -110,6 +112,14 @@ export interface FinancialEntity {
   isGlobal: boolean;
   /** FIN-034: tipo de deuda sugerido (pista editable, nunca imposición). */
   suggestedDebtType?: DebtType | null;
+}
+
+// --- FIN-037: lecturas de profundidad (display-only, única autoridad backend) ---
+export interface DepthReading {
+  kind: 'costo_real_informal' | 'sobrecupo';
+  severity: 'info' | 'warning';
+  title: string;
+  body: string;
 }
 
 // --- FIN-036: confirmación de actualización por corte (nivel 2, §42) ---

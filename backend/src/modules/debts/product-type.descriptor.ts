@@ -58,6 +58,17 @@ export interface UpdatePolicyRule {
   cadence: UpdateCadence;
 }
 
+// --- FIN-037 · Lecturas de profundidad por modalidad (config-sin-código) ---
+/**
+ * Una LECTURA es un derivado honesto sobre datos ya registrados (display-only,
+ * sin mutación). Se computa SOLO en `DepthReadingService` (única autoridad §32,
+ * composición de funciones puras existentes). Agregar una lectura a una modalidad
+ * = una fila aquí. Los EVENTOS mutadores (avance/retanqueo/nota crédito/gracia)
+ * NO viven aquí: entran por la cola de intake Beta-guiada (DEC-0037 §4), cada uno
+ * con su mini-ciclo, política de reversión y nivel de confirmación declarados.
+ */
+export type DepthReadingKind = 'costo_real_informal' | 'sobrecupo';
+
 export interface ProductTypeDescriptor {
   debtType: string;
   label: string;
@@ -69,6 +80,8 @@ export interface ProductTypeDescriptor {
   optionalFields: FieldSpec[];
   /** FIN-036: qué campos se revisan y con qué cadencia (vacío = nunca pregunta). */
   updatePolicy: UpdatePolicyRule[];
+  /** FIN-037: qué lecturas de profundidad aplican (vacío = ninguna). */
+  depthReadings: DepthReadingKind[];
 }
 
 // --- Campos reutilizables (para no repetir la spec en cada tipo) ---
@@ -107,63 +120,63 @@ export const PRODUCT_TYPE_DESCRIPTORS: Record<string, ProductTypeDescriptor> = {
   tarjeta_credito: {
     debtType: 'tarjeta_credito', label: 'Tarjeta de crédito', scheduleModel: 'cuotas_por_compra',
     rate: 'fija', paymentSource: 'cuenta', capabilities: { creditLimit: true, installmentPurchases: true },
-    requiredFields: CARD_REQ, updatePolicy: CARD_POLICY, optionalFields: [F.tasa, F.diaPago],
+    requiredFields: CARD_REQ, updatePolicy: CARD_POLICY, depthReadings: ['sobrecupo'], optionalFields: [F.tasa, F.diaPago],
   },
   fintech: {
     debtType: 'fintech', label: 'Tarjeta/cupo fintech (Nu, RappiCard…)', scheduleModel: 'cuotas_por_compra',
     rate: 'fija', paymentSource: 'cuenta', capabilities: { creditLimit: true, installmentPurchases: true },
-    requiredFields: CARD_REQ, updatePolicy: CARD_POLICY, optionalFields: [F.tasa, F.diaPago],
+    requiredFields: CARD_REQ, updatePolicy: CARD_POLICY, depthReadings: ['sobrecupo'], optionalFields: [F.tasa, F.diaPago],
   },
   compra_a_cuotas: {
     debtType: 'compra_a_cuotas', label: 'Compra a cuotas (Addi, Sistecrédito…)', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'cuenta', capabilities: {},
-    requiredFields: [F.name, F.monto, F.cuotasN, F.tasaOpcional], updatePolicy: [], optionalFields: [F.diaPago],
+    requiredFields: [F.name, F.monto, F.cuotasN, F.tasaOpcional], updatePolicy: [], depthReadings: [], optionalFields: [F.diaPago],
   },
   credito_personal: {
     debtType: 'credito_personal', label: 'Crédito personal', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'cuenta', capabilities: {},
-    requiredFields: AMORTIZADO_REQ, updatePolicy: [], optionalFields: [F.diaPago],
+    requiredFields: AMORTIZADO_REQ, updatePolicy: [], depthReadings: [], optionalFields: [F.diaPago],
   },
   libre_inversion: {
     debtType: 'libre_inversion', label: 'Libre inversión', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'cuenta', capabilities: {},
-    requiredFields: AMORTIZADO_REQ, updatePolicy: [], optionalFields: [F.diaPago],
+    requiredFields: AMORTIZADO_REQ, updatePolicy: [], depthReadings: [], optionalFields: [F.diaPago],
   },
   libranza: {
     debtType: 'libranza', label: 'Libranza (descuento de nómina)', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'nomina', capabilities: {},
-    requiredFields: AMORTIZADO_REQ, updatePolicy: [], optionalFields: [F.diaPago],
+    requiredFields: AMORTIZADO_REQ, updatePolicy: [], depthReadings: [], optionalFields: [F.diaPago],
   },
   hipotecario: {
     debtType: 'hipotecario', label: 'Hipoteca', scheduleModel: 'amortizado',
     rate: 'fija_o_variable', paymentSource: 'cuenta', capabilities: { endorsableInsurance: true },
-    requiredFields: AMORTIZADO_REQ, updatePolicy: [R.tasaSiVariable], optionalFields: [F.tasaKind, F.diaPago],
+    requiredFields: AMORTIZADO_REQ, updatePolicy: [R.tasaSiVariable], depthReadings: [], optionalFields: [F.tasaKind, F.diaPago],
   },
   vehiculo: {
     debtType: 'vehiculo', label: 'Crédito de vehículo', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'cuenta', capabilities: { endorsableInsurance: true },
-    requiredFields: AMORTIZADO_REQ, updatePolicy: [], optionalFields: [F.diaPago],
+    requiredFields: AMORTIZADO_REQ, updatePolicy: [], depthReadings: [], optionalFields: [F.diaPago],
   },
   educativo: {
     debtType: 'educativo', label: 'Crédito educativo', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'cuenta', capabilities: {},
-    requiredFields: AMORTIZADO_REQ, updatePolicy: [], optionalFields: [F.diaPago],
+    requiredFields: AMORTIZADO_REQ, updatePolicy: [], depthReadings: [], optionalFields: [F.diaPago],
   },
   gota_a_gota: {
     debtType: 'gota_a_gota', label: 'Gota a gota', scheduleModel: 'saldo_y_cuota_pactada',
     rate: 'opcional', paymentSource: 'informal', capabilities: {},
-    requiredFields: PACTADA_REQ, updatePolicy: [R.cuotaPactadaAlCorte], optionalFields: [F.tasaOpcional],
+    requiredFields: PACTADA_REQ, updatePolicy: [R.cuotaPactadaAlCorte], depthReadings: ['costo_real_informal'], optionalFields: [F.tasaOpcional],
   },
   prestamo_familiar: {
     debtType: 'prestamo_familiar', label: 'Préstamo familiar / entre personas', scheduleModel: 'saldo_y_cuota_pactada',
     rate: 'opcional', paymentSource: 'informal', capabilities: {},
-    requiredFields: PACTADA_REQ, updatePolicy: [R.cuotaPactadaAlCorte], optionalFields: [F.tasaOpcional],
+    requiredFields: PACTADA_REQ, updatePolicy: [R.cuotaPactadaAlCorte], depthReadings: ['costo_real_informal'], optionalFields: [F.tasaOpcional],
   },
   // Comodín (guardarraíl F): un producto no catalogado usa el descriptor por defecto.
   otro: {
     debtType: 'otro', label: 'Otro', scheduleModel: 'amortizado',
     rate: 'fija', paymentSource: 'cuenta', capabilities: {},
-    requiredFields: [F.name, F.balance, F.plazo], updatePolicy: [], optionalFields: [F.tasa, F.diaPago],
+    requiredFields: [F.name, F.balance, F.plazo], updatePolicy: [], depthReadings: [], optionalFields: [F.tasa, F.diaPago],
   },
 };
 
