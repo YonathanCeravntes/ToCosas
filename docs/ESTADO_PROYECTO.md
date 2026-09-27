@@ -27,8 +27,8 @@ v3.21 (`docs/GOBERNANZA.md`) — §44 equipo de dos (`DEC-ORG-002`). Controles s
 
 ## Beta técnica (estado de despliegue)
 - **APK instalada:** Android, Expo SDK 54 / RN 0.81, `runtimeVersion` 0.1.0, canal `preview` (`scripts/deploy/apk-baseline.json` es la fuente de verdad; se actualiza SOLO al construir una APK nueva).
-- **OTA vigente en `preview`:** `f166ac42` (FIN-027/028 + BT-001/003). **La entrega 2026-09-27 aún NO está publicada por OTA** (requiere el EAS login del Fundador).
-- **Backend:** Render free `milla-backend` + Neon. Último despliegue conocido: FIN-037. La rama actual incluye migración nueva (`fin039`).
+- **OTA vigente en `preview`:** `03d425e3` (entrega 2026-09-27: SPRINT-PULIDO-001 + MANT-001 + FIN-038 + FIN-039), publicada por el Fundador desde su PC con `npm run ota:publish` (preflight con baseline OK, centinela "Android de Yonathan"). Anterior: `f166ac42` (FIN-027/028 + BT-001/003).
+- **Backend:** Render free `milla-backend` + Neon. Desplegado `2ce4747` (Deploy live, migración `fin039` aplicada en `startCommand`). Variables `SMTP_URL` y `MAIL_FROM` configuradas por el Fundador (Gmail App Password); `WHATSAPP_DISPLAY_NUMBER` no configurada (sin número de bot aún).
 - **Incidente de proceso 2026-09-26:** intento de subir a Expo SDK 57 revertido (`362d279`); motivó el baseline de APK en el preflight.
 
 ## Definición vigente de "Te queda" (§32)
@@ -39,7 +39,7 @@ Base de ingreso = `max(take-home del ingreso fijo declarado + variable estimado,
 
 ## Riesgos abiertos / gates de producción pendientes
 - **Gates legales/negocio (FIN-010):** DPA con Anthropic, PIA (Ley 1581), validación legal del Score para público, política de tiendas/IAP, precio Millo+ (banda sugerida USD 20–30/año, `COMPETITIVE_ANALYSIS.md` §4). Responsable: Fundador.
-- **SMTP no configurado:** recuperar contraseña por correo no funciona hasta que el Fundador pegue `SMTP_URL` en Render (FIN-039 §8).
+- **SMTP (Gmail App Password) configurado el 2026-09-27**, entrega real de correo pendiente de validación en dispositivo. Recomendación: rotar la contraseña de aplicación después de validar, porque circuló por chat/captura durante la configuración.
 - **Deriva de migraciones (M11):** migraciones anteriores hechas a mano difieren del `schema.prisma` en defaults de `id` (`gen_random_uuid()`) y `ON UPDATE` de FKs. Funcional, pero `prisma migrate dev` propondrá cambios ajenos en cada FIN futura. Decidir: alinear con una migración de solo-esquema en una ventana de mantenimiento.
 - **Onboarding para cuentas Beta antiguas:** lo verán una vez (saltable). Si molesta: `UPDATE users SET onboarding_done = true WHERE created_at < '2026-09-27'` (FIN-038 §16.2).
 - **`wealthPillar()` binario** (desde DEC-0004): sin cambios.
@@ -48,16 +48,16 @@ Base de ingreso = `max(take-home del ingreso fijo declarado + variable estimado,
 - **Nombre oficial Milla vs Millo:** `PRODUCT_VISION.md` dice Milla; app, código y gobernanza reciente dicen Millo. Decisión del Fundador pendiente (D2).
 
 ## Decisiones del Fundador pendientes
-1. Proveedor SMTP y remitente (`MAIL_FROM`).
+1. ~~Proveedor SMTP y remitente~~ → resuelto 2026-09-27: Gmail App Password, `MAIL_FROM = Millo <yonathancrc@gmail.com>`.
 2. Plazo de purga física tras borrar cuenta (propuesta 30 días).
 3. Nombre oficial del producto en `PRODUCT_VISION.md`.
 4. Siguiente FIN del Blueprint (ver candidatas).
 
 ## Bloqueos abiertos
-Ninguno para el Arquitecto. La validación en dispositivo y la publicación OTA solo las puede hacer el Fundador (EAS login, APK).
+Ninguno para el Arquitecto. Backend desplegado y OTA `03d425e3` publicada; falta la validación del Fundador en dispositivo (Parte D/E de `GUIA-FUNDADOR-DESPLIEGUE.md`).
 
 ## Próxima acción esperada
-1. **Fundador:** desplegar backend, publicar OTA, validar la lista de §"Trabajo activo", configurar SMTP, y decidir los 4 puntos anteriores.
+1. **Fundador:** validar la lista de §"Trabajo activo" en la APK con la OTA `03d425e3`, y decidir los puntos 2–4 anteriores.
 2. **Arquitecto:** corregir lo que la validación devuelva (autoridad correctiva §44.1) y, con la decisión del Fundador, abrir la siguiente FIN.
 
 ## Documentos de referencia rápida

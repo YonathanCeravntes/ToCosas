@@ -1,6 +1,10 @@
 # Guía del Fundador — cómo llevar una entrega a tu celular (Windows, sin conocimientos técnicos)
 
-- **Versión:** 1.0 · **Fecha:** 2026-09-27 · **Autor:** Arquitecto
+- **Versión:** 1.1 · **Fecha:** 2026-09-27 · **Autor:** Arquitecto
+- **Ejecutada por primera vez el 2026-09-27:** Partes A, B y C completadas por el Fundador
+  (OTA `03d425e3`). Lo aprendido quedó incorporado: la carpeta real es
+  `C:\Users\yonat\ToCosas`, `npm install` requiere borrar antes `node_modules` si venía
+  de otro SDK, y `eas-cli login` abre el navegador (no pide clave en la ventana negra).
 - **Para qué sirve:** cada vez que el Arquitecto te diga "entrega lista", estos son los
   únicos pasos que dependen de ti. Son los mismos siempre. Si algo falla, copia TODO el
   texto de la ventana negra y pégamelo: yo lo arreglo.
@@ -55,7 +59,7 @@ línea a la vez**, esperando a que termine cada una.
 
 ```
 set PATH=%PATH%;C:\Program Files\Git\cmd
-cd C:\RUTA\DONDE\CLONASTE\ToCosas
+cd C:\Users\yonat\ToCosas
 git checkout claude/finance-app-design-pr8qd5
 git pull
 ```
@@ -71,12 +75,19 @@ Ahora el frontend:
 
 ```
 cd frontend
+rmdir /s /q node_modules
 npm install
 npx eas-cli whoami
 ```
 
-Debe responder **`millo_app`**. Si responde otra cosa o pide login: `npx eas-cli login`
-(usuario `millo_app`).
+(`rmdir` borra la instalación anterior; tarda unos segundos y no imprime nada. Los avisos
+amarillos "deprecated" y las "vulnerabilities" de `npm install` son normales: **no**
+ejecutes `npm audit fix`, cambiaría versiones que deben coincidir con la APK.)
+
+`whoami` debe responder **`millo_app`**. La primera vez pregunta `Ok to proceed? (y)`:
+escribe `y` y Enter. Si dice `Not logged in`, escribe `npx eas-cli login`: se abre el
+navegador para iniciar sesión (usuario `millo_app`); al volver a la ventana dice
+`Logged in`. Repite `whoami` para confirmar.
 
 Antes de publicar, **despierta el backend**: abre en el navegador
 <https://milla-backend.onrender.com/v1/health> y espera a ver `ok` (el publicador lo
@@ -88,8 +99,10 @@ npm run ota:publish -- --branch preview --message "Entrega 2026-09-27: fachada, 
 
 El publicador corre el **preflight** (unos 2 minutos: revisa URL de producción, que el
 proyecto siga en SDK 54 como tu APK, que no haya módulos nativos nuevos, que no haya
-`localhost`, y el `/health`). Si todo está bien, se detiene y te pide el **centinela**:
-repite el mismo comando añadiendo al final tu dispositivo:
+`localhost`, y el `/health`). Si todo está bien, se detiene y te pide el **centinela**.
+El centinela es solo una etiqueta que tú escribes (el nombre de tu celular, terminado en
+`OK`) para que quede registrado quién verifica la entrega; no hay que buscarla en ningún
+lado. Repite el mismo comando añadiendo al final tu dispositivo:
 
 ```
 npm run ota:publish -- --branch preview --message "Entrega 2026-09-27: fachada, sprint, cuenta y datos" --sentinel "Android de Yonathan — OK"
