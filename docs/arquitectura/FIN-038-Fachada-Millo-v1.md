@@ -3,6 +3,7 @@
 - **Versión:** 1.0
 - **Fecha:** 2026-09-27
 - **Autor:** Arquitecto (ciclo compacto `DEC-ORG-002` §44.3: ARQ + Implementado + Decisiones en un documento)
+- **Validación del Fundador:** ✅ 2026-09-27 en dispositivo (OTA `74f6a9af`), sin fallos en la lista de aceptación; BT-012 detectado y corregido en el mismo día.
 - **Estado:** **Implementado — pendiente de validación del Fundador en la APK Beta.**
 - **Origen (§27):** `BLUEPRINT-0001` H1 (BP-10, BP-11, BP-12, BP-13, BP-15, BP-16, BP-17) + `SPRINT-PULIDO-001` (P0–P3) + BP-02/03/04/06/07 de H0. Autorizado por el Fundador el 2026-09-27 ("haz las soluciones y todo lo necesario").
 - **Documentos base:** `BLUEPRINT-0001-Analisis-Integral-Millo.md` §4–§8 · `correspondencia/SPRINT-PULIDO-001-Experiencia.md` · `PRODUCT_VISION.md` §7–§11 · `GOBERNANZA.md` §29, §31, §32, §39, §40, §42, §44.

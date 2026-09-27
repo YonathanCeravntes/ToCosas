@@ -3,7 +3,7 @@
 - **Versión:** 1.0
 - **Fecha:** 2026-09-27
 - **Autor:** Arquitecto (ciclo compacto `DEC-ORG-002` §44.3)
-- **Estado:** **Implementado — pendiente de validación del Fundador y de configurar `SMTP_URL` en Render.**
+- **Estado:** **Validado por el Fundador en dispositivo (2026-09-27).** `SMTP_URL`/`MAIL_FROM` configurados (Gmail App Password); el código de recuperación llega por correo.
 - **Origen (§27):** `BLUEPRINT-0001` BP-20 (legal, bloquea el lanzamiento público) + M1/M7 del modelo. Autorizado por el Fundador el 2026-09-27.
 - **Documentos base:** `BLUEPRINT-0001` §4.1, §6.2 (M1, M7, M8) · `PRODUCT_VISION.md` §8 (protección de datos) · `ALPHA-004`/`PIA-ALPHA` · `PRODUCCION.md` §1–§2 · `GOBERNANZA.md` §32, §39, §44.
 
