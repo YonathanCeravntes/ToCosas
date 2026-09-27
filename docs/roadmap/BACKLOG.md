@@ -144,6 +144,7 @@ documento maestro.
 | Cifrado a nivel de campo | Técnico | DEC-0009 §4.9 | **No pendiente** — riesgo aceptado formalmente, no bloqueante | ✅ Decidido (no implementar) |
 
 ## Historial
+- 2026-09-27 — **`DEC-0040` §7 (2ª pasada) — cero emojis en la interfaz:** 110 sitios → íconos vectoriales (`Ico`, `SectionHeader icon`, `Button icon`); quedan solo en mensajes (voz). `InsightsScreen` eliminada (sin uso). tsc 0. Pendiente OTA.
 - 2026-09-27 — **`DEC-0040` §8 — experimento del PC validado e integrado con recortes:** `FormScroll` (deslizar para actualizar + teclado) en 10 pantallas + historial, `confirmRemove` antes de borrar, errores con Reintentar. Fuera: `useStepStack` muerto y capturas. Regla: la sesión del PC solo publica. Pendiente OTA + verificación del teclado en Android.
 - 2026-09-27 — **`DEC-0040` §7 — orden visual:** Inicio responde solo "¿cómo voy este ciclo?" (Patrimonio y Ahorro pasan a Salud → "Lo que tienes"; categorías top 3 con "Ver todo" → Presupuesto; sin desglose de ingresos). tsc 0. Pendiente OTA.
 - 2026-09-27 — **`DEC-0040` — cinco decisiones del Fundador ("Todo sí, lo que consideres") ejecutadas por el Arquitecto:** (1) nombre oficial **Millo** (`PRODUCT_VISION.md` v1.4); (2) íconos vectoriales de categoría (`CategoryGlyph`, 5 sitios, backend sin cambio); (3) purga física a 30 días (`purgeExpired` + scheduler diario, e2e); (4) siguiente construcción `FIN-040` (ARQ escrito, pendiente de confirmación); (5) autonomía OTA desde la nube (pendiente del Fundador: `EXPO_TOKEN` + dominios). Frontend → OTA pendiente; backend → auto-deploy.

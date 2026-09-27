@@ -3,7 +3,7 @@ import { Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-na
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { formatLocalDate } from '../../utils/format';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Field } from '../../components/ui';
+import { Button, Field, Ico } from '../../components/ui';
 import { colors, entityColors, radius, spacing } from '../../theme/colors';
 import { debtsApi, entitiesApi, CreateDebtInput } from '../../api/endpoints';
 import { FinancialEntity, ProductFieldSpec, ProductTypeDescriptor } from '../../api/types';
@@ -163,7 +163,7 @@ export function AddDebtScreen({ navigation }: Props) {
           accessibilityLabel={`Fecha de inicio ${formatLocalDate(startDate)}, cambiar`}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: 12, minHeight: 44, marginBottom: spacing.md }}
         >
-          <Text style={{ fontSize: 16, color: colors.text }}>📅 {formatLocalDate(startDate)}</Text>
+          <Text style={{ fontSize: 16, color: colors.text }}><Ico name="calendar-outline" /> {formatLocalDate(startDate)}</Text>
           <Text style={{ color: colors.primary, fontWeight: '600' }}>Cambiar</Text>
         </Pressable>
         {showStartPicker ? (

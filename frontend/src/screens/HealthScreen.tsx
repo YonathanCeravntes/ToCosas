@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Card, ErrorState, FormScroll, Row, SectionHeader, Sparkline } from '../components/ui';
+import { Card, ErrorState, FormScroll, Ico, Row, SectionHeader, Sparkline } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney } from '../utils/format';
 import { HomeDashboard } from '../api/types';
@@ -95,7 +95,7 @@ export function HealthScreen() {
       {data?.netIncomeNotice ? (
         <Card style={{ borderColor: colors.primary, borderWidth: 1 }}>
           <Text style={{ color: colors.textMuted, fontSize: 13, lineHeight: 19 }}>
-            💡 {data.netIncomeNotice}
+            <Ico name="bulb-outline" color={colors.primary} /> {data.netIncomeNotice}
           </Text>
         </Card>
       ) : null}
@@ -129,7 +129,7 @@ function ScoreCard({
     return (
       <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
         <Text style={{ color: colors.textInverse, fontWeight: '700', fontSize: 18 }}>
-          🌱 Tu Score financiero está en preparación
+          <Ico name="leaf-outline" size={18} color={colors.textInverse} /> Tu Score financiero está en preparación
         </Text>
         <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 6, lineHeight: 20 }}>
           Muy pronto verás aquí un número de 0 a 1.000 que resume tu salud financiera — y qué
@@ -148,7 +148,7 @@ function ScoreCard({
     return (
       <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
         <Text style={{ color: colors.textInverse, fontWeight: '700', fontSize: 18 }}>
-          🌱 Tu Score se está construyendo
+          <Ico name="leaf-outline" size={18} color={colors.textInverse} /> Tu Score se está construyendo
         </Text>
         <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 6, lineHeight: 20 }}>
           Te faltan ~{days} días de historia. Cuando esté listo verás un número de 0 a
@@ -158,10 +158,10 @@ function ScoreCard({
           Mientras tanto, ya puedes:
         </Text>
         <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 2 }}>
-          ✅ Registrar tus movimientos de cada día
+          <Ico name="checkmark-circle-outline" color={colors.textInverse} /> Registrar tus movimientos de cada día
         </Text>
         <Text style={{ color: colors.textInverse, opacity: 0.9 }}>
-          ✅ Marcar tu fondo de emergencia en Cuentas
+          <Ico name="checkmark-circle-outline" color={colors.textInverse} /> Marcar tu fondo de emergencia en Cuentas
         </Text>
       </Card>
     );
@@ -264,7 +264,7 @@ function JugadaCard({
   return (
     <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
       <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-        ⭐ Tu jugada de mayor impacto
+        <Ico name="star" color={colors.accent} /> Tu jugada de mayor impacto
       </Text>
       {top ? (
         <>
@@ -273,7 +273,7 @@ function JugadaCard({
             {top.body}
           </Text>
           <Pressable onPress={() => goSimulator(SIM_BY_KIND[top.kind])} style={{ marginTop: spacing.sm }}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>🧪 Simularlo →</Text>
+            <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="flask-outline" color={colors.primary} /> Simularlo →</Text>
           </Pressable>
         </>
       ) : worst ? (
@@ -287,7 +287,7 @@ function JugadaCard({
             </Text>
           ) : null}
           <Pressable onPress={() => goSimulator()} style={{ marginTop: spacing.sm }}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>🧪 Simularlo →</Text>
+            <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="flask-outline" color={colors.primary} /> Simularlo →</Text>
           </Pressable>
         </>
       ) : null}
@@ -313,10 +313,10 @@ function IndicatorCard({ ind }: { ind: HealthIndicator }) {
       {/* La palanca visible exactamente donde hay dolor (P3 / intención). */}
       {needsAction && ind.actions[0] ? (
         <View style={{ marginTop: spacing.sm }}>
-          <Text style={{ color: colors.text, fontSize: 13 }}>✅ {ind.actions[0]}</Text>
+          <Text style={{ color: colors.text, fontSize: 13 }}><Ico name="checkmark-circle-outline" color={colors.success} /> {ind.actions[0]}</Text>
           <Pressable onPress={() => navigation.navigate('Simulator')} style={{ marginTop: 4 }}>
             <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
-              🧪 Simularlo →
+              <Ico name="flask-outline" color={colors.primary} /> Simularlo →
             </Text>
           </Pressable>
         </View>
@@ -330,11 +330,11 @@ function IndicatorCard({ ind }: { ind: HealthIndicator }) {
       </Pressable>
       {open ? (
         <View style={{ marginTop: 4 }}>
-          <Text style={{ color: colors.text, fontSize: 13, marginBottom: 4 }}>📐 {ind.howComputed}</Text>
+          <Text style={{ color: colors.text, fontSize: 13, marginBottom: 4 }}><Ico name="calculator-outline" color={colors.textMuted} /> {ind.howComputed}</Text>
           <Text style={{ color: colors.textMuted, fontSize: 12 }}>{ind.ranges}</Text>
           {ind.actions.slice(needsAction ? 1 : 0).map((a, i) => (
             <Text key={i} style={{ color: colors.primaryDark, fontSize: 13, marginTop: 2 }}>
-              ✅ {a}
+              <Ico name="checkmark-circle-outline" color={colors.success} /> {a}
             </Text>
           ))}
         </View>
@@ -408,7 +408,7 @@ function HistorySection() {
 
   return (
     <Card>
-      <Text style={{ fontWeight: '700', fontSize: 15, marginBottom: spacing.sm }}>📈 Evolución de tu Score</Text>
+      <Text style={{ fontWeight: '700', fontSize: 15, marginBottom: spacing.sm }}><Ico name="trending-up-outline" size={15} /> Evolución de tu Score</Text>
       {history && history.length > 0 ? (
         <>
           <Text style={{ color: colors.text, fontWeight: '600', marginBottom: spacing.sm }}>
@@ -429,7 +429,7 @@ function HistorySection() {
         </>
       ) : locked ? (
         <View style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
-          <Text style={{ fontSize: 24 }}>🔒</Text>
+          <Ico name="lock-closed-outline" size={24} color={colors.textMuted} />
           <Text style={{ color: colors.text, textAlign: 'center', marginTop: 4 }}>
             El histórico de tu Score es una función de Millo+.
           </Text>
@@ -460,7 +460,7 @@ function CopilotBridge() {
     >
       <Card style={{ paddingVertical: spacing.sm }}>
         <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>
-          🤖 ¿Preguntas sobre tu Score? El copiloto te lo explica →
+          <Ico name="chatbubble-ellipses-outline" color={colors.primary} /> ¿Preguntas sobre tu Score? El copiloto te lo explica →
         </Text>
       </Card>
     </Pressable>

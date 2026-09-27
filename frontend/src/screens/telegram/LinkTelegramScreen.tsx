@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Linking, ScrollView, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Card } from '../../components/ui';
+import { Button, Card, Ico } from '../../components/ui';
 import { colors, radius, spacing } from '../../theme/colors';
 import { telegramApi } from '../../api/endpoints';
 import { StartTelegramLinkResult } from '../../api/types';
@@ -29,7 +29,7 @@ export function LinkTelegramScreen(_props: Props) {
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
       <Text style={{ fontSize: 22, fontWeight: '800', color: colors.primary }}>
-        Registra por Telegram ✈️
+        Registra por Telegram <Ico name="paper-plane-outline" size={18} color={colors.primary} />
       </Text>
       <Text style={{ color: colors.textMuted, marginTop: 6, marginBottom: spacing.lg, lineHeight: 20 }}>
         Vincula tu Telegram y registra movimientos escribiéndole al bot, como

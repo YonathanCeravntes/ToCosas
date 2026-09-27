@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
-import { Button, Card, FormScroll, Row } from '../components/ui';
+import { Button, Card, FormScroll, Ico, IconName, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { billingApi } from '../api/endpoints';
 import { BillingStatus } from '../api/types';
 import { formatLocalDate } from '../utils/format';
 
-const BENEFITS = [
-  ['📈', 'Evolución completa de tu Score, mes a mes'],
-  ['🤖', '100 mensajes de IA al día (vs 10)'],
-  ['🧪', 'Simulaciones ilimitadas (vs 5 al mes)'],
+const BENEFITS: Array<[IconName, string]> = [
+  ['trending-up-outline', 'Evolución completa de tu Score, mes a mes'],
+  ['sparkles-outline', '100 mensajes de IA al día (vs 10)'],
+  ['flask-outline', 'Simulaciones ilimitadas (vs 5 al mes)'],
 ];
 
 export function MilloPlusScreen({ route }: { route?: { params?: { source?: string } } }) {
@@ -46,7 +46,7 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
   return (
     <FormScroll>
       <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary, alignItems: 'center', paddingVertical: spacing.lg }}>
-        <Text style={{ fontSize: 34 }}>✨</Text>
+        <Ico name="sparkles" size={34} color={colors.accent} />
         <Text style={{ color: colors.textInverse, fontSize: 24, fontWeight: '800' }}>Millo+</Text>
         <Text style={{ color: colors.textInverse, opacity: 0.85, textAlign: 'center', marginTop: 4 }}>
           Toda la inteligencia de Millo, sin límites.
@@ -62,10 +62,10 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
         ) : null}
       </Card>
 
-      {BENEFITS.map(([emoji, text]) => (
+      {BENEFITS.map(([icon, text]) => (
         <Card key={text} style={{ paddingVertical: spacing.sm }}>
           <Row style={{ gap: spacing.sm }}>
-            <Text style={{ fontSize: 20 }}>{emoji}</Text>
+            <Ico name={icon} size={20} color={colors.primary} />
             <Text style={{ color: colors.text, flex: 1 }}>{text}</Text>
           </Row>
         </Card>
@@ -75,7 +75,7 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
         <>
           <Card>
             <Text style={{ fontWeight: '700', color: colors.text, marginBottom: spacing.sm }}>
-              🎟️ ¿Tienes un código?
+              <Ico name="ticket-outline" /> ¿Tienes un código?
             </Text>
             <TextInput
               value={code}

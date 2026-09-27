@@ -239,18 +239,31 @@ export function Row({ children, style, ...rest }: ViewProps) {
 }
 
 /** Título de sección con acción opcional a la derecha. */
+/**
+ * Ícono en línea dentro de un `<Text>` (DEC-0040 §7: cero emojis en la interfaz — cada
+ * fabricante los pinta distinto). Hereda tamaño de texto por defecto; el color se pasa
+ * explícito cuando el texto no es `colors.text` (enlaces, tarjetas verdes).
+ */
+export function Ico({ name, color = colors.text, size = 14 }: { name: IconName; color?: string; size?: number }) {
+  return <Ionicons name={name} size={size} color={color} />;
+}
+
 export function SectionHeader({
   title,
+  icon,
   action,
   onAction,
 }: {
   title: string;
+  icon?: IconName;
   action?: string;
   onAction?: () => void;
 }) {
   return (
     <Row style={{ justifyContent: 'space-between', marginTop: spacing.sm, marginBottom: spacing.sm }}>
       <Text style={styles.sectionTitle} accessibilityRole="header">
+        {icon ? <Ico name={icon} size={15} color={colors.textMuted} /> : null}
+        {icon ? ' ' : ''}
         {title}
       </Text>
       {action && onAction ? (

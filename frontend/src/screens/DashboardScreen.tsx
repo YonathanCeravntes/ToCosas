@@ -4,7 +4,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, ErrorState, HeroCard, ProgressBar, Row, SectionHeader, Skeleton } from '../components/ui';
+import { Button, Card, ErrorState, HeroCard, Ico, ProgressBar, Row, SectionHeader, Skeleton } from '../components/ui';
 import { CategoryGlyph } from '../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatLocalDate, formatMoney } from '../utils/format';
@@ -23,7 +23,9 @@ const KIND_META: Record<string, { sign: string; color: string }> = {
   transferencia: { sign: '', color: colors.textMuted },
 };
 
-const LEVEL_EMOJI: Record<string, string> = { verde: '🟢', amarillo: '🟡', rojo: '🔴' };
+/** Semáforo de interpretación (antes emojis 🟢🟡🔴, DEC-0040 §7). */
+const LEVEL_COLOR: Record<string, string> = { verde: colors.success, amarillo: colors.warning, rojo: colors.danger };
+const LEVEL_COLOR_ON_PRIMARY: Record<string, string> = { verde: '#9BE7C4', amarillo: colors.accent, rojo: '#FFB3B3' };
 
 export function DashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -119,7 +121,7 @@ export function DashboardScreen() {
             ) : null}
             {d.interpretation.cashflow ? (
               <Text style={{ color: colors.onPrimaryMuted, ...type.body, marginTop: spacing.xs }}>
-                {LEVEL_EMOJI[d.interpretation.cashflow.level]} {d.interpretation.cashflow.text}
+                <Ico name="ellipse" size={10} color={LEVEL_COLOR_ON_PRIMARY[d.interpretation.cashflow.level] ?? colors.onPrimaryMuted} /> {d.interpretation.cashflow.text}
               </Text>
             ) : null}
             {cycle ? (
@@ -168,7 +170,7 @@ export function DashboardScreen() {
           </Text>
           {d?.interpretation.debt ? (
             <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xxs }}>
-              {LEVEL_EMOJI[d.interpretation.debt.level]} {d.interpretation.debt.text}
+              <Ico name="ellipse" size={10} color={LEVEL_COLOR[d.interpretation.debt.level] ?? colors.textMuted} /> {d.interpretation.debt.text}
             </Text>
           ) : null}
           {summary.data?.upcoming?.[0] ? (
@@ -192,7 +194,7 @@ export function DashboardScreen() {
               style={{ marginTop: spacing.sm }}
             >
               <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>
-                💡 Tienes margen: adelanta un pago y ahorra intereses →
+                <Ico name="bulb-outline" color={colors.primary} /> Tienes margen: adelanta un pago y ahorra intereses →
               </Text>
             </Pressable>
           ) : null}

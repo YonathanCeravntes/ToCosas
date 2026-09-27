@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Button, Card, ErrorState, Field, FormScroll, IconButton, Row } from '../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, Ico, IconButton, IconName, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { formatMoney, parseAmount, parseDecimal } from '../utils/format';
 import { IncomeSource, NetIncomeSummary, WorkProfile, toNumber } from '../api/types';
@@ -15,13 +15,13 @@ import { confirmRemove } from '../utils/confirm';
  * `NetIncomeService`). Fijas y variables COEXISTEN (n fuentes); la base de
  * cada deducción es configurable (total o parcial — requisito duro).
  */
-const PROFILES: Array<{ key: WorkProfile; label: string; emoji: string }> = [
-  { key: 'empleado', label: 'Empleado', emoji: '💼' },
-  { key: 'independiente', label: 'Independiente', emoji: '🧑‍💻' },
-  { key: 'empresario', label: 'Empresario', emoji: '🏢' },
-  { key: 'pensionado', label: 'Pensionado', emoji: '🧓' },
-  { key: 'estudiante', label: 'Estudiante', emoji: '🎓' },
-  { key: 'otro', label: 'Otro', emoji: '➕' },
+const PROFILES: Array<{ key: WorkProfile; label: string; icon: IconName }> = [
+  { key: 'empleado', label: 'Empleado', icon: 'briefcase-outline' },
+  { key: 'independiente', label: 'Independiente', icon: 'laptop-outline' },
+  { key: 'empresario', label: 'Empresario', icon: 'business-outline' },
+  { key: 'pensionado', label: 'Pensionado', icon: 'person-outline' },
+  { key: 'estudiante', label: 'Estudiante', icon: 'school-outline' },
+  { key: 'otro', label: 'Otro', icon: 'add-circle-outline' },
 ];
 
 export function IncomeProfileScreen() {
@@ -65,7 +65,7 @@ export function IncomeProfileScreen() {
               }}
             >
               <Text style={{ color: profile.data?.workProfile === p.key ? colors.textInverse : colors.text, fontSize: 13 }}>
-                {p.emoji} {p.label}
+                <Ico name={p.icon} color={profile.data?.workProfile === p.key ? colors.textInverse : colors.text} /> {p.label}
               </Text>
             </Pressable>
           ))}
@@ -138,7 +138,7 @@ function NewSourceForm({ onSaved }: { onSaved: () => void }) {
     <Card>
       <Pressable onPress={() => setOpen((v) => !v)}>
         <Text style={{ fontWeight: '700', fontSize: 16 }}>
-          ➕ Nueva fuente de ingreso {open ? '' : '(fija o variable) →'}
+          <Ico name="add-circle-outline" color={colors.primary} /> Nueva fuente de ingreso {open ? '' : '(fija o variable) →'}
         </Text>
       </Pressable>
       {open ? (
@@ -317,7 +317,7 @@ function SourceCard({ source, onChanged }: { source: IncomeSource; onChanged: ()
         ) : (
           <Pressable onPress={() => setShowForm(true)} style={{ marginTop: spacing.sm }}>
             <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
-              ➕ Agregar deducción (salud, pensión…) →
+              <Ico name="add-circle-outline" color={colors.primary} /> Agregar deducción (salud, pensión…) →
             </Text>
           </Pressable>
         )

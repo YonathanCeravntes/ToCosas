@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, Modal, Platform, Pressable, Text, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Button, Card, Field } from '../../components/ui';
+import { Button, Card, Field, Ico } from '../../components/ui';
 import { colors, radius, spacing } from '../../theme/colors';
 import { formatLocalDate, parseAmount } from '../../utils/format';
 import { transactionsApi } from '../../api/endpoints';
@@ -130,7 +130,7 @@ export function EditTransactionModal({
                 onPress={() => setShowPicker(true)}
                 style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.md }}
               >
-                <Text style={{ color: colors.text }}>📅 {date ? formatLocalDate(date) : '—'}</Text>
+                <Text style={{ color: colors.text }}><Ico name="calendar-outline" /> {date ? formatLocalDate(date) : '—'}</Text>
               </Pressable>
               {showPicker ? (
                 <DateTimePicker
@@ -151,7 +151,7 @@ export function EditTransactionModal({
 
           <Button title="Guardar" onPress={() => void save()} loading={busy} />
           <Pressable onPress={anular} disabled={busy} style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
-            <Text style={{ color: colors.danger, fontWeight: '700' }}>🗑️ Anular movimiento</Text>
+            <Text style={{ color: colors.danger, fontWeight: '700' }}><Ico name="trash-outline" color={colors.danger} /> Anular movimiento</Text>
           </Pressable>
           <Pressable onPress={onClose} disabled={busy} style={{ alignItems: 'center', paddingVertical: 4 }}>
             <Text style={{ color: colors.textMuted }}>Cerrar</Text>

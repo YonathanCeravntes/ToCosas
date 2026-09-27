@@ -3,7 +3,7 @@ import { Alert, Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, ErrorState, Field, FormScroll, HeroCard, Row, Skeleton } from '../../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, HeroCard, Ico, Row, Skeleton } from '../../components/ui';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { formatDate, formatMoney, parseAmount, parseDecimal } from '../../utils/format';
 import { AmortizationEntry, CardSummary, Debt, DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, toNumber } from '../../api/types';
@@ -121,7 +121,7 @@ export function DebtDetailScreen({ route }: Props) {
           style={r.severity === 'warning' ? { borderColor: colors.warning, borderWidth: 2 } : undefined}
         >
           <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-            {r.severity === 'warning' ? '⚠️' : '💡'} {r.title}
+            <Ico name={r.severity === 'warning' ? 'warning-outline' : 'bulb-outline'} color={r.severity === 'warning' ? colors.warning : colors.primary} /> {r.title}
           </Text>
           <Text style={{ color: colors.text, marginTop: 6, fontSize: 13, lineHeight: 19 }}>{r.body}</Text>
         </Card>
@@ -135,7 +135,7 @@ export function DebtDetailScreen({ route }: Props) {
       {isAmortized && data.projection ? (
         <Card>
           <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
-            📅 Resumen del crédito
+            <Ico name="calendar-outline" size={15} /> Resumen del crédito
           </Text>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text style={{ color: colors.textMuted }}>Terminas de pagar</Text>
@@ -183,7 +183,7 @@ export function DebtDetailScreen({ route }: Props) {
       {isAmortized ? (
       <Card>
         <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
-          💡 Simulador de abono extra
+          <Ico name="bulb-outline" size={15} color={colors.primary} /> Simulador de abono extra
         </Text>
         <Field
           label="¿Cuánto extra al mes?"
@@ -359,7 +359,7 @@ function CardSection({ debtId, tick, onChanged }: { debtId: string; tick: number
 
   return (
     <Card>
-      <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>💳 Tu tarjeta</Text>
+      <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}><Ico name="card-outline" size={16} /> Tu tarjeta</Text>
       {ack ? (
         <View style={{ backgroundColor: colors.successSoft, borderRadius: radius.sm, padding: spacing.sm, marginBottom: spacing.sm }}>
           <Text style={{ color: colors.primaryDark, ...type.body }}>{ack}</Text>
@@ -443,7 +443,7 @@ function CardSection({ debtId, tick, onChanged }: { debtId: string; tick: number
           <Button title="Registrar compra" onPress={() => void add()} loading={saving} />
         </View>
       ) : (
-        <Button title="➕ Registrar una compra" variant="secondary" onPress={() => setOpen(true)} />
+        <Button icon="add-circle-outline" title="Registrar una compra" variant="secondary" onPress={() => setOpen(true)} />
       )}
     </Card>
   );
@@ -488,7 +488,7 @@ function ReviewSection({ debtId, tick, onChanged }: { debtId: string; tick: numb
 
   return (
     <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
-      <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>🔎 Una confirmación rápida</Text>
+      <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}><Ico name="search-outline" size={15} /> Una confirmación rápida</Text>
       {ack ? (
         <Text style={{ color: colors.textMuted, marginTop: 6, fontSize: 13 }}>{ack}</Text>
       ) : null}
@@ -549,7 +549,7 @@ function OverdueBlock({ days }: { days: number }) {
         abonar directamente.
       </Text>
       <Pressable onPress={() => navigation.navigate('Add')} style={{ marginTop: spacing.sm }}>
-        <Text style={{ color: colors.primary, fontWeight: '700' }}>✅ Registrar el pago →</Text>
+        <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="checkmark-circle-outline" color={colors.primary} /> Registrar el pago →</Text>
       </Pressable>
     </Card>
   );
@@ -631,7 +631,7 @@ function PrepaySection({
 
   return (
     <Card>
-      <Text style={{ fontWeight: '700', fontSize: 16 }}>💸 Abonar a capital</Text>
+      <Text style={{ fontWeight: '700', fontSize: 16 }}><Ico name="cash-outline" size={16} /> Abonar a capital</Text>
       {/* FIN-018 4ª iteración (CPSAO): el término se mantiene por precisión,
           acompañado del beneficio en lenguaje llano. */}
       <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 2, marginBottom: spacing.sm }}>
@@ -705,7 +705,7 @@ function PrepaySection({
           <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
             Nueva liquidación: {formatDate(receipt.after.payoffDate)} · saldo {formatMoney(receipt.newBalance)}
           </Text>
-          <Button title="✅ Confirmar abono" onPress={() => void confirm()} loading={busy} />
+          <Button icon="checkmark-circle-outline" title="Confirmar abono" onPress={() => void confirm()} loading={busy} />
         </View>
       ) : (
         <Button title="Ver efecto del abono" variant="secondary" onPress={() => void preview()} loading={busy} />
@@ -779,7 +779,7 @@ function InsuranceSection({
   return (
     <Card>
       <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
-        🛡️ Seguros y cargos del crédito
+        <Ico name="shield-checkmark-outline" size={15} /> Seguros y cargos del crédito
       </Text>
 
       {breakdown && breakdown.insuranceMonthlyTotal > 0 ? (
@@ -826,7 +826,7 @@ function InsuranceSection({
             <Text style={{ fontSize: 16 }}>{ins.active ? '⏸️' : '▶️'}</Text>
           </Pressable>
           <Pressable onPress={() => void remove(ins)}>
-            <Text style={{ color: colors.textMuted, fontSize: 16 }}>🗑️</Text>
+            <Ico name="trash-outline" size={18} color={colors.textMuted} />
           </Pressable>
         </Row>
       ))}
@@ -842,8 +842,8 @@ function InsuranceSection({
         <View style={{ marginTop: spacing.sm }}>
           <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
             {[
-              { v: false, label: '🛡️ Seguro' },
-              { v: true, label: '🏦 Cuota de manejo' },
+              { v: false, label: 'Seguro' },
+              { v: true, label: 'Cuota de manejo' },
             ].map((opt) => (
               <Pressable
                 key={String(opt.v)}
@@ -907,7 +907,7 @@ function InsuranceSection({
           <Button title={isCargo ? 'Guardar cargo' : 'Guardar seguro'} onPress={() => void add()} loading={saving} />
         </View>
       ) : (
-        <Button title="➕ Agregar seguro o cargo" variant="secondary" onPress={() => setShowForm(true)} />
+        <Button icon="add-circle-outline" title="Agregar seguro o cargo" variant="secondary" onPress={() => setShowForm(true)} />
       )}
     </Card>
   );

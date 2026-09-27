@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Button, Card, ErrorState, Field, FormScroll, IconButton, Row } from '../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, Ico, IconButton, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { formatMoney, parseAmount } from '../utils/format';
 import { Account, AccountType, Asset, AssetType, NetWorth, toNumber } from '../api/types';
@@ -116,20 +116,20 @@ function AccountsSection({ accounts, onChange }: { accounts: Account[]; onChange
 
   return (
     <Card>
-      <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>🏦 Cuentas</Text>
+      <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}><Ico name="business-outline" size={16} /> Cuentas</Text>
       {accounts.map((a) => (
         <View key={a.id} style={{ marginBottom: 10 }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.text, fontWeight: '600' }}>
-                {a.name} {a.isEmergencyFund ? '🛟' : ''}
+                {a.name} {a.isEmergencyFund ? <Ico name="umbrella-outline" color={colors.primary} /> : null}
               </Text>
               <Text style={{ color: colors.textMuted, fontSize: 12 }}>{a.type}</Text>
             </View>
             {editId === a.id ? null : (
               <Pressable onPress={() => { setEditId(a.id); setEditVal(String(toNumber(a.currentBalance))); }}>
                 <Text style={{ fontWeight: '800', color: colors.primary }}>
-                  {formatMoney(toNumber(a.currentBalance))} ✏️
+                  {formatMoney(toNumber(a.currentBalance))} <Ico name="pencil-outline" color={colors.primary} />
                 </Text>
               </Pressable>
             )}
@@ -169,7 +169,7 @@ function AccountsSection({ accounts, onChange }: { accounts: Account[]; onChange
       <Field label="Nombre" value={name} onChangeText={setName} placeholder="Ahorros Bancolombia" />
       <Field label="Saldo" value={balance} onChangeText={setBalance} keyboardType="numeric" placeholder="1500000" />
       <Pressable onPress={() => setEmergency(!emergency)} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
-        <Text style={{ fontSize: 18 }}>{emergency ? '☑️' : '⬜'}</Text>
+        <Ico name={emergency ? 'checkbox' : 'square-outline'} size={22} color={emergency ? colors.primary : colors.textMuted} />
         <Text style={{ marginLeft: 8, color: colors.text }}>Es mi fondo de emergencia</Text>
       </Pressable>
       {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
@@ -193,7 +193,7 @@ function AssetsSection({ assets, onChange }: { assets: Asset[]; onChange: () => 
 
   return (
     <Card>
-      <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>🏠 Activos</Text>
+      <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}><Ico name="home-outline" size={16} /> Activos</Text>
       {assets.map((a) => (
         <Row key={a.id} style={{ justifyContent: 'space-between', marginBottom: 8 }}>
           <View style={{ flex: 1 }}>

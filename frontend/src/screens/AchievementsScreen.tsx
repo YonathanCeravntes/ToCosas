@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { Card, ErrorState, FormScroll, Row, Skeleton } from '../components/ui';
+import { Card, ErrorState, FormScroll, Ico, Row, Skeleton } from '../components/ui';
 import { colors, spacing } from '../theme/colors';
 import { gamificationApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
@@ -30,7 +30,7 @@ export function AchievementsScreen() {
               ) : null}
             </View>
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 30 }}>🔥</Text>
+              <Ico name="flame" size={30} color={colors.accent} />
               <Text style={{ color: colors.textInverse, fontWeight: '800' }}>
                 {data.streak.current} sem
               </Text>
@@ -49,7 +49,7 @@ export function AchievementsScreen() {
             <Row style={{ justifyContent: 'space-between' }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontWeight: '700', color: colors.text }}>
-                  {unlocked ? '🏆' : '🔒'} {a.title}
+                  {unlocked ? <Ico name="trophy" color={colors.accent} /> : <Ico name="lock-closed-outline" color={colors.textMuted} />} {a.title}
                 </Text>
                 <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
                   {a.condition}

@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, ErrorState, Field, FormScroll, IconButton, Row } from '../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, Ico, IconButton, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { formatMoney, parseAmount } from '../utils/format';
 import { MonthlyBudget, Recommendation, TeQueda, toNumber } from '../api/types';
@@ -72,7 +72,7 @@ export function BudgetScreen() {
             onChanged={reload}
           />
           <FixedList
-            title="🏠 Gastos fijos"
+            title="Gastos fijos"
             items={data.expenses}
             color={colors.danger}
             onRemove={onRemove}
@@ -80,7 +80,7 @@ export function BudgetScreen() {
           {data.debts.length > 0 ? (
             <Card>
               <Text style={{ fontWeight: '700', marginBottom: spacing.sm }}>
-                💳 Cuotas de deuda (inflexibles)
+                <Ico name="card-outline" /> Cuotas de deuda (inflexibles)
               </Text>
               {data.debts.map((d) => (
                 <Row key={d.debtId} style={{ justifyContent: 'space-between', marginBottom: 6 }}>
@@ -113,7 +113,8 @@ export function BudgetScreen() {
       ) : null}
 
       <Button
-        title="🏦 Cuentas y patrimonio"
+        icon="business-outline"
+        title="Cuentas y patrimonio"
         variant="secondary"
         onPress={() => navigation.navigate('Accounts')}
       />
@@ -169,14 +170,14 @@ function ProtectedTimeline({ teQueda }: { teQueda: TeQueda }) {
   return (
     <Card>
       <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-        🛡️ Protegido para lo que viene: {formatMoney(teQueda.protectedTotal)}
+        <Ico name="shield-checkmark-outline" color={colors.primary} /> Protegido para lo que viene: {formatMoney(teQueda.protectedTotal)}
       </Text>
       <View style={{ marginTop: spacing.sm, gap: 8 }}>
         {teQueda.pendingCommitments.map((c, i) => (
           <Row key={`${c.name}-${i}`} style={{ justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.text }} numberOfLines={1}>
-                {c.kind === 'cuota' ? '💳' : '🏠'} {c.name}
+                <Ico name={c.kind === 'cuota' ? 'card-outline' : 'home-outline'} color={colors.textMuted} /> {c.name}
               </Text>
               <Text style={{ color: colors.textMuted, fontSize: 12 }}>
                 {/* §4.1-bis: etiqueta NEUTRA — no afirmamos pago, solo la fecha. */}
@@ -225,7 +226,7 @@ function FreeMoneyBridge({ teQueda, recs }: { teQueda: TeQueda; recs: Recommenda
     return (
       <Card style={{ borderColor: colors.warning, borderWidth: 2 }}>
         <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-          ⚠️ Este mes no alcanza para todo
+          <Ico name="warning-outline" color={colors.danger} /> Este mes no alcanza para todo
         </Text>
         <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
           Lo comprometido supera lo que ha entrado. Mira qué gasto puedes mover — pequeños
@@ -233,7 +234,7 @@ function FreeMoneyBridge({ teQueda, recs }: { teQueda: TeQueda; recs: Recommenda
         </Text>
         <Pressable onPress={() => goSimulator('reducir_gastos')} style={{ marginTop: spacing.sm }}>
           <Text style={{ color: colors.primary, fontWeight: '700' }}>
-            🧪 Simular un recorte →
+            <Ico name="flask-outline" color={colors.primary} /> Simular un recorte →
           </Text>
         </Pressable>
       </Card>
@@ -246,7 +247,7 @@ function FreeMoneyBridge({ teQueda, recs }: { teQueda: TeQueda; recs: Recommenda
   return (
     <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
       <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-        ⭐ Con lo libre: tu mejor destino
+        <Ico name="star" color={colors.accent} /> Con lo libre: tu mejor destino
       </Text>
       {top ? (
         <>
@@ -258,7 +259,7 @@ function FreeMoneyBridge({ teQueda, recs }: { teQueda: TeQueda; recs: Recommenda
             onPress={() => goSimulator(SIM_BY_KIND[top.kind])}
             style={{ marginTop: spacing.sm }}
           >
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>🧪 Simularlo →</Text>
+            <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="flask-outline" color={colors.primary} /> Simularlo →</Text>
           </Pressable>
         </>
       ) : (
@@ -268,7 +269,7 @@ function FreeMoneyBridge({ teQueda, recs }: { teQueda: TeQueda; recs: Recommenda
             los apartas.
           </Text>
           <Pressable onPress={() => goSimulator()} style={{ marginTop: spacing.sm }}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>🧪 Ir al simulador →</Text>
+            <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="flask-outline" color={colors.primary} /> Ir al simulador →</Text>
           </Pressable>
         </>
       )}
@@ -319,7 +320,7 @@ function NewFixedForm({ onSaved }: { onSaved: () => Promise<unknown> }) {
     <Card>
       <Pressable onPress={() => setOpen((v) => !v)}>
         <Text style={{ fontWeight: '700', fontSize: 16 }}>
-          🏠 Nuevo gasto fijo {open ? '' : '→'}
+          <Ico name="add-circle-outline" color={colors.primary} /> Nuevo gasto fijo {open ? '' : '→'}
         </Text>
       </Pressable>
       {open ? (
@@ -357,7 +358,7 @@ function IncomesReferenceCard({
     });
   return (
     <Card>
-      <Text style={{ fontWeight: '700', marginBottom: spacing.sm }}>💵 Ingresos fijos</Text>
+      <Text style={{ fontWeight: '700', marginBottom: spacing.sm }}><Ico name="cash-outline" /> Ingresos fijos</Text>
       {items.length === 0 ? (
         <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm }}>
           Aún no configuras tus fuentes de ingreso.
@@ -378,7 +379,7 @@ function IncomesReferenceCard({
       )}
       <Pressable onPress={onGoToProfile}>
         <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
-          💼 Administrar en Mi perfil de ingresos →
+          <Ico name="briefcase-outline" color={colors.primary} /> Administrar en Mi perfil de ingresos →
         </Text>
       </Pressable>
     </Card>

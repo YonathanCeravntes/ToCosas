@@ -68,6 +68,7 @@
   junto al Score que ya los interpreta) y el desglose de ingresos por categoría (queda solo el
   aviso cuando no tienen categoría).
 - **Más** ya estaba en tres bloques (Tu dinero · Decidir mejor · Cuenta); sin cambio.
+- **Cero emojis en la interfaz** (segunda pasada, mismo día): 110 sitios en 14 pantallas pasan a íconos vectoriales (`Ico` en línea, `SectionHeader icon`, `Button icon`): títulos de sección, enlaces, semáforos de interpretación (punto de color), casillas, papeleras, chips de perfil y de escenario, beneficios de Millo+. Se conservan los emojis solo dentro de los **mensajes** (acuses de Registrar, celebraciones, chat del Copiloto, saludo del onboarding): son voz, no cromo. `InsightsScreen.tsx` eliminada (sin uso desde FIN-038).
 - Pendientes de esta línea, por orden: tipografía propia (Inter, OTA), modo oscuro (BP-14),
   splash con logo (APK). Se abren cuando el Fundador lo pida.
 

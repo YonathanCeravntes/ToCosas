@@ -12,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Button, Card, Row } from '../components/ui';
+import { Button, Card, Ico, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { AiConsentStatus, CopilotMessage, Insight, InsightSeverity, Recommendation } from '../api/types';
 import { copilotApi, insightsApi, recommendationsApi } from '../api/endpoints';
@@ -122,8 +122,8 @@ export function CopilotScreen() {
       <View style={{ backgroundColor: consent?.accepted ? colors.primarySoft : colors.surface, padding: spacing.sm, borderBottomWidth: 1, borderColor: colors.border }}>
         <Text style={{ fontSize: 12, color: colors.textMuted, textAlign: 'center' }}>
           {consent?.accepted
-            ? `🤖 IA activa${aiRemaining !== null ? ` · ${aiRemaining} mensajes IA hoy` : ''}`
-            : '⚡ Modo básico (respuestas instantáneas). Activa la IA para preguntas abiertas.'}
+            ? `IA activa${aiRemaining !== null ? ` · ${aiRemaining} mensajes IA hoy` : ''}`
+            : 'Modo básico (respuestas instantáneas). Activa la IA para preguntas abiertas.'}
         </Text>
         {!consent?.accepted ? (
           <Pressable onPress={() => setShowConsent(true)}>
@@ -146,7 +146,7 @@ export function CopilotScreen() {
             {recommendations.length > 0 ? (
               <View style={{ marginBottom: spacing.sm }}>
                 <Text style={{ fontWeight: '700', color: colors.text, marginBottom: 6 }}>
-                  ✨ Recomendado para ti
+                  <Ico name="sparkles-outline" color={colors.primary} /> Recomendado para ti
                 </Text>
                 {recommendations.map((rec) => (
                   <RecommendationCard
@@ -162,7 +162,7 @@ export function CopilotScreen() {
             {insights.length > 0 ? (
               <View style={{ marginBottom: spacing.sm }}>
                 <Text style={{ fontWeight: '700', color: colors.text, marginBottom: 6 }}>
-                  🔔 Novedades
+                  <Ico name="notifications-outline" color={colors.primary} /> Novedades
                 </Text>
                 {insights.slice(0, 4).map((ins) => (
                   <Pressable key={ins.id} onPress={() => openInsight(ins)}>
@@ -172,7 +172,7 @@ export function CopilotScreen() {
                           {ins.title}
                         </Text>
                         <Pressable onPress={() => void dismissInsight(ins.id)} style={{ paddingLeft: spacing.sm }}>
-                          <Text style={{ color: colors.textMuted }}>✕</Text>
+                          <Ico name="close" size={18} color={colors.textMuted} />
                         </Pressable>
                       </Row>
                       <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }} numberOfLines={2}>
@@ -185,7 +185,7 @@ export function CopilotScreen() {
             ) : null}
             <Card>
               <Text style={{ fontWeight: '700', fontSize: 16, color: colors.text }}>
-                👋 Soy tu Copiloto Financiero
+                <Ico name="chatbubble-ellipses-outline" size={16} color={colors.primary} /> Soy tu Copiloto Financiero
               </Text>
               <Text style={{ color: colors.textMuted, marginTop: 4, lineHeight: 20 }}>
                 Interpreto tus números y te los explico. Prueba con:
@@ -219,7 +219,7 @@ export function CopilotScreen() {
           disabled={sending}
           style={{ marginLeft: spacing.sm, backgroundColor: colors.primary, borderRadius: radius.full, width: 42, height: 42, alignItems: 'center', justifyContent: 'center' }}
         >
-          {sending ? <ActivityIndicator color={colors.textInverse} /> : <Text style={{ color: colors.textInverse, fontSize: 18 }}>➤</Text>}
+          {sending ? <ActivityIndicator color={colors.textInverse} /> : <Ico name="send" size={18} color={colors.textInverse} />}
         </Pressable>
       </View>
 
@@ -266,7 +266,7 @@ function RecommendationCard({
             {rec.title}
           </Text>
           <Pressable onPress={onDismiss} style={{ paddingLeft: spacing.sm }}>
-            <Text style={{ color: colors.textMuted }}>✕</Text>
+            <Ico name="close" size={18} color={colors.textMuted} />
           </Pressable>
         </Row>
         <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 2 }} numberOfLines={open ? undefined : 2}>
@@ -279,7 +279,7 @@ function RecommendationCard({
             </Text>
             <Row style={{ gap: spacing.sm }}>
               <View style={{ flex: 1 }}>
-                <Button title="✓ Lo hice" variant="secondary" onPress={onDone} />
+                <Button icon="checkmark" title="Lo hice" variant="secondary" onPress={onDone} />
               </View>
             </Row>
           </View>
@@ -311,7 +311,7 @@ function Bubble({ item }: { item: ChatItem }) {
       </Text>
       {!isUser && item.source ? (
         <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>
-          {item.source === 'llm' ? '🤖 IA' : '⚡ instantánea'}
+          {item.source === 'llm' ? 'IA' : 'instantánea'}
         </Text>
       ) : null}
     </View>

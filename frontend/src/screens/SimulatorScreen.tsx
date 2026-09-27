@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Button, Card, Field, FormScroll, Row } from '../components/ui';
+import { Button, Card, Field, FormScroll, Ico, IconName, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { formatLocalDate, formatMoney, parseAmount, parseDecimal } from '../utils/format';
 import {
@@ -35,7 +35,7 @@ interface FieldDef {
 interface ScenarioDef {
   key: SimulationType;
   label: string;
-  emoji: string;
+  icon: IconName;
   fields: FieldDef[];
   /** Selector requerido: deuda (abono/refinanciación) o activo (venta). */
   needs?: 'debt' | 'asset';
@@ -48,14 +48,14 @@ const SCENARIOS: ScenarioDef[] = [
     // P1 (máxima prioridad DEC-0026): la jugada de abono por fin aterriza aquí.
     key: 'abono_extra',
     label: '¿Y si abono extra a una deuda?',
-    emoji: '💸',
+    icon: 'cash-outline',
     needs: 'debt',
     fields: [{ name: 'extraMonthly', label: 'Abono extra mensual', placeholder: '200000' }],
   },
   {
     key: 'nueva_deuda',
     label: '¿Y si tomo un crédito?',
-    emoji: '🚗',
+    icon: 'car-outline',
     fields: [
       { name: 'amount', label: 'Monto', placeholder: '20000000' },
       { name: 'termMonths', label: 'Plazo (meses)', placeholder: '60' },
@@ -65,19 +65,19 @@ const SCENARIOS: ScenarioDef[] = [
   {
     key: 'reducir_gastos',
     label: '¿Y si recorto gastos?',
-    emoji: '✂️',
+    icon: 'cut-outline',
     fields: [{ name: 'monthlyAmount', label: 'Recorte mensual', placeholder: '300000' }],
   },
   {
     key: 'cambio_ingreso',
     label: '¿Y si cambia mi ingreso?',
-    emoji: '💼',
+    icon: 'briefcase-outline',
     fields: [{ name: 'newMonthlyIncome', label: 'Nuevo ingreso mensual', placeholder: '6000000' }],
   },
   {
     key: 'estrategia_deudas',
     label: '¿Avalancha o bola de nieve?',
-    emoji: '🏔️',
+    icon: 'trail-sign-outline',
     needsTwoDebts: true,
     fields: [
       {
@@ -93,7 +93,7 @@ const SCENARIOS: ScenarioDef[] = [
   {
     key: 'refinanciar',
     label: '¿Y si refinancio una deuda?',
-    emoji: '🔁',
+    icon: 'repeat-outline',
     needs: 'debt',
     fields: [
       { name: 'newRatePct', label: 'Nueva tasa % EA', placeholder: '14' },
@@ -103,14 +103,14 @@ const SCENARIOS: ScenarioDef[] = [
   {
     key: 'vender_activo',
     label: '¿Y si vendo un activo?',
-    emoji: '🏠',
+    icon: 'home-outline',
     needs: 'asset',
     fields: [{ name: 'salePrice', label: 'Precio de venta', placeholder: '30000000' }],
   },
   {
     key: 'proyeccion_ahorro',
     label: '¿Cuánto tendría ahorrando?',
-    emoji: '🐷',
+    icon: 'wallet-outline',
     fields: [
       { name: 'monthlyContribution', label: 'Aporte mensual', placeholder: '200000' },
       { name: 'annualRatePct', label: 'Tasa % EA (tú la eliges, p. ej. 8)', placeholder: '8' },
@@ -119,8 +119,8 @@ const SCENARIOS: ScenarioDef[] = [
   },
 ];
 
-const SCENARIO_EMOJI: Record<string, string> = Object.fromEntries(
-  SCENARIOS.map((s) => [s.key, s.emoji]),
+const SCENARIO_ICON: Record<string, IconName> = Object.fromEntries(
+  SCENARIOS.map((s) => [s.key, s.icon]),
 );
 const SCENARIO_LABEL: Record<string, string> = Object.fromEntries(
   SCENARIOS.map((s) => [s.key, s.label]),
@@ -198,7 +198,7 @@ export function SimulatorScreen() {
     if (scenario.needs === 'asset' && assets.length === 0) {
       return {
         text: 'Registra un activo (carro, casa, inversión) para simular su venta.',
-        cta: { label: '🏦 Ir a Cuentas y patrimonio →', to: 'Accounts' as const },
+        cta: { label: 'Ir a Cuentas y patrimonio →', to: 'Accounts' as const },
       };
     }
     return null;
@@ -247,7 +247,7 @@ export function SimulatorScreen() {
       {unknownScenario ? (
         <Card style={{ borderColor: colors.warning, borderWidth: 1 }}>
           <Text style={{ color: colors.text, fontSize: 13 }}>
-            ⚠️ No encontré el escenario que buscabas — elige uno de la lista.
+            <Ico name="warning-outline" color={colors.danger} /> No encontré el escenario que buscabas — elige uno de la lista.
           </Text>
         </Card>
       ) : null}
@@ -267,7 +267,7 @@ export function SimulatorScreen() {
             }}
           >
             <Text style={{ color: scenario.key === s.key ? colors.textInverse : colors.text, fontSize: 13 }}>
-              {s.emoji} {s.label}
+              <Ico name={s.icon} color={scenario.key === s.key ? colors.textInverse : colors.text} /> {s.label}
             </Text>
           </Pressable>
         ))}
@@ -341,7 +341,7 @@ export function SimulatorScreen() {
               <Text style={{ color: colors.danger }}>{error}</Text>
               {/(Millo+|simulaciones)/.test(error) ? (
                 <Pressable onPress={() => navigation.navigate('MilloPlus', { source: 'simulations_limit' })}>
-                  <Text style={{ color: colors.primary, fontWeight: '700', marginTop: 4 }}>✨ Conocer Millo+ →</Text>
+                  <Text style={{ color: colors.primary, fontWeight: '700', marginTop: 4 }}><Ico name="sparkles-outline" color={colors.primary} /> Conocer Millo+ →</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -471,7 +471,7 @@ function ResultCard({ result }: { result: SimulationResult }) {
       .sort((a, b) => Number(a.slice(9)) - Number(b.slice(9)));
     return (
       <Card style={{ marginTop: spacing.md }}>
-        <Text style={{ fontWeight: '700', fontSize: 16 }}>🐷 Tu ahorro proyectado</Text>
+        <Text style={{ fontWeight: '700', fontSize: 16 }}><Ico name="wallet-outline" size={16} /> Tu ahorro proyectado</Text>
         <Text style={{ fontSize: 30, fontWeight: '800', color: colors.success, marginTop: 4 }}>
           {formatMoney(Number(s.futureValue))}
         </Text>
@@ -490,7 +490,7 @@ function ResultCard({ result }: { result: SimulationResult }) {
           </Row>
         ))}
         <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: spacing.sm, lineHeight: 15 }}>
-          ⚖️ {String(s.disclaimer)}
+          <Ico name="scale-outline" color={colors.textMuted} /> {String(s.disclaimer)}
         </Text>
       </Card>
     );
@@ -531,7 +531,7 @@ function ResultCard({ result }: { result: SimulationResult }) {
         </Text>
       ) : null}
       <Text style={{ fontWeight: '600', color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm }}>
-        📊 El detalle: antes → después
+        <Ico name="stats-chart-outline" /> El detalle: antes → después
       </Text>
       {rows.map((r) => (
         <Row key={r.label} style={{ justifyContent: 'space-between', marginBottom: 6 }}>
@@ -572,21 +572,21 @@ function NextStep({
     switch (result.type) {
       case 'abono_extra': {
         const go = goDebt(debtId);
-        return go ? { label: '💸 Hazlo real: abonar a capital →', go } : null;
+        return go ? { label: 'Hazlo real: abonar a capital →', go } : null;
       }
       case 'estrategia_deudas':
         return {
-          label: '🎯 Ver tu orden de ataque →',
+          label: 'Ver tu orden de ataque →',
           go: () => navigation.navigate('Main', { screen: 'Debts', params: { screen: 'DebtsList' } }),
         };
       case 'reducir_gastos':
         return {
-          label: '🏠 Ajusta tus compromisos →',
+          label: 'Ajusta tus compromisos →',
           go: () => navigation.navigate('Budget'),
         };
       case 'vender_activo': {
         const go = goDebt(applyToDebtId);
-        return go ? { label: '💳 Ver la deuda que abonarías →', go } : null;
+        return go ? { label: 'Ver la deuda que abonarías →', go } : null;
       }
       // nueva_deuda / refinanciar / cambio_ingreso: no hay acción real en la
       // app — sin CTA fabricado (§29.1).
@@ -618,7 +618,7 @@ function HistorySection({
     <Card style={{ marginTop: spacing.md }}>
       <Pressable onPress={() => setOpen((v) => !v)}>
         <Text style={{ fontWeight: '700', fontSize: 15 }}>
-          🕘 {open ? 'Tus últimas simulaciones' : `Ver tus últimas simulaciones (${Math.min(history.length, 5)}) →`}
+          <Ico name="time-outline" /> {open ? 'Tus últimas simulaciones' : `Ver tus últimas simulaciones (${Math.min(history.length, 5)}) →`}
         </Text>
       </Pressable>
       {open
@@ -626,7 +626,7 @@ function HistorySection({
             <Pressable key={h.id} onPress={() => onPick(h)} style={{ marginTop: spacing.sm }}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <Text style={{ color: colors.text, flex: 1 }} numberOfLines={1}>
-                  {SCENARIO_EMOJI[h.type] ?? '🧪'} {SCENARIO_LABEL[h.type] ?? h.type}
+                  <Ico name={SCENARIO_ICON[h.type] ?? 'flask-outline'} color={colors.textMuted} /> {SCENARIO_LABEL[h.type] ?? h.type}
                 </Text>
                 <Text style={{ color: colors.textMuted, fontSize: 12 }}>
                   {formatLocalDate(h.createdAt)} · repetir →

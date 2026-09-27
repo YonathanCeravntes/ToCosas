@@ -2,7 +2,7 @@ import React from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Button, Card, Row, Screen } from '../../components/ui';
+import { Button, Card, Ico, Row, Screen } from '../../components/ui';
 import { colors, spacing } from '../../theme/colors';
 import { formatDate, formatMoney, formatPercent } from '../../utils/format';
 import { Debt, DebtsSummary, toNumber } from '../../api/types';
@@ -104,7 +104,7 @@ function FrontHero({ summary, debts }: { summary: DebtsSummary | null; debts: De
       ) : null}
       {freeDate ? (
         <Text style={{ color: colors.textInverse, fontWeight: '700', marginTop: 6 }}>
-          🏁 Libre de todo: {formatDate(freeDate)}
+          <Ico name="flag-outline" color={colors.primary} /> Libre de todo: {formatDate(freeDate)}
         </Text>
       ) : null}
     </Card>
@@ -138,7 +138,7 @@ function AttackPlan({
       return (
         <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
           <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-            ⭐ Tu jugada con esta deuda
+            <Ico name="star" color={colors.accent} /> Tu jugada con esta deuda
           </Text>
           <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
             Cada peso extra que le abones a {d.name} te ahorra intereses y adelanta tu fecha de
@@ -148,7 +148,7 @@ function AttackPlan({
             onPress={() => onDebt({ debtId: d.id, name: d.name })}
             style={{ marginTop: spacing.sm }}
           >
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>💸 Abonar o simularlo →</Text>
+            <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="cash-outline" color={colors.primary} /> Abonar o simularlo →</Text>
           </Pressable>
         </Card>
       );
@@ -165,7 +165,7 @@ function AttackPlan({
   return (
     <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
       <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-        ⭐ Tu orden de ataque — {rec.name}
+        <Ico name="star" color={colors.accent} /> Tu orden de ataque — {rec.name}
       </Text>
       <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
         {showSavings
@@ -177,7 +177,7 @@ function AttackPlan({
           <Pressable key={d.debtId} onPress={() => onDebt(d)}>
             <Row style={{ justifyContent: 'space-between' }}>
               <Text style={{ color: colors.text, flex: 1 }} numberOfLines={1}>
-                {i === 0 ? '🎯 ' : '     '}
+                {i === 0 ? <Ico name="locate-outline" color={colors.primary} /> : null}{i === 0 ? ' ' : '    '}
                 {i + 1}º {d.name}
               </Text>
               <Text style={{ color: colors.textMuted, fontSize: 13 }}>
@@ -198,7 +198,7 @@ function AttackPlan({
         }
         style={{ marginTop: spacing.sm }}
       >
-        <Text style={{ color: colors.primary, fontWeight: '700' }}>🧪 Verlo en el simulador →</Text>
+        <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="flask-outline" color={colors.primary} /> Verlo en el simulador →</Text>
       </Pressable>
     </Card>
   );
@@ -239,7 +239,7 @@ function DebtCard({ debt }: { debt: Debt }) {
       ) : null}
       {debt.projection?.payoffDate ? (
         <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
-          🏁 Terminas de pagar el {formatDate(debt.projection.payoffDate)}
+          <Ico name="flag-outline" color={colors.primary} /> Terminas de pagar el {formatDate(debt.projection.payoffDate)}
         </Text>
       ) : null}
     </Card>
