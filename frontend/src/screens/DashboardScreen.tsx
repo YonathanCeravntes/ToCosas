@@ -199,59 +199,40 @@ export function DashboardScreen() {
         </Card>
       </Pressable>
 
-      {/* Patrimonio + ahorro: par del mismo peso. */}
-      <Row style={{ gap: spacing.md, alignItems: 'stretch' }}>
-        <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Accounts')} accessibilityRole="button" accessibilityLabel="Cuentas y patrimonio">
-          <Card style={{ flex: 1 }}>
-            <Text style={{ color: colors.textMuted, ...type.small }}>Patrimonio</Text>
-            <Text style={{ color: colors.text, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(d?.netWorth.netWorth ?? 0)}</Text>
-            <Text style={{ color: colors.textFaint, ...type.caption }}>lo tuyo, menos deudas</Text>
-          </Card>
-        </Pressable>
-        <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Simulator', { scenario: 'proyeccion_ahorro' })} accessibilityRole="button" accessibilityLabel="Proyectar mi ahorro">
-          <Card style={{ flex: 1 }}>
-            <Text style={{ color: colors.textMuted, ...type.small }}>Ahorro total</Text>
-            <Text style={{ color: colors.success, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(d?.savings.total ?? 0)}</Text>
-            {d?.interpretation.savings ? (
-              <Text style={{ color: colors.textFaint, ...type.caption }}>{d.interpretation.savings.text}</Text>
-            ) : null}
-            <Text style={{ color: colors.primary, ...type.caption, fontWeight: '700', marginTop: spacing.xxs }}>¿Cuánto tendrías en unos años? →</Text>
-          </Card>
-        </Pressable>
-      </Row>
-
-      {/* Ingresos y gastos del ciclo (glosario FIN-017 P4) */}
+      {/* DEC-0040 §7 (orden de Inicio): Inicio responde solo "¿cómo voy este ciclo?":
+          Te queda → deudas → lo que entró/salió → en qué se va → últimos movimientos.
+          Patrimonio y ahorro viven ahora en Salud ("Lo que tienes"), que es su casa. */}
       <Row style={{ gap: spacing.md }}>
-        <FlowStat label="Ingresos" flow={d?.income} color={colors.success} onPress={() => navigation.navigate('Transactions', { kind: 'ingreso' })} />
         <FlowStat label="Gastos" flow={d?.expense} color={colors.danger} onPress={() => navigation.navigate('Transactions', { kind: 'gasto' })} />
+        <FlowStat label="Ingresos" flow={d?.income} color={colors.success} onPress={() => navigation.navigate('Transactions', { kind: 'ingreso' })} />
       </Row>
 
       {d && d.expense.byCategory.length > 0 ? (
         <>
-          <SectionHeader title="¿En qué se te va la plata? · día a día" />
+          <SectionHeader
+            title="¿En qué se te va la plata?"
+            action={d.expense.byCategory.length > 3 ? 'Ver todo' : undefined}
+            onAction={() => navigation.navigate('Budget')}
+          />
           <Card>
-            {d.expense.byCategory.map((c) => (
+            {d.expense.byCategory.slice(0, 3).map((c) => (
               <CategoryBar key={c.name} c={c} />
             ))}
           </Card>
         </>
       ) : null}
 
-      {d && d.income.variable > 0 ? (
-        <>
-          <SectionHeader title="¿De dónde llega la plata? · día a día" />
-          <Card>
-            {d.income.byCategory.every((c) => c.name === 'Sin categoría') ? (
-              <Pressable onPress={() => navigation.navigate('Main', { screen: 'Add' } as never)} accessibilityRole="link">
-                <Text style={{ color: colors.primary, ...type.body, fontWeight: '600' }}>
-                  🏷️ Tus ingresos aún no tienen categoría — toca para organizarlos →
-                </Text>
-              </Pressable>
-            ) : (
-              d.income.byCategory.map((c) => <CategoryBar key={c.name} c={c} />)
-            )}
-          </Card>
-        </>
+      {d && d.income.variable > 0 && d.income.byCategory.every((c) => c.name === 'Sin categoría') ? (
+        <Card>
+          <Pressable onPress={() => navigation.navigate('Main', { screen: 'Add' } as never)} accessibilityRole="link">
+            <Row style={{ gap: spacing.sm }}>
+              <Ionicons name="pricetag-outline" size={18} color={colors.primary} />
+              <Text style={{ color: colors.primary, ...type.body, fontWeight: '600', flex: 1 }}>
+                Tus ingresos del día a día aún no tienen categoría · toca para organizarlos
+              </Text>
+            </Row>
+          </Pressable>
+        </Card>
       ) : null}
 
       {/* Movimientos recientes (FIN-014/018/028) — el detalle completo vive en el

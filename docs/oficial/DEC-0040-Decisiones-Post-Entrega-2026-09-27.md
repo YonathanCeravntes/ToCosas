@@ -59,3 +59,14 @@
   durante la configuración. Pendiente del Fundador.
 - **Verificación en dispositivo:** Ajustes muestra el `Android update ID` (no el `Update group
   ID`); el publicador ahora imprime el código exacto (guía v1.1, Parte D).
+
+## 7. Orden visual de la app (Fundador: "organizar más cómo se ve y organiza", 2026-09-27)
+- **Inicio responde una sola pregunta: "¿cómo voy este ciclo?"** Orden: Te queda (hero) → Deuda
+  total (con próximo vencimiento) → Gastos | Ingresos del ciclo → "¿En qué se te va la plata?"
+  (solo las 3 categorías mayores, "Ver todo" abre Presupuesto) → Movimientos recientes → progreso.
+  Salen de Inicio: **Patrimonio** y **Ahorro total** (pasan a Salud, sección "Lo que tienes",
+  junto al Score que ya los interpreta) y el desglose de ingresos por categoría (queda solo el
+  aviso cuando no tienen categoría).
+- **Más** ya estaba en tres bloques (Tu dinero · Decidir mejor · Cuenta); sin cambio.
+- Pendientes de esta línea, por orden: tipografía propia (Inter, OTA), modo oscuro (BP-14),
+  splash con logo (APK). Se abren cuando el Fundador lo pida.

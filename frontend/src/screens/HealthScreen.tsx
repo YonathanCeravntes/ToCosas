@@ -3,8 +3,10 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Card, Row, Sparkline } from '../components/ui';
-import { colors, radius, spacing } from '../theme/colors';
+import { Card, Row, SectionHeader, Sparkline } from '../components/ui';
+import { colors, radius, spacing, type } from '../theme/colors';
+import { formatMoney } from '../utils/format';
+import { HomeDashboard } from '../api/types';
 import {
   HealthIndicator,
   HealthScore,
@@ -14,7 +16,7 @@ import {
   ScoreHistoryPoint,
 } from '../api/types';
 import { ApiError } from '../api/client';
-import { healthApi, recommendationsApi } from '../api/endpoints';
+import { dashboardApi, healthApi, recommendationsApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
 
 /**
@@ -66,13 +68,16 @@ function humanValue(display: string): string {
 export function HealthScreen() {
   const { data, loading, reload } = useApi(() => healthApi.score(), []);
   const recs = useApi(() => recommendationsApi.list(), []);
+  const home = useApi(() => dashboardApi.home(), []); // DEC-0040 §7: patrimonio y ahorro viven aquí
   const reloadRecs = recs.reload;
+  const reloadHome = home.reload;
 
   useFocusEffect(
     React.useCallback(() => {
       void reload();
       void reloadRecs();
-    }, [reload, reloadRecs]),
+      void reloadHome();
+    }, [reload, reloadRecs, reloadHome]),
   );
 
   const worst = data ? worstIndicator(data.indicators) : null;
@@ -91,6 +96,7 @@ export function HealthScreen() {
       ) : null}
       <JugadaCard recs={recs.data ?? []} worst={worst} hasScore={!!data?.score} />
       {data?.indicators.map((ind) => <IndicatorCard key={ind.key} ind={ind} />)}
+      <WealthSection d={home.data} />
       <HistorySection />
       <CopilotBridge />
       {data ? (
@@ -333,6 +339,38 @@ function IndicatorCard({ ind }: { ind: HealthIndicator }) {
 }
 
 /** P6: evolución con lectura narrativa (la lista es el detalle, no el mensaje). */
+/**
+ * DEC-0040 §7 · "Lo que tienes": patrimonio y ahorro salen de Inicio (que ahora solo
+ * responde "¿cómo voy este ciclo?") y viven junto al Score, que ya los interpreta en
+ * sus pilares "Lo que tienes" y "Tu ahorro".
+ */
+function WealthSection({ d }: { d: HomeDashboard | null }) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  if (!d) return null;
+  return (
+    <>
+      <SectionHeader title="Lo que tienes" />
+      <Row style={{ gap: spacing.md, alignItems: 'stretch' }}>
+        <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Accounts')} accessibilityRole="button" accessibilityLabel="Cuentas y patrimonio">
+          <Card style={{ flex: 1 }}>
+            <Text style={{ color: colors.textMuted, ...type.small }}>Patrimonio</Text>
+            <Text style={{ color: colors.text, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(d.netWorth.netWorth)}</Text>
+            <Text style={{ color: colors.textFaint, ...type.caption }}>lo tuyo, menos deudas</Text>
+          </Card>
+        </Pressable>
+        <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Simulator', { scenario: 'proyeccion_ahorro' })} accessibilityRole="button" accessibilityLabel="Proyectar mi ahorro">
+          <Card style={{ flex: 1 }}>
+            <Text style={{ color: colors.textMuted, ...type.small }}>Ahorro total</Text>
+            <Text style={{ color: colors.success, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(d.savings.total)}</Text>
+            {d.interpretation.savings ? <Text style={{ color: colors.textFaint, ...type.caption }}>{d.interpretation.savings.text}</Text> : null}
+            <Text style={{ color: colors.primary, ...type.caption, fontWeight: '700', marginTop: spacing.xxs }}>¿Cuánto tendrías en unos años? →</Text>
+          </Card>
+        </Pressable>
+      </Row>
+    </>
+  );
+}
+
 function HistorySection() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [history, setHistory] = useState<ScoreHistoryPoint[] | null>(null);
