@@ -27,8 +27,8 @@ v3.21 (`docs/GOBERNANZA.md`) — §44 equipo de dos (`DEC-ORG-002`). Controles s
 
 ## Beta técnica (estado de despliegue)
 - **APK instalada:** Android, Expo SDK 54 / RN 0.81, `runtimeVersion` 0.1.0, canal `preview` (`scripts/deploy/apk-baseline.json` es la fuente de verdad; se actualiza SOLO al construir una APK nueva).
-- **Primera validación del Fundador (2026-09-27):** BT-012 (barra de pestañas bajo los botones del sistema Android) → corregido, **pendiente de republicar OTA**; BT-013 (ícono genérico) → íconos creados y declarados en `app.json`, se verán al construir la próxima APK (nativo, no OTA).
-- **OTA vigente en `preview`:** `03d425e3` (entrega 2026-09-27: SPRINT-PULIDO-001 + MANT-001 + FIN-038 + FIN-039), publicada por el Fundador desde su PC con `npm run ota:publish` (preflight con baseline OK, centinela "Android de Yonathan"). Anterior: `f166ac42` (FIN-027/028 + BT-001/003).
+- **Primera validación del Fundador (2026-09-27):** BT-012 (barra de pestañas bajo los botones del sistema Android) → corregido y **verificado por el Fundador en dispositivo** (OTA `74f6a9af`, publicada desde su PC vía sesión Remote Control); BT-013 (ícono genérico) → íconos creados y declarados en `app.json`, se verán al construir la próxima APK (nativo, no OTA).
+- **OTA vigente en `preview`:** `74f6a9af` (BT-012, commit `42ff127`). Anteriores hoy: `03d425e3` (entrega 2026-09-27: SPRINT-PULIDO-001 + MANT-001 + FIN-038 + FIN-039). Ambas publicadas desde el PC del Fundador con `npm run ota:publish` (preflight con baseline OK, centinela "Android de Yonathan"). Antes: `f166ac42` (FIN-027/028 + BT-001/003).
 - **Backend:** Render free `milla-backend` + Neon. Desplegado `2ce4747` (Deploy live, migración `fin039` aplicada en `startCommand`). Variables `SMTP_URL` y `MAIL_FROM` configuradas por el Fundador (Gmail App Password); `WHATSAPP_DISPLAY_NUMBER` no configurada (sin número de bot aún).
 - **Incidente de proceso 2026-09-26:** intento de subir a Expo SDK 57 revertido (`362d279`); motivó el baseline de APK en el preflight.
 
