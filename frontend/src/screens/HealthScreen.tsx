@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Card, Row, SectionHeader, Sparkline } from '../components/ui';
+import { Card, ErrorState, FormScroll, Row, SectionHeader, Sparkline } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney } from '../utils/format';
 import { HomeDashboard } from '../api/types';
@@ -66,7 +66,7 @@ function humanValue(display: string): string {
 }
 
 export function HealthScreen() {
-  const { data, loading, reload } = useApi(() => healthApi.score(), []);
+  const { data, loading, error, reload } = useApi(() => healthApi.score(), []);
   const recs = useApi(() => recommendationsApi.list(), []);
   const home = useApi(() => dashboardApi.home(), []); // DEC-0040 §7: patrimonio y ahorro viven aquí
   const reloadRecs = recs.reload;
@@ -81,9 +81,14 @@ export function HealthScreen() {
   );
 
   const worst = data ? worstIndicator(data.indicators) : null;
+  const refresh = React.useCallback(
+    () => Promise.all([reload(), reloadRecs(), reloadHome()]),
+    [reload, reloadRecs, reloadHome],
+  );
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+    <FormScroll onRefresh={refresh}>
+      {error && !data ? <ErrorState message={error} onRetry={() => void refresh()} /> : null}
       <ScoreCard data={data} loading={loading} worst={worst} />
       {/* FIN-027 (DEC-0027 §5.1): costo de honestidad, requisito del DEC — el
           Score usa ingreso neto; esto explica por qué, sin sonar a regaño. */}
@@ -104,7 +109,7 @@ export function HealthScreen() {
           {data.disclaimer}
         </Text>
       ) : null}
-    </ScrollView>
+    </FormScroll>
   );
 }
 

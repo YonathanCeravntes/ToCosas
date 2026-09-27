@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { Alert, Pressable, Share, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Field, IconButton, Row } from '../components/ui';
+import { Button, Card, Field, FormScroll, IconButton, Row } from '../components/ui';
 import { colors, spacing, type } from '../theme/colors';
 import { useAuthStore } from '../store/auth.store';
 import { authApi, billingApi, budgetApi, copilotApi, insightsApi } from '../api/endpoints';
@@ -26,16 +26,20 @@ export function SettingsScreen() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    void copilotApi.consentStatus().then((s) => setAiAccepted(s.accepted)).catch(() => setAiAccepted(null));
-    void billingApi.me().then(setBilling).catch(() => undefined);
-    void budgetApi.monthly().then((b) => setCycleDay(b.period?.cycleStartDay ?? 1)).catch(() => undefined);
-    void insightsApi.preferences().then((p) => setProactive(p.proactiveEnabled)).catch(() => setProactive(null));
-    void refreshMe();
-  }, [refreshMe]);
+  const load = useCallback(
+    () =>
+      Promise.all([
+        copilotApi.consentStatus().then((s) => setAiAccepted(s.accepted)).catch(() => setAiAccepted(null)),
+        billingApi.me().then(setBilling).catch(() => undefined),
+        budgetApi.monthly().then((b) => setCycleDay(b.period?.cycleStartDay ?? 1)).catch(() => undefined),
+        insightsApi.preferences().then((p) => setProactive(p.proactiveEnabled)).catch(() => setProactive(null)),
+        refreshMe(),
+      ]),
+    [refreshMe],
+  );
 
   // BP-03: datos frescos cada vez que la pantalla gana foco.
-  useFocusEffect(load);
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const changeCycleDay = async (delta: number) => {
     const next = Math.min(28, Math.max(1, cycleDay + delta));
@@ -109,7 +113,7 @@ export function SettingsScreen() {
   const updateId = Updates.updateId ? Updates.updateId.slice(0, 8) : 'apk';
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+    <FormScroll onRefresh={load}>
       <Card>
         <Text style={{ color: colors.textMuted, ...type.small }}>Cuenta</Text>
         <Text style={{ color: colors.text, ...type.title }}>{user?.fullName ?? 'Usuario'}</Text>
@@ -225,7 +229,7 @@ export function SettingsScreen() {
       <Text style={{ color: colors.textFaint, ...type.caption, textAlign: 'center', marginTop: spacing.xl }}>
         Millo v{version} · actualización {updateId}
       </Text>
-    </ScrollView>
+    </FormScroll>
   );
 }
 

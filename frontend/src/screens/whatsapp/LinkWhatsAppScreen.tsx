@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Linking, ScrollView, Text, View } from 'react-native';
+import { Linking, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Card, Field } from '../../components/ui';
+import { Button, Card, Field, FormScroll } from '../../components/ui';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { whatsappApi } from '../../api/endpoints';
 import { StartLinkResult } from '../../api/types';
@@ -44,7 +44,7 @@ export function LinkWhatsAppScreen(_props: Props) {
   };
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+    <FormScroll>
       <Text style={{ color: colors.primary, ...type.heading }}>Registra por WhatsApp</Text>
       <Text style={{ color: colors.textMuted, ...type.body, marginTop: spacing.xs, marginBottom: spacing.lg }}>
         Vincula tu número y podrás registrar gastos escribiendo mensajes normales, como
@@ -80,6 +80,6 @@ export function LinkWhatsAppScreen(_props: Props) {
           )}
         </Card>
       ) : null}
-    </ScrollView>
+    </FormScroll>
   );
 }

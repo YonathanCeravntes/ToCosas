@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
-import { Button, Card, Row } from '../components/ui';
+import { Text, TextInput, View } from 'react-native';
+import { Button, Card, FormScroll, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { billingApi } from '../api/endpoints';
 import { BillingStatus } from '../api/types';
@@ -44,7 +44,7 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
   const isPremium = status?.plan === 'premium';
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+    <FormScroll>
       <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary, alignItems: 'center', paddingVertical: spacing.lg }}>
         <Text style={{ fontSize: 34 }}>✨</Text>
         <Text style={{ color: colors.textInverse, fontSize: 24, fontWeight: '800' }}>Millo+</Text>
@@ -110,6 +110,6 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
           {message}
         </Text>
       ) : null}
-    </ScrollView>
+    </FormScroll>
   );
 }

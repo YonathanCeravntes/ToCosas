@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Button, Card, Field, Row } from '../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, IconButton, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { formatMoney, parseAmount } from '../utils/format';
 import { Account, AccountType, Asset, AssetType, NetWorth, toNumber } from '../api/types';
 import { accountsApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
+import { confirmRemove } from '../utils/confirm';
 
 const ACC_TYPES: Array<{ key: AccountType; label: string }> = [
   { key: 'ahorros', label: 'Ahorros' },
@@ -22,24 +23,24 @@ const ASSET_TYPES: Array<{ key: AssetType; label: string }> = [
 ];
 
 export function AccountsScreen() {
-  const { data: nw, loading, reload } = useApi(() => accountsApi.netWorth(), []);
+  const { data: nw, loading, error, reload } = useApi(() => accountsApi.netWorth(), []);
   const { data: accounts, reload: reloadAcc } = useApi(() => accountsApi.listAccounts(), []);
   const { data: assets, reload: reloadAss } = useApi(() => accountsApi.listAssets(), []);
 
-  const refresh = React.useCallback(() => {
-    void reload();
-    void reloadAcc();
-    void reloadAss();
-  }, [reload, reloadAcc, reloadAss]);
+  const refresh = React.useCallback(
+    () => Promise.all([reload(), reloadAcc(), reloadAss()]),
+    [reload, reloadAcc, reloadAss],
+  );
 
-  useFocusEffect(React.useCallback(() => refresh(), [refresh]));
+  useFocusEffect(React.useCallback(() => { void refresh(); }, [refresh]));
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+    <FormScroll onRefresh={refresh}>
+      {error && !nw ? <ErrorState message={error} onRetry={() => void refresh()} /> : null}
       <NetWorthCard nw={nw} loading={loading} />
       <AccountsSection accounts={accounts ?? []} onChange={refresh} />
       <AssetsSection assets={assets ?? []} onChange={refresh} />
-    </ScrollView>
+    </FormScroll>
   );
 }
 
@@ -132,9 +133,11 @@ function AccountsSection({ accounts, onChange }: { accounts: Account[]; onChange
                 </Text>
               </Pressable>
             )}
-            <Pressable onPress={() => accountsApi.removeAccount(a.id).then(onChange)} style={{ marginLeft: spacing.md }}>
-              <Text style={{ color: colors.textMuted, fontSize: 16 }}>🗑️</Text>
-            </Pressable>
+            <IconButton
+              icon="trash-outline"
+              label={`Eliminar ${a.name}`}
+              onPress={() => confirmRemove(a.name, 'Su saldo dejará de contar en tu patrimonio.', () => accountsApi.removeAccount(a.id).then(onChange))}
+            />
           </Row>
           {editId === a.id ? (
             <Row style={{ marginTop: 6 }}>
@@ -198,9 +201,11 @@ function AssetsSection({ assets, onChange }: { assets: Asset[]; onChange: () => 
             <Text style={{ color: colors.textMuted, fontSize: 12 }}>{a.type}</Text>
           </View>
           <Text style={{ fontWeight: '700', color: colors.text }}>{formatMoney(toNumber(a.currentValue))}</Text>
-          <Pressable onPress={() => accountsApi.removeAsset(a.id).then(onChange)} style={{ marginLeft: spacing.md }}>
-            <Text style={{ color: colors.textMuted, fontSize: 16 }}>🗑️</Text>
-          </Pressable>
+          <IconButton
+            icon="trash-outline"
+            label={`Eliminar ${a.name}`}
+            onPress={() => confirmRemove(a.name, 'Su valor dejará de contar en tu patrimonio.', () => accountsApi.removeAsset(a.id).then(onChange))}
+          />
         </Row>
       ))}
       <View style={{ height: 1, backgroundColor: colors.border, marginVertical: spacing.sm }} />

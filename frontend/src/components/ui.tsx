@@ -1,8 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Keyboard,
+  Platform,
   Pressable,
+  RefreshControl,
+  ScrollView,
+  ScrollViewProps,
   StyleSheet,
   Text,
   TextInput,
@@ -139,6 +144,88 @@ export function Screen({ children, style, ...rest }: ViewProps) {
   return (
     <View style={[styles.screen, style]} {...rest}>
       {children}
+    </View>
+  );
+}
+
+/**
+ * Cuánto tapa el teclado a la vista que recibe `ref` y `onLayout`. Con
+ * edge-to-edge (SDK 54) Android ya no redimensiona la ventana, así que hay que
+ * apartarse a mano. Se mide contra la posición REAL de la vista (y se vuelve a
+ * medir si cambia de tamaño): si el sistema sí redimensionó, el solape es 0 y no
+ * hay doble desplazamiento.
+ */
+export function useKeyboardInset() {
+  const ref = useRef<View>(null);
+  const keyboardTop = useRef<number | null>(null);
+  const [inset, setInset] = useState(0);
+  const measure = useCallback(() => {
+    const top = keyboardTop.current;
+    if (top === null) return setInset(0);
+    ref.current?.measureInWindow((_x, y, _w, h) => setInset(Math.max(0, Math.round(y + h - top))));
+  }, []);
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvt, (e) => {
+      keyboardTop.current = e.endCoordinates.screenY;
+      measure();
+    });
+    const hide = Keyboard.addListener(hideEvt, () => {
+      keyboardTop.current = null;
+      setInset(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [measure]);
+  return { ref, inset, onLayout: measure };
+}
+
+/**
+ * Contenedor de pantalla con scroll: el teclado nunca tapa el campo ni el botón,
+ * el primer toque en un botón funciona con el teclado abierto, y `onRefresh`
+ * activa "deslizar hacia abajo para actualizar".
+ */
+export function FormScroll({
+  onRefresh,
+  contentContainerStyle,
+  style,
+  children,
+  ...rest
+}: ScrollViewProps & { onRefresh?: () => unknown }) {
+  const { ref, inset, onLayout } = useKeyboardInset();
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = useCallback(async () => {
+    if (!onRefresh) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [onRefresh]);
+  return (
+    <View ref={ref} onLayout={onLayout} style={{ flex: 1, backgroundColor: colors.bg, paddingBottom: inset }}>
+      <ScrollView
+        style={[{ flex: 1, backgroundColor: colors.bg }, style]}
+        contentContainerStyle={[{ padding: spacing.md }, contentContainerStyle]}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void refresh()}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          ) : undefined
+        }
+        {...rest}
+      >
+        {children}
+      </ScrollView>
     </View>
   );
 }

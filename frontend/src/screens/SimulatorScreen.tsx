@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Button, Card, Field, Row } from '../components/ui';
+import { Pressable, Text, View } from 'react-native';
+import { Button, Card, Field, FormScroll, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { formatLocalDate, formatMoney, parseAmount, parseDecimal } from '../utils/format';
 import {
@@ -239,7 +239,7 @@ export function SimulatorScreen() {
   };
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+    <FormScroll>
       <Text style={{ color: colors.textMuted, marginBottom: spacing.sm }}>
         Prueba decisiones antes de tomarlas — nada de esto modifica tus datos reales.
       </Text>
@@ -373,7 +373,7 @@ export function SimulatorScreen() {
           setValues(next);
         }}
       />
-    </ScrollView>
+    </FormScroll>
   );
 }
 

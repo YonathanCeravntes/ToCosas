@@ -1,16 +1,18 @@
 import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { Card, Row } from '../components/ui';
+import { Text, View } from 'react-native';
+import { Card, ErrorState, FormScroll, Row, Skeleton } from '../components/ui';
 import { colors, spacing } from '../theme/colors';
 import { gamificationApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
 
 /** Pantalla de Logros (FIN-008 §8): transparencia total de cómo ganarlos. */
 export function AchievementsScreen() {
-  const { data } = useApi(() => gamificationApi.profile(), []);
+  const { data, loading, error, reload } = useApi(() => gamificationApi.profile(), []);
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+    <FormScroll onRefresh={reload}>
+      {error && !data ? <ErrorState message={error} onRetry={() => void reload()} /> : null}
+      {loading && !data ? <Skeleton hero lines={3} /> : null}
       {data ? (
         <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
           <Row style={{ justifyContent: 'space-between' }}>
@@ -60,6 +62,6 @@ export function AchievementsScreen() {
           </Card>
         );
       })}
-    </ScrollView>
+    </FormScroll>
   );
 }
