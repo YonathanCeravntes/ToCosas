@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Button, Card, Field, Row } from '../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, IconButton, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { formatMoney, parseAmount, parseDecimal } from '../utils/format';
 import { IncomeSource, NetIncomeSummary, WorkProfile, toNumber } from '../api/types';
 import { incomeApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
+import { confirmRemove } from '../utils/confirm';
 
 /**
  * FIN-027 · Mi perfil de ingresos (DEC-0027). El usuario lo configura UNA vez;
@@ -28,16 +29,18 @@ export function IncomeProfileScreen() {
   const sources = useApi(() => incomeApi.listSources(), []);
   const summary = useApi(() => incomeApi.summary(), []);
 
-  const refresh = React.useCallback(() => {
-    void profile.reload();
-    void sources.reload();
-    void summary.reload();
-  }, [profile.reload, sources.reload, summary.reload]);
+  const refresh = React.useCallback(
+    () => Promise.all([profile.reload(), sources.reload(), summary.reload()]),
+    [profile.reload, sources.reload, summary.reload],
+  );
 
-  useFocusEffect(React.useCallback(() => refresh(), [refresh]));
+  useFocusEffect(React.useCallback(() => { void refresh(); }, [refresh]));
+
+  const loadError = sources.data ? null : sources.error ?? summary.error;
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+    <FormScroll onRefresh={refresh}>
+      {loadError ? <ErrorState message={loadError} onRetry={() => void refresh()} /> : null}
       <Text style={{ color: colors.textMuted, marginBottom: spacing.sm, fontSize: 13 }}>
         Configúralo una vez — Millo calcula tu ingreso neto disponible automáticamente en
         toda la app, sin que repitas cálculos cada mes.
@@ -74,7 +77,7 @@ export function IncomeProfileScreen() {
       {(sources.data ?? []).map((s) => (
         <SourceCard key={s.id} source={s} onChanged={refresh} />
       ))}
-    </ScrollView>
+    </FormScroll>
   );
 }
 
@@ -222,12 +225,11 @@ function SourceCard({ source, onChanged }: { source: IncomeSource; onChanged: ()
           </Text>
         </View>
         <Text style={{ fontWeight: '700', color: colors.success }}>{formatMoney(toNumber(source.amount))}</Text>
-        <Pressable
-          onPress={() => void incomeApi.removeSource(source.id).then(onChanged)}
-          style={{ marginLeft: spacing.sm }}
-        >
-          <Text style={{ fontSize: 16 }}>🗑️</Text>
-        </Pressable>
+        <IconButton
+          icon="trash-outline"
+          label={`Eliminar ${source.name}`}
+          onPress={() => confirmRemove(source.name, 'Dejará de contar en tu ingreso.', () => incomeApi.removeSource(source.id).then(onChanged))}
+        />
       </Row>
 
       {source.deductions.map((d) => (
@@ -239,9 +241,12 @@ function SourceCard({ source, onChanged }: { source: IncomeSource; onChanged: ()
           <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 13 }}>
             {d.percent != null ? `${d.percent}%` : formatMoney(toNumber(d.fixedAmount))}
           </Text>
-          <Pressable onPress={() => void incomeApi.removeDeduction(d.id).then(onChanged)} style={{ marginLeft: spacing.sm }}>
-            <Text style={{ fontSize: 14 }}>🗑️</Text>
-          </Pressable>
+          <IconButton
+            icon="trash-outline"
+            size={18}
+            label={`Eliminar ${DEDUCTION_LABEL[d.kind] ?? d.name}`}
+            onPress={() => confirmRemove(DEDUCTION_LABEL[d.kind] ?? d.name, 'Tu ingreso neto se recalculará.', () => incomeApi.removeDeduction(d.id).then(onChanged))}
+          />
         </Row>
       ))}
 

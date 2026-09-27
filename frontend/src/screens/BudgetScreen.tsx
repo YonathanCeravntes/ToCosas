@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, Field, Row } from '../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, IconButton, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { formatMoney, parseAmount } from '../utils/format';
 import { MonthlyBudget, Recommendation, TeQueda, toNumber } from '../api/types';
 import { budgetApi, incomeApi, recommendationsApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
+import { confirmRemove } from '../utils/confirm';
 
 /**
  * FIN-020 · Experiencia de Presupuesto (ARQ-0020 v1.1, DEC-0020).
@@ -24,7 +25,7 @@ import { useApi } from '../utils/useApi';
  */
 
 export function BudgetScreen() {
-  const { data, loading, reload } = useApi(() => budgetApi.monthly(), []);
+  const { data, loading, error, reload } = useApi(() => budgetApi.monthly(), []);
   const recs = useApi(() => recommendationsApi.list(), []);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const reloadRecs = recs.reload;
@@ -36,13 +37,21 @@ export function BudgetScreen() {
     }, [reload, reloadRecs]),
   );
 
-  const onRemove = async (id: string) => {
-    await budgetApi.removeFixed(id);
-    await reload();
-  };
+  const onRemove = (id: string, name: string) =>
+    confirmRemove(name, 'Dejará de contar en tu presupuesto.', async () => {
+      await budgetApi.removeFixed(id);
+      await reload();
+    });
+
+  const refresh = React.useCallback(
+    () => Promise.all([reload(), reloadRecs()]),
+    [reload, reloadRecs],
+  );
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+    <FormScroll onRefresh={refresh}>
+      {error && !data ? <ErrorState message={error} onRetry={() => void refresh()} /> : null}
+
       {/* P1+P3 — el número oficial y su reparto por día */}
       <TeQuedaHero teQueda={data?.teQueda ?? null} loading={loading} />
 
@@ -108,7 +117,7 @@ export function BudgetScreen() {
         variant="secondary"
         onPress={() => navigation.navigate('Accounts')}
       />
-    </ScrollView>
+    </FormScroll>
   );
 }
 
@@ -118,7 +127,7 @@ function TeQuedaHero({ teQueda, loading }: { teQueda: TeQueda | null; loading: b
     return (
       <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
         <Text style={{ color: colors.textInverse, opacity: 0.9 }}>
-          {loading ? 'Calculando tu presupuesto…' : 'Sin datos'}
+          {loading ? 'Calculando tu presupuesto…' : 'Desliza hacia abajo para actualizar'}
         </Text>
       </Card>
     );
@@ -277,10 +286,15 @@ function NewFixedForm({ onSaved }: { onSaved: () => Promise<unknown> }) {
   const [amount, setAmount] = useState('');
   const [day, setDay] = useState('');
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const onAdd = async () => {
     const value = parseAmount(amount) || 0; // §39
-    if (!name.trim() || !value) return;
+    if (!name.trim() || !value) {
+      setFormError('Escribe el nombre y el monto mensual.');
+      return;
+    }
+    setFormError(null);
     setSaving(true);
     try {
       await budgetApi.createFixed({
@@ -294,6 +308,8 @@ function NewFixedForm({ onSaved }: { onSaved: () => Promise<unknown> }) {
       setDay('');
       setOpen(false);
       await onSaved();
+    } catch (e) {
+      setFormError((e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -311,6 +327,7 @@ function NewFixedForm({ onSaved }: { onSaved: () => Promise<unknown> }) {
           <Field label="Nombre" value={name} onChangeText={setName} placeholder="Arriendo, servicios…" />
           <Field label="Monto mensual" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="1200000" />
           <Field label="Día del mes (opcional)" value={day} onChangeText={setDay} keyboardType="numeric" placeholder="5" />
+          {formError ? <Text style={{ color: colors.danger, marginBottom: spacing.xs }}>{formError}</Text> : null}
           <Button title="Agregar" onPress={onAdd} loading={saving} />
         </View>
       ) : null}
@@ -333,10 +350,11 @@ function IncomesReferenceCard({
   onGoToProfile: () => void;
   onChanged: () => Promise<unknown>;
 }) {
-  const onRemove = async (id: string) => {
-    await incomeApi.removeSource(id);
-    await onChanged();
-  };
+  const onRemove = (id: string, name: string) =>
+    confirmRemove(name, 'Dejará de contar en tu ingreso.', async () => {
+      await incomeApi.removeSource(id);
+      await onChanged();
+    });
   return (
     <Card>
       <Text style={{ fontWeight: '700', marginBottom: spacing.sm }}>💵 Ingresos fijos</Text>
@@ -354,9 +372,7 @@ function IncomesReferenceCard({
               ) : null}
             </View>
             <Text style={{ fontWeight: '700', color: colors.success }}>{formatMoney(i.amount)}</Text>
-            <Pressable onPress={() => void onRemove(i.id)} style={{ marginLeft: spacing.md }}>
-              <Text style={{ color: colors.textMuted, fontSize: 18 }}>🗑️</Text>
-            </Pressable>
+            <IconButton icon="trash-outline" label={`Eliminar ${i.name}`} onPress={() => onRemove(i.id, i.name)} />
           </Row>
         ))
       )}
@@ -378,7 +394,7 @@ function FixedList({
   title: string;
   items: Array<{ id: string; name: string; amount: number; dayOfMonth: number | null }>;
   color: string;
-  onRemove: (id: string) => void;
+  onRemove: (id: string, name: string) => void;
 }) {
   if (items.length === 0) return null;
   return (
@@ -393,9 +409,7 @@ function FixedList({
             ) : null}
           </View>
           <Text style={{ fontWeight: '700', color }}>{formatMoney(toNumber(i.amount))}</Text>
-          <Pressable onPress={() => onRemove(i.id)} style={{ marginLeft: spacing.md }}>
-            <Text style={{ color: colors.textMuted, fontSize: 18 }}>🗑️</Text>
-          </Pressable>
+          <IconButton icon="trash-outline" label={`Eliminar ${i.name}`} onPress={() => onRemove(i.id, i.name)} />
         </Row>
       ))}
     </Card>

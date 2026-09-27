@@ -55,6 +55,7 @@ Base de ingreso = `max(take-home del ingreso fijo declarado + variable estimado,
 4. Siguiente: **FIN-040 Recurrentes y recordatorios** → ARQ escrito, implementación tras confirmar §16 del documento y ~2 semanas de uso real.
 5. Emojis → íconos vectoriales de categoría (`CategoryGlyph`) → publicado (OTA `47efdcd0`), validación visual pendiente.
 7. Orden visual (`DEC-0040` §7): Inicio más liviano, Patrimonio/Ahorro a Salud → publicado (OTA `4d46807b`), validación visual pendiente.
+8. Experimento del PC (`DEC-0040` §8): FormScroll + confirmaciones + Reintentar integrados tras validación → **pendiente OTA**; verificar teclado en Android.
 6. Autonomía OTA desde la nube → pendiente del Fundador (`EXPO_TOKEN` + dominios en el entorno).
 
 ## Bloqueos abiertos

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import { RouteProp, useFocusEffect, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Chip, EmptyState, ErrorState, Row, Skeleton } from '../../components/ui';
@@ -67,6 +67,19 @@ export function TransactionsScreen() {
       void load();
     }, [load]),
   );
+
+  // DEC-0040 §8: deslizar hacia abajo para actualizar (mismo gesto que Inicio y las
+  // pantallas con FormScroll). `load` ya pone `loading`; el control usa su propio flag
+  // para no mostrar el esqueleto encima de la lista.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const loadMore = async () => {
     if (more || end || items.length === 0) return;
@@ -154,6 +167,7 @@ export function TransactionsScreen() {
           contentContainerStyle={{ padding: spacing.md, paddingTop: 0 }}
           onEndReached={() => void loadMore()}
           onEndReachedThreshold={0.4}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={colors.primary} colors={[colors.primary]} />}
           ListEmptyComponent={
             <EmptyState
               icon="receipt-outline"

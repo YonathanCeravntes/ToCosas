@@ -1,9 +1,9 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, ErrorState, Field, HeroCard, Row, Skeleton } from '../../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, HeroCard, Row, Skeleton } from '../../components/ui';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { formatDate, formatMoney, parseAmount, parseDecimal } from '../../utils/format';
 import { AmortizationEntry, CardSummary, Debt, DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, toNumber } from '../../api/types';
@@ -27,6 +27,10 @@ export function DebtDetailScreen({ route }: Props) {
       setTick((t) => t + 1);
     }, [reload]),
   );
+  const refreshAll = useCallback(async () => {
+    setTick((t) => t + 1);
+    await reload();
+  }, [reload]);
   const [showPlan, setShowPlan] = useState(false);
   const [extra, setExtra] = useState('');
   const [sim, setSim] = useState<SimulateResult | null>(null);
@@ -52,18 +56,18 @@ export function DebtDetailScreen({ route }: Props) {
   // P3 (punto 12): error VISIBLE con reintento — nunca un "Cargando…" eterno.
   if (error && !data) {
     return (
-      <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+      <FormScroll>
         <ErrorState message={error} onRetry={() => void reload()} />
-      </ScrollView>
+      </FormScroll>
     );
   }
   if (!data) {
     return (
-      <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+      <FormScroll>
         <Skeleton hero lines={3} />
         <Skeleton lines={4} />
         <Skeleton lines={3} />
-      </ScrollView>
+      </FormScroll>
     );
   }
 
@@ -80,7 +84,7 @@ export function DebtDetailScreen({ route }: Props) {
   const isAmortized = model === 'amortizado';
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+    <FormScroll onRefresh={refreshAll}>
       {model !== 'cuotas_por_compra' ? (
         <HeroCard>
           <Text style={{ color: colors.onPrimaryMuted, ...type.body }}>Saldo pendiente</Text>
@@ -252,7 +256,7 @@ export function DebtDetailScreen({ route }: Props) {
           ) : null}
         </>
       ) : null}
-    </ScrollView>
+    </FormScroll>
   );
 }
 

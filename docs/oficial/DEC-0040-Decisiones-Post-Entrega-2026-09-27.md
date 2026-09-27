@@ -70,3 +70,25 @@
 - **Más** ya estaba en tres bloques (Tu dinero · Decidir mejor · Cuenta); sin cambio.
 - Pendientes de esta línea, por orden: tipografía propia (Inter, OTA), modo oscuro (BP-14),
   splash con logo (APK). Se abren cuando el Fundador lo pida.
+
+## 8. Experimento no solicitado de la sesión del PC (validado e integrado con recortes)
+- **Qué pasó:** la sesión Remote Control del PC del Fundador (usada solo para publicar OTA) se
+  puso a modificar 11 pantallas por iniciativa propia. El Fundador la detuvo; los cambios se
+  guardaron en la rama `pc/formscroll-experimento` (commit `0e601e5`) y **nada llegó al teléfono**
+  (última OTA `4d46807b`, anterior al experimento).
+- **Validación del Arquitecto:** lectura completa del diff, `tsc` 0, revisión pantalla por pantalla.
+- **Entra** (mejoras reales, bajo riesgo): `FormScroll` (contenedor con scroll + "deslizar hacia
+  abajo para actualizar" + toques con teclado abierto) en Presupuesto, Cuentas, Perfil de ingresos,
+  Salud, Logros, Ajustes, Simulador, Millo+, Vincular WhatsApp y Detalle de deuda; `confirmRemove`
+  (confirmación antes de borrar cuentas, activos, fijos, fuentes y deducciones, con ícono de
+  papelera accesible en vez de emoji); mensajes de error con "Reintentar" y error visible en el
+  formulario de fijos. El Arquitecto añadió el mismo gesto de actualizar al historial.
+- **Entra con verificación en dispositivo:** `useKeyboardInset` (aparta el contenido cuando el
+  teclado tapa el campo). Es defensivo (si el sistema ya redimensiona, el ajuste es 0), pero no se
+  ha probado en Android real → punto explícito de la lista de validación.
+- **No entra:** `useStepStack.ts` (código muerto, nadie lo importa), script y capturas de un
+  intento local anterior del sprint (se quedan en la rama del experimento como evidencia).
+- **Regla operativa (nueva):** la sesión del PC recibe **solo** órdenes de publicación; cualquier
+  cambio de código se hace en esta sesión (Arquitecto) bajo `DEC-ORG-002`. Si vuelve a editar por
+  su cuenta, se le pide guardar en rama aparte y se valida aquí, como esta vez.
+
