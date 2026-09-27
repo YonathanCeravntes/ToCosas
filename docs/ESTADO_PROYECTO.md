@@ -28,7 +28,7 @@ v3.21 (`docs/GOBERNANZA.md`) — §44 equipo de dos (`DEC-ORG-002`). Controles s
 ## Beta técnica (estado de despliegue)
 - **APK instalada:** Android, Expo SDK 54 / RN 0.81, `runtimeVersion` 0.1.0, canal `preview` (`scripts/deploy/apk-baseline.json` es la fuente de verdad; se actualiza SOLO al construir una APK nueva).
 - **Primera validación del Fundador (2026-09-27):** BT-012 (barra de pestañas bajo los botones del sistema Android) → corregido y **verificado por el Fundador en dispositivo** (OTA `74f6a9af`, publicada desde su PC vía sesión Remote Control); BT-013 (ícono genérico) → íconos creados y declarados en `app.json`, se verán al construir la próxima APK (nativo, no OTA).
-- **OTA vigente en `preview`:** `4d46807b` (DEC-0040 §7: Inicio liviano + Lo que tienes, commit `90f61f0`; Ajustes muestra `01a0e51f`). Anteriores hoy: `47efdcd0` (íconos + política), `74f6a9af` (BT-012), `03d425e3` (entrega). Anterior: `74f6a9af` (BT-012, commit `42ff127`). Anteriores hoy: `03d425e3` (entrega 2026-09-27: SPRINT-PULIDO-001 + MANT-001 + FIN-038 + FIN-039). Ambas publicadas desde el PC del Fundador con `npm run ota:publish` (preflight con baseline OK, centinela "Android de Yonathan"). Antes: `f166ac42` (FIN-027/028 + BT-001/003).
+- **OTA vigente en `preview`:** `8fea873c` (DEC-0040 §8: FormScroll + confirmaciones, commit `34568ba`; Ajustes muestra `01a0e530`). Anteriores hoy: `4d46807b` (§7), `47efdcd0` (íconos), `74f6a9af` (BT-012), `03d425e3` (entrega). Anteriores hoy: `47efdcd0` (íconos + política), `74f6a9af` (BT-012), `03d425e3` (entrega). Anterior: `74f6a9af` (BT-012, commit `42ff127`). Anteriores hoy: `03d425e3` (entrega 2026-09-27: SPRINT-PULIDO-001 + MANT-001 + FIN-038 + FIN-039). Ambas publicadas desde el PC del Fundador con `npm run ota:publish` (preflight con baseline OK, centinela "Android de Yonathan"). Antes: `f166ac42` (FIN-027/028 + BT-001/003).
 - **Backend:** Render free `milla-backend` + Neon. Desplegado `2ce4747` (Deploy live, migración `fin039` aplicada en `startCommand`). Variables `SMTP_URL` y `MAIL_FROM` configuradas por el Fundador (Gmail App Password); `WHATSAPP_DISPLAY_NUMBER` no configurada (sin número de bot aún).
 - **Incidente de proceso 2026-09-26:** intento de subir a Expo SDK 57 revertido (`362d279`); motivó el baseline de APK en el preflight.
 
@@ -55,7 +55,7 @@ Base de ingreso = `max(take-home del ingreso fijo declarado + variable estimado,
 4. Siguiente: **FIN-040 Recurrentes y recordatorios** → ARQ escrito, implementación tras confirmar §16 del documento y ~2 semanas de uso real.
 5. Emojis → íconos vectoriales de categoría (`CategoryGlyph`) → publicado (OTA `47efdcd0`), validación visual pendiente.
 7. Orden visual (`DEC-0040` §7): Inicio más liviano, Patrimonio/Ahorro a Salud → publicado (OTA `4d46807b`), validación visual pendiente.
-8. Experimento del PC (`DEC-0040` §8): FormScroll + confirmaciones + Reintentar integrados tras validación → **pendiente OTA**; verificar teclado en Android.
+8. Experimento del PC (`DEC-0040` §8): FormScroll + confirmaciones + Reintentar integrados tras validación → publicado (OTA `8fea873c`); verificar teclado en Android.
 6. Autonomía OTA desde la nube → pendiente del Fundador (`EXPO_TOKEN` + dominios en el entorno).
 
 ## Bloqueos abiertos
