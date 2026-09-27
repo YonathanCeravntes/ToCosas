@@ -112,13 +112,15 @@ Al terminar verás `Update group` con un código. Publicado.
 
 ## Parte D — Verlo en el celular
 
-1. Cierra Millo **por completo** (deslízala fuera de las apps recientes).
-2. Ábrela → espera 5 segundos → ciérrala por completo otra vez → ábrela. (La primera
-   apertura descarga la actualización; la segunda la aplica.)
+1. Cierra Millo **por completo**. La forma segura en Android: Ajustes del teléfono →
+   Aplicaciones → Millo → **Forzar detención** (deslizarla de las apps recientes a veces
+   no la cierra de verdad).
+2. Ábrela con wifi → espera **15 segundos** en Inicio → fuérzala a detener otra vez →
+   ábrela. (La primera apertura descarga la actualización; la segunda la aplica.)
 3. En **Más → Ajustes**, abajo, debe decir `Millo v0.1.0 · actualización XXXXXXXX` con
-   los primeros 8 caracteres del código que salió en la Parte C. Si sigue diciendo
-   `ToCosas v0.1.0`, la actualización no llegó: repite el paso 2 con datos móviles/wifi
-   activos.
+   el código que el publicador imprime al final como **"Código que verás en Más →
+   Ajustes"**. Ojo: NO es el `Update group ID`, es el `Android update ID` (son
+   distintos). Si el código no cambió, la actualización no llegó: repite el paso 2.
 
 ## Parte E — Lista de comprobación de la entrega 2026-09-27
 

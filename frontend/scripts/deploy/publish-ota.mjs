@@ -53,11 +53,22 @@ console.log(`  ✅ Centinela declarado: ${sentinel}`);
 console.log('▶ Paso 3/3 — eas update');
 const fullMessage = `${message} [centinela: ${sentinel}]`;
 const env = { ...process.env, EAS_NO_VCS: '1', EXPO_PUBLIC_API_URL: PROD_URL };
-execSync(
+const easOut = execSync(
   `npx eas-cli update --branch ${branch} --message ${JSON.stringify(fullMessage)} --non-interactive`,
-  { stdio: 'inherit', env },
-);
+  { stdio: ['inherit', 'pipe', 'inherit'], env },
+).toString();
+process.stdout.write(easOut);
 console.log('\n🟢 OTA publicado de forma segura.');
+
+// Ajustes muestra `Updates.updateId` (el ID del update de Android), NO el "Update group
+// ID". Se imprime el código exacto que el Fundador verá para que la verificación en el
+// dispositivo (Guía Parte D) no dependa de interpretar la tabla de EAS.
+const androidId = /Android update ID\s+([0-9a-f-]{36})/i.exec(easOut)?.[1];
+const groupId = /Update group ID\s+([0-9a-f-]{36})/i.exec(easOut)?.[1];
+if (androidId) {
+  console.log(`\n📱 Código que verás en Más → Ajustes (Android): ${androidId.slice(0, 8)}`);
+  if (groupId) console.log(`   (Update group ${groupId.slice(0, 8)} · para el registro en docs)`);
+}
 
 // --- helpers ---------------------------------------------------------------
 function parseArgs(argv) {
