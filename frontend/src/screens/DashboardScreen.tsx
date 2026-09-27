@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/types';
 import { Button, Card, ErrorState, HeroCard, ProgressBar, Row, SectionHeader, Skeleton } from '../components/ui';
+import { CategoryGlyph } from '../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatLocalDate, formatMoney } from '../utils/format';
 import { useApi } from '../utils/useApi';
@@ -15,11 +16,11 @@ import { useSync } from '../offline/useSync';
 import { LocalTransaction, transactionsRepo } from '../offline/transactionsRepo';
 import { EditTransactionModal, EditableMovement } from './transactions/EditTransactionModal';
 
-const KIND_META: Record<string, { emoji: string; sign: string; color: string }> = {
-  ingreso: { emoji: '💵', sign: '+', color: colors.success },
-  gasto: { emoji: '🛒', sign: '-', color: colors.danger },
-  pago_deuda: { emoji: '💳', sign: '-', color: colors.primary },
-  transferencia: { emoji: '🔁', sign: '', color: colors.textMuted },
+const KIND_META: Record<string, { sign: string; color: string }> = {
+  ingreso: { sign: '+', color: colors.success },
+  gasto: { sign: '-', color: colors.danger },
+  pago_deuda: { sign: '-', color: colors.primary },
+  transferencia: { sign: '', color: colors.textMuted },
 };
 
 const LEVEL_EMOJI: Record<string, string> = { verde: '🟢', amarillo: '🟡', rojo: '🔴' };
@@ -269,7 +270,7 @@ export function DashboardScreen() {
               >
                 <Row style={{ justifyContent: 'space-between', paddingVertical: 7, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.border }}>
                   <Row style={{ gap: spacing.sm, flex: 1 }}>
-                    <Text style={{ fontSize: 15 }}>{t.category?.icon ?? meta.emoji}</Text>
+                    <CategoryGlyph size="sm" emoji={t.category?.icon} kind={t.kind} color={t.category?.color} />
                     <Text style={{ color: colors.text, flex: 1, ...type.small }} numberOfLines={1}>
                       {t.note || t.category?.name || t.debtName || t.kind}
                       <Text style={{ color: colors.textMuted }}> · {shortDate(t.occurredAt)}</Text>
@@ -291,7 +292,7 @@ export function DashboardScreen() {
             <Card key={t.id} style={{ paddingVertical: spacing.sm }}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <Row style={{ gap: spacing.sm, flex: 1 }}>
-                  <Text style={{ fontSize: 18 }}>{t.category_icon ?? meta.emoji}</Text>
+                  <CategoryGlyph emoji={t.category_icon} kind={t.kind} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontWeight: '600', color: colors.text, ...type.body }} numberOfLines={1}>
                       {t.note || t.kind}
@@ -399,7 +400,7 @@ function CategoryBar({ c }: { c: { name: string; icon: string; color: string; am
     <View style={{ marginBottom: spacing.sm }}>
       <Row style={{ justifyContent: 'space-between', marginBottom: spacing.xs }}>
         <Row style={{ gap: 6 }}>
-          <Text style={{ fontSize: 16 }}>{c.icon}</Text>
+          <CategoryGlyph size="sm" emoji={c.icon} kind="gasto" color={c.color} />
           <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>{c.name}</Text>
         </Row>
         <Text style={{ color: colors.textMuted, ...type.small }}>

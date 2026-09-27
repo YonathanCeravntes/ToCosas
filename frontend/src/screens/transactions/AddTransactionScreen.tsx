@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Field, IconButton, Row, Toast, ToastSpec } from '../../components/ui';
+import { CategoryGlyph } from '../../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { Category, Debt, TxKind } from '../../api/types';
 import { budgetApi, categoriesApi, debtsApi, gamificationApi, transactionsApi } from '../../api/endpoints';
@@ -419,7 +420,7 @@ export function AddTransactionScreen() {
                 accessibilityLabel={cat.name}
                 style={{ width: '22%', aspectRatio: 1, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? (cat.color ?? colors.primary) + '22' : colors.surface, borderWidth: 2, borderColor: active ? (cat.color ?? colors.primary) : colors.border }}
               >
-                <Text style={{ fontSize: 24 }}>{cat.icon ?? '🏷️'}</Text>
+                <CategoryGlyph size="lg" emoji={cat.icon} kind={flow === 'ingreso' ? 'ingreso' : 'gasto'} color={cat.color} />
                 <Text style={{ color: colors.textMuted, ...type.caption, marginTop: 2 }} numberOfLines={1}>{cat.name}</Text>
               </Pressable>
             );

@@ -1,13 +1,15 @@
-# PRODUCT_VISION.md — Constitución del Producto Milla
+# PRODUCT_VISION.md — Constitución del Producto Millo
 
-- **Versión:** 1.3 — **OFICIAL**
+- **Versión:** 1.4 — **OFICIAL** (v1.4, 2026-09-27: nombre oficial **Millo** en todo el
+  documento por decisión del Fundador, `DEC-0040` §1; hasta v1.3 decía "Milla". Sin
+  cambios de fondo.)
 - **Fecha:** 2026-07-06
 - **Autor:** CTO — v1.1 redactada siguiendo la estructura de 12 secciones propuesta por
   el CPSAO; v1.2 incorpora los 7 ajustes solicitados por el CPSAO tras revisar v1.1;
   v1.3 añade el principio permanente de protección de datos ratificado por el Fundador.
 - **Estado:** **Vigente.** Ratificada expresamente por el Fundador el 2026-07-06, previa
   evaluación conceptual del CPSAO y evaluación técnica/documental del CTO. Es la
-  Constitución del Producto Milla — referencia estratégica principal del proyecto, con
+  Constitución del Producto Millo — referencia estratégica principal del proyecto, con
   prioridad sobre cualquier propuesta funcional futura (Gobernanza v3.0, Parte II §16).
   Las secciones marcadas internamente como "propuesta abierta" quedan vigentes como
   punto de partida oficial, no como decisiones cerradas para siempre — pueden
@@ -20,10 +22,10 @@
     respaldo marcados como propuesta abierta.
   - v1.2 (2026-07-06) — ajustes solicitados por el CPSAO tras revisar v1.1: (1) alcance
     geográfico abierto a expansión internacional futura, (2) sección "Personalidad de
-    Milla", (3) Visión reescrita en tono aspiracional, (4) "¿Por qué existe Milla?"
+    Millo", (3) Visión reescrita en tono aspiracional, (4) "¿Por qué existe Millo?"
     como apartado explícito desde perspectiva humana, (5) sección "La obsesión de
-    Milla", (6) promesa al usuario convertida en promesa verificable/medible, (7)
-    cierre con "Manifiesto de Milla". Ninguno de estos ajustes modifica la gobernanza
+    Millo", (6) promesa al usuario convertida en promesa verificable/medible, (7)
+    cierre con "Manifiesto de Millo". Ninguno de estos ajustes modifica la gobernanza
     ni las decisiones técnicas ya ratificadas (`DEC-0004`, `DEC-0008`, `DEC-0009`).
   - **v1.2 — OFICIALIZADA el 2026-07-06** por decisión expresa del Fundador, tras
     recomendación del CPSAO y evaluación del CTO. Pasa de borrador a documento
@@ -43,20 +45,20 @@ Los 7 ajustes del CPSAO son de identidad y tono, no de gobernanza ni de rumbo t�
 — se aceptan sin objeción. Se mantiene la misma disciplina de v1.1: todo lo que no
 tiene respaldo en un documento oficial previo (`DEC`/`ARQ`) queda marcado como
 propuesta abierta, incluida la nueva sección de alcance internacional, que es una
-posibilidad declarada, no una decisión de expansión tomada — Milla sigue operando y
+posibilidad declarada, no una decisión de expansión tomada — Millo sigue operando y
 diseñándose hoy exclusivamente para Colombia (moneda, regulación, canales de pago
 IAP, WhatsApp/Telegram locales). El documento completo permanece en borrador,
 pendiente de ratificación del Fundador.
 
 ---
 
-## 1. ¿Por qué existe Milla?
+## 1. ¿Por qué existe Millo?
 
-Milla existe porque tomar decisiones con dinero da miedo cuando no se entiende la
+Millo existe porque tomar decisiones con dinero da miedo cuando no se entiende la
 propia situación. No es un problema de falta de disciplina ni de falta de una app de
 gastos: es la ausencia de una fuente de verdad propia, honesta y sin letra pequeña,
 sobre lo que de verdad está pasando con la deuda, el presupuesto y el patrimonio de
-una persona. Milla existe para que esa claridad exista antes de decidir, no después
+una persona. Millo existe para que esa claridad exista antes de decidir, no después
 de arrepentirse.
 
 *(Base: consistente con `ARQ-0001` y con la decisión de un Score explicable en
@@ -69,7 +71,7 @@ Fundador.)*
 entienda su situación financiera real y pueda tomar, con esa claridad, mejores
 decisiones sobre su deuda, su presupuesto y su patrimonio — todos los días, no solo
 una vez al mes al revisar un extracto. Hoy esa persona vive en Colombia; el diseño de
-Milla no cierra la puerta a que mañana viva en cualquier otro país con retos
+Millo no cierra la puerta a que mañana viva en cualquier otro país con retos
 financieros similares (ver sección 5).
 
 ## 3. Nuestra Visión
@@ -77,19 +79,19 @@ financieros similares (ver sección 5).
 *Propuesta abierta — reescrita en v1.2 en tono aspiracional, por solicitud del CPSAO.*
 Un mundo donde nadie tome una decisión financiera importante a ciegas. Donde la
 claridad sobre el propio dinero no sea un privilegio de quien puede pagar un asesor,
-sino algo que cualquier persona lleva en el bolsillo. Milla aspira a ser la razón por
+sino algo que cualquier persona lleva en el bolsillo. Millo aspira a ser la razón por
 la que, dentro de cinco años, "no sabía en qué se me iba la plata" sea una frase del
 pasado para millones de personas — empezando por Colombia, sin quedarse ahí.
 
 ## 4. Problema que resolvemos
 
-Antes de Milla: las personas dispersan su información financiera entre apps
+Antes de Millo: las personas dispersan su información financiera entre apps
 bancarias, mensajes de texto, memoria y hojas de cálculo improvisadas; no tienen forma
 de simular el efecto real de un abono a capital o un cambio de ingreso antes de
 tomarlo; y las herramientas existentes premian el registro pasivo de gastos sin
 traducirlo en una lectura accionable de salud financiera.
 
-Con Milla: la persona tiene un solo lugar que consolida deuda, presupuesto y
+Con Millo: la persona tiene un solo lugar que consolida deuda, presupuesto y
 patrimonio, con un Score explicable (no una caja negra, ratificado en `DEC-0004`) y un
 simulador que muestra el efecto real de una decisión antes de tomarla (`FIN-007`,
 `FIN-012`).
@@ -104,16 +106,16 @@ ingreso ni personas con patrimonio complejo que ya usan un asesor financiero
 profesional (fuera del alcance actual).
 
 Alcance geográfico: **Colombia es el mercado inicial, no el límite del producto.** Por
-solicitud del CPSAO, se deja explícito que Milla no está diseñado con supuestos que
+solicitud del CPSAO, se deja explícito que Millo no está diseñado con supuestos que
 impidan una expansión internacional futura (multi-moneda, multi-regulación) — esa
 expansión no está decidida ni planificada hoy, y cualquier paso en esa dirección
 requiere su propia evaluación de negocio, legal y técnica antes de convertirse en
 Blueprint o `FIN`.
 
-## 6. Qué NO es Milla
+## 6. Qué NO es Millo
 
 - No es un neobanco ni una entidad captadora de dinero — decisión explícita ya tomada
-  para la proyección de ahorro (`PRODUCT_DECISIONS.md`, 2026-07-06): Milla nunca capta
+  para la proyección de ahorro (`PRODUCT_DECISIONS.md`, 2026-07-06): Millo nunca capta
   ni ofrece rendimiento real, solo proyecta.
 - No es un asesor financiero automatizado que decide por el usuario — el Copiloto
   acompaña, no sustituye la decisión (ver Principios, sección 8).
@@ -123,14 +125,14 @@ Blueprint o `FIN`.
 - No es un producto que vende o comparte el Score o los datos financieros del usuario
   con terceros — guardarraíl legal permanente (`DEC-0009` §4.5.6).
 
-## 7. Personalidad de Milla
+## 7. Personalidad de Millo
 
-*Propuesta abierta — sección nueva por solicitud del CPSAO.* Cómo se comporta Milla
+*Propuesta abierta — sección nueva por solicitud del CPSAO.* Cómo se comporta Millo
 frente al usuario, no qué funciones tiene:
 
-- **Honesta antes que amable.** Si el número es malo, Milla lo dice claro — sin
+- **Honesta antes que amable.** Si el número es malo, Millo lo dice claro — sin
   alarmismo, pero sin suavizarlo hasta volverlo inútil.
-- **Calmada, no ansiosa.** Milla no genera urgencia artificial ni notificaciones de
+- **Calmada, no ansiosa.** Millo no genera urgencia artificial ni notificaciones de
   culpa; informa y deja que la persona decida con calma.
 - **Adulta, no paternalista.** Le habla al usuario como a un adulto capaz de manejar su
   dinero, nunca como a alguien que necesita ser vigilado o premiado como a un niño
@@ -157,12 +159,12 @@ aquí como principios permanentes del producto:
   §16).
 - **Protección de datos como principio permanente** (ratificado por el Fundador el
   2026-07-06, `PRODUCT_DECISIONS.md`): los datos del usuario se almacenan de forma
-  segura y se usan exclusivamente para prestar los servicios de Milla. Nunca se
+  segura y se usan exclusivamente para prestar los servicios de Millo. Nunca se
   venden, comparten o usan con fines distintos a los autorizados por el usuario,
   salvo obligación legal. Este principio debe incorporarse también, cuando exista,
   a la documentación oficial de privacidad y protección de datos.
 
-## 9. La obsesión de Milla
+## 9. La obsesión de Millo
 
 *Propuesta abierta — sección nueva por solicitud del CPSAO.* El principio que guía
 toda decisión estratégica cuando hay duda: **claridad antes que cobertura.** Ante la
@@ -176,7 +178,7 @@ construir.
 
 *Propuesta abierta — a validar contra evidencia real en `COMPETITIVE_ANALYSIS.md`
 (hoy vacío).* Hipótesis de partida, no verificada: mientras la mayoría de apps
-financieras en Colombia se centran en agregar y categorizar transacciones, Milla se
+financieras en Colombia se centran en agregar y categorizar transacciones, Millo se
 diferencia por dar una lectura explicable de salud financiera (Score no-caja-negra) y
 por dejar simular decisiones reales antes de tomarlas, en vez de solo reportar lo que
 ya pasó.
@@ -184,7 +186,7 @@ ya pasó.
 ## 11. Promesa al usuario
 
 *Propuesta abierta, pendiente de ratificación del Fundador — convertida en v1.2 en
-promesa verificable, por solicitud del CPSAO.* "En menos de un minuto, Milla te dice
+promesa verificable, por solicitud del CPSAO.* "En menos de un minuto, Millo te dice
 en qué estás parado financieramente hoy, y qué cambiaría si tomas tu próxima
 decisión." Es verificable porque se puede medir: tiempo hasta ver el Score/dashboard
 desde que se abre la app, y si el simulador de una decisión (abono, refinanciación,
@@ -212,7 +214,7 @@ Blueprint y luego en `FIN`, el CPSAO y el CTO deben poder responder afirmativame
 2. ¿Refuerza la propuesta de valor central (claridad + simulación honesta)?
 3. ¿Se alinea con la visión, la personalidad y la obsesión de este documento?
 4. ¿Aporta una ventaja competitiva verificada, no asumida?
-5. ¿Es coherente con lo que Milla explícitamente no es (sección 6)?
+5. ¿Es coherente con lo que Millo explícitamente no es (sección 6)?
 
 Si alguna respuesta es negativa, la idea permanece en el Laboratorio hasta nueva
 evaluación — no bloquea el resto del Backlog, ni el CPSAO puede insertarla
@@ -237,7 +239,7 @@ de la Gobernanza v3.0 (Parte III §18).
 
 ---
 
-## Manifiesto de Milla
+## Manifiesto de Millo
 
 *Propuesta abierta — cierre solicitado por el CPSAO como referencia cultural para
 cualquier persona o IA que participe en el proyecto.*
@@ -247,6 +249,6 @@ cualquier persona o IA que participe en el proyecto.*
 > Hablamos claro incluso cuando el número no es el que el usuario quería escuchar.
 > Acompañamos la decisión; nunca la tomamos por nadie.
 > No construimos una función más solo porque podemos — solo si ayuda a decidir mejor.
-> Milla no es un banco, no es un asesor que reemplaza al usuario, no es una app que
+> Millo no es un banco, no es un asesor que reemplaza al usuario, no es una app que
 > premia el uso por el uso.
-> Milla es la claridad que alguien necesitaba antes de decidir.
+> Millo es la claridad que alguien necesitaba antes de decidir.

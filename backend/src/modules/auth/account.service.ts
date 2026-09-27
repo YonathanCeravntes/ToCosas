@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PasswordService } from './password.service';
 
@@ -10,11 +10,14 @@ import { PasswordService } from './password.service';
  *  - `deleteAccount`: borrado lógico + ANONIMIZACIÓN inmediata. El `email`/`phone`
  *    se liberan (resuelve M7: un correo borrado puede volver a registrarse), la
  *    contraseña se anula (ningún token nuevo), los canales se revocan. Los datos
- *    financieros quedan bajo `deletedAt` para el período de gracia; una purga física
- *    posterior es tarea operativa del Fundador (no automática en Fase 1).
+ *    financieros quedan bajo `deletedAt` durante el período de gracia.
+ *  - `purgeExpired`: purga física automática a los 30 días (`DEC-0040` §3), la corre
+ *    `AccountPurgeScheduler` cada madrugada.
  */
 @Injectable()
 export class AccountService {
+  private readonly logger = new Logger(AccountService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
@@ -117,5 +120,32 @@ export class AccountService {
       this.prisma.conversation.deleteMany({ where: { userId } }),
     ]);
     return { deleted: true };
+  }
+
+  /**
+   * Purga física de cuentas borradas hace más de `graceDays` (DEC-0040 §3: 30 días,
+   * decisión del Fundador 2026-09-27). Todas las FKs hacia `users` son
+   * `ON DELETE CASCADE`, así que borrar el usuario elimina deudas, movimientos, cuentas,
+   * activos, ingresos, recordatorios, métricas, logros, suscripciones, etc. Se borra
+   * usuario por usuario para que un fallo aislado no bloquee al resto.
+   */
+  async purgeExpired(graceDays = 30, now: Date = new Date()): Promise<{ purged: number; failed: number }> {
+    const cutoff = new Date(now.getTime() - graceDays * 24 * 60 * 60 * 1000);
+    const expired = await this.prisma.user.findMany({
+      where: { deletedAt: { not: null, lte: cutoff } },
+      select: { id: true },
+    });
+    let purged = 0;
+    let failed = 0;
+    for (const { id } of expired) {
+      try {
+        await this.prisma.user.delete({ where: { id } });
+        purged++;
+      } catch (e) {
+        failed++;
+        this.logger.error(`No se pudo purgar la cuenta ${id}: ${(e as Error).message}`);
+      }
+    }
+    return { purged, failed };
   }
 }

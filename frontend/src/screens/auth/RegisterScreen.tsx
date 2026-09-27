@@ -13,7 +13,8 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 export const DATA_POLICY_SHORT =
   'Tus datos se guardan de forma segura y se usan solo para prestarte el servicio de Millo. ' +
   'Nunca se venden ni se comparten con terceros, salvo obligación legal. Puedes exportarlos o ' +
-  'borrar tu cuenta cuando quieras desde Ajustes (Ley 1581 de 2012).';
+  'borrar tu cuenta cuando quieras desde Ajustes; al borrarla, tus datos se eliminan por ' +
+  'completo a los 30 días (Ley 1581 de 2012).';
 
 export function RegisterScreen({ navigation }: Props) {
   const { register, loading, error } = useAuthStore();

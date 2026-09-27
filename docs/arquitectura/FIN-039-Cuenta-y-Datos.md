@@ -36,7 +36,7 @@ Cubrir los derechos básicos del usuario sobre su cuenta y sus datos (Ley 1581: 
 - `DELETE /auth/me {password}` → verifica la clave, marca `deletedAt`, **anonimiza** (`email → deleted+<id>@deleted.millo.local`, teléfono/nombre/clave a null), revoca WhatsApp/Telegram, borra dispositivos push y conversaciones del Copiloto, invalida códigos. Login y refresh fallan; `/auth/me` responde 404.
 - Resuelve **M7**: el mismo correo puede registrarse de nuevo (probado en e2e).
 - Ajustes → "Eliminar mi cuenta" con confirmación por contraseña y aviso para exportar antes.
-- Los datos financieros quedan bajo `deletedAt` (período de gracia). La **purga física** es tarea operativa del Fundador (no automática en esta fase).
+- Los datos financieros quedan bajo `deletedAt` 30 días y luego se purgan físicamente de forma automática (`DEC-0040` §3; antes era tarea operativa).
 
 ### 2.5 Modelo
 - Nueva tabla `password_reset_tokens` (id, user_id, code_hash, expires_at, used_at, attempts).
@@ -88,5 +88,5 @@ SHA y suites: ver Historial de `BACKLOG.md` (mismo commit que FIN-038). No verif
 
 ## 16. Decisiones del Fundador
 - **16.1** Autorización general 2026-09-27 (`DEC-ORG-002` §6).
-- **16.2 (pendiente):** proveedor SMTP y remitente (`MAIL_FROM`).
-- **16.3 (pendiente):** plazo de purga física tras borrado (propuesta: 30 días) para publicarlo en la política.
+- **16.2 ✅ (2026-09-27):** Gmail App Password; `MAIL_FROM = Millo <yonathancrc@gmail.com>`.
+- **16.3 ✅ (2026-09-27, `DEC-0040` §3):** purga física a los **30 días**, automática (`AccountService.purgeExpired` + `AccountPurgeScheduler`, e2e `fin039` caso 6). `DATA_POLICY_SHORT` lo declara.

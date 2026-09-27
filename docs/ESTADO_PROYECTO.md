@@ -48,17 +48,19 @@ Base de ingreso = `max(take-home del ingreso fijo declarado + variable estimado,
 - **Sin telemetría de producto** (`METRICS.md` vacío) y **sin pruebas de frontend**: candidatas BP-28 y §7 del Blueprint.
 - **Nombre oficial Milla vs Millo:** `PRODUCT_VISION.md` dice Milla; app, código y gobernanza reciente dicen Millo. Decisión del Fundador pendiente (D2).
 
-## Decisiones del Fundador pendientes
-1. ~~Proveedor SMTP y remitente~~ → resuelto 2026-09-27: Gmail App Password, `MAIL_FROM = Millo <yonathancrc@gmail.com>`.
-2. Plazo de purga física tras borrar cuenta (propuesta 30 días).
-3. Nombre oficial del producto en `PRODUCT_VISION.md`.
-4. Siguiente FIN del Blueprint (ver candidatas).
+## Decisiones del Fundador (todas resueltas el 2026-09-27, `DEC-0040`)
+1. SMTP: Gmail App Password, `MAIL_FROM = Millo <yonathancrc@gmail.com>`.
+2. Purga física a los **30 días** → implementada (`AccountPurgeScheduler`, 04:10 Bogotá).
+3. Nombre oficial **Millo** → `PRODUCT_VISION.md` v1.4.
+4. Siguiente: **FIN-040 Recurrentes y recordatorios** → ARQ escrito, implementación tras confirmar §16 del documento y ~2 semanas de uso real.
+5. Emojis → íconos vectoriales de categoría (`CategoryGlyph`) → hecho, pendiente OTA.
+6. Autonomía OTA desde la nube → pendiente del Fundador (`EXPO_TOKEN` + dominios en el entorno).
 
 ## Bloqueos abiertos
 Ninguno para el Arquitecto. Backend desplegado y OTA `03d425e3` publicada; falta la validación del Fundador en dispositivo (Parte D/E de `GUIA-FUNDADOR-DESPLIEGUE.md`).
 
 ## Próxima acción esperada
-1. **Fundador:** decidir los puntos 2–4 anteriores + si se reemplazan los emojis de categoría por íconos vectoriales + cuándo construir la APK nueva (BT-013) + configurar `EXPO_TOKEN`/red en el entorno de la nube para que el Arquitecto publique OTA sin intervención.
+1. **Fundador:** publicar la OTA de `DEC-0040` (íconos + texto de política de 30 días) desde su PC; confirmar el ARQ de `FIN-040` (§16.1–16.4); configurar `EXPO_TOKEN`/dominios en el entorno; rotar la clave de aplicación de Gmail; decidir cuándo construir la APK nueva (BT-013).
 2. **Arquitecto:** corregir lo que la validación devuelva (autoridad correctiva §44.1) y, con la decisión del Fundador, abrir la siguiente FIN.
 
 ## Documentos de referencia rápida

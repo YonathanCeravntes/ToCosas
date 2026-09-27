@@ -148,4 +148,26 @@ describe('FIN-039 · Cuenta y datos (Ley 1581) + FIN-038 historial', () => {
     const reReg = await req('POST', '/v1/auth/register', { email, password, acceptsDataPolicy: true }, false);
     expect(reReg.status).toBe(201);
   });
+
+  it('purga física a los 30 días (DEC-0040 §3): borra al vencido, respeta al reciente y a los activos', async () => {
+    const { AccountService } = await import('../src/modules/auth/account.service');
+    const accounts = app.get(AccountService);
+    const old = await prisma.user.findFirstOrThrow({ where: { email: { startsWith: 'deleted+' }, deletedAt: { not: null } } });
+    expect(old.email).toMatch(/@deleted\.millo\.local$/);
+
+    // Cuenta borrada hace 31 días → se purga. La recién borrada (arriba) → se conserva.
+    await prisma.user.update({ where: { id: old.id }, data: { deletedAt: new Date(Date.now() - 31 * 864e5) } });
+    const fresh = await prisma.user.create({
+      data: { email: `deleted+fresh-${Date.now()}@deleted.millo.local`, deletedAt: new Date(Date.now() - 2 * 864e5) },
+    });
+    const activeBefore = await prisma.user.count({ where: { deletedAt: null } });
+
+    const result = await accounts.purgeExpired(30);
+    expect(result.failed).toBe(0);
+    expect(result.purged).toBeGreaterThanOrEqual(1);
+    expect(await prisma.user.findUnique({ where: { id: old.id } })).toBeNull();
+    expect(await prisma.user.findUnique({ where: { id: fresh.id } })).not.toBeNull();
+    expect(await prisma.user.count({ where: { deletedAt: null } })).toBe(activeBefore);
+    await prisma.user.delete({ where: { id: fresh.id } });
+  });
 });

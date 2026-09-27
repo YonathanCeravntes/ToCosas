@@ -3,6 +3,7 @@ import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { RouteProp, useFocusEffect, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Chip, EmptyState, ErrorState, Row, Skeleton } from '../../components/ui';
+import { CategoryGlyph } from '../../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { formatLocalDate, formatMoney } from '../../utils/format';
 import { transactionsApi } from '../../api/endpoints';
@@ -12,11 +13,11 @@ import { EditTransactionModal, EditableMovement } from './EditTransactionModal';
 
 const PAGE = 40;
 
-const KIND_META: Record<string, { icon: string; sign: string; color: string; label: string }> = {
-  ingreso: { icon: '💵', sign: '+', color: colors.success, label: 'Ingresos' },
-  gasto: { icon: '🛒', sign: '-', color: colors.danger, label: 'Gastos' },
-  pago_deuda: { icon: '💳', sign: '-', color: colors.primary, label: 'Pagos de deuda' },
-  transferencia: { icon: '🔁', sign: '', color: colors.textMuted, label: 'Transferencias' },
+const KIND_META: Record<string, { sign: string; color: string; label: string }> = {
+  ingreso: { sign: '+', color: colors.success, label: 'Ingresos' },
+  gasto: { sign: '-', color: colors.danger, label: 'Gastos' },
+  pago_deuda: { sign: '-', color: colors.primary, label: 'Pagos de deuda' },
+  transferencia: { sign: '', color: colors.textMuted, label: 'Transferencias' },
 };
 
 /**
@@ -174,7 +175,7 @@ export function TransactionsScreen() {
                 <Card style={{ paddingVertical: spacing.sm, marginBottom: spacing.sm }}>
                   <Row style={{ justifyContent: 'space-between' }}>
                     <Row style={{ gap: spacing.sm, flex: 1 }}>
-                      <Text style={{ fontSize: 20 }}>{t.category?.icon ?? meta.icon}</Text>
+                      <CategoryGlyph emoji={t.category?.icon} kind={t.kind} color={t.category?.color} />
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }} numberOfLines={1}>
                           {t.note || t.category?.name || t.debt?.name || meta.label}
