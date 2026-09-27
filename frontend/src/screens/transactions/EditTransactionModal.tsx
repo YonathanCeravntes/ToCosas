@@ -5,6 +5,7 @@ import { Button, Card, Field } from '../../components/ui';
 import { colors, radius, spacing } from '../../theme/colors';
 import { formatLocalDate, parseAmount } from '../../utils/format';
 import { transactionsApi } from '../../api/endpoints';
+import { useBottomInset } from '../../navigation/insets';
 
 /**
  * FIN-028 (DEC-0028 P2/P3/P6) · Corregir un movimiento debe ser tan fácil como
@@ -29,6 +30,7 @@ export function EditTransactionModal({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const bottomInset = useBottomInset(); // BT-012: la hoja no debe quedar bajo la barra del sistema
   const isDebt = movement?.kind === 'pago_deuda';
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
@@ -108,7 +110,7 @@ export function EditTransactionModal({
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.scrim }}>
-        <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.md }}>
+        <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.md, paddingBottom: spacing.md + bottomInset }}>
           <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: spacing.sm }}>
             Editar movimiento
           </Text>

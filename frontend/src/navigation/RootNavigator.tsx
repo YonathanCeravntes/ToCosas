@@ -21,6 +21,7 @@ import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { registerForPush } from '../notifications/push';
 import { RootStackParamList } from './types';
 import { headerOptions } from './headerOptions';
+import { useStackContentStyle } from './insets';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -38,6 +39,9 @@ const navTheme = {
 
 export function RootNavigator() {
   const { tokens, user, hydrated, hydrate } = useAuthStore();
+  // BT-012: las pantallas del stack que no llevan barra de pestañas reservan el
+  // espacio de la barra del sistema Android; `Main` no, porque su barra ya lo hace.
+  const stackContent = useStackContentStyle();
 
   useEffect(() => {
     void hydrate();
@@ -62,13 +66,13 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer theme={navTheme}>
-      <Stack.Navigator screenOptions={{ ...headerOptions, headerShown: false }}>
+      <Stack.Navigator screenOptions={{ ...headerOptions, headerShown: false, contentStyle: stackContent }}>
         {tokens ? (
           <>
             {needsOnboarding ? (
               <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             ) : null}
-            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="Main" component={MainTabs} options={{ contentStyle: { backgroundColor: colors.bg } }} />
             <Stack.Screen name="Budget" component={BudgetScreen} options={{ headerShown: true, title: 'Presupuesto' }} />
             <Stack.Screen name="Copilot" component={CopilotScreen} options={{ headerShown: true, title: 'Copiloto' }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: true, title: 'Ajustes' }} />

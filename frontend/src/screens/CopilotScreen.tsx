@@ -16,6 +16,7 @@ import { Button, Card, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { AiConsentStatus, CopilotMessage, Insight, InsightSeverity, Recommendation } from '../api/types';
 import { copilotApi, insightsApi, recommendationsApi } from '../api/endpoints';
+import { useBottomInset } from '../navigation/insets';
 
 const SEVERITY_COLOR: Record<InsightSeverity, string> = {
   critical: colors.danger,
@@ -38,6 +39,7 @@ interface ChatItem {
 }
 
 export function CopilotScreen() {
+  const bottomInset = useBottomInset(); // BT-012
   const [items, setItems] = useState<ChatItem[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -228,7 +230,7 @@ export function CopilotScreen() {
       {/* Modal de consentimiento (DEC-0005 §14.1) */}
       <Modal visible={showConsent} animationType="slide" transparent>
         <View style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: '85%', padding: spacing.md }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: '85%', padding: spacing.md, paddingBottom: spacing.md + bottomInset }}>
             <Text style={{ fontWeight: '800', fontSize: 18, color: colors.text, marginBottom: spacing.sm }}>
               Activar inteligencia artificial
             </Text>

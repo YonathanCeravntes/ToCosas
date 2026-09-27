@@ -10,6 +10,7 @@ import { AddTransactionScreen } from '../screens/transactions/AddTransactionScre
 import { MoreScreen } from '../screens/MoreScreen';
 import { MainTabsParamList } from './types';
 import { headerOptions } from './headerOptions';
+import { useBottomInset } from './insets';
 
 const Tab = createBottomTabNavigator<MainTabsParamList>();
 
@@ -48,6 +49,11 @@ function RegisterIcon({ focused }: { focused: boolean }) {
  * centro. Header neutro: el único bloque verde de cada pantalla es su hero.
  */
 export function MainTabs() {
+  // BT-012: en Android edge-to-edge la barra del sistema (◁ ○ □) se superpone a la
+  // app; la altura fija anterior dejaba las pestañas debajo de esos botones. La
+  // altura se calcula a partir del inset real del dispositivo (gestos = ~16–24 dp,
+  // 3 botones = ~48 dp, iPhone con notch = 34 pt).
+  const bottomInset = Math.max(useBottomInset(), 8);
   return (
     <Tab.Navigator
       screenOptions={{
@@ -57,8 +63,8 @@ export function MainTabs() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: Platform.OS === 'ios' ? 84 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+          height: 56 + bottomInset,
+          paddingBottom: bottomInset,
           paddingTop: 6,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
