@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
   FlatList,
@@ -48,11 +49,14 @@ export function CopilotScreen() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const listRef = useRef<FlatList<ChatItem>>(null);
 
-  useEffect(() => {
-    void copilotApi.consentStatus().then(setConsent).catch(() => undefined);
-    void insightsApi.list().then(setInsights).catch(() => undefined);
-    void recommendationsApi.list().then(setRecommendations).catch(() => undefined);
-  }, []);
+  // BP-03: novedades y recomendaciones frescas cada vez que la pantalla gana foco.
+  useFocusEffect(
+    useCallback(() => {
+      void copilotApi.consentStatus().then(setConsent).catch(() => undefined);
+      void insightsApi.list().then(setInsights).catch(() => undefined);
+      void recommendationsApi.list().then(setRecommendations).catch(() => undefined);
+    }, []),
+  );
 
   const dismissRecommendation = async (id: string) => {
     setRecommendations((prev) => prev.filter((r) => r.id !== id));
@@ -113,7 +117,7 @@ export function CopilotScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Banner de modo */}
-      <View style={{ backgroundColor: consent?.accepted ? '#EAF7F1' : colors.surface, padding: spacing.sm, borderBottomWidth: 1, borderColor: colors.border }}>
+      <View style={{ backgroundColor: consent?.accepted ? colors.primarySoft : colors.surface, padding: spacing.sm, borderBottomWidth: 1, borderColor: colors.border }}>
         <Text style={{ fontSize: 12, color: colors.textMuted, textAlign: 'center' }}>
           {consent?.accepted
             ? `🤖 IA activa${aiRemaining !== null ? ` · ${aiRemaining} mensajes IA hoy` : ''}`
@@ -223,7 +227,7 @@ export function CopilotScreen() {
 
       {/* Modal de consentimiento (DEC-0005 §14.1) */}
       <Modal visible={showConsent} animationType="slide" transparent>
-        <View style={{ flex: 1, backgroundColor: '#00000088', justifyContent: 'flex-end' }}>
+        <View style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: '85%', padding: spacing.md }}>
             <Text style={{ fontWeight: '800', fontSize: 18, color: colors.text, marginBottom: spacing.sm }}>
               Activar inteligencia artificial

@@ -38,8 +38,20 @@ export class TransactionsController {
     @Query('to') to?: string,
     @Query('debtId') debtId?: string,
     @Query('categoryId') categoryId?: string,
+    @Query('q') q?: string,
+    @Query('before') before?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.transactions.findAll(user.id, { kind, from, to, debtId, categoryId });
+    return this.transactions.findAll(user.id, {
+      kind,
+      from,
+      to,
+      debtId,
+      categoryId,
+      q,
+      before,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   @Get('dashboard')

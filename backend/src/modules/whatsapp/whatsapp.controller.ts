@@ -38,8 +38,13 @@ export class WhatsappController {
   @Post('whatsapp/link/start')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  startLink(@CurrentUser() user: AuthUser, @Body() dto: StartLinkDto) {
-    return this.links.startLink(user.id, dto.phoneE164);
+  async startLink(@CurrentUser() user: AuthUser, @Body() dto: StartLinkDto) {
+    const link = await this.links.startLink(user.id, dto.phoneE164);
+    // BP-06: la app debe poder decir A QUÉ número escribir y abrir WhatsApp con el
+    // código prellenado. El número visible del bot es configuración (no el
+    // phone_number_id de Meta). Null si aún no hay canal real conectado.
+    const botPhoneE164 = this.config.get<string>('WHATSAPP_DISPLAY_NUMBER') || null;
+    return { ...link, botPhoneE164 };
   }
 
   @Delete('whatsapp/link')

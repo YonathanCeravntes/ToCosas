@@ -26,7 +26,7 @@
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.tocosas.co/v1"
+        "EXPO_PUBLIC_API_URL": "https://milla-backend.onrender.com/v1"
       }
     }
   },

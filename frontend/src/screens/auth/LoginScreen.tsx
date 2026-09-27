@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Field, Screen } from '../../components/ui';
-import { colors, spacing } from '../../theme/colors';
+import { Ionicons } from '@expo/vector-icons';
+import { Button, Field } from '../../components/ui';
+import { colors, radius, spacing, type } from '../../theme/colors';
 import { useAuthStore } from '../../store/auth.store';
 import { AuthStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+
+const PILLARS: Array<[React.ComponentProps<typeof Ionicons>['name'], string]> = [
+  ['card-outline', 'Sal de tus deudas con un plan'],
+  ['wallet-outline', 'Cuánto puedes gastar, siempre claro'],
+  ['pulse-outline', 'Tu salud financiera en un número'],
+  ['chatbubble-ellipses-outline', 'Un copiloto que te explica'],
+];
 
 export function LoginScreen({ navigation }: Props) {
   const { login, loading, error } = useAuthStore();
@@ -22,67 +30,48 @@ export function LoginScreen({ navigation }: Props) {
   };
 
   return (
-    <Screen>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1, justifyContent: 'center' }}
-      >
-        {/* FIN-017 P1 (DEC-0017 §4.1 + confirmación del CTO): propuesta de valor
-            compacta — qué hace Milla, entendible en ≤5 segundos, 4 pilares. */}
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingTop: spacing.xxl, flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled">
+        {/* FIN-017 P1: propuesta de valor compacta, entendible en ≤5 segundos. */}
         <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
-          <Text style={{ fontSize: 40 }}>🪈</Text>
-          <Text style={{ fontSize: 28, fontWeight: '800', color: colors.primary }}>
-            Millo
-          </Text>
-          <Text style={{ color: colors.text, marginTop: 4, fontWeight: '600', textAlign: 'center' }}>
+          <View style={{ width: 64, height: 64, borderRadius: radius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}>
+            <Ionicons name="leaf" size={34} color={colors.textInverse} />
+          </View>
+          <Text style={{ color: colors.primary, ...type.display }}>Millo</Text>
+          <Text style={{ color: colors.text, marginTop: spacing.xs, fontWeight: '600', textAlign: 'center', ...type.bodyLg }}>
             Tus deudas, tu plata y tu mes — claros en un solo lugar.
           </Text>
         </View>
 
-        {/* L2 (corrección trivial autorizada): columna de íconos fija para
-            alineación limpia de las 4 líneas. */}
-        <View style={{ marginBottom: spacing.lg, gap: 6, alignSelf: 'center' }}>
-          {[
-            ['💳', 'Sal de tus deudas con un plan'],
-            ['💰', 'Cuánto puedes gastar, siempre claro'],
-            ['🩺', 'Tu salud financiera en un número'],
-            ['🤖', 'Un copiloto que te explica'],
-          ].map(([icon, label]) => (
-            <View key={label} style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ fontSize: 14, width: 28 }}>{icon}</Text>
-              <Text style={{ color: colors.textMuted, fontSize: 14 }}>{label}</Text>
+        <View style={{ marginBottom: spacing.lg, gap: spacing.sm, alignSelf: 'center' }}>
+          {PILLARS.map(([icon, label]) => (
+            <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Ionicons name={icon} size={18} color={colors.primary} />
+              <Text style={{ color: colors.textMuted, ...type.body }}>{label}</Text>
             </View>
           ))}
         </View>
 
-        <Field
-          label="Correo"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          placeholder="tucorreo@mail.com"
-        />
-        <Field
-          label="Contraseña"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          placeholder="••••••••"
-        />
+        <Field label="Correo" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="tucorreo@mail.com" />
+        <Field label="Contraseña" value={password} onChangeText={setPassword} secureTextEntry placeholder="••••••••" />
 
-        {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
+        {error ? <Text style={{ color: colors.danger, ...type.body, marginBottom: spacing.sm }}>{error}</Text> : null}
 
-        {/* FIN-018 L1-A (DEC-018): la sesión persiste, así que esta pantalla la ve
-            casi siempre un usuario NUEVO — su acción va como primaria. */}
+        {/* FIN-018 L1-A: la sesión persiste, así que casi siempre entra un usuario NUEVO. */}
         <Button title="Crear cuenta" onPress={() => navigation.navigate('Register')} />
         <Button title="Ingresar" variant="secondary" onPress={onSubmit} loading={loading} />
+        <Pressable
+          onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() || undefined })}
+          accessibilityRole="link"
+          style={{ alignSelf: 'center', paddingVertical: spacing.sm, minHeight: 44, justifyContent: 'center' }}
+        >
+          <Text style={{ color: colors.primary, ...type.body, fontWeight: '700' }}>Olvidé mi contraseña</Text>
+        </Pressable>
 
-        {/* El tagline baja a firma emocional: no intenta explicar el producto. */}
-        <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: spacing.lg }}>
+        <Text style={{ color: colors.textFaint, ...type.small, textAlign: 'center', marginTop: spacing.md }}>
           "Cuida tus millos, sal de deudas con calma."
         </Text>
-      </KeyboardAvoidingView>
-    </Screen>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

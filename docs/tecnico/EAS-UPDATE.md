@@ -163,3 +163,20 @@ los cambios, que era el objetivo del Fundador.
   BT-001 (formato regional). Queda validado el flujo OTA de punta a punta: las modificaciones
   de JS/UI llegan al APK OTA-capaz sin reinstalar. Backend correspondiente ya desplegado en
   Render (auto-deploy; `/v1/income/profile` verificado vivo).
+
+## Baseline de la APK (2026-09-27, BP-05)
+
+Lección del 2026-09-26: se subió el proyecto a Expo SDK 57 para probar en Expo Go y, de
+haberse publicado por OTA, habría roto la APK instalada (SDK 54, `runtimeVersion` 0.1.0)
+porque un OTA solo lleva JS/assets, nunca código nativo. Desde entonces
+`scripts/deploy/apk-baseline.json` declara el SDK, RN, runtime y módulos nativos de la
+APK vigente, y `preflight-ota.mjs` **bloquea** la publicación si:
+
+- el `expo` de `package.json` o de `node_modules` no es del mismo SDK mayor;
+- `react-native` no es de la misma serie;
+- el `runtimeVersion` efectivo difiere;
+- aparece una dependencia `expo-*`/`react-native-*`/`@react-native*` que la APK no trae.
+
+Paquetes puramente JS (`@expo/vector-icons`, navegación, zustand) están permitidos. El
+baseline se actualiza **solo** al construir y distribuir una APK nueva.
+

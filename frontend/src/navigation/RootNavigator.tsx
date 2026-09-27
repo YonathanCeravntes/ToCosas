@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/auth.store';
 import { colors } from '../theme/colors';
@@ -13,13 +13,31 @@ import { IncomeProfileScreen } from '../screens/IncomeProfileScreen';
 import { SimulatorScreen } from '../screens/SimulatorScreen';
 import { AchievementsScreen } from '../screens/AchievementsScreen';
 import { MilloPlusScreen } from '../screens/MilloPlusScreen';
+import { BudgetScreen } from '../screens/BudgetScreen';
+import { CopilotScreen } from '../screens/CopilotScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
+import { TransactionsScreen } from '../screens/transactions/TransactionsScreen';
+import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { registerForPush } from '../notifications/push';
 import { RootStackParamList } from './types';
+import { headerOptions } from './headerOptions';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const navTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.primary,
+    background: colors.bg,
+    card: colors.surface,
+    text: colors.text,
+    border: colors.border,
+  },
+};
+
 export function RootNavigator() {
-  const { tokens, hydrated, hydrate } = useAuthStore();
+  const { tokens, user, hydrated, hydrate } = useAuthStore();
 
   useEffect(() => {
     void hydrate();
@@ -38,12 +56,27 @@ export function RootNavigator() {
     );
   }
 
+  // FIN-038: solo un usuario NUEVO (onboardingDone === false) ve el recorrido
+  // inicial. Usuarios Beta anteriores (bandera desconocida) entran directo.
+  const needsOnboarding = !!tokens && user?.onboardingDone === false;
+
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <NavigationContainer theme={navTheme}>
+      <Stack.Navigator screenOptions={{ ...headerOptions, headerShown: false }}>
         {tokens ? (
           <>
+            {needsOnboarding ? (
+              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+            ) : null}
             <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="Budget" component={BudgetScreen} options={{ headerShown: true, title: 'Presupuesto' }} />
+            <Stack.Screen name="Copilot" component={CopilotScreen} options={{ headerShown: true, title: 'Copiloto' }} />
+            <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: true, title: 'Ajustes' }} />
+            <Stack.Screen
+              name="Transactions"
+              component={TransactionsScreen}
+              options={{ headerShown: true, title: 'Tus movimientos' }}
+            />
             <Stack.Screen
               name="LinkWhatsApp"
               component={LinkWhatsAppScreen}
@@ -73,6 +106,11 @@ export function RootNavigator() {
               name="Achievements"
               component={AchievementsScreen}
               options={{ headerShown: true, title: 'Tu progreso' }}
+            />
+            <Stack.Screen
+              name="MilloPlus"
+              component={MilloPlusScreen}
+              options={{ headerShown: true, title: 'Millo+' }}
             />
           </>
         ) : (

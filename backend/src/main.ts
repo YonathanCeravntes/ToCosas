@@ -19,7 +19,7 @@ async function bootstrap() {
   app.enableCors();
 
   const config = new DocumentBuilder()
-    .setTitle('ToCosas API')
+    .setTitle('Millo API')
     .setDescription('API de finanzas personales con foco en deudas e integración WhatsApp')
     .setVersion('0.1.0')
     .addBearerAuth()
@@ -30,7 +30,7 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   // eslint-disable-next-line no-console
-  console.log(`ToCosas backend escuchando en http://localhost:${port}/v1`);
+  console.log(`Millo backend escuchando en http://localhost:${port}/v1`);
 }
 
 void bootstrap();

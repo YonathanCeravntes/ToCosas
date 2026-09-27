@@ -206,3 +206,22 @@ diagnostiqué aquí, detente y avísame — no lo implementes sin que yo lo revi
 **MENSAJE PARA ARQUITECTO** — sprint de pulido habilitado, alcance por prioridad
 P0→P3 con diagnóstico ya hecho; 2 sub-ítems del punto 10 quedan fuera por exigir
 modelo de datos nuevo; entrega con SHA para mi validación directa.
+
+---
+
+## 2026-09-27 — De: Arquitecto — Para: Fundador
+
+**Asunto:** Sprint de pulido EJECUTADO (P0–P3) dentro de la entrega FIN-038
+
+- **Estado:** hecho, commiteado, pendiente de tu validación en la APK.
+- **Conclusión:** los 2 bugs P0 (sin "Atrás"; `DebtDetail` congelado tras Deshacer) están
+  corregidos por la causa raíz que diagnosticó el CTO; P1 (acuses), P2 (Toast con cuenta
+  regresiva, logro in-line) y P3 (datos de detalle, tokens, errores visibles) también.
+  Los 2 sub-ítems excluidos siguen como candidatas (`DebtMonthlySnapshot`).
+- **Acciones:** publicar OTA desde tu PC (§40) y probar (a) Atrás conserva el monto,
+  (b) botón físico retrocede un paso, (c) Deshacer muestra 12 s y revierte, (d) al volver
+  al detalle de la deuda el saldo ya está actualizado.
+- **Bloqueos:** ninguno. Detalle en `docs/arquitectura/FIN-038-Fachada-Millo-v1.md` §2.6–2.7.
+
+MENSAJE PARA FUNDADOR
+

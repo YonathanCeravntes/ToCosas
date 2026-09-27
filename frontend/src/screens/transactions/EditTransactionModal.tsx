@@ -3,7 +3,7 @@ import { Alert, Modal, Platform, Pressable, Text, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Button, Card, Field } from '../../components/ui';
 import { colors, radius, spacing } from '../../theme/colors';
-import { formatLocalDate } from '../../utils/format';
+import { formatLocalDate, parseAmount } from '../../utils/format';
 import { transactionsApi } from '../../api/endpoints';
 
 /**
@@ -52,7 +52,7 @@ export function EditTransactionModal({
     setError(null);
     const patch: Record<string, string | number> = {};
     if (!isDebt) {
-      const value = parseFloat(amount.replace(/[^\d.]/g, ''));
+      const value = parseAmount(amount); // §39
       if (!value || value <= 0) {
         setError('Ingresa un monto válido');
         return;
@@ -107,7 +107,7 @@ export function EditTransactionModal({
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000066' }}>
+      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.scrim }}>
         <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.md }}>
           <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: spacing.sm }}>
             Editar movimiento

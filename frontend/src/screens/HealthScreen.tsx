@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Card, Row } from '../components/ui';
+import { Card, Row, Sparkline } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import {
   HealthIndicator,
@@ -25,7 +25,7 @@ import { useApi } from '../utils/useApi';
 
 const BAND_META: Record<ScoreBand, { label: string; color: string }> = {
   critico: { label: 'Crítico', color: colors.danger },
-  fragil: { label: 'Frágil', color: '#E06A00' },
+  fragil: { label: 'Frágil', color: colors.bandFragil },
   estable: { label: 'Estable', color: colors.warning },
   saludable: { label: 'Saludable', color: colors.success },
   elite: { label: 'Élite', color: colors.primaryDark },
@@ -191,7 +191,7 @@ function ScoreCard({
               <Text style={{ color: colors.textInverse, opacity: 0.9, fontSize: 12, width: 92 }}>
                 {PILLAR_LABEL[p.key] ?? p.label}
               </Text>
-              <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: '#ffffff33', overflow: 'hidden' }}>
+              <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: colors.onPrimaryTrack, overflow: 'hidden' }}>
                 <View
                   style={{
                     width: `${Math.max(0, Math.min(100, p.value ?? 0))}%`,
@@ -371,6 +371,12 @@ function HistorySection() {
           <Text style={{ color: colors.text, fontWeight: '600', marginBottom: spacing.sm }}>
             {narrative()}
           </Text>
+          {/* FIN-038 (BP-15): la evolución también se VE, no solo se lee. */}
+          {history.length > 1 ? (
+            <View style={{ marginBottom: spacing.sm }}>
+              <Sparkline values={history.map((h) => h.score)} height={48} label="Evolución del Score" />
+            </View>
+          ) : null}
           {history.map((h) => (
             <Row key={h.period} style={{ justifyContent: 'space-between', marginBottom: 4 }}>
               <Text style={{ color: colors.textMuted }}>{h.period}</Text>
@@ -407,9 +413,7 @@ function CopilotBridge() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
     <Pressable
-      onPress={() =>
-        (navigation as unknown as { navigate: (name: string) => void }).navigate('Insights')
-      }
+      onPress={() => navigation.navigate('Copilot')}
     >
       <Card style={{ paddingVertical: spacing.sm }}>
         <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>

@@ -14,8 +14,9 @@
  * endpoint /health · AUSENCIA TOTAL de referencias a localhost en el bundle.
  */
 import { execSync } from 'node:child_process';
-import { readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { readdirSync, readFileSync, rmSync, statSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 
 const CHANNEL = process.argv[2] || 'preview';
@@ -65,6 +66,41 @@ if (cfg) {
   // updates.url del proyecto EAS
   if (!cfg.updates?.url) fail('updates.url ausente (expo-updates no configurado)');
   else ok(`updates.url: ${cfg.updates.url}`);
+}
+
+// 2b) Compatibilidad con la APK instalada (BP-05, lección 2026-09-26) ---------
+// Un OTA solo puede llevar JS/assets: si el proyecto cambió de SDK, de runtime o
+// agregó un módulo NATIVO que la APK no trae, el bundle rompería la app instalada.
+console.log('· Compatibilidad con la APK instalada (apk-baseline.json)');
+try {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const baseline = JSON.parse(readFileSync(join(here, 'apk-baseline.json'), 'utf8'));
+  const pkg = JSON.parse(readFileSync(join(here, '..', '..', 'package.json'), 'utf8'));
+  const expoMajor = Number(String(pkg.dependencies?.expo ?? '').replace(/[^\d.]/g, '').split('.')[0]);
+  if (expoMajor !== baseline.expoSdkMajor) fail(`Expo SDK del proyecto (${expoMajor}) != APK instalada (${baseline.expoSdkMajor}) — requiere APK nueva, no OTA`);
+  else ok(`Expo SDK ${expoMajor} coincide con la APK`);
+  const rn = String(pkg.dependencies?.['react-native'] ?? '');
+  if (!rn.startsWith(baseline.reactNative)) fail(`react-native ${rn} != APK (${baseline.reactNative}.x)`);
+  else ok(`react-native ${rn} compatible`);
+  if (cfg) {
+    const rtv = typeof cfg.runtimeVersion === 'object' ? (cfg.runtimeVersion.policy === 'appVersion' ? cfg.version : JSON.stringify(cfg.runtimeVersion)) : cfg.runtimeVersion;
+    if (rtv !== baseline.runtimeVersion) fail(`runtimeVersion efectivo (${rtv}) != APK (${baseline.runtimeVersion})`);
+    else ok(`runtimeVersion ${rtv} coincide con la APK`);
+  }
+  // Módulos nativos: cualquier dependencia expo-*/react-native-* nueva que no esté
+  // en la APK es sospechosa (los paquetes puramente JS conocidos se excluyen).
+  const PURE_JS = new Set(['expo', 'react', 'react-dom', 'react-native', 'react-native-web', 'zustand', '@expo/vector-icons', '@react-navigation/native', '@react-navigation/native-stack', '@react-navigation/bottom-tabs']);
+  const suspicious = Object.keys(pkg.dependencies ?? {}).filter((d) => !PURE_JS.has(d) && /^(expo-|react-native-|@react-native)/.test(d) && !baseline.nativeModules.includes(d));
+  if (suspicious.length) fail(`dependencias nativas que la APK no trae: ${suspicious.join(', ')} — agrégalas al baseline SOLO tras construir una APK nueva`);
+  else ok('sin módulos nativos nuevos respecto a la APK');
+  if (!existsSync(join(here, '..', '..', 'node_modules', 'expo', 'package.json'))) fail('node_modules ausente — corre npm install');
+  else {
+    const installed = JSON.parse(readFileSync(join(here, '..', '..', 'node_modules', 'expo', 'package.json'), 'utf8')).version;
+    if (Number(installed.split('.')[0]) !== baseline.expoSdkMajor) fail(`node_modules tiene expo ${installed} (≠ SDK ${baseline.expoSdkMajor}) — corre npm install antes de publicar`);
+    else ok(`node_modules: expo ${installed}`);
+  }
+} catch (e) {
+  fail(`no se pudo verificar el baseline de la APK: ${e.message}`);
 }
 
 // 3) Export del bundle y barrido de localhost --------------------------------

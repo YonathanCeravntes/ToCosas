@@ -38,7 +38,8 @@ export class AuthService {
         // Trial de Millo+ al registrarse, una única vez (DEC-0009 §4.8).
         // Directo aquí (no vía SubscriptionService) para evitar el ciclo
         // AuthModule↔BillingModule; espeja grantTrialOnce + caché de plan.
-        settings: { create: { plan: 'premium' } },
+        // FIN-039: el consentimiento de datos queda registrado con fecha.
+        settings: { create: { plan: 'premium', dataConsentAt: dto.acceptsDataPolicy ? new Date() : null } },
         subscriptions: {
           create: {
             status: 'trial',
@@ -55,7 +56,7 @@ export class AuthService {
   async login(dto: LoginDto): Promise<AuthResult> {
     const email = dto.email.toLowerCase().trim();
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user || !user.passwordHash) {
+    if (!user || !user.passwordHash || user.deletedAt) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
     const ok = await this.passwords.verify(dto.password, user.passwordHash);

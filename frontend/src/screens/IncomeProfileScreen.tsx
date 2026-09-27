@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Button, Card, Field, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
-import { formatMoney } from '../utils/format';
+import { formatMoney, parseAmount, parseDecimal } from '../utils/format';
 import { IncomeSource, NetIncomeSummary, WorkProfile, toNumber } from '../api/types';
 import { incomeApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
@@ -116,7 +116,7 @@ function NewSourceForm({ onSaved }: { onSaved: () => void }) {
   const [saving, setSaving] = useState(false);
 
   const add = async () => {
-    const value = parseFloat(amount.replace(/[^\d.]/g, ''));
+    const value = parseAmount(amount); // §39
     if (!name.trim() || !value) return;
     setSaving(true);
     try {
@@ -191,7 +191,7 @@ function SourceCard({ source, onChanged }: { source: IncomeSource; onChanged: ()
   const [saving, setSaving] = useState(false);
 
   const addDeduction = async () => {
-    const pct = parseFloat(percent.replace(/[^\d.]/g, ''));
+    const pct = parseDecimal(percent); // §39: "4,5" y "4.5" son lo mismo
     if (!name.trim() || !pct) return;
     setSaving(true);
     try {
@@ -199,7 +199,7 @@ function SourceCard({ source, onChanged }: { source: IncomeSource; onChanged: ()
         name: name.trim(),
         percent: pct,
         base,
-        baseAmount: base === 'parcial' ? parseFloat(baseAmount.replace(/[^\d.]/g, '')) || undefined : undefined,
+        baseAmount: base === 'parcial' ? parseAmount(baseAmount) || undefined : undefined,
         withheldAtSource,
       });
       setName('');

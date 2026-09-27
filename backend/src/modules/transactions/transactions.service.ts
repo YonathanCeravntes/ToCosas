@@ -25,6 +25,10 @@ export interface TransactionQuery {
   debtId?: string;
   categoryId?: string;
   limit?: number;
+  /** Búsqueda libre en la nota (historial, FIN-038). */
+  q?: string;
+  /** Cursor: solo movimientos con occurredAt anterior a este instante (paginación). */
+  before?: string;
 }
 
 @Injectable()
@@ -142,19 +146,27 @@ export class TransactionsService {
       ...(q.kind ? { kind: q.kind as Prisma.EnumTxKindFilter } : {}),
       ...(q.debtId ? { debtId: q.debtId } : {}),
       ...(q.categoryId ? { categoryId: q.categoryId } : {}),
-      ...(q.from || q.to
+      ...(q.q?.trim() ? { note: { contains: q.q.trim(), mode: 'insensitive' } } : {}),
+      ...(q.from || q.to || q.before
         ? {
             occurredAt: {
               ...(q.from ? { gte: new Date(q.from) } : {}),
               ...(q.to ? { lte: new Date(q.to) } : {}),
+              ...(q.before ? { lt: new Date(q.before) } : {}),
             },
           }
         : {}),
     };
+    // FIN-038 (historial): la fila viaja con su categoría y el nombre de la deuda
+    // para que la pantalla no dispare N requests. Solo lectura — §32 intacto.
     return this.prisma.transaction.findMany({
       where,
-      orderBy: { occurredAt: 'desc' },
-      take: Math.min(q.limit ?? 50, 200),
+      orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }],
+      take: Math.min(Number(q.limit) || 50, 200),
+      include: {
+        category: { select: { name: true, icon: true, color: true } },
+        debt: { select: { name: true } },
+      },
     });
   }
 

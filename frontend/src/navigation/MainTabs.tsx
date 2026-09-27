@@ -1,70 +1,98 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Platform, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { colors } from '../theme/colors';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, radius } from '../theme/colors';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { HealthScreen } from '../screens/HealthScreen';
 import { DebtsNavigator } from './DebtsNavigator';
 import { AddTransactionScreen } from '../screens/transactions/AddTransactionScreen';
-import { BudgetScreen } from '../screens/BudgetScreen';
-import { CopilotScreen } from '../screens/CopilotScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
+import { MoreScreen } from '../screens/MoreScreen';
 import { MainTabsParamList } from './types';
+import { headerOptions } from './headerOptions';
 
 const Tab = createBottomTabNavigator<MainTabsParamList>();
 
-/** Íconos simples con emoji para no depender de librerías de íconos en el scaffold. */
-const icon =
-  (emoji: string) =>
-  ({ focused }: { focused: boolean }) => (
-    <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const tabIcon =
+  (active: IoniconName, inactive: IoniconName) =>
+  ({ focused, color, size }: { focused: boolean; color: string; size: number }) => (
+    <Ionicons name={focused ? active : inactive} size={size} color={color} />
   );
 
+/** Botón central de Registrar: la acción más frecuente, siempre a un toque. */
+function RegisterIcon({ focused }: { focused: boolean }) {
+  return (
+    <View
+      style={{
+        width: 52,
+        height: 52,
+        borderRadius: radius.full,
+        backgroundColor: focused ? colors.primaryDark : colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: Platform.OS === 'ios' ? -14 : -18,
+        borderWidth: 3,
+        borderColor: colors.surface,
+      }}
+    >
+      <Ionicons name="add" size={30} color={colors.textInverse} />
+    </View>
+  );
+}
+
+/**
+ * FIN-038 · Navegación 5 + 1. Cinco pestañas con íconos vectoriales (antes 7 con
+ * emojis, que Android pinta distinto por fabricante) y el botón de Registrar en el
+ * centro. Header neutro: el único bloque verde de cada pantalla es su hero.
+ */
 export function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.primary },
-        headerTintColor: colors.textInverse,
-        headerTitleStyle: { fontWeight: '700' },
+        ...headerOptions,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          height: Platform.OS === 'ios' ? 84 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+          paddingTop: 6,
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
-        options={{ title: 'Inicio', tabBarIcon: icon('🏠') }}
-      />
-      <Tab.Screen
-        name="Health"
-        component={HealthScreen}
-        options={{ title: 'Salud', tabBarIcon: icon('🩺') }}
+        options={{ title: 'Inicio', tabBarIcon: tabIcon('home', 'home-outline'), tabBarAccessibilityLabel: 'Inicio' }}
       />
       <Tab.Screen
         name="Debts"
         component={DebtsNavigator}
-        options={{ headerShown: false, title: 'Deudas', tabBarIcon: icon('💳') }}
-      />
-      <Tab.Screen
-        name="Budget"
-        component={BudgetScreen}
-        options={{ title: 'Presupuesto', tabBarIcon: icon('💰') }}
+        options={{ headerShown: false, title: 'Deudas', tabBarIcon: tabIcon('card', 'card-outline'), tabBarAccessibilityLabel: 'Deudas' }}
       />
       <Tab.Screen
         name="Add"
         component={AddTransactionScreen}
-        options={{ title: 'Registrar', tabBarIcon: icon('➕') }}
+        options={{
+          title: 'Registrar',
+          tabBarLabel: 'Registrar',
+          tabBarIcon: ({ focused }) => <RegisterIcon focused={focused} />,
+          tabBarAccessibilityLabel: 'Registrar un movimiento',
+        }}
       />
       <Tab.Screen
-        name="Insights"
-        component={CopilotScreen}
-        options={{ title: 'Copiloto', tabBarIcon: icon('🤖') }}
+        name="Health"
+        component={HealthScreen}
+        options={{ title: 'Salud', tabBarIcon: tabIcon('pulse', 'pulse-outline'), tabBarAccessibilityLabel: 'Salud financiera' }}
       />
       <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ title: 'Ajustes', tabBarIcon: icon('⚙️') }}
+        name="More"
+        component={MoreScreen}
+        options={{ title: 'Más', tabBarIcon: tabIcon('grid', 'grid-outline'), tabBarAccessibilityLabel: 'Más opciones' }}
       />
     </Tab.Navigator>
   );

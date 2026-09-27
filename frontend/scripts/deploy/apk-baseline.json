@@ -1,0 +1,21 @@
+{
+  "_comment": "Baseline de la APK instalada en los dispositivos Beta (BP-05). El preflight OTA bloquea si el proyecto ya no coincide: un bundle de otro SDK/runtime rompería la app instalada (lección 2026-09-26). Actualiza este archivo SOLO cuando construyas y distribuyas una APK nueva.",
+  "builtAt": "2026-07-13",
+  "channel": "preview",
+  "runtimeVersion": "0.1.0",
+  "expoSdkMajor": 54,
+  "reactNative": "0.81",
+  "nativeModules": [
+    "@react-native-community/datetimepicker",
+    "expo-constants",
+    "expo-device",
+    "expo-network",
+    "expo-notifications",
+    "expo-secure-store",
+    "expo-sqlite",
+    "expo-status-bar",
+    "expo-updates",
+    "react-native-safe-area-context",
+    "react-native-screens"
+  ]
+}

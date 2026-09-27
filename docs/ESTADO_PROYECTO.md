@@ -1,95 +1,64 @@
-# ESTADO_PROYECTO — Milla
+# ESTADO_PROYECTO — Millo
 
-- **Actualizado:** 2026-07-13 (Fase 0 finalizada, §36; Memorando de Sincronización de Contexto institucionalizado, §37) · por: CTO
-- **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`ARQ`/`DEC`, no aquí.
-- **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` + `BACKLOG.md` — suficiente para que cualquier IA nueva quede orientada sin depender del historial de un chat. Detalle de una `FIN` específica: Nivel 2 (documentos de esa `FIN`, bajo demanda).
+- **Actualizado:** 2026-09-27 · por: Arquitecto (bajo `DEC-ORG-002`; antes lo mantenía el CTO — la versión anterior databa del 2026-07-13 y ya no reflejaba FIN-032…037 ni `DEC-ORG-001`, hallazgo D1 del `BLUEPRINT-0001`).
+- **Naturaleza:** snapshot mutable — se sobrescribe en cada actualización, no es append-only. Su historial vive en `BACKLOG.md`/`FIN-XXXX`/`DEC`, no aquí.
+- **Lectura obligatoria (Nivel 1):** este documento + `GOBERNANZA.md` (v3.21, empezar por §44) + `BACKLOG.md`.
 
 ---
 
-## FIN activa (en diseño)
-**FIN-030 — Umbrella SO Financiero (Deudas por tipo + movimientos inteligentes) — DECIDIDO.** ✅ ARQ-0030 (`2a18a76`) · ✅ AUD-0030 · ✅ **DEC-0030 (umbrella)**. Aprobada la espina (Alt A + capa de consecuencias por listeners con causalidad sobre outbox FIN-002 → §42 por construcción). Sin IMP propio. → derivó **FIN-031 (Fase 1)**: espina + compra-con-tarjeta e2e — ✅ **IMP-0031 (`8473ed5`) CERRADA por el CTO.** §32 una autoridad (`DebtOutlayService` extendido para las cuotas de tarjeta, una ruta); reversibilidad §4.5 (anular con cuota pagada → 409 + corrección); cupo/saldo derivados en `CardService` hoja. Suites: tsc back+front 0, unit 357/357, e2e 49/49 (incl. `fin031` + regresión de consumidores). Backend+migraciones → Render; frontend → OTA. **Criterio de cierre de FIN-030 (Fundador+CPSAO, DEC-0030 §6):** requiere catálogo de los 11 + espina probada contra los 4 arquetipos divergentes (libranza/hipoteca/gota a gota/compra a cuotas) + los 11 registrables con números núcleo §32 + alta mínima B. Por eso **`FIN-032` = la fundación que consolida FIN-030** (ARQ-0032 en curso); la profundidad avanzada por producto → `FIN-033+` (progresiva, no bloquea). Firma de producto: el Fundador. `FIN-032` (resto de tipos) y `FIN-033` (confirmación mensual) en roadmap. `docs/oficial/DEC-0030-SO-Financiero-Deudas-Movimientos.md`.
+## Equipo y flujo vigentes (`DEC-ORG-002`, 2026-09-27)
+**Fundador (decide) ⇄ Arquitecto (ejecuta, verifica, documenta).** No hay CTO, Auditor ni CPSAO. Una FIN = un documento `docs/arquitectura/FIN-XXXX-*.md` (ARQ + Implementado + Decisiones del Fundador). Freno obligatorio: reglas de negocio, §32, UX visible, alcance, legal/gates o gobernanza → preguntar antes. Bugs → corregir y documentar.
+
+## Trabajo activo
+**Entrega 2026-09-27 pendiente de validación del Fundador en la APK Beta:** `SPRINT-PULIDO-001` + `MANT-001` + `FIN-038` (Fachada Millo v1) + `FIN-039` (Cuenta y datos). Todo commiteado en `claude/finance-app-design-pr8qd5` (PR #1 → `chat`). Suites: `tsc` 0/0, unit 381/381, e2e 80/80.
+
+**Qué debe hacer el Fundador para verlo en su Android:**
+1. Backend: mergear/desplegar la rama en Render (auto-deploy). La migración `fin039` corre en `startCommand`. Configurar en el panel: `SMTP_URL` y `MAIL_FROM` (recuperar contraseña por correo), `WHATSAPP_DISPLAY_NUMBER` (opcional).
+2. Frontend, en su PC: `git pull` → `cd frontend && npm install` → `npm run ota:publish -- preview --sentinel <dispositivo>` (§40). El preflight ahora bloquea si `node_modules` no está en SDK 54 o si hubiera módulos nativos nuevos (`scripts/deploy/apk-baseline.json`).
+3. Validar en la APK: "45.000" guarda $45.000; Inicio se actualiza al volver de Registrar; "Atrás" conserva el monto; botón físico retrocede un paso; íconos de la barra visibles; "Ver todos" abre el historial; onboarding aparece una vez (saltable); "Olvidé mi contraseña"; exportar y borrar cuenta de prueba.
+
+## Roadmap (posición)
+- Fundaciones FIN-001…009 ✅ · segunda ronda FIN-011…024 ✅ · FIN-026/027/028/029 ✅ · **programa EOC FIN-030…037 ✅ (cerrado 2026-07-18)** · `SPRINT-PULIDO-001` ✅ · `MANT-001` ✅ · **FIN-038 ✅ / FIN-039 ✅ (implementadas, validación del Fundador pendiente).**
+- Pendientes registrados: FIN-010 (salida a producción: gates legales), FIN-025 (aviso proactivo de mora), Copiloto como experiencia UX, RC integral con participantes reales.
+- **Candidatas siguientes (el Fundador elige, `BLUEPRINT-0001` §8):** BP-21 metas de ahorro, BP-22 sobres por categoría (toca Registrar), BP-23 recordatorios configurables (`Reminder` ya existe), BP-14 modo oscuro, BP-24 registro por audio/foto vía bot, BP-25 cuentas coherentes, BP-27 recurrentes, BP-28 telemetría de producto, BP-29 offline completo.
 
 ## Gobernanza vigente
-v3.19 (`docs/GOBERNANZA.md`) — última sección: §42 Automatización con Claridad Radical (una acción → todos los efectos, todos visibles/explicables/reversibles). Antes: §41 continuidad Beta (toda FIN cerrada llega al dispositivo Beta vía OTA por la vía segura de §40; los usuarios de prueba usan siempre la última versión aprobada; ciclo `Arquitecto→Auditor→CTO→Integración→GitHub→OTA→Beta`). Antes: §40 gate obligatorio de despliegue OTA, §38 gestión de defectos, §39 formato regional.
+v3.21 (`docs/GOBERNANZA.md`) — §44 equipo de dos (`DEC-ORG-002`). Controles sin cambio: §15, §29, §31, §32, §33, §34, §35, §36.3, §36.4, §38, §39, §40, §41, §42.
 
 ## Beta técnica (estado de despliegue)
-OTA vigente en `preview`: `f166ac42` — lleva **FIN-027** (perfil de ingresos), **FIN-028** (editar/anular movimientos), **BT-001** (formato regional) y el fix **BT-003** (URL de producción). Backend en Render actualizado (auto-deploy) — incluye **BT-004** (el ingreso fijo declarado entra en "Te queda", decisión del Fundador 2026-07-14, backend-only sin OTA). Próximo OTA (cuando haya cambios de frontend aprobados) se publica por `npm run ota:publish` (§40/§41).
+- **APK instalada:** Android, Expo SDK 54 / RN 0.81, `runtimeVersion` 0.1.0, canal `preview` (`scripts/deploy/apk-baseline.json` es la fuente de verdad; se actualiza SOLO al construir una APK nueva).
+- **OTA vigente en `preview`:** `f166ac42` (FIN-027/028 + BT-001/003). **La entrega 2026-09-27 aún NO está publicada por OTA** (requiere el EAS login del Fundador).
+- **Backend:** Render free `milla-backend` + Neon. Último despliegue conocido: FIN-037. La rama actual incluye migración nueva (`fin039`).
+- **Incidente de proceso 2026-09-26:** intento de subir a Expo SDK 57 revertido (`362d279`); motivó el baseline de APK en el preflight.
 
 ## Definición vigente de "Te queda" (§32)
-Base de ingreso = `max(take-home del ingreso fijo declarado, ingresos recibidos)` − gastos/pagos reales − compromisos pendientes. **BT-004 (Fundador, 2026-07-14) supersede el "Alt A / solo lo recibido" de FIN-020 para el ingreso fijo** (el variable sigue contando solo al recibirse). Misma base que el `incomeRef` del Score. Fuente única: `SpendableService`. — el CTO emite una comunicación oficial ante cambios de etapa estructurales para fijar una línea base única entre roles; disparadores acotados (infra/gobernanza/producción/producto/arquitectura/equipo), cierre con confirmación de lectura de los roles afectados (evidencia, no aprobación), reservado a lo estructural. Precedente inmediato: §36, marco de gobernanza post-Fase 0 (modelo híbrido de documentación en GitHub; flujo oficial `Fundador→CPSAO→CTO→Arquitecto→Auditor→CTO→GitHub` con el CTO como único integrador; testing obligatorio antes de integrar; no escalar infraestructura por anticipación; GitHub como registro histórico oficial; CTO custodio de la calidad técnica).
+Base de ingreso = `max(take-home del ingreso fijo declarado + variable estimado, ingresos recibidos)` − gastos/pagos reales − compromisos pendientes (BT-004, Fundador 2026-07-14). Fuente única: `SpendableService`. El pilar de Ahorro del Score usa la misma razón (BT-007). **Nada de la entrega 2026-09-27 la toca.**
 
-## FIN activa
-**Ninguna en IMP.** `FIN-026` (Experiencia de Simulador) **CERRADA** por el CTO el 2026-07-13 (validación técnica contra `68588c8`, 3 cambios obligatorios confirmados en código, `tsc` exit 0; firma de producto en dispositivo real a cargo del Fundador con el APK nuevo). Hoja de ruta UX: 6/6 experiencias cerradas salvo la de **Copiloto** (pendiente, bloqueada por gate DPA+PIA). En diseño (ARQ paralelo): FIN-027, FIN-029; retenida: FIN-028 (ver abajo).
-
-## Frentes abiertos (ARQ/AUD en paralelo — excepción documentada; IMP secuencial 028→027→029)
-Autorizados por el Fundador (memo 2026-07-13). ARQ y AUD de los tres **completos**. El IMP es estrictamente secuencial.
-- **FIN-028 — Gestión de movimientos (editar/anular).** ✅ ARQ-0028 · ✅ AUD-0028 · ✅ DEC-0028 · ✅ **IMP-0028 (`65104e1`) CERRADA por el CTO.** Validación independiente: `tsc` exit 0, unit 331/331, e2e 27/27 (incl. `fin028-movimientos`). Anulación = `deletedAt` (sin estado nuevo, §32); `update`/`remove` emiten eventos vía outbox → Motor recalcula; `undoLast` reencaminado; reverso atómico de pago de deuda + guardarraíl. 2 limitaciones aceptadas iteración 1 (next_due_date no reconstruido al anular pago de deuda — seguimiento; UX en filas de Inicio). Firma de producto: el Fundador en la app.
-- **FIN-027 — Modelo de ingresos personales.** ✅ ARQ-0027 · ✅ AUD-0027 · ✅ DEC-0027 · ✅ **IMP-0027 (`67cf375`) CERRADA por el CTO.** Validación independiente: `tsc` BE+FE 0, unit 345/345, e2e 40/40. DTI/Score sobre NETO (`NetIncomeService` hoja), copy en Salud, migración sin coexistencia, `withheldAtSource`, regresión sin perfil = idéntico. Firma de producto: el Fundador en la app.
-- **FIN-029 — Telegram / Motor Conversacional único.** ✅ ARQ-0029 · ✅ AUD-0029 · ✅ DEC-0029 · ✅ **IMP-0029 (`9bb83c0`) CERRADA por el CTO.** 6 condiciones con test (acuse QUÉ+DÓNDE; no fingir anotado; simular muestra sin empujar; paywall honesto; genericidad; motor invoca servicio central). Gate DPA+PIA cerrado por construcción (conversación determinista). Suites: tsc 0, unit 355/355, e2e 43/43. Backend-only → Beta por auto-deploy Render (sin OTA). 3 reservas (capa IA no-runtime, etc.) dependen de abrir el gate. **Cierra la tanda de la Beta Técnica.**
-
-## Infraestructura (Fase 0 — FINALIZADA)
-**Fase 0 oficialmente finalizada (memo del Fundador, 2026-07-13).** Backend NestJS en producción en Render (runtime Node) + Neon PostgreSQL conectada; 17 migraciones Prisma aplicadas; `/v1/health` y `/v1/ready` verificadas 200 OK desde afuera (`https://milla-backend.onrender.com`). App móvil (Expo/Android) apuntando al backend real (`eas.json` perfil `preview`); APK en compilación en EAS. `render.yaml` corregido a la configuración real (Node, no Docker). Componentes oficialmente incorporados: GitHub, Render, Neon, Cloudflare (preparado), Prisma, despliegue automático, infraestructura documentada. Detalle: `docs/INFRAESTRUCTURA.md`. Escalado a planes pagos NO autorizado (solo por necesidad técnica demostrada, §36.4).
-
-## Sincronización Git (§35)
-Rama oficial de trabajo `claude/finance-app-design-pr8qd5`, sincronizada 1:1 entre local y `origin` desde 2026-07-13 (`git status` sin ahead/behind). Historial anterior divergente (7 commits del día 1, gobernanza abandonada) preservado íntegro en `origin/legacy/origin-2026-07-13` — rama de solo archivo, no participa del desarrollo. Política completa: `GOBERNANZA.md` §35.
-
-## Últimas FIN cerradas
-- FIN-024 — Mora de deudas (iteración 1, fijos fuera de alcance) — **Cerrado técnico + producto.** `DEC-0024` (3 cambios obligatorios §5), `VALIDACION-0024` APROBADO, verificación independiente del CTO en checkout aislado contra `faebc2a`: unit 326/326, e2e 23/23, tsc limpio. Bug fundacional corregido (escritor único de `nextDueDate`); quinta fuente única por construcción. CPSAO declaró Aprobada en producto (tono §29.2 confirmado). P4 (aviso proactivo) excluido — fast-follow `FIN-025`
-- FIN-023 — Desembolso real de deuda + cuota de manejo (§32) — **Cerrado técnico + producto.** `DEC-0023` (P4/P5 incluidos), `VALIDACION-0023` APROBADO, verificación independiente del CTO en checkout aislado contra `c7b9804`: unit 318/318, e2e 20/20, tsc limpio. Cuarta fuente única por construcción (`DebtOutlayModule`). CPSAO declaró Aprobada en producto (aritmética cruzada confirmada)
-- FIN-022 — Experiencia de Deudas — **Cerrado.** `DEC-0022` (P2 con 4 cambios obligatorios §5), `VALIDACION-0022` APROBADO, verificación independiente del CTO en checkout aislado contra `0f75a5c`: código + suites reejecutadas en vivo — unit 313/313, e2e 15/15, tsc limpio. Orden de ataque unificado por construcción (`attackOrder()`)
-- FIN-021 — Única definición del fondo de emergencia (§32) — Cerrado técnico + producto (`DEC-0021`, `VALIDACION-0021` APROBADO)
-
-## Hoja de ruta de experiencias UX (posición actual)
-Inicio ✅ · Salud ✅ · Presupuesto ✅ (`FIN-020`, `FIN-021` fondo de emergencia §32) · Deudas ✅ (`FIN-022`, `FIN-023` desembolso real + cuota de manejo §32, `FIN-024` mora) · **Simulador 🔄 (FIN-026, autorizada, no iniciada)** · Copiloto ⏳ (nota registrada: `context-assembler.ts` deberá consumir `SpendableService`, §32; recordar aviso anticipado al Fundador si se toca Registrar). `FIN-025` (aviso proactivo de mora) fast-follow registrado, sin fecha fija.
-RC integral (sesión con participantes reales): pendiente, programada al cierre de las 6 experiencias (`docs/producto/rc/RC-0001-Inicio.md` preserva el diseño metodológico).
-
-**Aviso anticipado obligatorio — módulo de Registrar/Transacciones (instrucción directa del Fundador, 2026-07-13):** antes de que cualquier FIN toque el módulo de Registrar (alta de transacciones), el CTO debe avisarle con anticipación — quiere hacer observaciones antes de que avance. No está en la hoja de ruta de las 6 experiencias UX hoy (era parte del "Lote 03 de capturas" sin gobernanza, nunca pedido) — si aparece como candidata a FIN futura (p. ej. tras Copiloto), este aviso es un paso obligatorio previo a abrir su comprensión/ARQ.
-
-## Principios permanentes recientes a tener en cuenta
-- §31 — Todo `ARQ` de experiencia UX cierra respondiendo "¿qué perdería el usuario si esta experiencia no existiera?".
-- §32 — Ningún concepto financiero puede tener más de una fórmula/fuente de verdad entre pantallas.
-- §33 — EOC v1.0: encabezado De/Para/CC/Asunto/Fecha + Estado/Conclusión/Acciones/Bloqueos obligatorio en toda comunicación entre roles.
-- §34 — Toda documentación oficial se commitea a git en el mismo acto en que se crea o modifica — nunca queda pendiente más allá de la sesión de trabajo. El CTO verifica `git status` limpio de docs oficiales en cada cierre de FIN.
-
-## Agentes de IA oficiales
-CTO, Arquitecto, Auditor, CPSAO — oficiales (`AI_REGISTRY.md` AI-0001/0002... ver registro). **CMIO — evaluado, pendiente Prompt Maestro** (AI-0003, paso 3 de §22 en curso por el CPSAO).
-
-## Fase II — Conversión de Inteligencia Estratégica (CPSAO, 2026-07-12)
-Paralela a la hoja de ruta UX, sin alterarla. **Línea A** (desarrollo normal): sin cambios, ver "FIN activa" arriba. **Línea B** (institucionalización de decisiones estratégicas del CPSAO, derivadas de investigación del CMIO — el CMIO no es artefacto oficial ni pasa por el CTO, solo el CPSAO filtra su output en directrices): Lote 1 recibido — 11 decisiones (`DEC-STR-001` a `DEC-STR-011`; nomenclatura provisional del CPSAO, aún no reservada en la regla de Numeración de `GOBERNANZA.md` — observación pendiente de resolver con el CPSAO para no colisionar con `DEC-XXXX` del ciclo FIN). En análisis de impacto por Arquitectura (formato: impacto/documentos afectados/dependencias/momento recomendado/esfuerzo, máx. 2 páginas) → seguirá Auditoría (contradicciones/riesgos/conflictos, sin rediseñar) → consolidación del CTO → decisión del CPSAO. Restricciones explícitas: no abre `FIN` nueva, no modifica el roadmap, no modifica `FIN-020`, no implementa.
-
-## Reorganización documental en curso
-`docs/oficial/PROPUESTA-2026-07-12-Reorganizacion-Documental.md` — aprobada por el CPSAO para ejecución inmediata (prioridad operativa, antes de oficializar formalmente en Gobernanza). Migración en curso: este documento (paso 1) y el formato corto de `BACKLOG.md` desde FIN-020 (paso 2) ya están activos. Pendientes: `§Cierre` en DEC (paso 3, ya aplicado en `DEC-0020` §7 de forma parcial), columna "arranque en frío" en `AI_REGISTRY.md` (paso 4), reclasificación de los 10 documentos raíz (paso 5), ratificación formal en Gobernanza (paso 6).
-
-## Programa Alpha (paralelo a las FIN, `docs/producto/alpha/`)
-Planificación completa: `ALPHA-001`…`ALPHA-008` aprobadas. En **fase de ejecución** (no de planificación) — seguimiento en `ALPHA_EXECUTION_BOARD.md` (11 actividades: candidatos, Consejo Fundador, revisión legal de consentimiento, PIA, seguridad base, etc.). Próxima acción recomendada por el CTO (2026-07-06): identificar candidatos reales e iniciar el PIA.
+## Principios permanentes recientes
+§31 filtro "qué perdería el usuario" · §32 fuente única · §33 EOC · §34 commit en el mismo acto · §39 formato regional (invariante: SIEMPRE `parseAmount`/`parseDecimal`, BT-008) · §40 gate OTA (ahora con baseline de APK) · §42 claridad radical · §44 verificación por artefactos.
 
 ## Riesgos abiertos / gates de producción pendientes
-- **Gates legales/negocio** (tabla completa en `BACKLOG.md`): DPA con Anthropic, PIA (Ley 1581), revisión legal final, política de tiendas para IAP — todos `⏳ Pendiente`, responsables Fundador/CTO.
-- **`wealthPillar()` binario** (`score.util.ts`): riesgo diferido desde `DEC-0004`, mitigado en pantalla desde `DEC-0019` (ruta b, sin semáforo por pilar) — no resuelto a nivel de cálculo, sigue como mejora futura.
-- **Limitación de sandbox — SUPERADA (2026-07-12):** el precedente desde FIN-012 ("no se puede ejecutar Postgres embebido real") ya no aplica en este entorno — Docker con Postgres real está disponible y operativo; el CTO ejecutó la suite e2e completa (9/9) contra él durante la validación de FIN-020. Corregir el precedente si se cita en FIN futuras.
-- **Documentación oficial sin commitear — RESUELTO (2026-07-12):** el hallazgo del CTO (`GOBERNANZA.md` sin commitear desde 2026-07-05, ~30 documentos oficiales sin trackear) fue regularizado en 7 commits temáticos (`fd63e51`…`85bff76`) tras la autorización del Fundador. Nueva regla permanente `GOBERNANZA.md` §34 (v3.12) evita que se repita: toda documentación oficial se commitea en el mismo acto de su creación/modificación.
-- **Fórmulas divergentes de "meses de fondo de emergencia" — RESUELTO (2026-07-12):** `FIN-021` cerrada. Única fuente (`EmergencyFundMonths` del Motor + `emergency-fund.constants.ts` para los hitos) consumida por construcción por Inicio, Salud y Recomendaciones. Detalle en `docs/correspondencia/FIN-021-Fondo-de-Emergencia.md`.
-- **"Lo comprometido" subestimado para usuarios con seguros/cargos aparte — RESUELTO (2026-07-13):** `FIN-023` cerrada. Fuente única (`DebtOutlayModule` + `payment-breakdown.util.ts`) consumida por construcción por 6 puntos (teQueda, Motor, Presupuesto, Copiloto, mensajería, summary de Deudas). Cuota de manejo como dato del usuario, sin default, `endorsed` rechazado server-side. Detalle en `docs/correspondencia/FIN-023-Desembolso-Real-Deuda.md`.
-- **Mora de deudas — RESUELTO (2026-07-13):** `FIN-024` cerrada. Bug fundacional de doble escritor de `nextDueDate` corregido; estado de mora visible y accionable en deudas. `FIN-025` (aviso proactivo) queda como fast-follow registrado, sin fecha fija — depende de observar el uso real de la etiqueta pasiva primero.
+- **Gates legales/negocio (FIN-010):** DPA con Anthropic, PIA (Ley 1581), validación legal del Score para público, política de tiendas/IAP, precio Millo+ (banda sugerida USD 20–30/año, `COMPETITIVE_ANALYSIS.md` §4). Responsable: Fundador.
+- **SMTP no configurado:** recuperar contraseña por correo no funciona hasta que el Fundador pegue `SMTP_URL` en Render (FIN-039 §8).
+- **Deriva de migraciones (M11):** migraciones anteriores hechas a mano difieren del `schema.prisma` en defaults de `id` (`gen_random_uuid()`) y `ON UPDATE` de FKs. Funcional, pero `prisma migrate dev` propondrá cambios ajenos en cada FIN futura. Decidir: alinear con una migración de solo-esquema en una ventana de mantenimiento.
+- **Onboarding para cuentas Beta antiguas:** lo verán una vez (saltable). Si molesta: `UPDATE users SET onboarding_done = true WHERE created_at < '2026-09-27'` (FIN-038 §16.2).
+- **`wealthPillar()` binario** (desde DEC-0004): sin cambios.
+- **Cold start Render free** (BT-005): mitigado con timeout y copy; eliminarlo requiere plan pagado (no autorizado, §36.4).
+- **Sin telemetría de producto** (`METRICS.md` vacío) y **sin pruebas de frontend**: candidatas BP-28 y §7 del Blueprint.
+- **Nombre oficial Milla vs Millo:** `PRODUCT_VISION.md` dice Milla; app, código y gobernanza reciente dicen Millo. Decisión del Fundador pendiente (D2).
 
-## Decisiones del Fundador pendientes de ejecutar
-Ninguna.
+## Decisiones del Fundador pendientes
+1. Proveedor SMTP y remitente (`MAIL_FROM`).
+2. Plazo de purga física tras borrar cuenta (propuesta 30 días).
+3. Nombre oficial del producto en `PRODUCT_VISION.md`.
+4. Siguiente FIN del Blueprint (ver candidatas).
 
 ## Bloqueos abiertos
-Ninguno.
+Ninguno para el Arquitecto. La validación en dispositivo y la publicación OTA solo las puede hacer el Fundador (EAS login, APK).
 
 ## Próxima acción esperada
-1. **Arquitectura:** entregar el documento de comprensión del problema de `FIN-026` (Simulador), antes de `ARQ-0026`.
-2. En paralelo, Línea B: Arquitectura entregando el análisis de impacto del Lote 1 de Decisiones Estratégicas del CPSAO (`DEC-STR-001…011`).
+1. **Fundador:** desplegar backend, publicar OTA, validar la lista de §"Trabajo activo", configurar SMTP, y decidir los 4 puntos anteriores.
+2. **Arquitecto:** corregir lo que la validación devuelva (autoridad correctiva §44.1) y, con la decisión del Fundador, abrir la siguiente FIN.
 
-## Piloto en validación — mecanismo de continuidad documental (CPSAO, 2026-07-12)
-
-El próximo cambio real de chat del Arquitecto es la **primera prueba piloto completa** del sistema de arranque en frío (`PROCEDIMIENTO-ARRANQUE-EN-FRIO.md` + `ESTADO_PROYECTO.md`). La oficialización en `GOBERNANZA.md` (paso 6 de la migración) **no procede por tiempo transcurrido ni número de FIN** — depende de esta evaluación. Cuando ocurra ese cambio de chat, el CTO debe responder, con evidencia concreta (no impresión):
-
-1. ¿El nuevo Arquitecto logró incorporarse sin depender del historial del chat anterior?
-2. ¿La documentación fue suficiente para reconstruir el contexto?
-3. ¿Qué información adicional fue necesario buscar fuera de la documentación?
-4. ¿Qué documentos generaron dudas o redundancias?
-5. ¿Qué ajustes deben realizarse antes de convertir el mecanismo en estándar permanente?
-
-Con esas respuestas, CTO y CPSAO presentan la propuesta final al Fundador. **Este punto no se resuelve hasta que el cambio de chat del Arquitecto ocurra realmente** — no es una tarea a ejecutar ahora.
+## Documentos de referencia rápida
+`docs/arquitectura/BLUEPRINT-0001-Analisis-Integral-Millo.md` (análisis y candidatas) · `docs/producto/COMPETITIVE_ANALYSIS.md` v2.0 (mercado) · `docs/arquitectura/FIN-038-Fachada-Millo-v1.md` · `docs/arquitectura/FIN-039-Cuenta-y-Datos.md` · `docs/oficial/DEC-ORG-002-Equipo-de-Dos.md` · `docs/oficial/REGISTRO-DEFECTOS.md` (BT-001…011) · `docs/tecnico/EAS-UPDATE.md` (OTA).

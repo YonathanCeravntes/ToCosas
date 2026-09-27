@@ -1,5 +1,5 @@
 {
-  "name": "tocosas-app",
+  "name": "millo-app",
   "version": "0.1.0",
   "main": "index.ts",
   "scripts": {
@@ -13,6 +13,7 @@
     "ota:publish": "node scripts/deploy/publish-ota.mjs"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",

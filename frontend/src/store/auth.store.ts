@@ -4,6 +4,8 @@ import { setAuthHandlers } from '../api/client';
 import { authApi } from '../api/endpoints';
 import { AuthTokens, User } from '../api/types';
 
+// Claves de almacenamiento seguro. Se conservan los nombres históricos para no
+// cerrar la sesión de los usuarios Beta al actualizar por OTA.
 const TOKENS_KEY = 'tocosas.tokens';
 const USER_KEY = 'tocosas.user';
 
@@ -16,8 +18,12 @@ interface AuthState {
 
   hydrate: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName?: string) => Promise<void>;
+  register: (email: string, password: string, fullName?: string, acceptsDataPolicy?: boolean) => Promise<void>;
   logout: () => Promise<void>;
+  /** Vuelve a leer /auth/me (onboarding, consentimiento, plan) y lo persiste. */
+  refreshMe: () => Promise<void>;
+  /** Actualiza el usuario en memoria y en disco (p. ej. onboardingDone). */
+  patchUser: (patch: Partial<User>) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -42,6 +48,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } finally {
       set({ hydrated: true });
     }
+    // Best-effort: sincroniza banderas del servidor sin bloquear el arranque.
+    if (get().tokens) void get().refreshMe();
   },
 
   login: async (email, password) => {
@@ -50,6 +58,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const res = await authApi.login(email, password);
       await persist(res.tokens, res.user);
       set({ tokens: res.tokens, user: res.user });
+      void get().refreshMe();
     } catch (e) {
       set({ error: (e as Error).message });
       throw e;
@@ -58,12 +67,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  register: async (email, password, fullName) => {
+  register: async (email, password, fullName, acceptsDataPolicy) => {
     set({ loading: true, error: null });
     try {
-      const res = await authApi.register(email, password, fullName);
-      await persist(res.tokens, res.user);
-      set({ tokens: res.tokens, user: res.user });
+      const res = await authApi.register(email, password, fullName, acceptsDataPolicy);
+      // Usuario nuevo: el recorrido inicial empieza en la app (FIN-038).
+      const user: User = { ...res.user, onboardingDone: false, dataConsentAt: acceptsDataPolicy ? new Date().toISOString() : null };
+      await persist(res.tokens, user);
+      set({ tokens: res.tokens, user });
     } catch (e) {
       set({ error: (e as Error).message });
       throw e;
@@ -78,6 +89,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       SecureStore.deleteItemAsync(USER_KEY),
     ]);
     set({ tokens: null, user: null });
+  },
+
+  refreshMe: async () => {
+    try {
+      const me = await authApi.me();
+      const merged = { ...(get().user ?? {}), ...me } as User;
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(merged));
+      set({ user: merged });
+    } catch {
+      /* sin red o sesión vencida: el guard del cliente ya lo maneja */
+    }
+  },
+
+  patchUser: async (patch) => {
+    const merged = { ...(get().user ?? { id: '', email: null, fullName: null }), ...patch } as User;
+    await SecureStore.setItemAsync(USER_KEY, JSON.stringify(merged));
+    set({ user: merged });
   },
 }));
 

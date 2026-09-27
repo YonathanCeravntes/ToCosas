@@ -1,10 +1,15 @@
 # Gobernanza oficial del proyecto Milla
 
-- **Versión:** 3.20
-- **Fecha de adopción:** 2026-07-15
-- **Autor:** Fundador (Yonathan Cervantes) — `DEC-ORG-001`, incorporada por el CTO
+- **Versión:** 3.21
+- **Fecha de adopción:** 2026-09-27
+- **Autor:** Fundador (Yonathan Cervantes) — `DEC-ORG-002`, incorporada por el Arquitecto
 - **Estado:** Vigente
 - **Historial de cambios:**
+  - v3.21 (2026-09-27) — `DEC-ORG-002`: equipo de dos (sección 44). Elimina el rol
+    CTO; el Fundador decide y el Arquitecto ejecuta, verifica y documenta. Ciclo
+    documental compacto (un documento `FIN-XXXX` con ARQ + Implementado + Decisiones).
+    Toda mención al CTO en secciones anteriores se lee como "Arquitecto" para la
+    ejecución y como "Fundador" para la decisión (regla de lectura, sección 44.4).
   - v3.20 (2026-07-15) — `DEC-ORG-001`: simplificación de la estructura de
     gobernanza (sección 43). Elimina los roles CPSAO y Auditor como actores
     independientes; sus funciones son absorbidas por el Fundador (Dirección de
@@ -170,7 +175,11 @@ visuales sin cambio funcional, bugs simples). Ante la duda → gobernanza.
 
 ## 1. Organigrama
 
-> **⚠️ Estructura vigente desde `DEC-ORG-001` (2026-07-15, sección 43).** Los roles
+> **⚠️ Estructura vigente desde `DEC-ORG-002` (2026-09-27, sección 44): equipo de
+> dos — el Fundador decide, el Arquitecto ejecuta. El rol CTO ya no existe; toda
+> mención al CTO en este documento se lee según la regla de la sección 44.4.**
+>
+> Estructura anterior desde `DEC-ORG-001` (2026-07-15, sección 43). Los roles
 > CPSAO y Auditor **ya no existen como actores independientes**. Sus funciones fueron
 > absorbidas por el Fundador (dirección de producto) y el CTO (auditoría técnica),
 > respectivamente. Las menciones a CPSAO/Auditor en secciones posteriores de este
@@ -1474,3 +1483,53 @@ bloqueante — no se cierra la `FIN` hasta que la correspondencia sea completa e
 cuatro capas. Esta regla es una extensión directa de "El estado oficial se determina
 solo por artefactos verificables" y de "Referencia inmutable obligatoria para todo
 IMP", no las reemplaza.
+
+## 44. Equipo de dos — `DEC-ORG-002` (nueva en v3.21)
+
+**Origen:** decisión del Fundador, 2026-09-27. Documento oficial:
+`docs/oficial/DEC-ORG-002-Equipo-de-Dos.md`.
+
+### 44.1 Eliminación del rol CTO
+
+El rol CTO deja de existir. La **decisión** (aprobar, priorizar, cambiar reglas de
+negocio/UX/alcance/gobernanza, encender gates, fijar precio) pasa al **Fundador**. La
+**ejecución** (análisis, diseño, implementación, pruebas, integración a GitHub,
+Backlog, `ESTADO_PROYECTO.md`, registro de defectos, documentación oficial, autoridad
+correctiva inmediata ante bugs) pasa al **Arquitecto**.
+
+### 44.2 Flujo oficial
+
+```
+Fundador (decide) ⇄ Arquitecto (ejecuta, verifica, documenta)
+```
+
+Freno obligatorio: ante una decisión que cambie reglas de negocio, una definición §32,
+experiencia visible, alcance, legal/gates o gobernanza, el Arquitecto se detiene y
+pregunta. Un bug se corrige sin preguntar; una regla no.
+
+### 44.3 Ciclo documental compacto
+
+Una FIN = **un documento `FIN-XXXX` en `docs/arquitectura/`** con las 14 secciones del
+ARQ + "Implementado" (SHA, suites) + "Decisiones del Fundador". Backlog, Estado y
+Registro de defectos siguen igual. El Blueprint sigue siendo exploratorio; el Fundador
+elige qué `BP-nn` se vuelve FIN.
+
+### 44.4 Regla de lectura del resto del documento
+
+Donde una sección anterior diga "CTO": si describe **decidir/aprobar/autorizar**, se lee
+**Fundador**; si describe **ejecutar/verificar/integrar/documentar/administrar el
+Backlog**, se lee **Arquitecto**. Las prohibiciones "el Arquitecto no audita su propio
+IMP" (§5, §17) quedan sustituidas por la verificación por artefactos (44.5).
+
+### 44.5 Verificación por artefactos
+
+Sin auditor humano, cada entrega prueba con: `tsc` back+front limpios, suites
+unitarias y e2e contra Postgres real, grep §32/§39, y la validación del Fundador en el
+dispositivo Beta. El Arquitecto declara lo que no pudo verificar.
+
+### 44.6 Controles vigentes sin cambio
+
+§15, §29, §31, §32, §33, §34, §35, §36.3, §36.4, §38, §39, §40, §41, §42 y el aviso
+anticipado sobre Registrar (satisfecho cuando el Fundador ordena expresamente el
+trabajo).
+

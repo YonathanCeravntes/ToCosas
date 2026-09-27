@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Button, Card, Field, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
-import { formatMoney } from '../utils/format';
+import { formatMoney, parseAmount } from '../utils/format';
 import { MonthlyBudget, Recommendation, TeQueda, toNumber } from '../api/types';
 import { budgetApi, incomeApi, recommendationsApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
@@ -279,7 +279,7 @@ function NewFixedForm({ onSaved }: { onSaved: () => Promise<unknown> }) {
   const [saving, setSaving] = useState(false);
 
   const onAdd = async () => {
-    const value = parseFloat(amount.replace(/[^\d.]/g, '')) || 0;
+    const value = parseAmount(amount) || 0; // §39
     if (!name.trim() || !value) return;
     setSaving(true);
     try {

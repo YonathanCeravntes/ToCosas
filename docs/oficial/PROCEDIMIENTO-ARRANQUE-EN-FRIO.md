@@ -1,6 +1,7 @@
 # Procedimiento de arranque en frío — cualquier IA nueva o cambio de chat
 
-- **Autor:** CTO
+- **Autor:** CTO (histórico) · mantenido por el Arquitecto desde `DEC-ORG-002`
+- **Nota 2026-09-27 (`DEC-ORG-002`):** los roles CTO, Auditor y CPSAO ya no existen. Donde este procedimiento diga "CTO" léase **Arquitecto** para ejecutar/mantener y **Fundador** para decidir (`GOBERNANZA.md` §44.4). El "informe de incorporación" del Paso 4 lo presenta el Arquitecto entrante al Fundador. La primera prueba real del mecanismo ocurrió el 2026-09-27: el Arquitecto se incorporó con Nivel 1 + código y encontró `ESTADO_PROYECTO.md` desactualizado (2 meses) — por eso se reescribió y se fija la regla: **quien cierra una entrega actualiza `ESTADO_PROYECTO.md` y `BACKLOG.md` en el mismo commit.**
 - **Estado:** Operativo desde 2026-07-12, dentro de la reorganización documental en ejecución (`PROPUESTA-2026-07-12-Reorganizacion-Documental.md`). Refinado el 2026-07-12 con dos mejoras al informe de incorporación solicitadas por el CPSAO (ver Paso 4). Pendiente de ratificación formal como sección de `GOBERNANZA.md` (paso 6 del plan de migración) — las mejoras del Paso 4 ratifican junto con el resto del mecanismo, no antes.
 - **Propósito:** que un chat nuevo — mismo rol o rol distinto — quede orientado sin depender del historial de la conversación anterior.
 

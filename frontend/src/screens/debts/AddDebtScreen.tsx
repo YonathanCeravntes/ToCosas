@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { formatLocalDate } from '../../utils/format';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Field } from '../../components/ui';
-import { colors, radius, spacing } from '../../theme/colors';
+import { colors, entityColors, radius, spacing } from '../../theme/colors';
 import { debtsApi, entitiesApi, CreateDebtInput } from '../../api/endpoints';
 import { FinancialEntity, ProductFieldSpec, ProductTypeDescriptor } from '../../api/types';
 import { useApi } from '../../utils/useApi';
@@ -11,13 +13,14 @@ import { DebtsStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<DebtsStackParamList, 'AddDebt'>;
 
+// SPRINT-PULIDO-001 P3: los colores viven en el theme (entityColors), no aquí.
 const CATEGORY: Record<string, { label: string; color: string }> = {
-  banco: { label: 'Banco', color: '#2563eb' },
-  cooperativa: { label: 'Cooperativa', color: '#0891b2' },
-  fintech: { label: 'Fintech', color: '#7c3aed' },
-  prestamista_particular: { label: 'Préstamo informal', color: '#b45309' },
-  tarjeta: { label: 'Tarjeta', color: '#db2777' },
-  otro: { label: 'Financiera', color: '#4b5563' },
+  banco: { label: 'Banco', color: entityColors.banco },
+  cooperativa: { label: 'Cooperativa', color: entityColors.cooperativa },
+  fintech: { label: 'Fintech', color: entityColors.fintech },
+  prestamista_particular: { label: 'Préstamo informal', color: entityColors.prestamista_particular },
+  tarjeta: { label: 'Tarjeta', color: entityColors.tarjeta },
+  otro: { label: 'Financiera', color: entityColors.otro },
 };
 
 /**
@@ -37,6 +40,10 @@ export function AddDebtScreen({ navigation }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // BP-26: fecha real de inicio (pedido del Fundador, 2026-07): una deuda que empezó
+  // hace 2 años no puede nacer con cronograma desde hoy. Por defecto, hoy.
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [showStartPicker, setShowStartPicker] = useState(false);
 
   // Búsqueda/browse: se recarga al cambiar el texto (sin q = estado de exploración).
   useEffect(() => {
@@ -109,7 +116,7 @@ export function AddDebtScreen({ navigation }: Props) {
       debtType: type.debtType,
       originalAmount: balance,
       currentBalance: balance,
-      startDate: new Date().toISOString().slice(0, 10),
+      startDate: startDate.toISOString().slice(0, 10),
       termMonths: values.termMonths ? amt(values.termMonths) : undefined,
       // La tasa que el usuario confirma GANA sobre la pista de la entidad (DEC-0034 §3.2).
       interestRate: values.interestRate ? parseDecimal(values.interestRate) : undefined,
@@ -149,6 +156,19 @@ export function AddDebtScreen({ navigation }: Props) {
         {fields.map((f) => (
           <FieldFromSpec key={f.key} spec={f} value={values[f.key] ?? ''} onChange={(v) => set(f.key, v)} />
         ))}
+        <Text style={{ color: colors.textMuted, marginBottom: 6, fontSize: 13 }}>¿Cuándo empezó? (opcional)</Text>
+        <Pressable
+          onPress={() => setShowStartPicker(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Fecha de inicio ${formatLocalDate(startDate)}, cambiar`}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: 12, minHeight: 44, marginBottom: spacing.md }}
+        >
+          <Text style={{ fontSize: 16, color: colors.text }}>📅 {formatLocalDate(startDate)}</Text>
+          <Text style={{ color: colors.primary, fontWeight: '600' }}>Cambiar</Text>
+        </Pressable>
+        {showStartPicker ? (
+          <DateTimePicker value={startDate} mode="date" maximumDate={new Date()} onChange={(e, s) => { if (Platform.OS !== 'ios') setShowStartPicker(false); if (e.type === 'set' && s) setStartDate(s); }} />
+        ) : null}
         {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
         <Button title={`Guardar ${type.label.toLowerCase()}`} onPress={onSubmit} loading={loading} />
       </ScrollView>

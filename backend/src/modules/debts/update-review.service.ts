@@ -7,6 +7,14 @@ import { InsightsService } from '../insights/insights.service';
 import { ENGINE_TZ } from '../financial-engine/engine.constants';
 import { descriptorFor, UpdatePolicyRule } from './product-type.descriptor';
 
+/**
+ * SPRINT-PULIDO-001 P1(c): UNA sola redacción de la promesa de calma. Antes vivía en
+ * 4 sitios (3 aquí + 1 hardcodeado en el frontend) y podía verse dos veces en la
+ * misma pantalla. El frontend renderiza solo el `acknowledgment` que viaja aquí.
+ */
+export const REVIEW_TITLE = 'Una confirmación rápida';
+export const REVIEW_FROZEN_COPY = 'No te lo vuelvo a preguntar hasta el próximo corte.';
+
 /** Una confirmación pendiente: "¿cambió <label> de <deuda>? Estaba en <valor>". */
 export interface PendingReview {
   debtId: string;
@@ -174,7 +182,7 @@ export class UpdateReviewService {
       // Acuse honesto (§5.1): qué quedó y que es reversible.
       acknowledgment: input.changed
         ? `Listo, actualicé ${rule.label} de ${debt.name} a $${Math.round(input.newValue!).toLocaleString('es-CO')} (antes $${previous != null ? Math.round(previous).toLocaleString('es-CO') : '—'}).`
-        : `Perfecto — ${rule.label} de ${debt.name} sigue igual. No te lo vuelvo a preguntar hasta el próximo corte.`,
+        : `Perfecto — ${rule.label} de ${debt.name} sigue igual. ${REVIEW_FROZEN_COPY}`,
     };
   }
 
@@ -197,11 +205,11 @@ export class UpdateReviewService {
           userId: u.id,
           type: 'cambio_tendencia',
           severity: 'info',
-          title: 'Una confirmación rápida',
+          title: REVIEW_TITLE,
           body:
             pending.length === 1
-              ? `¿Cambió ${first.label} de ${first.debtName}?${first.currentValue != null ? ` Estaba en $${Math.round(first.currentValue).toLocaleString('es-CO')}.` : ''} Confírmalo en Deudas — si no cambió, no te lo vuelvo a preguntar.`
-              : `Tienes ${pending.length} datos por confirmar en tus deudas (cupo/tasa/cuota). Revisa Deudas — lo que no cambió no se vuelve a preguntar.`,
+              ? `¿Cambió ${first.label} de ${first.debtName}?${first.currentValue != null ? ` Estaba en $${Math.round(first.currentValue).toLocaleString('es-CO')}.` : ''} Confírmalo en Deudas. ${REVIEW_FROZEN_COPY}`
+              : `Tienes ${pending.length} datos por confirmar en tus deudas (cupo/tasa/cuota). Revísalos en Deudas. ${REVIEW_FROZEN_COPY}`,
           dedupeKey: `fin036-review-${first.cutDate.slice(0, 10)}`,
         });
         if (insight) created += 1;

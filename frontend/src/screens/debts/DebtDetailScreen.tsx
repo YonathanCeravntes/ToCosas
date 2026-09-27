@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Card, Field, Row } from '../../components/ui';
-import { colors, radius, spacing } from '../../theme/colors';
-import { formatDate, formatMoney } from '../../utils/format';
-import { CardSummary, DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, toNumber } from '../../api/types';
+import { Ionicons } from '@expo/vector-icons';
+import { Button, Card, ErrorState, Field, HeroCard, Row, Skeleton } from '../../components/ui';
+import { colors, radius, spacing, type } from '../../theme/colors';
+import { formatDate, formatMoney, parseAmount, parseDecimal } from '../../utils/format';
+import { AmortizationEntry, CardSummary, Debt, DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, toNumber } from '../../api/types';
 import { debtsApi, simulationsApi, SimulateResult } from '../../api/endpoints';
 import { useApi } from '../../utils/useApi';
 import { DebtsStackParamList } from '../../navigation/types';
@@ -14,14 +15,26 @@ type Props = NativeStackScreenProps<DebtsStackParamList, 'DebtDetail'>;
 
 export function DebtDetailScreen({ route }: Props) {
   const { debtId } = route.params;
-  const { data, loading, reload } = useApi(() => debtsApi.get(debtId), [debtId]);
+  const { data, loading, error, reload } = useApi(() => debtsApi.get(debtId), [debtId]);
+  // SPRINT-PULIDO-001 P0-2: la pantalla fragmenta sus datos en 3 hooks (detalle,
+  // CardSection, ReviewSection) sin invalidación cruzada y NO se recargaba al ganar
+  // foco → tras "Deshacer" en Registrar se veía la instancia congelada. `tick` obliga
+  // a las 3 fuentes a recargar cada vez que la pantalla vuelve a estar al frente.
+  const [tick, setTick] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+      setTick((t) => t + 1);
+    }, [reload]),
+  );
+  const [showPlan, setShowPlan] = useState(false);
   const [extra, setExtra] = useState('');
   const [sim, setSim] = useState<SimulateResult | null>(null);
   const [scoreDelta, setScoreDelta] = useState<number | null>(null);
   const [simLoading, setSimLoading] = useState(false);
 
   const runSim = async () => {
-    const value = parseFloat(extra.replace(/\D/g, ''));
+    const value = parseAmount(extra); // §39
     if (!value) return;
     setSimLoading(true);
     try {
@@ -36,10 +49,20 @@ export function DebtDetailScreen({ route }: Props) {
     }
   };
 
-  if (loading || !data) {
+  // P3 (punto 12): error VISIBLE con reintento — nunca un "Cargando…" eterno.
+  if (error && !data) {
     return (
-      <ScrollView style={{ backgroundColor: colors.bg, padding: spacing.md }}>
-        <Text style={{ color: colors.textMuted }}>Cargando…</Text>
+      <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+        <ErrorState message={error} onRetry={() => void reload()} />
+      </ScrollView>
+    );
+  }
+  if (!data) {
+    return (
+      <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
+        <Skeleton hero lines={3} />
+        <Skeleton lines={4} />
+        <Skeleton lines={3} />
       </ScrollView>
     );
   }
@@ -59,28 +82,32 @@ export function DebtDetailScreen({ route }: Props) {
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
       {model !== 'cuotas_por_compra' ? (
-        <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-          <Text style={{ color: colors.textInverse, opacity: 0.8 }}>Saldo pendiente</Text>
-          <Text style={{ color: colors.textInverse, fontSize: 30, fontWeight: '800' }}>
+        <HeroCard>
+          <Text style={{ color: colors.onPrimaryMuted, ...type.body }}>Saldo pendiente</Text>
+          <Text style={{ color: colors.textInverse, ...type.hero }}>
             {formatMoney(toNumber(data.currentBalance))}
           </Text>
-          <Text style={{ color: colors.textInverse, opacity: 0.85, marginTop: 4 }}>
+          <Text style={{ color: colors.onPrimaryMuted, ...type.body, marginTop: spacing.xs }}>
             Cuota mensual {formatMoney(toNumber(data.monthlyPayment))}
           </Text>
           {/* Informal (§29.2): se dice la verdad — sin cronograma, no hay fecha falsa. */}
           {model === 'saldo_y_cuota_pactada' ? (
-            <Text style={{ color: colors.textInverse, opacity: 0.7, marginTop: 6, fontSize: 12 }}>
+            <Text style={{ color: colors.onPrimaryFaint, ...type.small, marginTop: spacing.xs }}>
               Sin cronograma formal — registras el saldo y tu cuota pactada.
             </Text>
           ) : null}
-        </Card>
+        </HeroCard>
       ) : null}
 
+      {/* SPRINT-PULIDO-001 P3 (punto 10): de un vistazo — próximo vencimiento, días
+          restantes y último pago. Datos que YA viajan en el payload; solo se pintan. */}
+      <AtAGlance debt={data} amort={amort} />
+
       {/* FIN-031/032: productos con cupo (tarjeta/fintech) — compras a cuotas. */}
-      {hasCard ? <CardSection debtId={debtId} onChanged={() => void reload()} /> : null}
+      {hasCard ? <CardSection debtId={debtId} tick={tick} onChanged={() => void reload()} /> : null}
 
       {/* FIN-036: confirmación de actualización por corte (nivel 2, §42). */}
-      <ReviewSection debtId={debtId} onChanged={() => void reload()} />
+      <ReviewSection debtId={debtId} tick={tick} onChanged={() => void reload()} />
 
       {/* FIN-037: lecturas de profundidad — derivadas por la única autoridad del
           backend; aquí SOLO se renderizan (§32). Informan sin culpar (§29.2). */}
@@ -190,13 +217,19 @@ export function DebtDetailScreen({ route }: Props) {
       </Card>
       ) : null}
 
-      {/* Tabla de amortización (primeras cuotas) — solo para modelo amortizado. */}
-      {isAmortized ? (
+      {/* Tabla de amortización — colapsada por defecto (jerarquía, BP-16). */}
+      {isAmortized && amort.length > 0 ? (
         <>
-          <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
-            Plan de pago
-          </Text>
-          {amort.slice(0, 12).map((e) => (
+          <Pressable
+            onPress={() => setShowPlan((v) => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showPlan }}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: spacing.sm, minHeight: 44 }}
+          >
+            <Text style={{ color: colors.text, ...type.title }}>Plan de pago · {amort.length} cuotas</Text>
+            <Ionicons name={showPlan ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textMuted} />
+          </Pressable>
+          {showPlan ? amort.slice(0, 12).map((e) => (
             <Card key={e.periodNo} style={{ paddingVertical: spacing.sm }}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <Text style={{ fontWeight: '600' }}>#{e.periodNo} · {formatDate(e.dueDate)}</Text>
@@ -211,8 +244,8 @@ export function DebtDetailScreen({ route }: Props) {
                 </Text>
               </Row>
             </Card>
-          ))}
-          {amort.length > 12 ? (
+          )) : null}
+          {showPlan && amort.length > 12 ? (
             <Text style={{ color: colors.textMuted, textAlign: 'center', marginBottom: spacing.lg }}>
               … y {amort.length - 12} cuotas más
             </Text>
@@ -223,11 +256,48 @@ export function DebtDetailScreen({ route }: Props) {
   );
 }
 
+/** Resumen de un vistazo (P3 punto 10). Solo pinta lo que el payload ya trae. */
+function AtAGlance({ debt, amort }: { debt: Debt; amort: AmortizationEntry[] }) {
+  const items: Array<{ icon: React.ComponentProps<typeof Ionicons>['name']; label: string; value: string; tone?: string }> = [];
+  if (debt.nextDueDate) {
+    const days = Math.ceil((new Date(debt.nextDueDate).getTime() - Date.now()) / 86_400_000);
+    items.push({
+      icon: 'calendar-outline',
+      label: 'Próximo vencimiento',
+      value: `${formatDate(debt.nextDueDate)}${days >= 0 ? ` · en ${days} día${days === 1 ? '' : 's'}` : ''}`,
+      tone: days < 0 ? colors.warning : undefined,
+    });
+  }
+  const paid = amort.filter((e) => e.paidAt).sort((a, b) => String(b.paidAt).localeCompare(String(a.paidAt)))[0];
+  if (paid?.paidAt) {
+    items.push({ icon: 'checkmark-circle-outline', label: 'Último pago', value: `${formatDate(paid.paidAt)} · ${formatMoney(toNumber(paid.payment))}` });
+  }
+  if (debt.projection?.payoffDate) {
+    items.push({ icon: 'flag-outline', label: 'Libre de esta deuda', value: formatDate(debt.projection.payoffDate) });
+  }
+  if (items.length === 0) return null;
+  return (
+    <Card>
+      {items.map((it, i) => (
+        <Row key={it.label} style={{ justifyContent: 'space-between', marginTop: i === 0 ? 0 : spacing.sm }}>
+          <Row style={{ gap: spacing.sm, flex: 1 }}>
+            <Ionicons name={it.icon} size={18} color={it.tone ?? colors.primary} />
+            <Text style={{ color: colors.textMuted, ...type.body }}>{it.label}</Text>
+          </Row>
+          <Text style={{ color: it.tone ?? colors.text, ...type.body, fontWeight: '700' }}>{it.value}</Text>
+        </Row>
+      ))}
+    </Card>
+  );
+}
+
 /** FIN-031 · Tarjeta de crédito: cupo/saldo (derivados), compras a cuotas con
  *  su trazabilidad (G) y registro de una compra nueva (baja fricción, H). */
-function CardSection({ debtId, onChanged }: { debtId: string; onChanged: () => void }) {
-  const { data, reload } = useApi(() => debtsApi.cardSummary(debtId), [debtId]);
+function CardSection({ debtId, tick, onChanged }: { debtId: string; tick: number; onChanged: () => void }) {
+  const { data, error: loadError, reload } = useApi(() => debtsApi.cardSummary(debtId), [debtId, tick]);
   const [open, setOpen] = useState(false);
+  // P1(d): la MISMA acción desde aquí y desde Registrar da el MISMO acuse.
+  const [ack, setAck] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [installments, setInstallments] = useState('1');
   const [withInterest, setWithInterest] = useState(false);
@@ -240,17 +310,18 @@ function CardSection({ debtId, onChanged }: { debtId: string; onChanged: () => v
   };
 
   const add = async () => {
-    const value = parseFloat(amount.replace(/[^\d.]/g, ''));
+    const value = parseAmount(amount); // §39
     const n = Math.max(1, parseInt(installments, 10) || 1);
     if (!value) return;
     setSaving(true);
     setError(null);
     try {
-      await debtsApi.registerPurchase(debtId, { amount: value, installments: n, withInterest });
+      const res = await debtsApi.registerPurchase(debtId, { amount: value, installments: n, withInterest });
       setAmount('');
       setInstallments('1');
       setWithInterest(false);
       setOpen(false);
+      setAck(`✅ ${res.acknowledgment}${res.summary.availableCredit != null ? ` Cupo disponible: ${formatMoney(res.summary.availableCredit)}.` : ''}`);
       refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -277,11 +348,19 @@ function CardSection({ debtId, onChanged }: { debtId: string; onChanged: () => v
     ]);
   };
 
-  if (!data) return null;
+  if (!data) {
+    // P3 (punto 12): antes retornaba null en silencio ante un error.
+    return loadError ? <ErrorState message={loadError} onRetry={() => void reload()} /> : null;
+  }
 
   return (
     <Card>
       <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>💳 Tu tarjeta</Text>
+      {ack ? (
+        <View style={{ backgroundColor: colors.successSoft, borderRadius: radius.sm, padding: spacing.sm, marginBottom: spacing.sm }}>
+          <Text style={{ color: colors.primaryDark, ...type.body }}>{ack}</Text>
+        </View>
+      ) : null}
       {data.creditLimit != null ? (
         <>
           <Row style={{ justifyContent: 'space-between' }}>
@@ -307,11 +386,12 @@ function CardSection({ debtId, onChanged }: { debtId: string; onChanged: () => v
       {data.purchases.length > 0 ? (
         <View style={{ marginTop: spacing.md }}>
           <Text style={{ fontWeight: '600', color: colors.text, marginBottom: 6 }}>Tus compras a cuotas</Text>
-          {data.purchases.map((p) => (
-            <Pressable key={p.id} onPress={() => voidPurchase(p.id, p.canVoid)}>
+          {data.purchases.map((p, idx) => (
+            <Pressable key={p.id} onPress={() => voidPurchase(p.id, p.canVoid)} accessibilityRole="button" accessibilityLabel={`${p.note || 'Compra'} de ${formatMoney(p.amount)}, ${p.canVoid ? 'toca para anular' : 'con pagos aplicados'}`}>
               <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: colors.text }} numberOfLines={1}>
+                    {idx === 0 ? <Text style={{ color: colors.primary, fontWeight: '700' }}>Última · </Text> : null}
                     {p.note || `Compra de ${formatMoney(p.amount)}`}
                   </Text>
                   <Text style={{ color: colors.textMuted, fontSize: 12 }}>
@@ -368,18 +448,22 @@ function CardSection({ debtId, onChanged }: { debtId: string; onChanged: () => v
 /** FIN-036 · Confirmación de actualización por corte (nivel 2, §42): la pregunta
  *  se PROPONE ("¿Cambió el cupo? Estaba en $X"), el usuario confirma o descarta —
  *  nunca un cambio silencioso. "No cambió" congela hasta el próximo corte (calma). */
-function ReviewSection({ debtId, onChanged }: { debtId: string; onChanged: () => void }) {
-  const { data, reload } = useApi(() => debtsApi.pendingReviews(), [debtId]);
+function ReviewSection({ debtId, tick, onChanged }: { debtId: string; tick: number; onChanged: () => void }) {
+  const { data, error: loadError, reload } = useApi(() => debtsApi.pendingReviews(), [debtId, tick]);
   const [editing, setEditing] = useState<string | null>(null);
   const [newValue, setNewValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [ack, setAck] = useState<string | null>(null);
 
   const mine = (data ?? []).filter((r) => r.debtId === debtId);
+  if (!data && loadError) return <ErrorState message={loadError} onRetry={() => void reload()} />;
   if (mine.length === 0 && !ack) return null;
 
   const answer = async (field: string, changed: boolean) => {
-    const value = changed ? parseFloat(newValue.replace(/[^\d.]/g, '')) : undefined;
+    // §39: la tasa admite decimal regional; cupo/cuota son montos enteros.
+    const value = changed
+      ? field === 'interestRate' ? parseDecimal(newValue) : parseAmount(newValue)
+      : undefined;
     if (changed && !value) return;
     setBusy(true);
     try {
@@ -441,11 +525,7 @@ function ReviewSection({ debtId, onChanged }: { debtId: string; onChanged: () =>
           )}
         </View>
       ))}
-      {mine.length === 0 && ack ? (
-        <Text style={{ color: colors.textMuted, marginTop: 6, fontSize: 12 }}>
-          No te lo vuelvo a preguntar hasta el próximo corte.
-        </Text>
-      ) : null}
+      {/* P1(c): la promesa de calma viaja UNA vez, dentro del `ack` del backend. */}
     </Card>
   );
 }
@@ -487,7 +567,7 @@ function PrepaySection({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const parsed = () => parseFloat(amount.replace(/\D/g, ''));
+  const parsed = () => parseAmount(amount); // §39
 
   const preview = async () => {
     const value = parsed();
@@ -662,7 +742,7 @@ function InsuranceSection({
   const [saving, setSaving] = useState(false);
 
   const add = async () => {
-    const value = parseFloat(premium.replace(/\D/g, ''));
+    const value = parseAmount(premium); // §39
     if (!name.trim() || !value) return;
     setSaving(true);
     try {

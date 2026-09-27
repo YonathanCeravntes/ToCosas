@@ -101,15 +101,6 @@ enum WaLinkStatus {
   revoked
 }
 
-enum SuggestionType {
-  priorizar_deuda
-  recorte_gasto
-  alerta_sobregiro
-  abono_extra
-  felicitacion
-  otro
-}
-
 // Tipo de compromiso mensual recurrente: ingreso fijo (salario) o gasto fijo.
 enum FixedKind {
   ingreso
@@ -276,41 +267,40 @@ enum PaymentProviderKind {
 // ---------- Modelos ----------
 
 model User {
-  id             String   @id @default(uuid()) @db.Uuid
-  email          String?  @unique
-  phoneE164      String?  @unique @map("phone_e164")
-  passwordHash   String?  @map("password_hash")
-  fullName       String?  @map("full_name")
-  authProvider   String   @default("local") @map("auth_provider")
-  externalUid    String?  @map("external_uid")
-  currency       String   @default("COP") @db.Char(3)
-  locale         String   @default("es-CO")
-  timezone       String   @default("America/Bogota")
-  emailVerified  Boolean  @default(false) @map("email_verified")
-  onboardingDone Boolean  @default(false) @map("onboarding_done")
+  id             String    @id @default(uuid()) @db.Uuid
+  email          String?   @unique
+  phoneE164      String?   @unique @map("phone_e164")
+  passwordHash   String?   @map("password_hash")
+  fullName       String?   @map("full_name")
+  authProvider   String    @default("local") @map("auth_provider")
+  externalUid    String?   @map("external_uid")
+  currency       String    @default("COP") @db.Char(3)
+  locale         String    @default("es-CO")
+  timezone       String    @default("America/Bogota")
+  emailVerified  Boolean   @default(false) @map("email_verified")
+  onboardingDone Boolean   @default(false) @map("onboarding_done")
   // DEC-0009 §10.2: sin ruta de auto-escalación — solo modificable por
   // operación manual del fundador en BD, nunca por un endpoint de la API.
-  isAdmin        Boolean  @default(false) @map("is_admin")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  isAdmin        Boolean   @default(false) @map("is_admin")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
   deletedAt      DateTime? @map("deleted_at")
 
-  entities     FinancialEntity[]
-  debts        Debt[]
-  transactions Transaction[]
-  categories   Category[]
-  reminders    Reminder[]
-  devices      Device[]
-  suggestions  Suggestion[]
-  waLinks      WhatsappLink[]
-  fixedItems    FixedItem[]
-  tgLinks       TelegramLink[]
-  accounts      Account[]
-  assets        Asset[]
-  snapshots     FinancialSnapshot[]
-  metrics       MetricReading[]
-  conversations Conversation[]
-  aiLogs        AiInteractionLog[]
+  entities        FinancialEntity[]
+  debts           Debt[]
+  transactions    Transaction[]
+  categories      Category[]
+  reminders       Reminder[]
+  devices         Device[]
+  waLinks         WhatsappLink[]
+  fixedItems      FixedItem[]
+  tgLinks         TelegramLink[]
+  accounts        Account[]
+  assets          Asset[]
+  snapshots       FinancialSnapshot[]
+  metrics         MetricReading[]
+  conversations   Conversation[]
+  aiLogs          AiInteractionLog[]
   insights        Insight[]
   memoryFacts     FinancialMemoryFact[]
   simulations     Simulation[]
@@ -321,6 +311,7 @@ model User {
   challenges      Challenge[]
   subscriptions   Subscription[]
   settings        UserSettings?
+  passwordResets  PasswordResetToken[]
   incomeProfile   IncomeProfile?
   incomeSources   IncomeSource[]
 
@@ -400,12 +391,12 @@ model Debt {
   updatedAt      DateTime    @updatedAt @map("updated_at")
   deletedAt      DateTime?   @map("deleted_at")
 
-  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entity       FinancialEntity?     @relation(fields: [entityId], references: [id], onDelete: SetNull)
-  amortization AmortizationEntry[]
-  transactions Transaction[]
-  reminders    Reminder[]
-  insurances   DebtInsurance[]
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity        FinancialEntity?    @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  amortization  AmortizationEntry[]
+  transactions  Transaction[]
+  reminders     Reminder[]
+  insurances    DebtInsurance[]
   cardPurchases CardPurchase[]
   fieldReviews  DebtFieldReview[]
 
@@ -446,8 +437,10 @@ model CardPurchase {
   @@map("card_purchases")
 }
 
-/** Una cuota de una compra a cuotas. `paidAt` marca el pago aplicado (define si
- *  la compra puede anularse limpio — política de reversión §4.5). */
+/**
+ * Una cuota de una compra a cuotas. `paidAt` marca el pago aplicado (define si
+ * la compra puede anularse limpio — política de reversión §4.5).
+ */
 model CardInstallment {
   id             String    @id @default(uuid()) @db.Uuid
   cardPurchaseId String    @map("card_purchase_id") @db.Uuid
@@ -471,7 +464,9 @@ model DebtFieldReview {
   debtId        String   @map("debt_id") @db.Uuid
   field         String
   reviewedAt    DateTime @default(now()) @map("reviewed_at")
-  /** true = el usuario confirmó un cambio; false = "no cambió" (solo congela). */
+  /**
+   * true = el usuario confirmó un cambio; false = "no cambió" (solo congela).
+   */
   changed       Boolean  @default(false)
   previousValue Decimal? @map("previous_value") @db.Decimal(18, 4)
   newValue      Decimal? @map("new_value") @db.Decimal(18, 4)
@@ -552,36 +547,36 @@ enum PaymentType {
 }
 
 model Transaction {
-  id              String    @id @default(uuid()) @db.Uuid
-  userId          String    @map("user_id") @db.Uuid
+  id              String      @id @default(uuid()) @db.Uuid
+  userId          String      @map("user_id") @db.Uuid
   kind            TxKind
   // Solo relevante cuando kind = pago_deuda; default retrocompatible.
   paymentType     PaymentType @default(cuota) @map("payment_type")
-  amount          Decimal   @db.Decimal(18, 2)
-  currency        String    @default("COP") @db.Char(3)
-  occurredAt      DateTime  @map("occurred_at")
-  categoryId      String?   @map("category_id") @db.Uuid
-  entityId        String?   @map("entity_id") @db.Uuid
-  debtId          String?   @map("debt_id") @db.Uuid
+  amount          Decimal     @db.Decimal(18, 2)
+  currency        String      @default("COP") @db.Char(3)
+  occurredAt      DateTime    @map("occurred_at")
+  categoryId      String?     @map("category_id") @db.Uuid
+  entityId        String?     @map("entity_id") @db.Uuid
+  debtId          String?     @map("debt_id") @db.Uuid
   note            String?
   tags            String[]
-  source          TxSource  @default(app)
-  status          TxStatus  @default(confirmada)
-  rawMessage      String?   @map("raw_message")
-  attachmentUrl   String?   @map("attachment_url")
-  parseConfidence Decimal?  @map("parse_confidence") @db.Decimal(4, 3)
-  waMessageId     String?   @unique @map("wa_message_id")
-  clientUuid      String?   @map("client_uuid") @db.Uuid
-  accountId       String?   @map("account_id") @db.Uuid
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  deletedAt       DateTime? @map("deleted_at")
+  source          TxSource    @default(app)
+  status          TxStatus    @default(confirmada)
+  rawMessage      String?     @map("raw_message")
+  attachmentUrl   String?     @map("attachment_url")
+  parseConfidence Decimal?    @map("parse_confidence") @db.Decimal(4, 3)
+  waMessageId     String?     @unique @map("wa_message_id")
+  clientUuid      String?     @map("client_uuid") @db.Uuid
+  accountId       String?     @map("account_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  deletedAt       DateTime?   @map("deleted_at")
 
-  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  entity   FinancialEntity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
-  debt     Debt?            @relation(fields: [debtId], references: [id], onDelete: SetNull)
-  account  Account?         @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  entity       FinancialEntity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  debt         Debt?            @relation(fields: [debtId], references: [id], onDelete: SetNull)
+  account      Account?         @relation(fields: [accountId], references: [id], onDelete: SetNull)
   // FIN-031: si esta transacción originó una compra a cuotas (causalidad G).
   cardPurchase CardPurchase?
 
@@ -664,24 +659,6 @@ model Device {
 
   @@unique([userId, fcmToken])
   @@map("devices")
-}
-
-model Suggestion {
-  id         String         @id @default(uuid()) @db.Uuid
-  userId     String         @map("user_id") @db.Uuid
-  type       SuggestionType
-  title      String
-  body       String
-  payload    Json?
-  score      Decimal?       @db.Decimal(5, 2)
-  status     String         @default("new")
-  validUntil DateTime?      @map("valid_until")
-  createdAt  DateTime       @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, status])
-  @@map("suggestions")
 }
 
 // Compromiso mensual recurrente: ingreso fijo (p. ej. salario) o gasto fijo
@@ -838,23 +815,23 @@ model MetricReading {
 }
 
 model UserSettings {
-  userId             String   @id @map("user_id") @db.Uuid
-  plan               Plan     @default(free)
+  userId             String    @id @map("user_id") @db.Uuid
+  plan               Plan      @default(free)
   // Consentimiento de IA (FIN-005, §4.2 del ARQ): opt-in versionado y revocable.
   aiConsentAt        DateTime? @map("ai_consent_at")
   aiConsentVersion   Int?      @map("ai_consent_version")
   // Avisos proactivos (FIN-006 §4.5).
-  proactiveEnabled   Boolean  @default(true) @map("proactive_enabled")
-  reminderDefaults   Int[]    @default([3, 1, 0]) @map("reminder_defaults")
-  notifPush          Boolean  @default(true) @map("notif_push")
-  notifWhatsapp      Boolean  @default(false) @map("notif_whatsapp")
-  quietHours         Json?    @map("quiet_hours")
-  suggestionStrategy String   @default("avalanche") @map("suggestion_strategy")
+  proactiveEnabled   Boolean   @default(true) @map("proactive_enabled")
+  reminderDefaults   Int[]     @default([3, 1, 0]) @map("reminder_defaults")
+  notifPush          Boolean   @default(true) @map("notif_push")
+  notifWhatsapp      Boolean   @default(false) @map("notif_whatsapp")
+  quietHours         Json?     @map("quiet_hours")
+  suggestionStrategy String    @default("avalanche") @map("suggestion_strategy")
   // FIN-016: día de inicio del ciclo financiero (1–28). SOLO lo consumen
   // Presupuesto y Dashboard; Score/Motor/Gamificación siguen en mes calendario.
-  cycleStartDay      Int      @default(1) @map("cycle_start_day")
+  cycleStartDay      Int       @default(1) @map("cycle_start_day")
   dataConsentAt      DateTime? @map("data_consent_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1078,11 +1055,11 @@ model Challenge {
 // ---------- FIN-005 · Conversaciones del Copiloto ----------
 
 model Conversation {
-  id        String    @id @default(uuid()) @db.Uuid
-  userId    String    @map("user_id") @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
   title     String?
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages Message[]
@@ -1157,13 +1134,15 @@ enum DeductionBase {
   parcial
 }
 
-/** Perfil laboral declarado UNA vez (DEC-0027 P1). 1:1 con el usuario. */
+/**
+ * Perfil laboral declarado UNA vez (DEC-0027 P1). 1:1 con el usuario.
+ */
 model IncomeProfile {
-  id           String      @id @default(uuid()) @db.Uuid
-  userId       String      @unique @map("user_id") @db.Uuid
-  workProfile  WorkProfile @map("work_profile")
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @updatedAt @map("updated_at")
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String      @unique @map("user_id") @db.Uuid
+  workProfile WorkProfile @map("work_profile")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1190,8 +1169,8 @@ model IncomeSource {
   updatedAt  DateTime         @updatedAt @map("updated_at")
   deletedAt  DateTime?        @map("deleted_at")
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deductions  Deduction[]
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deductions Deduction[]
 
   @@index([userId, isActive])
   @@map("income_sources")
@@ -1237,4 +1216,26 @@ model WebhookEvent {
   processedAt DateTime? @map("processed_at")
 
   @@map("webhook_events")
+}
+
+// ---------- FIN-039 · Cuenta y datos ----------
+
+/**
+ * Código de recuperación de contraseña: 6 dígitos, se guarda SOLO el hash, vence en
+ * 15 minutos y se consume una vez. El canal de entrega (correo/Telegram) no se
+ * persiste aquí. Nunca se expone el código por la API.
+ */
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  codeHash  String    @map("code_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
 }

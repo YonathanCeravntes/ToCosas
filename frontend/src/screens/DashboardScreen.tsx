@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, Row } from '../components/ui';
-import { colors, radius, spacing } from '../theme/colors';
+import { Button, Card, ErrorState, HeroCard, ProgressBar, Row, SectionHeader, Skeleton } from '../components/ui';
+import { colors, radius, spacing, type } from '../theme/colors';
 import { formatLocalDate, formatMoney } from '../utils/format';
 import { useApi } from '../utils/useApi';
 import { dashboardApi, debtsApi, gamificationApi } from '../api/endpoints';
@@ -20,6 +21,8 @@ const KIND_META: Record<string, { emoji: string; sign: string; color: string }> 
   pago_deuda: { emoji: '💳', sign: '-', color: colors.primary },
   transferencia: { emoji: '🔁', sign: '', color: colors.textMuted },
 };
+
+const LEVEL_EMOJI: Record<string, string> = { verde: '🟢', amarillo: '🟡', rojo: '🔴' };
 
 export function DashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -44,235 +47,235 @@ export function DashboardScreen() {
     void loadRecent();
   }, [loadRecent, sync.lastResult]);
 
+  const reloadDashboard = dashboard.reload;
+  const reloadSummary = summary.reload;
+  const reloadGamification = gamification.reload;
+
+  // BP-03 (misma causa raíz que el P0-2 del sprint): Inicio mostraba cifras viejas
+  // al volver desde Registrar. Recarga las 3 fuentes cada vez que gana foco.
+  useFocusEffect(
+    useCallback(() => {
+      void reloadDashboard();
+      void reloadSummary();
+      void reloadGamification();
+    }, [reloadDashboard, reloadSummary, reloadGamification]),
+  );
+
   const loading = dashboard.loading || summary.loading;
   const reload = () => {
     void dashboard.reload();
     void summary.reload();
+    void gamification.reload();
     void sync.sync();
     void loadRecent();
   };
+
+  const d = dashboard.data;
+  const cycle = d ? cycleProgress(d.period.start, d.period.end) : null;
+  const firstName = user?.fullName ? user.fullName.split(' ')[0] : null;
 
   return (
     <ScrollView
       style={{ backgroundColor: colors.bg }}
       contentContainerStyle={{ padding: spacing.md }}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.primary} />}
     >
-      <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: spacing.md }}>
-        Hola{user?.fullName ? `, ${user.fullName.split(' ')[0]}` : ''} 👋
-      </Text>
+      <Row style={{ justifyContent: 'space-between', marginBottom: spacing.md }}>
+        <Text style={{ color: colors.text, ...type.heading }} accessibilityRole="header">
+          Hola{firstName ? `, ${firstName}` : ''}
+        </Text>
+        <Pressable
+          onPress={() => navigation.navigate('Copilot')}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir el Copiloto"
+          hitSlop={8}
+          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.primaryDark} />
+        </Pressable>
+      </Row>
 
-      {/* FIN-017 P2 + FIN-018 4ª iteración: hero ÚNICO con fecha CONCRETA en vez
-          de "ciclo". FIN-020 (§32): la cifra viene del servicio único de
-          Presupuesto — ya descuenta lo comprometido pendiente (Alt A). */}
-      <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-        <Text style={{ color: colors.textInverse, opacity: 0.85 }}>
-          Te queda para gastar
-          {dashboard.data ? ` · hasta el ${shortDate(dashboard.data.teQueda.until)}` : ''}
-        </Text>
-        <Text style={{ color: colors.textInverse, fontSize: 36, fontWeight: '800' }}>
-          {formatMoney(dashboard.data?.teQueda.amount ?? 0)}
-        </Text>
-        {dashboard.data?.interpretation.cashflow ? (
-          <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 4 }}>
-            {LEVEL_EMOJI[dashboard.data.interpretation.cashflow.level]}{' '}
-            {dashboard.data.interpretation.cashflow.text}
-          </Text>
-        ) : null}
-      </Card>
+      {/* Hero ÚNICO (FIN-017/018/020, §32): la cifra viene del servicio único de
+          Presupuesto. Tocarlo abre Presupuesto, la casa del detalle (FIN-038). */}
+      {dashboard.error && !d ? (
+        <ErrorState message={friendlyError(dashboard.error)} onRetry={reload} />
+      ) : !d && loading ? (
+        <Skeleton hero lines={3} />
+      ) : d ? (
+        <Pressable onPress={() => navigation.navigate('Budget')} accessibilityRole="button" accessibilityLabel={`Te queda para gastar ${formatMoney(d.teQueda.amount)}. Abrir presupuesto`}>
+          <HeroCard>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Text style={{ color: colors.onPrimaryMuted, ...type.body }}>
+                Te queda para gastar · hasta el {shortDate(d.teQueda.until)}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.onPrimaryMuted} />
+            </Row>
+            <Text style={{ color: colors.textInverse, ...type.hero }}>{formatMoney(d.teQueda.amount)}</Text>
+            {d.teQueda.perDay !== null && d.teQueda.amount > 0 ? (
+              <Text style={{ color: colors.onPrimaryMuted, ...type.body }}>
+                ≈ {formatMoney(d.teQueda.perDay)} por día · {d.teQueda.daysLeft} día{d.teQueda.daysLeft === 1 ? '' : 's'}
+              </Text>
+            ) : null}
+            {d.interpretation.cashflow ? (
+              <Text style={{ color: colors.onPrimaryMuted, ...type.body, marginTop: spacing.xs }}>
+                {LEVEL_EMOJI[d.interpretation.cashflow.level]} {d.interpretation.cashflow.text}
+              </Text>
+            ) : null}
+            {cycle ? (
+              <View style={{ marginTop: spacing.sm }}>
+                <ProgressBar value={cycle.ratio} color={colors.textInverse} track={colors.onPrimaryTrack} height={5} label="Avance del ciclo" />
+                <Text style={{ color: colors.onPrimaryFaint, ...type.caption, marginTop: spacing.xxs }}>
+                  Día {cycle.day} de {cycle.total} del ciclo · {d.period.label}
+                </Text>
+              </View>
+            ) : null}
+          </HeroCard>
+        </Pressable>
+      ) : null}
 
       {gamification.data ? <CelebrationModal profile={gamification.data} onClosed={() => void gamification.reload()} /> : null}
 
       {sync.pending > 0 ? (
-        <Pressable onPress={() => void sync.sync()}>
-          <View
-            style={{
-              backgroundColor: '#FFF6E5',
-              borderColor: colors.warning,
-              borderWidth: 1,
-              borderRadius: radius.md,
-              padding: spacing.md,
-              marginBottom: spacing.md,
-            }}
-          >
-            <Text style={{ color: colors.warning, fontWeight: '600' }}>
-              {sync.syncing
-                ? '🔄 Sincronizando…'
-                : `☁️ ${sync.pending} cambio(s) sin sincronizar · toca para reintentar`}
-            </Text>
+        <Pressable onPress={() => void sync.sync()} accessibilityRole="button" accessibilityLabel="Reintentar sincronización">
+          <View style={{ backgroundColor: colors.warningSoft, borderColor: colors.warning, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md }}>
+            <Row style={{ gap: spacing.sm }}>
+              <Ionicons name={sync.syncing ? 'sync-outline' : 'cloud-upload-outline'} size={18} color={colors.warning} />
+              <Text style={{ color: colors.warning, ...type.body, fontWeight: '600', flex: 1 }}>
+                {sync.syncing ? 'Sincronizando…' : `${sync.pending} cambio(s) sin sincronizar · toca para reintentar`}
+              </Text>
+            </Row>
           </View>
         </Pressable>
       ) : null}
 
-      {/* FIN-017 P2: Deuda total pasa a tarjeta normal (el hero es único) */}
-      <Card>
-        <Text style={{ color: colors.textMuted }}>💳 Deuda total</Text>
-        <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text }}>
-          {formatMoney(summary.data?.totalDebt ?? 0)}
-        </Text>
-        {/* FIN-017: UNA sola cifra de cuota — la misma pagada-del-ciclo que usa la
-            interpretación. FIN-018 4ª iteración: fecha concreta en vez de "ciclo". */}
-        <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13 }}>
-          {summary.data?.debtsCount ?? 0} deuda(s) ·{' '}
-          {formatMoney(dashboard.data?.debtPayments ?? 0)} pagado desde el{' '}
-          {dashboard.data ? shortDate(dashboard.data.period.start) : '—'}
-        </Text>
-        {dashboard.data?.interpretation.debt ? (
-          <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13 }}>
-            {LEVEL_EMOJI[dashboard.data.interpretation.debt.level]}{' '}
-            {dashboard.data.interpretation.debt.text}
+      {/* FIN-017 P2: Deuda total como tarjeta normal (el hero es único). */}
+      <Pressable
+        onPress={() =>
+          (navigation as unknown as { navigate: (name: string, params?: unknown) => void }).navigate('Debts', { screen: 'DebtsList' })
+        }
+        accessibilityRole="button"
+        accessibilityLabel="Ver mis deudas"
+      >
+        <Card>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text style={{ color: colors.textMuted, ...type.body }}>Deuda total</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+          </Row>
+          <Text style={{ color: colors.text, ...type.display }}>{formatMoney(summary.data?.totalDebt ?? 0)}</Text>
+          <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xxs }}>
+            {summary.data?.debtsCount ?? 0} deuda(s) · {formatMoney(d?.debtPayments ?? 0)} pagado desde el {d ? shortDate(d.period.start) : '—'}
           </Text>
-        ) : null}
-        {/* FIN-018 D3-B (DEC-018): TODA la deuda vive en un solo bloque — el próximo
-            pago (con fecha, absorbe D6) va aquí; la lista completa, en Deudas. */}
-        {summary.data?.upcoming?.[0] ? (
-          <Text style={{ color: colors.text, marginTop: 6, fontSize: 13, fontWeight: '600' }}>
-            📅 Próximo: {summary.data.upcoming[0].name} ·{' '}
-            {formatMoney(summary.data.upcoming[0].amount)} · vence{' '}
-            {shortDate(summary.data.upcoming[0].dueDate)}
-          </Text>
-        ) : null}
-        {/* FIN-018 4ª iteración — puente narrativo (aprobado por el CPSAO):
-            conecta el margen del hero con la acción de mayor valor (FIN-012).
-            Beneficio antes que término técnico; solo con margen verde y deuda viva. */}
-        {dashboard.data?.interpretation.cashflow?.level === 'verde' && summary.data?.upcoming?.[0] ? (
-          <Pressable
-            onPress={() =>
-              // Navegación al stack hermano dentro de las tabs (Deudas → detalle).
-              (navigation as unknown as { navigate: (name: string, params: unknown) => void }).navigate(
-                'Debts',
-                {
-                  screen: 'DebtDetail',
-                  params: {
-                    debtId: summary.data!.upcoming[0].debtId,
-                    name: summary.data!.upcoming[0].name,
-                  },
-                },
-              )
-            }
-            style={{ marginTop: spacing.sm }}
-          >
-            <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>
-              💡 Tienes margen: adelanta un pago y ahorra intereses →
+          {d?.interpretation.debt ? (
+            <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xxs }}>
+              {LEVEL_EMOJI[d.interpretation.debt.level]} {d.interpretation.debt.text}
             </Text>
-          </Pressable>
-        ) : null}
-      </Card>
-
-      {/* Patrimonio + ahorro: par del mismo peso (sin tarjeta oscura).
-          D4 (corrección trivial autorizada): stretch para alturas iguales. */}
-      <Row style={{ gap: spacing.md, alignItems: 'stretch' }}>
-        <Card style={{ flex: 1 }}>
-          <Text style={{ color: colors.textMuted }}>🏛️ Patrimonio</Text>
-          <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>
-            {formatMoney(dashboard.data?.netWorth.netWorth ?? 0)}
-          </Text>
-          <Text style={{ color: colors.textMuted, fontSize: 11 }}>lo tuyo, menos deudas</Text>
-        </Card>
-        <Pressable
-          style={{ flex: 1 }}
-          onPress={() => navigation.navigate('Simulator', { scenario: 'proyeccion_ahorro' })}
-        >
-          <Card style={{ flex: 1 }}>
-            <Text style={{ color: colors.textMuted }}>🐷 Ahorro total</Text>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.success }}>
-              {formatMoney(dashboard.data?.savings.total ?? 0)}
-            </Text>
-            {dashboard.data?.interpretation.savings ? (
-              <Text style={{ color: colors.textMuted, fontSize: 11 }}>
-                {dashboard.data.interpretation.savings.text}
+          ) : null}
+          {summary.data?.upcoming?.[0] ? (
+            <Row style={{ gap: spacing.xs, marginTop: spacing.sm }}>
+              <Ionicons name="calendar-outline" size={14} color={colors.text} />
+              <Text style={{ color: colors.text, ...type.small, fontWeight: '600', flex: 1 }}>
+                Próximo: {summary.data.upcoming[0].name} · {formatMoney(summary.data.upcoming[0].amount)} · vence {shortDate(summary.data.upcoming[0].dueDate)}
               </Text>
+            </Row>
+          ) : null}
+          {/* FIN-018 4ª iteración — puente narrativo: margen verde + deuda viva → abono. */}
+          {d?.interpretation.cashflow?.level === 'verde' && summary.data?.upcoming?.[0] ? (
+            <Pressable
+              onPress={() =>
+                (navigation as unknown as { navigate: (name: string, params: unknown) => void }).navigate('Debts', {
+                  screen: 'DebtDetail',
+                  params: { debtId: summary.data!.upcoming[0].debtId, name: summary.data!.upcoming[0].name },
+                })
+              }
+              accessibilityRole="link"
+              style={{ marginTop: spacing.sm }}
+            >
+              <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>
+                💡 Tienes margen: adelanta un pago y ahorra intereses →
+              </Text>
+            </Pressable>
+          ) : null}
+        </Card>
+      </Pressable>
+
+      {/* Patrimonio + ahorro: par del mismo peso. */}
+      <Row style={{ gap: spacing.md, alignItems: 'stretch' }}>
+        <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Accounts')} accessibilityRole="button" accessibilityLabel="Cuentas y patrimonio">
+          <Card style={{ flex: 1 }}>
+            <Text style={{ color: colors.textMuted, ...type.small }}>Patrimonio</Text>
+            <Text style={{ color: colors.text, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(d?.netWorth.netWorth ?? 0)}</Text>
+            <Text style={{ color: colors.textFaint, ...type.caption }}>lo tuyo, menos deudas</Text>
+          </Card>
+        </Pressable>
+        <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Simulator', { scenario: 'proyeccion_ahorro' })} accessibilityRole="button" accessibilityLabel="Proyectar mi ahorro">
+          <Card style={{ flex: 1 }}>
+            <Text style={{ color: colors.textMuted, ...type.small }}>Ahorro total</Text>
+            <Text style={{ color: colors.success, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(d?.savings.total ?? 0)}</Text>
+            {d?.interpretation.savings ? (
+              <Text style={{ color: colors.textFaint, ...type.caption }}>{d.interpretation.savings.text}</Text>
             ) : null}
-            <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '600', marginTop: 2 }}>
-              ¿Cuánto tendrías en unos años? →
-            </Text>
+            <Text style={{ color: colors.primary, ...type.caption, fontWeight: '700', marginTop: spacing.xxs }}>¿Cuánto tendrías en unos años? →</Text>
           </Card>
         </Pressable>
       </Row>
 
       {/* Ingresos y gastos del ciclo (glosario FIN-017 P4) */}
       <Row style={{ gap: spacing.md }}>
-        <FlowStat label="Ingresos" flow={dashboard.data?.income} color={colors.success} />
-        <FlowStat label="Gastos" flow={dashboard.data?.expense} color={colors.danger} />
+        <FlowStat label="Ingresos" flow={d?.income} color={colors.success} onPress={() => navigation.navigate('Transactions', { kind: 'ingreso' })} />
+        <FlowStat label="Gastos" flow={d?.expense} color={colors.danger} onPress={() => navigation.navigate('Transactions', { kind: 'gasto' })} />
       </Row>
 
-      {/* FIN-018 D3-B: la sección "Próximos pagos" desaparece — el próximo pago
-          vive en la tarjeta de Deuda total; la lista completa, en la pestaña Deudas. */}
-
-      {/* Gastos del día a día por categoría (D5-A: el total fijo ya está en la
-          tarjeta Gastos; el título aclara el alcance) */}
-      {dashboard.data && dashboard.data.expense.byCategory.length > 0 ? (
+      {d && d.expense.byCategory.length > 0 ? (
         <>
-          <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
-            ¿En qué se te va la plata? · día a día
-          </Text>
+          <SectionHeader title="¿En qué se te va la plata? · día a día" />
           <Card>
-            {dashboard.data.expense.byCategory.map((c) => (
+            {d.expense.byCategory.map((c) => (
               <CategoryBar key={c.name} c={c} />
             ))}
           </Card>
         </>
       ) : null}
 
-      {/* Ingresos del día a día por categoría (D5-A + D7-B) */}
-      {dashboard.data && dashboard.data.income.variable > 0 ? (
+      {d && d.income.variable > 0 ? (
         <>
-          <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
-            ¿De dónde llega la plata? · día a día
-          </Text>
+          <SectionHeader title="¿De dónde llega la plata? · día a día" />
           <Card>
-            {dashboard.data.income.byCategory.every((c) => c.name === 'Sin categoría') ? (
-              /* FIN-018 D7-B: sin categorías reales la lista no informa nada —
-                 se convierte en invitación accionable (sección estable). */
-              <Pressable onPress={() => navigation.navigate('Main', { screen: 'Add' } as never)}>
-                <Text style={{ color: colors.primary, fontWeight: '600' }}>
+            {d.income.byCategory.every((c) => c.name === 'Sin categoría') ? (
+              <Pressable onPress={() => navigation.navigate('Main', { screen: 'Add' } as never)} accessibilityRole="link">
+                <Text style={{ color: colors.primary, ...type.body, fontWeight: '600' }}>
                   🏷️ Tus ingresos aún no tienen categoría — toca para organizarlos →
                 </Text>
               </Pressable>
             ) : (
-              dashboard.data.income.byCategory.map((c) => <CategoryBar key={c.name} c={c} />)
+              d.income.byCategory.map((c) => <CategoryBar key={c.name} c={c} />)
             )}
           </Card>
         </>
       ) : null}
 
-      {/* Movimientos recientes: completos desde el servidor (FIN-014);
-          caché local como respaldo offline */}
-      <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: spacing.sm }}>
-        Movimientos recientes
-      </Text>
-      {dashboard.data?.recentTransactions.length ? (
-        /* FIN-018 pieza 7 (DEC-018 §6.1): vista EJECUTIVA — 4 filas densas en una
-           sola tarjeta; el enlace comunica el paso a la vista de DETALLE. */
+      {/* Movimientos recientes (FIN-014/018/028) — el detalle completo vive en el
+          historial (FIN-038), no en Registrar. */}
+      <SectionHeader title="Movimientos recientes" action="Ver todos" onAction={() => navigation.navigate('Transactions')} />
+      {d?.recentTransactions.length ? (
         <Card>
-          {dashboard.data.recentTransactions.slice(0, 4).map((t, i) => {
+          {d.recentTransactions.slice(0, 4).map((t, i) => {
             const meta = KIND_META[t.kind] ?? KIND_META.transferencia;
             return (
-              /* FIN-028: cada fila abre la edición rápida (corregir tan fácil
-                 como registrar — DEC-028-010). La vista ejecutiva (FIN-018) no
-                 cambia de forma; solo gana el toque. */
               <Pressable
                 key={t.id}
-                onPress={() =>
-                  setEditing({ id: t.id, kind: t.kind, amount: t.amount, occurredAt: t.occurredAt, note: t.note })
-                }
+                onPress={() => setEditing({ id: t.id, kind: t.kind, amount: t.amount, occurredAt: t.occurredAt, note: t.note })}
+                accessibilityRole="button"
+                accessibilityLabel={`Editar ${t.note || t.category?.name || t.debtName || t.kind}`}
               >
-                <Row
-                  style={{
-                    justifyContent: 'space-between',
-                    paddingVertical: 7,
-                    borderTopWidth: i === 0 ? 0 : 1,
-                    borderTopColor: colors.border,
-                  }}
-                >
-                  <Row style={{ gap: 8, flex: 1 }}>
+                <Row style={{ justifyContent: 'space-between', paddingVertical: 7, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.border }}>
+                  <Row style={{ gap: spacing.sm, flex: 1 }}>
                     <Text style={{ fontSize: 15 }}>{t.category?.icon ?? meta.emoji}</Text>
-                    <Text style={{ color: colors.text, flex: 1, fontSize: 13 }} numberOfLines={1}>
+                    <Text style={{ color: colors.text, flex: 1, ...type.small }} numberOfLines={1}>
                       {t.note || t.category?.name || t.debtName || t.kind}
                       <Text style={{ color: colors.textMuted }}> · {shortDate(t.occurredAt)}</Text>
                     </Text>
                   </Row>
-                  <Text style={{ fontWeight: '700', color: meta.color, fontSize: 13 }}>
+                  <Text style={{ fontWeight: '700', color: meta.color, ...type.small }}>
                     {meta.sign}
                     {formatMoney(t.amount)}
                   </Text>
@@ -280,14 +283,6 @@ export function DashboardScreen() {
               </Pressable>
             );
           })}
-          <Pressable
-            onPress={() => navigation.navigate('Main', { screen: 'Add' } as never)}
-            style={{ marginTop: spacing.sm }}
-          >
-            <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>
-              Ver el detalle completo de tus movimientos →
-            </Text>
-          </Pressable>
         </Card>
       ) : recent.length ? (
         recent.map((t) => {
@@ -298,17 +293,16 @@ export function DashboardScreen() {
                 <Row style={{ gap: spacing.sm, flex: 1 }}>
                   <Text style={{ fontSize: 18 }}>{t.category_icon ?? meta.emoji}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: '600', color: colors.text }} numberOfLines={1}>
+                    <Text style={{ fontWeight: '600', color: colors.text, ...type.body }} numberOfLines={1}>
                       {t.note || t.kind}
                     </Text>
-                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                      {/* occurredAt es un instante real → fecha LOCAL. */}
+                    <Text style={{ color: colors.textMuted, ...type.small }}>
                       {formatLocalDate(t.occurred_at)}
                       {t.id.startsWith('local:') ? ' · sin sincronizar' : ''}
                     </Text>
                   </View>
                 </Row>
-                <Text style={{ fontWeight: '700', color: meta.color }}>
+                <Text style={{ fontWeight: '700', color: meta.color, ...type.body }}>
                   {meta.sign}
                   {formatMoney(t.amount)}
                 </Text>
@@ -316,69 +310,84 @@ export function DashboardScreen() {
             </Card>
           );
         })
-      ) : (
-        <Text style={{ color: colors.textMuted }}>
-          Aún no registras movimientos. Usa la pestaña "Registrar" o WhatsApp.
-        </Text>
-      )}
+      ) : !loading ? (
+        <Card>
+          <Text style={{ color: colors.textMuted, ...type.body }}>
+            Aún no registras movimientos. Usa el botón central o WhatsApp/Telegram.
+          </Text>
+          <Button title="Registrar el primero" onPress={() => navigation.navigate('Main', { screen: 'Add' } as never)} />
+        </Card>
+      ) : null}
 
-      {/* FIN-018 4ª iteración (D2): la gamificación cierra el recorrido — tras
-          revisar sus respuestas, el usuario termina con el refuerzo del hábito
-          que las sostiene, sin interrumpir la narrativa financiera de arriba. */}
+      {/* FIN-018 D2: la gamificación cierra el recorrido. */}
       {gamification.data ? <ProgressLine profile={gamification.data} /> : null}
 
-      {summary.error ? (
-        <Text style={{ color: colors.danger, marginTop: spacing.md }}>
-          Sin conexión con el backend. Tus datos locales siguen disponibles.
+      {summary.error && d ? (
+        <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.sm }}>
+          No pude actualizar el resumen de deudas ({friendlyError(summary.error)}).
         </Text>
       ) : null}
 
-      {/* FIN-028: edición/anulación del movimiento tocado (servicio central). */}
-      <EditTransactionModal
-        movement={editing}
-        onClose={() => setEditing(null)}
-        onChanged={reload}
-      />
+      <EditTransactionModal movement={editing} onClose={() => setEditing(null)} onChanged={reload} />
     </ScrollView>
   );
 }
 
-const LEVEL_EMOJI: Record<string, string> = { verde: '🟢', amarillo: '🟡', rojo: '🔴' };
+/** Copy honesto según la causa (antes "Sin conexión" para cualquier error). */
+function friendlyError(message: string): string {
+  if (/tardó demasiado|reactiv/i.test(message)) return 'El servidor se está despertando; reintenta en unos segundos.';
+  if (/conectar|conexión|network/i.test(message)) return 'Sin conexión. Tus datos locales siguen disponibles.';
+  return message;
+}
 
-/** FIN-018 D3-B: fecha corta para la línea de próximo pago ("28 jul"). */
+/** Posición dentro del ciclo financiero (FIN-016) para la barra del hero. */
+function cycleProgress(startIso: string, endIso: string): { day: number; total: number; ratio: number } | null {
+  const start = new Date(startIso).getTime();
+  const end = new Date(endIso).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+  const now = Date.now();
+  const total = Math.max(1, Math.round((end - start) / 86_400_000) + 1);
+  const day = Math.min(total, Math.max(1, Math.floor((now - start) / 86_400_000) + 1));
+  return { day, total, ratio: day / total };
+}
+
+/** FIN-018 D3-B: fecha corta para líneas densas ("28 jul"). */
 function shortDate(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
 /** FIN-014 + glosario FIN-017 P4: total con desglose en lenguaje cotidiano. */
-function FlowStat({ label, flow, color }: { label: string; flow?: FlowSection; color: string }) {
+function FlowStat({ label, flow, color, onPress }: { label: string; flow?: FlowSection; color: string; onPress: () => void }) {
   return (
-    <Card style={{ flex: 1 }}>
-      <Text style={{ color: colors.textMuted }}>{label}</Text>
-      <Text style={{ fontSize: 18, fontWeight: '800', color }}>{formatMoney(flow?.total ?? 0)}</Text>
-      {flow && flow.total > 0 ? (
-        <Text style={{ color: colors.textMuted, fontSize: 11 }}>
-          {formatMoney(flow.fixed)} fijos del mes · {formatMoney(flow.variable)} del día a día
-        </Text>
-      ) : null}
-    </Card>
+    <Pressable style={{ flex: 1 }} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label} del ciclo: ${formatMoney(flow?.total ?? 0)}. Ver movimientos`}>
+      <Card style={{ flex: 1 }}>
+        <Text style={{ color: colors.textMuted, ...type.small }}>{label}</Text>
+        <Text style={{ color, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(flow?.total ?? 0)}</Text>
+        {flow && flow.total > 0 ? (
+          <Text style={{ color: colors.textFaint, ...type.caption }}>
+            {formatMoney(flow.fixed)} fijos del mes · {formatMoney(flow.variable)} del día a día
+          </Text>
+        ) : null}
+      </Card>
+    </Pressable>
   );
 }
 
-/** FIN-017 §4.5: la racha vive de verse — una sola línea tocable, sin barra. */
+/** FIN-017 §4.5: la racha vive de verse — una sola línea tocable. */
 function ProgressLine({ profile }: { profile: GamificationProfile }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
-    <Pressable onPress={() => navigation.navigate('Achievements')}>
+    <Pressable onPress={() => navigation.navigate('Achievements')} accessibilityRole="button" accessibilityLabel="Ver mi progreso">
       <Card style={{ paddingVertical: spacing.sm }}>
         <Row style={{ justifyContent: 'space-between' }}>
-          <Text style={{ color: colors.text, fontSize: 13 }}>
-            🔥 {profile.streak.current} sem · Nivel {profile.level.number} ({profile.level.name})
-          </Text>
-          <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
-            {profile.xp} XP →
-          </Text>
+          <Row style={{ gap: spacing.xs }}>
+            <Ionicons name="flame" size={16} color={colors.accent} />
+            <Text style={{ color: colors.text, ...type.small }}>
+              {profile.streak.current} sem · Nivel {profile.level.number} ({profile.level.name})
+            </Text>
+          </Row>
+          <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>{profile.xp} XP →</Text>
         </Row>
       </Card>
     </Pressable>
@@ -388,25 +397,16 @@ function ProgressLine({ profile }: { profile: GamificationProfile }) {
 function CategoryBar({ c }: { c: { name: string; icon: string; color: string; amount: number; percent: number } }) {
   return (
     <View style={{ marginBottom: spacing.sm }}>
-      <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+      <Row style={{ justifyContent: 'space-between', marginBottom: spacing.xs }}>
         <Row style={{ gap: 6 }}>
           <Text style={{ fontSize: 16 }}>{c.icon}</Text>
-          <Text style={{ color: colors.text, fontWeight: '600' }}>{c.name}</Text>
+          <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>{c.name}</Text>
         </Row>
-        <Text style={{ color: colors.textMuted }}>
+        <Text style={{ color: colors.textMuted, ...type.small }}>
           {formatMoney(c.amount)} · {c.percent}%
         </Text>
       </Row>
-      <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: 'hidden' }}>
-        <View
-          style={{
-            height: 8,
-            width: `${Math.max(c.percent, 3)}%`,
-            backgroundColor: c.color,
-            borderRadius: 4,
-          }}
-        />
-      </View>
+      <ProgressBar value={c.percent / 100} color={c.color} label={`${c.name} ${c.percent}%`} />
     </View>
   );
 }
@@ -423,22 +423,22 @@ function CelebrationModal({ profile, onClosed }: { profile: GamificationProfile;
     onClosed();
   };
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={{ flex: 1, backgroundColor: '#00000088', justifyContent: 'center', padding: spacing.lg }}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => void close()}>
+      <View style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: 'center', padding: spacing.lg }}>
         <View style={{ backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, alignItems: 'center' }}>
-          <Text style={{ fontSize: 40 }}>🏆</Text>
-          <Text style={{ fontWeight: '800', fontSize: 18, color: colors.text, marginTop: 8, textAlign: 'center' }}>
-            {first.title}
-          </Text>
-          <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+          <Ionicons name="trophy" size={40} color={colors.accent} />
+          <Text style={{ color: colors.text, ...type.title, marginTop: spacing.sm, textAlign: 'center' }}>{first.title}</Text>
+          <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: 6, ...type.body }}>
             {first.condition} · +{first.xp} XP
           </Text>
           {fresh.length > 1 ? (
-            <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
+            <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xs }}>
               y {fresh.length - 1} logro(s) más en tu perfil
             </Text>
           ) : null}
-          <Button title="Seguir" onPress={() => void close()} />
+          <View style={{ alignSelf: 'stretch' }}>
+            <Button title="Seguir" onPress={() => void close()} />
+          </View>
         </View>
       </View>
     </Modal>

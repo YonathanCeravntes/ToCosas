@@ -41,14 +41,28 @@ import {
   StartTelegramLinkResult,
   Suggestion,
   Transaction,
+  TransactionsQuery,
   TxKind,
+  User,
 } from './types';
 
 export const authApi = {
-  register: (email: string, password: string, fullName?: string) =>
-    api.post<AuthResult>('/auth/register', { email, password, fullName }),
+  register: (email: string, password: string, fullName?: string, acceptsDataPolicy?: boolean) =>
+    api.post<AuthResult>('/auth/register', { email, password, fullName, acceptsDataPolicy }),
   login: (email: string, password: string) =>
     api.post<AuthResult>('/auth/login', { email, password }),
+  me: () => api.get<User>('/auth/me'),
+  // FIN-039: recuperar contraseña (código de 6 dígitos, 15 min).
+  forgotPassword: (email: string) =>
+    api.post<{ ok: true; channels: Array<'email' | 'telegram' | 'none'> }>('/auth/password/forgot', { email }),
+  resetPassword: (email: string, code: string, newPassword: string) =>
+    api.post<{ ok: true }>('/auth/password/reset', { email, code, newPassword }),
+  // FIN-038: onboarding.
+  onboardingDone: () => api.post<{ onboardingDone: true }>('/auth/onboarding/done'),
+  // FIN-039: consentimiento, portabilidad y supresión.
+  acceptDataPolicy: () => api.post<{ dataConsentAt: string }>('/auth/data-policy/accept'),
+  exportData: () => api.get<Record<string, unknown>>('/auth/me/export'),
+  deleteAccount: (password: string) => api.delete<{ deleted: true }>('/auth/me', { password }),
 };
 
 export const debtsApi = {
@@ -112,7 +126,15 @@ export const entitiesApi = {
 };
 
 export const transactionsApi = {
-  list: (params?: string) => api.get<Transaction[]>(`/transactions${params ?? ''}`),
+  // FIN-038: historial con filtros, búsqueda y paginación por cursor `before`.
+  list: (query?: TransactionsQuery) => {
+    const params = new URLSearchParams();
+    Object.entries(query ?? {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') params.set(k, String(v));
+    });
+    const qs = params.toString();
+    return api.get<Transaction[]>(`/transactions${qs ? `?${qs}` : ''}`);
+  },
   dashboard: () => api.get<Dashboard>('/transactions/dashboard'),
   create: (input: CreateTransactionInput) =>
     api.post<Transaction>('/transactions', input),

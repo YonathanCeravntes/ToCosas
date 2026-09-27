@@ -11,6 +11,11 @@ export interface User {
   email: string | null;
   fullName: string | null;
   currency?: string;
+  /** FIN-038: recorrido inicial completado (null/undefined = desconocido). */
+  onboardingDone?: boolean;
+  /** FIN-039: fecha de aceptación de la política de datos (null = no registrada). */
+  dataConsentAt?: string | null;
+  plan?: 'free' | 'premium';
 }
 
 export interface AuthResult {
@@ -85,6 +90,7 @@ export interface Debt {
   rateBasis: RateBasis;
   monthlyPayment: string | number | null;
   nextDueDate: string | null;
+  paymentDay?: number | null;
   status: string;
   /** FIN-024: días de mora derivados por el backend (null = al día). */
   overdueDays?: number | null;
@@ -174,6 +180,7 @@ export type DebtInsuranceKind =
   | 'incendio_terremoto'
   | 'todo_riesgo'
   | 'desempleo'
+  | 'cuota_manejo'
   | 'otro';
 
 export interface DebtInsurance {
@@ -207,6 +214,9 @@ export interface AmortizationEntry {
   interestPart: string | number;
   principalPart: string | number;
   closingBal: string | number;
+  /** Fecha del pago aplicado a esta cuota (null = pendiente). */
+  paidAt?: string | null;
+  isProjected?: boolean;
 }
 
 export interface DebtsSummary {
@@ -241,7 +251,23 @@ export interface Transaction {
   occurredAt: string;
   note: string | null;
   debtId: string | null;
+  categoryId?: string | null;
   source: string;
+  createdAt?: string;
+  /** FIN-038: viajan con la fila en el historial (solo lectura). */
+  category?: { name: string; icon: string | null; color: string | null } | null;
+  debt?: { name: string } | null;
+}
+
+export interface TransactionsQuery {
+  kind?: TxKind;
+  from?: string;
+  to?: string;
+  debtId?: string;
+  categoryId?: string;
+  q?: string;
+  before?: string;
+  limit?: number;
 }
 
 export interface CategorySpend {
@@ -295,6 +321,8 @@ export interface TeQueda {
   protectedTotal: number;
   pendingCommitments: PendingCommitment[];
   receivedIncome: number;
+  /** BT-004: base de ingreso del ciclo (declarado vs recibido, el mayor). */
+  incomeBase?: number;
 }
 
 export interface HomeDashboard {
@@ -652,6 +680,8 @@ export interface StartLinkResult {
   otp: string;
   phoneE164: string;
   expiresAt: string;
+  /** BP-06: número del bot al que hay que escribir (null si el canal no está conectado). */
+  botPhoneE164: string | null;
 }
 
 export interface StartTelegramLinkResult {

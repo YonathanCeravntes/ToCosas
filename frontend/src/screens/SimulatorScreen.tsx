@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button, Card, Field, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
-import { formatLocalDate, formatMoney } from '../utils/format';
+import { formatLocalDate, formatMoney, parseAmount, parseDecimal } from '../utils/format';
 import {
   Asset,
   Debt,
@@ -210,8 +210,9 @@ export function SimulatorScreen() {
     try {
       const params: Record<string, number | string> = {};
       for (const f of scenario.fields) {
-        const raw = (values[f.name] ?? '').replace(/[^\d.]/g, '');
-        const v = raw === '' ? NaN : parseFloat(raw);
+        // §39: tasas con decimal regional ("1,5" = "1.5"); montos/meses enteros.
+        const raw = values[f.name] ?? '';
+        const v = /Pct$/.test(f.name) ? parseDecimal(raw) : parseAmount(raw);
         const invalid = Number.isNaN(v) || (f.allowZero ? v < 0 : v <= 0);
         if (invalid) throw new Error(`Ingresa un valor válido en "${f.label}"`);
         params[f.name] = v;
@@ -581,7 +582,7 @@ function NextStep({
       case 'reducir_gastos':
         return {
           label: '🏠 Ajusta tus compromisos →',
-          go: () => navigation.navigate('Main', { screen: 'Budget' }),
+          go: () => navigation.navigate('Budget'),
         };
       case 'vender_activo': {
         const go = goDebt(applyToDebtId);

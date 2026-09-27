@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Button, Card, Field, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
-import { formatMoney } from '../utils/format';
+import { formatMoney, parseAmount } from '../utils/format';
 import { Account, AccountType, Asset, AssetType, NetWorth, toNumber } from '../api/types';
 import { accountsApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
@@ -41,6 +41,14 @@ export function AccountsScreen() {
       <AssetsSection assets={assets ?? []} onChange={refresh} />
     </ScrollView>
   );
+}
+
+/** §39: saldo con signo (una cuenta corriente puede ir en negativo). */
+function parseSignedAmount(input: string): number {
+  const negative = input.trim().startsWith('-');
+  const abs = parseAmount(input);
+  if (Number.isNaN(abs)) return 0;
+  return negative ? -abs : abs;
 }
 
 function NetWorthCard({ nw, loading }: { nw: NetWorth | null; loading: boolean }) {
@@ -81,7 +89,7 @@ function AccountsSection({ accounts, onChange }: { accounts: Account[]; onChange
   const [error, setError] = useState<string | null>(null);
 
   const add = async () => {
-    const value = parseFloat(balance.replace(/[^\d.-]/g, '')) || 0;
+    const value = parseSignedAmount(balance);
     if (!name.trim()) return;
     setError(null);
     try {
@@ -94,7 +102,7 @@ function AccountsSection({ accounts, onChange }: { accounts: Account[]; onChange
   };
 
   const saveBalance = async (id: string) => {
-    const value = parseFloat(editVal.replace(/[^\d.-]/g, '')) || 0;
+    const value = parseSignedAmount(editVal);
     setError(null);
     try {
       await accountsApi.updateBalance(id, value);
@@ -173,7 +181,7 @@ function AssetsSection({ assets, onChange }: { assets: Asset[]; onChange: () => 
   const [value, setValue] = useState('');
 
   const add = async () => {
-    const v = parseFloat(value.replace(/[^\d.]/g, '')) || 0;
+    const v = parseAmount(value) || 0; // §39
     if (!name.trim() || !v) return;
     await accountsApi.createAsset({ name: name.trim(), type, currentValue: v });
     setName(''); setValue('');

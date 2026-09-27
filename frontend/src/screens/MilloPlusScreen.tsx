@@ -52,7 +52,7 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
           Toda la inteligencia de Millo, sin límites.
         </Text>
         {isPremium ? (
-          <View style={{ marginTop: spacing.sm, backgroundColor: '#ffffff22', borderRadius: radius.full, paddingVertical: 6, paddingHorizontal: 14 }}>
+          <View style={{ marginTop: spacing.sm, backgroundColor: colors.onPrimaryTrack, borderRadius: radius.full, paddingVertical: 6, paddingHorizontal: 14 }}>
             <Text style={{ color: colors.textInverse, fontWeight: '700' }}>
               {/* La vigencia es un instante real (fin de suscripción) → local. */}
               Activo{status?.until ? ` hasta ${formatLocalDate(status.until)}` : ''}
