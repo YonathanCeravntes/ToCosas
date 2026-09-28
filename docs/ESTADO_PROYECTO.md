@@ -32,7 +32,7 @@ v3.21 (`docs/GOBERNANZA.md`) — §44 equipo de dos (`DEC-ORG-002`). Controles s
 ## Beta técnica (estado de despliegue)
 - **APK instalada:** Android, Expo SDK 54 / RN 0.81, `runtimeVersion` 0.1.0, canal `preview` (`scripts/deploy/apk-baseline.json` es la fuente de verdad; se actualiza SOLO al construir una APK nueva).
 - **Primera validación del Fundador (2026-09-27):** BT-012 (barra de pestañas bajo los botones del sistema Android) → corregido y **verificado por el Fundador en dispositivo** (OTA `74f6a9af`, publicada desde su PC vía sesión Remote Control); BT-013 (ícono genérico) → íconos creados y declarados en `app.json`, se verán al construir la próxima APK (nativo, no OTA).
-- **OTA vigente en `preview`:** `60eb74d4` (tarjeta: cambiar número de cuotas de una compra; commit `f6cc5e4`; Ajustes muestra `01a0ea5f`). Anterior: `9d7ed901` (FIN-044 y todo lo del 2026-09-28).
+- **OTA vigente en `preview`:** `24fbd0a1` (BT-020: acciones de compra de tarjeta en línea + diálogos en web; commit `0fed76f`; Ajustes muestra `01a0ea65`). Anteriores hoy: `60eb74d4`, `9d7ed901`.
 - **Backend:** Render free `milla-backend` + Neon. Desplegado `2ce4747` (Deploy live, migración `fin039` aplicada en `startCommand`). Variables `SMTP_URL` y `MAIL_FROM` configuradas por el Fundador (Gmail App Password); `WHATSAPP_DISPLAY_NUMBER` no configurada (sin número de bot aún).
 - **Incidente de proceso 2026-09-26:** intento de subir a Expo SDK 57 revertido (`362d279`); motivó el baseline de APK en el preflight.
 
