@@ -52,8 +52,12 @@ export interface TeQueda {
  *     El `max` con lo recibido evita el doble conteo cuando ese ingreso además
  *     se registra como movimiento.
  *   · compromisos pendientes = TODOS los fijos de gasto activos (§4.1-bis),
- *     las deducciones auto-pagadas (DEC-0027 P2) y las cuotas de deuda con
- *     nextDueDate dentro de lo que RESTA del ciclo.
+ *     las deducciones auto-pagadas (DEC-0027 P2) y, por cada deuda activa, UNA
+ *     cuota por ciclo (su desembolso mensual real, FIN-023) menos lo ya pagado a
+ *     esa deuda en el ciclo — venza el día que venza (DEC-0042, Fundador
+ *     2026-09-28). Antes solo contaban las cuotas con vencimiento dentro del
+ *     ciclo, lo que contradecía al pilar de Endeudamiento (mensual) y dejaba
+ *     "libre" un ingreso que se va en cuotas de los primeros días del mes.
  *
  * CAMBIO BT-004 (decisión del Fundador, supersede el "Alt A / solo lo recibido"
  * de FIN-020 para el ingreso fijo): un ingreso fijo recurrente es un flujo
@@ -82,7 +86,7 @@ export class SpendableService {
     const period = financialPeriod(now, settings?.cycleStartDay ?? 1);
     const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-    const [txByKind, fixedItems, debts, outlays, income] = await Promise.all([
+    const [txByKind, fixedItems, debts, outlays, income, paidByDebt] = await Promise.all([
       this.prisma.transaction.groupBy({
         by: ['kind'],
         where: {
@@ -97,11 +101,25 @@ export class SpendableService {
         where: { userId, deletedAt: null, isActive: true, kind: 'gasto' },
       }),
       this.prisma.debt.findMany({
-        where: { userId, deletedAt: null, status: 'activa', nextDueDate: { not: null } },
+        where: { userId, deletedAt: null, status: 'activa' },
       }),
       this.debtOutlay.outlaysByUser(userId),
       this.netIncome.compute(userId),
+      // DEC-0042: lo ya pagado a cada deuda en el ciclo descuenta su cuota comprometida.
+      this.prisma.transaction.groupBy({
+        by: ['debtId'],
+        where: {
+          userId,
+          deletedAt: null,
+          status: 'confirmada',
+          kind: 'pago_deuda',
+          debtId: { not: null },
+          occurredAt: { gte: period.start, lt: period.end },
+        },
+        _sum: { amount: true },
+      }),
     ]);
+    const paidThisCycle = new Map(paidByDebt.map((p) => [p.debtId as string, Number(p._sum.amount ?? 0)]));
 
     const sumKind = (k: string) =>
       Number(txByKind.find((t) => t.kind === k)?._sum.amount ?? 0);
@@ -157,19 +175,23 @@ export class SpendableService {
       });
     }
 
-    // Cuotas: pendientes solo si su próxima fecha cae en lo que RESTA del ciclo.
-    // El monto es el DESEMBOLSO real de esa deuda (FIN-023, fuente única).
+    // Cuotas (DEC-0042): UNA por deuda por ciclo — el desembolso real de esa deuda
+    // (FIN-023, misma autoridad que el pilar de Endeudamiento) menos lo ya pagado a
+    // ella en el ciclo. No importa si vence el 30 o el 2 del mes siguiente: la plata
+    // de este ciclo la cubre. Al registrar el pago, el compromiso desaparece y entra
+    // como pago real: "Te queda" no cambia (§32, coherencia exigida por el Fundador).
     for (const d of debts) {
-      const due = d.nextDueDate!;
-      if (due >= startOfToday && due < period.end) {
-        commitments.push({
-          name: d.name,
-          amount: outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0),
-          kind: 'cuota',
-          date: due.toISOString(),
-          datePassed: false,
-        });
-      }
+      const outlay = outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0);
+      const pending = round2(Math.max(0, outlay - (paidThisCycle.get(d.id) ?? 0)));
+      if (pending <= 0) continue;
+      const due = d.nextDueDate;
+      commitments.push({
+        name: d.name,
+        amount: pending,
+        kind: 'cuota',
+        date: due ? due.toISOString() : null,
+        datePassed: due ? due < startOfToday : false,
+      });
     }
 
     commitments.sort((a, b) => {

@@ -147,6 +147,7 @@ documento maestro.
 | Cifrado a nivel de campo | Técnico | DEC-0009 §4.9 | **No pendiente** — riesgo aceptado formalmente, no bloqueante | ✅ Decidido (no implementar) |
 
 ## Historial
+- 2026-09-28 — **`DEC-0042` (Fundador): "Te queda" compromete una cuota por deuda por ciclo** (desembolso mensual real menos lo pagado en el ciclo), en vez de solo las cuotas que vencen dentro del ciclo: elimina la contradicción Inicio/Capacidad de ahorro vs Endeudamiento. `SpendableService` + spec. **Bot:** "gasto fijo arriendo 1.200.000 día 5" crea el fijo por `BudgetService`. unit 402/402, e2e 86/86.
 - 2026-09-28 — **FIN-042 v1.1 (precisión de lectura):** tras la 2ª prueba real (crédito Davivienda) se añadió glosario colombiano + `evidence`, modelo de extracción con mejor visión (`LLM_EXTRACT_MODEL=claude-sonnet-5`, con fallback) y validación de coherencia con avisos y correcciones (`restantes`, `plazo`, `vence`). unit 401/401, e2e 86/86.
 - 2026-09-28 — **`FIN-043` (BT-018/BT-019):** los pagos a tarjeta ahora se aplican a las cuotas (antes no bajaban el saldo y marcaban la tarjeta pagada); lista/resumen con cifras reales de tarjeta; abono a capital bloqueado en tarjetas. unit 399/399, e2e 86/86 (19 suites).
 - 2026-09-28 — **Primera prueba real de FIN-042 (Fundador, extracto Serfinanza):** BT-016 (Inicio "Deuda total $0" con tarjeta usada: el resumen y la lista ahora derivan el saldo de tarjetas de sus cuotas pendientes) y BT-017 ("pago total" del extracto tomado como cuota → 1 cuota; ahora manda el pago mínimo) corregidos. unit 399/399, e2e 81/81.

@@ -37,7 +37,7 @@ v3.21 (`docs/GOBERNANZA.md`) — §44 equipo de dos (`DEC-ORG-002`). Controles s
 - **Incidente de proceso 2026-09-26:** intento de subir a Expo SDK 57 revertido (`362d279`); motivó el baseline de APK en el preflight.
 
 ## Definición vigente de "Te queda" (§32)
-Base de ingreso = `max(take-home del ingreso fijo declarado + variable estimado, ingresos recibidos)` − gastos/pagos reales − compromisos pendientes (BT-004, Fundador 2026-07-14). Fuente única: `SpendableService`. El pilar de Ahorro del Score usa la misma razón (BT-007). **Nada de la entrega 2026-09-27 la toca.**
+Base de ingreso = `max(take-home del ingreso fijo declarado + variable estimado, ingresos recibidos)` − gastos/pagos reales − compromisos pendientes (BT-004, Fundador 2026-07-14). Compromisos pendientes = fijos de gasto activos + deducciones auto-pagadas + **una cuota por deuda activa por ciclo (desembolso mensual real) menos lo ya pagado a esa deuda en el ciclo (`DEC-0042`, Fundador 2026-09-28)**. Fuente única: `SpendableService`. El pilar de Ahorro del Score usa la misma razón (BT-007) y Endeudamiento la misma autoridad de desembolso: ya no se contradicen.
 
 ## Principios permanentes recientes
 §31 filtro "qué perdería el usuario" · §32 fuente única · §33 EOC · §34 commit en el mismo acto · §39 formato regional (invariante: SIEMPRE `parseAmount`/`parseDecimal`, BT-008) · §40 gate OTA (ahora con baseline de APK) · §42 claridad radical · §44 verificación por artefactos.

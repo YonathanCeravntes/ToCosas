@@ -66,6 +66,7 @@ describe('ConversationService · documentos (FIN-042)', () => {
       { hasValidConsent: jest.fn() } as never,
       docs as never,
       moduleRef as never,
+      { create: jest.fn() } as never,
     );
     return { svc, prisma, transactions, debts, cards, docs, store };
   };

@@ -2,6 +2,8 @@ import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConsentService } from '../copilot/consent.service';
+import { BudgetService } from '../budget/budget.service';
+import { FixedKindDto } from '../budget/dto/fixed-item.dto';
 import { DebtsService } from '../debts/debts.service';
 import { CardService } from '../debts/card.service';
 import { DebtTypeDto, RateBasisDto, RateKindDto } from '../debts/dto/debt.dto';
@@ -76,6 +78,8 @@ export class ConversationService {
     // DebtsModule no puede importarse aquí (ciclo Debts→Reminders→Telegram→Messaging):
     // el alta de deudas se resuelve en runtime contra el contenedor.
     private readonly moduleRef: ModuleRef,
+    // Gastos fijos por chat: mismo servicio que Presupuesto (§32, una autoridad).
+    private readonly budget: BudgetService,
   ) {}
 
   private readonly logger = new Logger(ConversationService.name);
@@ -119,6 +123,17 @@ export class ConversationService {
     const pendingReply = await this.handlePendingReply(input, text);
     if (pendingReply) return pendingReply;
 
+    const fixed = parseFixedExpense(text);
+    if (fixed) {
+      if (fixed.error) return fixed.error;
+      await this.budget.create(input.userId, { kind: FixedKindDto.gasto, name: fixed.name!, amount: fixed.amount!, dayOfMonth: fixed.day ?? undefined });
+      return (
+        `✅ Guardé el gasto fijo *${fixed.name}* de ${fmt(fixed.amount!)} al mes` +
+        (fixed.day ? ` (día ${fixed.day})` : '') +
+        `. Desde ahora queda apartado en "Te queda". Lo ves en Presupuesto → Gastos fijos.`
+      );
+    }
+
     const parsed = ruleParse(text, { today: new Date() });
 
     switch (parsed.intent) {
@@ -155,6 +170,7 @@ export class ConversationService {
       '• "mis deudas" — saldos pendientes',
       '• "¿qué pasa si abono $200.000 a mi deuda?" — simula un escenario',
       '• "deshacer" — anula el último movimiento',
+      '• "gasto fijo arriendo 1.200.000 día 5" — crea un gasto fijo mensual',
       '',
       '📎 Y puedes enviarme la FOTO o el PDF de un extracto de tarjeta o crédito, o de un comprobante: te propongo la deuda o el gasto y tú confirmas.',
     ].join('\n');
@@ -496,3 +512,28 @@ export class ConversationService {
     return `el ${parseInt(d, 10)} de ${months[parseInt(m, 10) - 1]}`;
   }
 }
+
+/**
+ * "gasto fijo <nombre> <monto> [día N]" → alta de FixedItem. Formato regional (§39):
+ * "1.200.000", "1200000", "1,2 millones" no; solo números con puntos de miles.
+ */
+export function parseFixedExpense(text: string): { name?: string; amount?: number; day?: number; error?: string } | null {
+  const m = /^(?:gasto\s+fijo|fijo)\s+(.+)$/i.exec(text.trim());
+  if (!m) return null;
+  let rest = m[1].trim();
+  let day: number | undefined;
+  const dm = /\s+(?:el\s+)?d[ií]a\s+(\d{1,2})\s*$/i.exec(rest);
+  if (dm) {
+    day = Number(dm[1]);
+    rest = rest.slice(0, dm.index).trim();
+  }
+  const am = /^(.*?)\s*\$?\s*(\d{1,3}(?:\.\d{3})+|\d+)\s*$/.exec(rest);
+  if (!am || !am[1].trim()) {
+    return { error: 'Para un gasto fijo dime nombre y monto, ej: "gasto fijo arriendo 1.200.000 día 5".' };
+  }
+  const amount = Number(am[2].replace(/\./g, ''));
+  if (!(amount > 0)) return { error: 'El monto del gasto fijo debe ser mayor a 0.' };
+  if (day !== undefined && (day < 1 || day > 31)) return { error: 'El día debe estar entre 1 y 31.' };
+  return { name: am[1].trim(), amount, day };
+}
+

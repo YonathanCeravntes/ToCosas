@@ -29,11 +29,19 @@ describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
     sums: Record<string, number>;
     fixedItems: unknown[];
     debts: unknown[];
+    paidByDebt?: Record<string, number>;
   }) => ({
     userSettings: {
       findUnique: jest.fn().mockResolvedValue({ cycleStartDay: opts.cycleStartDay ?? 1 }),
     },
-    transaction: { groupBy: jest.fn().mockResolvedValue(groupBy(opts.sums)) },
+    transaction: {
+      // DEC-0042: la 2ª agrupación (por debtId) devuelve los pagos del ciclo por deuda.
+      groupBy: jest.fn().mockImplementation(async (args: { by: string[] }) =>
+        args.by.includes('debtId')
+          ? Object.entries(opts.paidByDebt ?? {}).map(([debtId, amount]) => ({ debtId, _sum: { amount } }))
+          : groupBy(opts.sums),
+      ),
+    },
     fixedItem: { findMany: jest.fn().mockResolvedValue(opts.fixedItems) },
     debt: { findMany: jest.fn().mockResolvedValue(opts.debts) },
   });
@@ -46,8 +54,8 @@ describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
         { name: 'Internet', amount: 300_000, dayOfMonth: null },
       ],
       debts: [
-        { name: 'Tarjeta', monthlyPayment: 97_000, nextDueDate: new Date('2026-07-28T00:00:00.000Z') },
-        { name: 'Moto', monthlyPayment: 500_000, nextDueDate: new Date('2026-08-15T00:00:00.000Z') },
+        { id: 'd-tarjeta', name: 'Tarjeta', monthlyPayment: 97_000, nextDueDate: new Date('2026-07-28T00:00:00.000Z') },
+        { id: 'd-moto', name: 'Moto', monthlyPayment: 500_000, nextDueDate: new Date('2026-08-15T00:00:00.000Z') },
       ],
     });
 
@@ -56,18 +64,36 @@ describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
     const r = await new SpendableService(prisma as never, noCharges, noIncome).compute('u1', NOW);
 
     expect(r.receivedIncome).toBe(500_000);
-    expect(r.protectedTotal).toBe(1_597_000); // arriendo + internet + tarjeta (moto NO)
-    expect(r.amount).toBe(-1_847_000);
+    // DEC-0042 (2026-09-28): UNA cuota por deuda por ciclo, venza cuando venza →
+    // la moto (vence 15 ago) también compromete el ciclo de julio.
+    expect(r.protectedTotal).toBe(2_097_000); // arriendo + internet + tarjeta + moto
+    expect(r.amount).toBe(-2_347_000);
     expect(r.perDay).toBeNull(); // sin margen no hay "por día"
     expect(r.daysLeft).toBe(20); // 12 jul → 1 ago
     expect(r.until).toBe('2026-07-31T00:00:00.000Z'); // último día visible
 
     // Línea de tiempo (P4): orden por fecha, sin-fecha al final; el fijo cuya
     // fecha ya pasó se marca con etiqueta NEUTRA (datePassed), nunca "pagado".
-    expect(r.pendingCommitments.map((c) => c.name)).toEqual(['Arriendo', 'Tarjeta', 'Internet']);
+    expect(r.pendingCommitments.map((c) => c.name)).toEqual(['Arriendo', 'Tarjeta', 'Moto', 'Internet']);
     expect(r.pendingCommitments[0]).toMatchObject({ kind: 'fijo', datePassed: true });
     expect(r.pendingCommitments[1]).toMatchObject({ kind: 'cuota', datePassed: false });
-    expect(r.pendingCommitments[2]).toMatchObject({ date: null, datePassed: false });
+    expect(r.pendingCommitments[3]).toMatchObject({ date: null, datePassed: false });
+  });
+
+  it('DEC-0042: la cuota ya pagada en el ciclo deja de estar comprometida (y un pago parcial la descuenta)', async () => {
+    const prisma = prismaWith({
+      sums: { ingreso: 500_000, gasto: 300_000, pago_deuda: 297_000 },
+      fixedItems: [],
+      debts: [
+        { id: 'd-tarjeta', name: 'Tarjeta', monthlyPayment: 97_000, nextDueDate: new Date('2026-07-28T00:00:00.000Z') },
+        { id: 'd-moto', name: 'Moto', monthlyPayment: 500_000, nextDueDate: new Date('2026-08-15T00:00:00.000Z') },
+      ],
+      paidByDebt: { 'd-tarjeta': 97_000, 'd-moto': 200_000 },
+    });
+    const r = await new SpendableService(prisma as never, noCharges, noIncome).compute('u1', NOW);
+    expect(r.pendingCommitments.map((c) => [c.name, c.amount])).toEqual([['Moto', 300_000]]);
+    expect(r.protectedTotal).toBe(300_000);
+    expect(r.amount).toBe(500_000 - 300_000 - 297_000 - 300_000);
   });
 
   it('los ingresos futuros NO cuentan: solo se consultan fijos de GASTO (Alt A)', async () => {
@@ -86,7 +112,7 @@ describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
         { name: 'Internet', amount: 300_000, dayOfMonth: null },
       ],
       debts: [
-        { name: 'Tarjeta', monthlyPayment: 97_000, nextDueDate: new Date('2026-07-28T00:00:00.000Z') },
+        { id: 'd-tarjeta', name: 'Tarjeta', monthlyPayment: 97_000, nextDueDate: new Date('2026-07-28T00:00:00.000Z') },
       ],
     });
     const r = await new SpendableService(prisma as never, noCharges, noIncome).compute('u1', NOW);
