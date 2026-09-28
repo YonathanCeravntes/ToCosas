@@ -146,6 +146,37 @@ Al terminar verás `Update group` con un código. Publicado.
 Marca lo que falle y dímelo tal cual ("el punto 4 no pasa: sigue mostrando el valor
 viejo"). Yo corrijo y vuelves a la Parte C.
 
+## Parte F — Registrar por Telegram (gratis, 10 minutos)
+
+WhatsApp requiere un proveedor de pago (Meta/Twilio); **Telegram es gratis** y el bot ya está
+programado (FIN-029). Solo hay que crearlo y conectarlo.
+
+1. En Telegram, abre **@BotFather** → `/newbot` → nombre `Millo` → usuario (debe terminar en
+   `bot`, p. ej. `millo_finanzas_bot`). BotFather responde con un **token** (`123456:ABC…`).
+   No lo compartas por chat.
+2. Inventa una clave secreta larga (p. ej. 24 letras y números): es `TELEGRAM_WEBHOOK_SECRET`.
+3. Render → **milla-backend** → **Environment** → agrega y guarda (redespliega solo):
+
+   | Key | Value |
+   |---|---|
+   | `TELEGRAM_BOT_TOKEN` | el token de BotFather |
+   | `TELEGRAM_BOT_USERNAME` | el usuario del bot, sin `@` (p. ej. `millo_finanzas_bot`) |
+   | `TELEGRAM_WEBHOOK_SECRET` | tu clave secreta |
+
+4. Cuando Render diga **Deploy live**, abre en el navegador (cambia TOKEN y SECRETO):
+
+   ```
+   https://api.telegram.org/botTOKEN/setWebhook?url=https://milla-backend.onrender.com/v1/webhooks/telegram&secret_token=SECRETO
+   ```
+
+   Debe responder `{"ok":true,"result":true,"description":"Webhook was set"}`.
+5. En la app: **Más → Ajustes → Vincular Telegram → Generar código** → botón "Abrir Telegram"
+   (o envía el código de 6 dígitos al bot). El bot responde "¡Listo! … quedó vinculado".
+6. Escríbele como a una persona: `Gasté 45.000 en almuerzo`, `Me entraron 500.000 de
+   freelance`, `Pagué 300.000 de la tarjeta`, `resumen`, `ayuda`. Cada registro aparece en la
+   app al instante; con Telegram vinculado también llegan los recordatorios y el código de
+   "Olvidé mi contraseña".
+
 ## Si algo sale mal
 
 - **"git no se reconoce"** → te faltó la primera línea `set PATH=...`.
