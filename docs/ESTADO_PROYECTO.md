@@ -53,9 +53,9 @@ Base de ingreso = `max(take-home del ingreso fijo declarado + variable estimado,
 2. Purga física a los **30 días** → implementada (`AccountPurgeScheduler`, 04:10 Bogotá).
 3. Nombre oficial **Millo** → `PRODUCT_VISION.md` v1.4.
 4. Siguiente: **FIN-040 Recurrentes y recordatorios** → ARQ escrito, implementación tras confirmar §16 del documento y ~2 semanas de uso real.
-5. Emojis → íconos vectoriales de categoría (`CategoryGlyph`) → publicado (OTA `47efdcd0`), validación visual pendiente.
+5. Emojis → íconos vectoriales de categoría (`CategoryGlyph`) → publicado y visto OK por el Fundador.
 7. Orden visual (`DEC-0040` §7): Inicio más liviano, Patrimonio/Ahorro a Salud → publicado (OTA `4d46807b`), validación visual pendiente.
-9. Cero emojis en la interfaz (`DEC-0040` §7, 2ª pasada) → publicado (OTA `455a648d`), validación visual pendiente.
+9. Cero emojis en la interfaz (`DEC-0040` §7, 2ª pasada) → publicado (OTA `455a648d`) y **visto OK por el Fundador** (2026-09-28).
 8. Experimento del PC (`DEC-0040` §8): FormScroll + confirmaciones + Reintentar integrados tras validación → publicado (OTA `8fea873c`); verificar teclado en Android.
 6. Autonomía OTA desde la nube → pendiente del Fundador (`EXPO_TOKEN` + dominios en el entorno).
 
