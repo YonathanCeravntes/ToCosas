@@ -11,6 +11,7 @@ export type DebtsStackParamList = {
   DebtsList: undefined;
   DebtDetail: { debtId: string; name: string };
   AddDebt: undefined;
+  RenegotiateDebt: { debtId: string; name: string };
 };
 
 /**

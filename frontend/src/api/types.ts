@@ -78,6 +78,8 @@ export interface DebtProjection {
 }
 
 export interface Debt {
+  /** FIN-044: tipo de tasa (fija | variable). */
+  rateKind?: 'fija' | 'variable';
   id: string;
   name: string;
   debtType: DebtType;
@@ -695,4 +697,49 @@ export interface StartTelegramLinkResult {
 export function toNumber(value: string | number | null | undefined): number {
   if (value === null || value === undefined) return 0;
   return typeof value === 'number' ? value : parseFloat(value);
+}
+
+// ---------- FIN-044 · Renegociación de un crédito ----------
+export interface RenegotiateInput {
+  remainingInstallments?: number;
+  interestRate?: number;
+  rateKind?: 'fija' | 'variable';
+  monthlyPayment?: number;
+  currentBalance?: number;
+  keepCycle?: boolean;
+  paymentDay?: number;
+  effectiveFrom?: string;
+  note?: string;
+}
+export interface DebtTerms {
+  balance: number;
+  monthlyPayment: number | null;
+  remainingInstallments: number | null;
+  interestRate: number;
+  rateBasis: string;
+  rateKind: string;
+  paymentDay: number | null;
+  nextDueDate: string | null;
+  payoffDate: string | null;
+  remainingInterest: number | null;
+}
+export interface RenegotiationPreview {
+  debtId: string;
+  name: string;
+  scheduleModel: string;
+  effectiveFrom: string;
+  keptCycle: boolean;
+  before: DebtTerms;
+  after: DebtTerms;
+  changes: string[];
+}
+export interface RenegotiationRecord {
+  id: string;
+  effectiveFrom: string;
+  keptCycle: boolean;
+  before: DebtTerms;
+  after: DebtTerms;
+  source: string;
+  note: string | null;
+  createdAt: string;
 }

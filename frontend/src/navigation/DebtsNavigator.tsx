@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { DebtsListScreen } from '../screens/debts/DebtsListScreen';
 import { DebtDetailScreen } from '../screens/debts/DebtDetailScreen';
 import { AddDebtScreen } from '../screens/debts/AddDebtScreen';
+import { RenegotiateDebtScreen } from '../screens/debts/RenegotiateDebtScreen';
 import { DebtsStackParamList } from './types';
 import { headerOptions } from './headerOptions';
 
@@ -18,6 +19,7 @@ export function DebtsNavigator() {
         options={({ route }) => ({ title: route.params.name })}
       />
       <Stack.Screen name="AddDebt" component={AddDebtScreen} options={{ title: 'Nueva deuda' }} />
+      <Stack.Screen name="RenegotiateDebt" component={RenegotiateDebtScreen} options={{ title: 'Renegociar' }} />
     </Stack.Navigator>
   );
 }

@@ -217,8 +217,8 @@ export function describeProposal(p: DocumentProposal): string {
   lines.push(`¿Creo esta deuda en Millo? Responde *sí* o *no*.`);
   lines.push(
     p.kind === 'extracto_tarjeta'
-      ? `Para corregir antes: "saldo 2.350.000", "cuota 180.000", "cupo 5.000.000", "tasa 28.5", "dia 15", "nombre Visa Davivienda".`
-      : `Para corregir antes: "saldo 63.253.744", "cuota 932.000", "restantes 109", "plazo 120", "tasa 15.39", "vence 2026-10-02", "nombre Crédito Davivienda".`,
+      ? `Para corregir antes: "saldo 2.350.000", "cuota 180.000", "cupo 5.000.000", "tasa 28.5", "dia 15", "nombre Tarjeta principal".`
+      : `Para corregir antes: "saldo 63.253.744", "cuota 932.000", "restantes 109", "plazo 120", "tasa 15.39", "vence 2026-10-02", "nombre Crédito libre inversión".`,
   );
   return lines.join('\n');
 }
@@ -278,5 +278,5 @@ export function applyFix(p: DocumentProposal, field: string, value: string | num
     if (field === 'restantes' && n >= 0 && n <= 600) return { proposal: { ...p, remainingInstallments: Math.round(n), warnings: [] } };
     if (field === 'plazo' && n >= 1 && n <= 600) return { proposal: { ...p, termMonths: Math.round(n), warnings: [] } };
   }
-  return { error: 'No entendí la corrección. Ejemplos: "saldo 2.350.000", "cuota 180.000", "restantes 109", "plazo 120", "tasa 28.5", "dia 15", "vence 2026-10-02", "nombre Visa Davivienda".' };
+  return { error: 'No entendí la corrección. Ejemplos: "saldo 2.350.000", "cuota 180.000", "restantes 109", "plazo 120", "tasa 28.5", "dia 15", "vence 2026-10-02", "nombre Tarjeta principal".' };
 }

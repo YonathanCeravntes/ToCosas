@@ -6,6 +6,9 @@ import { BudgetService } from '../budget/budget.service';
 import { FixedKindDto } from '../budget/dto/fixed-item.dto';
 import { DebtsService } from '../debts/debts.service';
 import { CardService } from '../debts/card.service';
+import { DebtRenegotiationService, RenegotiationPreview } from '../debts/debt-renegotiation.service';
+import { parseRenegotiation, RenegotiationCommand } from './renegotiation-command';
+import { RenegotiateDebtDto } from '../debts/dto/renegotiate.dto';
 import { DebtTypeDto, RateBasisDto, RateKindDto } from '../debts/dto/debt.dto';
 import { DocumentExtractionService, SUPPORTED_MEDIA } from './document-extraction.service';
 import {
@@ -123,6 +126,9 @@ export class ConversationService {
     const pendingReply = await this.handlePendingReply(input, text);
     if (pendingReply) return pendingReply;
 
+    const reneg = parseRenegotiation(text);
+    if (reneg) return this.handleRenegotiation(input.userId, input.source, reneg);
+
     const fixed = parseFixedExpense(text);
     if (fixed) {
       if (fixed.error) return fixed.error;
@@ -171,6 +177,7 @@ export class ConversationService {
       '• "¿qué pasa si abono $200.000 a mi deuda?" — simula un escenario',
       '• "deshacer" — anula el último movimiento',
       '• "gasto fijo arriendo 1.200.000 día 5" — crea un gasto fijo mensual',
+      '• "renegociar crédito carro cuotas 60 tasa 13,5 variable dia 15 desde 2026-11-01" — cambia las condiciones de un crédito',
       '',
       '📎 Y puedes enviarme la FOTO o el PDF de un extracto de tarjeta o crédito, o de un comprobante: te propongo la deuda o el gasto y tú confirmas.',
     ].join('\n');
@@ -233,6 +240,7 @@ export class ConversationService {
       await this.clearPending(userId, input.source);
       return null;
     }
+    if (pending.kind === 'renegociacion') return this.handleRenegotiationReply(userId, input.source, pending.payload as unknown as { debtId: string; dto: RenegotiationCommand['dto'] }, text);
     const proposal = pending.payload as unknown as DocumentProposal;
     const reply = parseReply(text);
     if (reply.type === 'no') {
@@ -336,6 +344,58 @@ export class ConversationService {
       (rate ? ` y tasa ${rate.toFixed(2).replace(/\.?0+$/, '')}% EA` : '') +
       `. Revisa el plan en Deudas → ${debt.name}.`
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // FIN-044 · Renegociación por chat: comando → vista previa → sí/no → dominio
+  // ---------------------------------------------------------------------------
+
+  private async handleRenegotiation(userId: string, source: ChannelSource, cmd: RenegotiationCommand | { error: string }): Promise<string> {
+    if ('error' in cmd) return cmd.error;
+    const debts = await this.prisma.debt.findMany({
+      where: { userId, deletedAt: null, status: 'activa', name: { contains: cmd.debtQuery, mode: 'insensitive' } },
+      select: { id: true, name: true },
+    });
+    if (debts.length === 0) return `🤔 No encontré una deuda activa que se llame "${cmd.debtQuery}". Escribe "mis deudas" para ver los nombres.`;
+    if (debts.length > 1) return `Tienes varias deudas que coinciden: ${debts.map((d) => d.name).join(' · ')}. Escribe una parte más precisa del nombre.`;
+    const svc = this.moduleRef.get(DebtRenegotiationService, { strict: false });
+    let preview: RenegotiationPreview;
+    try {
+      preview = await svc.preview(userId, debts[0].id, cmd.dto as RenegotiateDebtDto);
+    } catch (e) {
+      return `❌ ${(e as Error).message}`;
+    }
+    if (preview.changes.length === 0) return 'Con esos datos no cambia nada en tu deuda. Revisa los valores.';
+    const expiresAt = new Date(Date.now() + PROPOSAL_TTL_MINUTES * 60_000);
+    const payload = { debtId: debts[0].id, dto: cmd.dto } as unknown as object;
+    await this.prisma.botPendingAction.upsert({
+      where: { userId_source: { userId, source } },
+      create: { userId, source, kind: 'renegociacion', payload, expiresAt },
+      update: { kind: 'renegociacion', payload, expiresAt },
+    });
+    return describeRenegotiation(preview);
+  }
+
+  private async handleRenegotiationReply(
+    userId: string,
+    source: ChannelSource,
+    payload: { debtId: string; dto: RenegotiationCommand['dto'] },
+    text: string,
+  ): Promise<string | null> {
+    const reply = parseReply(text);
+    if (reply.type === 'no') {
+      await this.clearPending(userId, source);
+      return '👍 Listo, no cambié nada en tu deuda.';
+    }
+    if (reply.type !== 'yes') return null;
+    try {
+      const svc = this.moduleRef.get(DebtRenegotiationService, { strict: false });
+      const done = await svc.apply(userId, payload.debtId, payload.dto as RenegotiateDebtDto, source);
+      await this.clearPending(userId, source);
+      return `✅ Renegociación guardada en *${done.name}* desde el ${done.effectiveFrom}. Tu plan, tu cuota y "Te queda" ya están recalculados. El historial queda en el detalle de la deuda.`;
+    } catch (e) {
+      return `❌ No pude aplicarla: ${(e as Error).message}`;
+    }
   }
 
   private async savePending(userId: string, source: ChannelSource, proposal: DocumentProposal): Promise<void> {
@@ -535,5 +595,22 @@ export function parseFixedExpense(text: string): { name?: string; amount?: numbe
   if (!(amount > 0)) return { error: 'El monto del gasto fijo debe ser mayor a 0.' };
   if (day !== undefined && (day < 1 || day > 31)) return { error: 'El día debe estar entre 1 y 31.' };
   return { name: am[1].trim(), amount, day };
+}
+
+/** Texto de la vista previa de una renegociación (antes → después). */
+export function describeRenegotiation(p: RenegotiationPreview): string {
+  const f = (n: number | null) => (n == null ? '—' : fmt(n));
+  const lines = [
+    `🔁 Renegociación de *${p.name}*`,
+    `Aplica desde la cuota del ${p.effectiveFrom}${p.keptCycle ? ' (mismo día de pago)' : ` (nuevo día de pago: ${p.after.paymentDay})`}.`,
+    '',
+    ...p.changes.map((c) => `• ${c}`),
+  ];
+  if (p.after.payoffDate) lines.push(`• Terminas: ${p.before.payoffDate ?? '—'} → ${p.after.payoffDate}`);
+  if (p.after.remainingInterest != null && p.before.remainingInterest != null) {
+    lines.push(`• Intereses por pagar: ${f(p.before.remainingInterest)} → ${f(p.after.remainingInterest)}`);
+  }
+  lines.push('', '¿La aplico? Responde *sí* o *no*.');
+  return lines.join('\n');
 }
 

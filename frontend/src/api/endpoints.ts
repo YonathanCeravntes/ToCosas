@@ -44,6 +44,9 @@ import {
   TransactionsQuery,
   TxKind,
   User,
+  RenegotiateInput,
+  RenegotiationPreview,
+  RenegotiationRecord,
 } from './types';
 
 export const authApi = {
@@ -82,6 +85,10 @@ export const debtsApi = {
   create: (input: CreateDebtInput) => api.post<{ debt: Debt }>('/debts', input),
   simulateExtra: (id: string, extraMonthly: number) =>
     api.post<SimulateResult>(`/debts/${id}/simulate-extra`, { extraMonthly }),
+  // FIN-044: renegociación (vista previa sin efectos, aplicar, historial).
+  renegotiatePreview: (id: string, dto: RenegotiateInput) => api.post<RenegotiationPreview>(`/debts/${id}/renegotiate/preview`, dto),
+  renegotiate: (id: string, dto: RenegotiateInput) => api.post<RenegotiationPreview>(`/debts/${id}/renegotiate`, dto),
+  renegotiations: (id: string) => api.get<RenegotiationRecord[]>(`/debts/${id}/renegotiations`),
   // FIN-012: abono a capital y pago total anticipado (reales).
   prepayPreview: (id: string, amount: number, effect: PrepayEffect) =>
     api.post<PrepayReceipt>(`/debts/${id}/prepay-preview`, { amount, effect }),

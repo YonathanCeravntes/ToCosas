@@ -16,6 +16,8 @@ import { DebtInsuranceService } from './debt-insurance.service';
 import { DebtPrepaymentService } from './debt-prepayment.service';
 import { CardService } from './card.service';
 import { UpdateReviewService } from './update-review.service';
+import { DebtRenegotiationService } from './debt-renegotiation.service';
+import { RenegotiateDebtDto } from './dto/renegotiate.dto';
 import { AnswerReviewDto, CreateCardPurchaseDto, CreateDebtDto, PrepayDto, SimulateExtraDto, UpdateDebtDto } from './dto/debt.dto';
 import {
   CreateDebtInsuranceDto,
@@ -33,6 +35,7 @@ export class DebtsController {
     private readonly prepayment: DebtPrepaymentService,
     private readonly cards: CardService,
     private readonly reviews: UpdateReviewService,
+    private readonly renegotiation: DebtRenegotiationService,
   ) {}
 
   @Get('summary')
@@ -137,6 +140,22 @@ export class DebtsController {
   // --- FIN-012 · Abono a capital y pago total anticipado (DEC-0012) ---
 
   /** Preview del abono — misma función pura que el recibo persistido. */
+  // FIN-044 · Renegociación: vista previa (no guarda), aplicar e historial.
+  @Post(':id/renegotiate/preview')
+  renegotiatePreview(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: RenegotiateDebtDto) {
+    return this.renegotiation.preview(user.id, id, dto);
+  }
+
+  @Post(':id/renegotiate')
+  renegotiate(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: RenegotiateDebtDto) {
+    return this.renegotiation.apply(user.id, id, dto, 'app');
+  }
+
+  @Get(':id/renegotiations')
+  renegotiations(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.renegotiation.history(user.id, id);
+  }
+
   @Post(':id/prepay-preview')
   prepayPreview(
     @CurrentUser() user: AuthUser,

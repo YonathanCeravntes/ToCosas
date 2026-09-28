@@ -1,3 +1,4 @@
+import { DebtRenegotiationService } from './debt-renegotiation.service';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { FinanceModule } from '../finance/finance.module';
@@ -21,8 +22,8 @@ import { DepthReadingService } from './depth-reading.service';
   // gobiernan el ProactivityJob/presupuesto anti-fatiga existentes).
   imports: [FinanceModule, AuthModule, RemindersModule, SimulationsModule, DebtOutlayModule, InsightsModule],
   controllers: [DebtsController],
-  providers: [DebtsService, DebtInsuranceService, DebtPrepaymentService, CardService, UpdateReviewService, DepthReadingService],
+  providers: [DebtsService, DebtInsuranceService, DebtPrepaymentService, CardService, UpdateReviewService, DepthReadingService, DebtRenegotiationService],
   // CardService exportado para FIN-042 (saldo inicial de una tarjeta leída de un extracto).
-  exports: [DebtsService, CardService],
+  exports: [DebtsService, CardService, DebtRenegotiationService],
 })
 export class DebtsModule {}

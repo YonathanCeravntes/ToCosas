@@ -400,6 +400,7 @@ model Debt {
   insurances    DebtInsurance[]
   cardPurchases CardPurchase[]
   fieldReviews  DebtFieldReview[]
+  renegotiations DebtRenegotiation[]
 
   @@index([userId])
   @@index([nextDueDate])
@@ -1269,5 +1270,29 @@ model BotPendingAction {
 
   @@unique([userId, source])
   @@map("bot_pending_actions")
+}
+
+// ---------- FIN-044 · Renegociación de un crédito ----------
+
+// Registro inmutable de cada cambio de condiciones pactado con la entidad (plazo, tasa,
+// tipo de tasa, cuota, día de pago, saldo recompuesto): qué había antes, qué quedó,
+// desde qué cuota aplica y si el ciclo de pago se conservó. Nada se sobreescribe en
+// silencio (§42): la deuda cambia y aquí queda la huella.
+model DebtRenegotiation {
+  id            String   @id @default(uuid()) @db.Uuid
+  debtId        String   @map("debt_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  effectiveFrom DateTime @map("effective_from") @db.Date
+  keptCycle     Boolean  @map("kept_cycle")
+  before        Json
+  after         Json
+  source        String   @default("app")
+  note          String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@index([debtId, createdAt])
+  @@map("debt_renegotiations")
 }
 

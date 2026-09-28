@@ -13,7 +13,7 @@ import { DebtsStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<DebtsStackParamList, 'DebtDetail'>;
 
-export function DebtDetailScreen({ route }: Props) {
+export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
   const { debtId } = route.params;
   const { data, loading, error, reload } = useApi(() => debtsApi.get(debtId), [debtId]);
   // SPRINT-PULIDO-001 P0-2: la pantalla fragmenta sus datos en 3 hooks (detalle,
@@ -106,6 +106,16 @@ export function DebtDetailScreen({ route }: Props) {
       {/* SPRINT-PULIDO-001 P3 (punto 10): de un vistazo — próximo vencimiento, días
           restantes y último pago. Datos que YA viajan en el payload; solo se pintan. */}
       <AtAGlance debt={data} amort={amort} />
+
+      {/* FIN-044: renegociación (cuotas, tasa fija/variable, cuota, día de pago, desde cuándo). */}
+      {model !== 'cuotas_por_compra' ? (
+        <Button
+          title="Renegociar / actualizar condiciones"
+          icon="swap-horizontal-outline"
+          variant="secondary"
+          onPress={() => stackNav.navigate('RenegotiateDebt', { debtId, name: data.name })}
+        />
+      ) : null}
 
       {/* FIN-031/032: productos con cupo (tarjeta/fintech) — compras a cuotas. */}
       {hasCard ? <CardSection debtId={debtId} tick={tick} onChanged={() => void reload()} /> : null}

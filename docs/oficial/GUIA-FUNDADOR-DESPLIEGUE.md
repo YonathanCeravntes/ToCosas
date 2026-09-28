@@ -173,7 +173,7 @@ programado (FIN-029). Solo hay que crearlo y conectarlo.
 5. En la app: **Más → Ajustes → Vincular Telegram → Generar código** → botón "Abrir Telegram"
    (o envía el código de 6 dígitos al bot). El bot responde "¡Listo! … quedó vinculado".
 6. Escríbele como a una persona: `Gasté 45.000 en almuerzo`, `Me entraron 500.000 de
-   freelance`, `Pagué 300.000 de la tarjeta`, `gasto fijo arriendo 1.200.000 día 5`, `resumen`, `ayuda`. Cada registro aparece en la
+   freelance`, `Pagué 300.000 de la tarjeta`, `gasto fijo arriendo 1.200.000 día 5`, `renegociar <deuda> cuotas 60 tasa 13,5 variable dia 15 desde 2026-11-01`, `resumen`, `ayuda`. Cada registro aparece en la
    app al instante; con Telegram vinculado también llegan los recordatorios y el código de
    "Olvidé mi contraseña".
 7. **Extractos por foto (FIN-042):** envíale al bot la foto o el PDF del extracto de una
