@@ -93,6 +93,10 @@ services:
         sync: false
       - key: LLM_MODEL
         value: claude-haiku-4-5-20251001
+      # FIN-042: lectura de extractos por foto/PDF con un modelo de mejor visión
+      # (cae a LLM_MODEL si esta cuenta no lo tiene disponible).
+      - key: LLM_EXTRACT_MODEL
+        value: claude-sonnet-5
 
       # Monetización / push — opcionales en Fase 0.
       - key: REVENUECAT_WEBHOOK_SECRET

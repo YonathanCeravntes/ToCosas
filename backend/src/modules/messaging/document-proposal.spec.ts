@@ -49,6 +49,49 @@ describe('FIN-042 · document-proposal', () => {
     expect(installmentsFor(100, 1_000_000)).toBe(1);
   });
 
+  it('extracto de crédito Davivienda (caso real 2026-09-28): saldo, cuota, cuotas y fecha correctos, sin avisos', () => {
+    const p = toProposal(
+      {
+        kind: 'extracto_credito',
+        entityName: 'Davivienda',
+        productLabel: 'Crédito de libre inversión',
+        balance: 63_253_743.76,
+        totalPayment: 932_000,
+        paidInstallments: 11,
+        remainingInstallments: 109,
+        termMonths: 120,
+        annualEffectiveRate: 15.39,
+        dueDate: '2026-10-02',
+        periodPaid: 1_043_000,
+        confidence: 0.9,
+      },
+      new Date('2026-09-28T12:00:00Z'),
+    );
+    if (p?.kind !== 'extracto_credito') throw new Error('kind');
+    expect(p.balance).toBe(63_253_744);
+    expect(p.monthlyPayment).toBe(932_000);
+    expect(p.remainingInstallments).toBe(109);
+    expect(p.paymentDay).toBe(2);
+    expect(p.warnings).toEqual([]);
+    const text = describeProposal(p);
+    expect(text).toContain('11 pagadas · 109 restantes · plazo 120');
+    expect(text).toContain('Próximo pago: 2026-10-02');
+  });
+
+  it('extracto de crédito con lecturas incoherentes: avisa y descarta la fecha imposible', () => {
+    const p = toProposal(
+      { kind: 'extracto_credito', balance: 1_043_000, totalPayment: 932_000, paidInstallments: 11, remainingInstallments: 11, termMonths: 120, dueDate: '2023-10-30', confidence: 0.7 },
+      new Date('2026-09-28T12:00:00Z'),
+    );
+    if (p?.kind !== 'extracto_credito') throw new Error('kind');
+    expect(p.dueDate).toBeNull();
+    expect(p.warnings.length).toBe(3);
+    expect(describeProposal(p)).toContain('⚠️ Revisa');
+    const step = applyFix(p, 'restantes', 109) as { proposal: typeof p };
+    const fixed = applyFix(step.proposal, 'vence', '2026-10-02');
+    expect('proposal' in fixed && fixed.proposal.kind === 'extracto_credito' && fixed.proposal.paymentDay).toBe(2);
+  });
+
   it('comprobante → gasto con fecha del documento', () => {
     const p = toProposal({ kind: 'comprobante', merchant: 'Éxito', amount: 45_000, occurredAt: '2026-09-27', confidence: 0.8 });
     expect(p).toEqual({ kind: 'comprobante', amount: 45_000, merchant: 'Éxito', occurredAt: '2026-09-27' });
@@ -69,6 +112,10 @@ describe('FIN-042 · document-proposal', () => {
     expect(parseReply('tasa 28,5')).toEqual({ type: 'fix', field: 'tasa', value: 28.5 });
     expect(parseReply('nombre Visa Davivienda')).toEqual({ type: 'fix', field: 'nombre', value: 'Visa Davivienda' });
     expect(parseReply('día 15')).toEqual({ type: 'fix', field: 'dia', value: 15 });
+    expect(parseReply('Cuota restante: 109')).toEqual({ type: 'fix', field: 'restantes', value: 109 });
+    expect(parseReply('cuotas restantes 109')).toEqual({ type: 'fix', field: 'restantes', value: 109 });
+    expect(parseReply('plazo 120')).toEqual({ type: 'fix', field: 'plazo', value: 120 });
+    expect(parseReply('vence 2026-10-02')).toEqual({ type: 'fix', field: 'vence', value: '2026-10-02' });
     expect(parseReply('resumen')).toEqual({ type: 'other' });
   });
 

@@ -185,9 +185,11 @@ export class AnthropicClient {
     toolName: string;
     schema: Record<string, unknown>;
     maxTokens?: number;
+    /** Modelo a usar (por defecto LLM_MODEL). La extracción de documentos usa uno con mejor visión. */
+    model?: string;
   }): Promise<{ data: Record<string, unknown>; inputTokens: number; outputTokens: number; model: string }> {
     if (this.circuitOpen()) throw new Error('circuit_open');
-    const model = this.config.get<string>('LLM_MODEL', LLM_MODEL_DEFAULT);
+    const model = input.model ?? this.config.get<string>('LLM_MODEL', LLM_MODEL_DEFAULT);
     const isPdf = input.document.mediaType === 'application/pdf';
     const docBlock = isPdf
       ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: input.document.base64 } }

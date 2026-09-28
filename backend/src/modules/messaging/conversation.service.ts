@@ -317,7 +317,7 @@ export class ConversationService {
     return (
       `✅ Creé la deuda *${p.name}* con saldo ${fmt(p.balance)}, ${term} cuota${term === 1 ? '' : 's'}` +
       (p.monthlyPayment ? ` de ≈ ${fmt(p.monthlyPayment)}` : '') +
-      (rate ? ` y tasa ${rate.toFixed(1)}% E.A.` : '') +
+      (rate ? ` y tasa ${rate.toFixed(2).replace(/\.?0+$/, '')}% EA` : '') +
       `. Revisa el plan en Deudas → ${debt.name}.`
     );
   }
