@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { DatePicker } from '../../components/DatePicker';
 import { formatLocalDate } from '../../utils/format';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Field, Ico } from '../../components/ui';
@@ -167,7 +167,7 @@ export function AddDebtScreen({ navigation }: Props) {
           <Text style={{ color: colors.primary, fontWeight: '600' }}>Cambiar</Text>
         </Pressable>
         {showStartPicker ? (
-          <DateTimePicker value={startDate} mode="date" maximumDate={new Date()} onChange={(e, s) => { if (Platform.OS !== 'ios') setShowStartPicker(false); if (e.type === 'set' && s) setStartDate(s); }} />
+          <DatePicker value={startDate} mode="date" maximumDate={new Date()} onChange={(e, s) => { if (Platform.OS !== 'ios') setShowStartPicker(false); if (e.type === 'set' && s) setStartDate(s); }} />
         ) : null}
         {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
         <Button title={`Guardar ${type.label.toLowerCase()}`} onPress={onSubmit} loading={loading} />

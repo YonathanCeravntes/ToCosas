@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, Pressable, Share, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, Share, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
@@ -110,7 +110,7 @@ export function SettingsScreen() {
   };
 
   const version = Constants.expoConfig?.version ?? '0.1.0';
-  const updateId = Updates.updateId ? Updates.updateId.slice(0, 8) : 'apk';
+  const updateId = Updates.updateId ? Updates.updateId.slice(0, 8) : Platform.OS === 'web' ? 'web' : 'apk';
 
   return (
     <FormScroll onRefresh={load}>

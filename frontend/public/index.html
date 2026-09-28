@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <!-- viewport-fit=cover: la app usa todo el alto en iPhone con notch (los insets los maneja safe-area-context). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+    <title>%WEB_TITLE%</title>
+
+    <!-- FIN-041 · Millo como web app instalable (PWA): "Añadir a pantalla de inicio" en iPhone/Android. -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0B6E4F" />
+    <meta name="application-name" content="Millo" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Millo" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+    <meta name="description" content="Millo: tu dinero, claro. Cuánto te queda, tus deudas y tu salud financiera." />
+
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        background: #f6f8f7;
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        overflow: hidden;
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overscroll-behavior: none;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+      /* Ancho de teléfono en pantallas grandes: Millo es una app de bolsillo. */
+      @media (min-width: 640px) {
+        #root {
+          max-width: 480px;
+          margin: 0 auto;
+          box-shadow: 0 0 0 1px #e2e8e5;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>Millo necesita JavaScript para funcionar.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

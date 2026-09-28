@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, Modal, Platform, Pressable, Text, View } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { DatePicker } from '../../components/DatePicker';
 import { Button, Card, Field, Ico } from '../../components/ui';
 import { colors, radius, spacing } from '../../theme/colors';
 import { formatLocalDate, parseAmount } from '../../utils/format';
@@ -133,7 +133,7 @@ export function EditTransactionModal({
                 <Text style={{ color: colors.text }}><Ico name="calendar-outline" /> {date ? formatLocalDate(date) : '—'}</Text>
               </Pressable>
               {showPicker ? (
-                <DateTimePicker
+                <DatePicker
                   value={date ?? new Date()}
                   mode="date"
                   onChange={(_, d) => {

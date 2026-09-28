@@ -15,7 +15,8 @@ import { devicesApi } from '../api/endpoints';
  */
 export async function registerForPush(): Promise<void> {
   try {
-    if (!Device.isDevice) return;
+    // FIN-041: en web no hay push (los avisos llegan por Telegram/WhatsApp).
+    if (Platform.OS === 'web' || !Device.isDevice) return;
 
     const { status: existing } = await Notifications.getPermissionsAsync();
     let status = existing;

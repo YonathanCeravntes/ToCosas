@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { DatePicker } from '../../components/DatePicker';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Field, IconButton, Row, Toast, ToastSpec } from '../../components/ui';
 import { CategoryGlyph } from '../../components/CategoryGlyph';
@@ -404,7 +404,7 @@ export function AddTransactionScreen() {
           <Text style={{ color: colors.primary, ...type.body, fontWeight: '600' }}>Cambiar</Text>
         </Pressable>
         {showDatePicker ? (
-          <DateTimePicker value={occurredAt} mode="date" maximumDate={new Date()} onChange={(e, s) => { if (Platform.OS !== 'ios') setShowDatePicker(false); if (e.type === 'set' && s) setOccurredAt(s); }} />
+          <DatePicker value={occurredAt} mode="date" maximumDate={new Date()} onChange={(e, s) => { if (Platform.OS !== 'ios') setShowDatePicker(false); if (e.type === 'set' && s) setOccurredAt(s); }} />
         ) : null}
 
         <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600', marginBottom: spacing.sm }}>Categoría</Text>
