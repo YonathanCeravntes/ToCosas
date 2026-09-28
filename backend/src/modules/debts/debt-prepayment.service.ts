@@ -11,6 +11,7 @@ import { toMonthlyEffectiveRate } from '../finance/amortization/interest.util';
 import { OutboxService } from '../events/outbox.service';
 import { DomainEventType } from '../events/domain-events';
 import { RateBasis } from '../finance/amortization/amortization.types';
+import { scheduleModelFor } from './product-type.descriptor';
 
 type PrepayEffect = 'reducir_plazo' | 'reducir_cuota';
 
@@ -21,6 +22,7 @@ interface LockedDebtRow {
   interest_rate: unknown;
   rate_basis: string;
   status: string;
+  debt_type: string;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -69,6 +71,11 @@ export class DebtPrepaymentService {
       const balance = Number(debt.current_balance);
       if (debt.status !== 'activa') {
         throw new BadRequestException('La deuda no está activa');
+      }
+      if (scheduleModelFor(debt.debt_type) === 'cuotas_por_compra') {
+        // FIN-043: en una tarjeta no existe "abono a capital" aparte: cualquier pago se
+        // aplica a las cuotas pendientes en orden. Se dice claro y se ofrece el camino.
+        throw new BadRequestException('En una tarjeta no hay abono a capital separado: registra un pago y se aplica a tus cuotas pendientes en orden.');
       }
       if (amount >= balance) {
         throw new BadRequestException(
@@ -177,7 +184,7 @@ export class DebtPrepaymentService {
     debtId: string,
   ): Promise<LockedDebtRow> {
     const rows = await tx.$queryRaw<LockedDebtRow[]>`
-      SELECT id, current_balance, monthly_payment, interest_rate, rate_basis, status
+      SELECT id, current_balance, monthly_payment, interest_rate, rate_basis, status, debt_type
         FROM debts
        WHERE id = ${debtId}::uuid AND user_id = ${userId}::uuid AND deleted_at IS NULL
          FOR UPDATE`;

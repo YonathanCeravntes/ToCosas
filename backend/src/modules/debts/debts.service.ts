@@ -107,7 +107,13 @@ export class DebtsService {
     const debts = rows.map(({ cardPurchases, ...d }) => {
       if (scheduleModelFor(d.debtType) !== 'cuotas_por_compra') return d;
       const used = cardPurchases.reduce((a, p) => a + p.installments.reduce((b, i) => b + Number(i.amount), 0), 0);
-      return { ...d, currentBalance: new Prisma.Decimal(used) };
+      // BT-019: la "cuota" de una tarjeta = próxima cuota pendiente de cada compra (misma
+      // regla que DebtOutlayService, §32), no el null de BD.
+      const monthly = cardPurchases.reduce((a, p) => {
+        const next = [...p.installments].sort((x, y) => x.dueDate.getTime() - y.dueDate.getTime())[0];
+        return a + (next ? Number(next.amount) : 0);
+      }, 0);
+      return { ...d, currentBalance: new Prisma.Decimal(used), monthlyPayment: new Prisma.Decimal(monthly) };
     });
     if (debts.length === 0) return debts;
 
@@ -252,13 +258,12 @@ export class DebtsService {
         ? d.cardPurchases.reduce((a, p) => a + p.installments.reduce((b, i) => b + Number(i.amount), 0), 0)
         : Number(d.currentBalance);
     const totalDebt = debts.reduce((acc, d) => acc + balanceOf(d), 0);
-    const monthlyTotal = debts.reduce(
-      (acc, d) => acc + Number(d.monthlyPayment ?? 0),
-      0,
-    );
 
     // FIN-023 P4: el desembolso real agregado (línea condicional del hero).
     const outlays = await this.debtOutlay.outlaysByUser(userId);
+    // BT-019: "tus cuotas suman" sale de la MISMA autoridad que el desembolso (§32):
+    // incluye la cuota del mes de las tarjetas (antes sumaba monthlyPayment, null en ellas).
+    const monthlyTotal = debts.reduce((acc, d) => acc + (outlays.byDebt.get(d.id)?.basePayment ?? Number(d.monthlyPayment ?? 0)), 0);
 
     // FIN-022 P2: orden de ataque DEL MOTOR (gate a 2+ deudas — DEC-0022 §5.4;
     // el propio strategyOverview re-verifica y decide omitirse, §29.1).

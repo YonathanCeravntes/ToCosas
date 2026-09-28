@@ -9,6 +9,7 @@ import { OutboxService } from '../events/outbox.service';
 import { DomainEventType } from '../events/domain-events';
 import { CreateTransactionDto, UpdateTransactionDto } from './dto/transaction.dto';
 import { DEBT_LOCKED_FIELDS, diffTransaction } from './transaction-events.util';
+import { applyCardPayment, isCardDebt, revertCardPayment } from '../debts/card-payment.util';
 
 /**
  * FIN-028 (DEC-0028 §5.2) · Filtro compartido de movimientos ACTIVOS — un solo
@@ -65,7 +66,10 @@ export class TransactionsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      if (dto.kind === 'pago_deuda' && dto.debtId) {
+      // FIN-043 (BT-018): en una TARJETA el saldo vive en las cuotas de sus compras;
+      // el pago se aplica a ellas (más antigua primero) y NO al current_balance (que es 0).
+      const card = dto.kind === 'pago_deuda' && dto.debtId ? await isCardDebt(tx, userId, dto.debtId) : false;
+      if (dto.kind === 'pago_deuda' && dto.debtId && !card) {
         // FIN-012 (DEC-0012 §4.3, cambio obligatorio #2): una sola sentencia
         // atómica condicional — cierra la condición de carrera del antiguo
         // findFirst + update calculado en memoria ("última escritura gana").
@@ -119,6 +123,10 @@ export class TransactionsService {
           status: 'confirmada',
         },
       });
+
+      if (card && dto.debtId) {
+        await applyCardPayment(tx, dto.debtId, dto.amount, created.id, new Date(dto.occurredAt));
+      }
 
       // Evento de dominio en la MISMA transacción (patrón outbox, FIN-002).
       await this.outbox.enqueue(tx, {
@@ -247,7 +255,11 @@ export class TransactionsService {
     await this.prisma.$transaction(async (tx) => {
       await tx.transaction.update({ where: { id }, data: { deletedAt: new Date() } });
 
-      if (prev.kind === 'pago_deuda' && prev.debtId) {
+      const card = prev.kind === 'pago_deuda' && prev.debtId ? await isCardDebt(tx, userId, prev.debtId) : false;
+      if (card && prev.debtId) {
+        // FIN-043: en tarjetas se des-pagan exactamente las cuotas que este pago cubrió.
+        await revertCardPayment(tx, prev.debtId, id);
+      } else if (prev.kind === 'pago_deuda' && prev.debtId) {
         // Reverso del descuento del pago: devuelve el saldo y reactiva la deuda
         // si había quedado 'pagada'. (La reconstrucción exacta de next_due_date
         // no se intenta — limitación declarada en IMP-0028: no inventamos la

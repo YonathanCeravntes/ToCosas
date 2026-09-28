@@ -449,11 +449,17 @@ model CardInstallment {
   dueDate        DateTime  @map("due_date") @db.Date
   amount         Decimal   @db.Decimal(18, 2)
   paidAt         DateTime? @map("paid_at")
+  // FIN-043 (BT-018): trazabilidad del pago que saldó la cuota, para poder anularlo.
+  paidTxId       String?   @map("paid_tx_id") @db.Uuid
+  // Cuando un pago cubre parte de una cuota, la parte pagada se separa en una fila
+  // propia que apunta a la cuota original (split_of_id); al anular el pago se reunifica.
+  splitOfId      String?   @map("split_of_id") @db.Uuid
   deletedAt      DateTime? @map("deleted_at")
 
   purchase CardPurchase @relation(fields: [cardPurchaseId], references: [id], onDelete: Cascade)
 
   @@index([cardPurchaseId, deletedAt])
+  @@index([paidTxId])
   @@map("card_installments")
 }
 
