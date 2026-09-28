@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { setAuthHandlers } from '../api/client';
 import { authApi } from '../api/endpoints';
 import { AuthTokens, User } from '../api/types';
+import { resetLocalDb } from '../offline/database';
 
 // Claves de almacenamiento seguro. Se conservan los nombres históricos para no
 // cerrar la sesión de los usuarios Beta al actualizar por OTA.
@@ -19,7 +20,13 @@ interface AuthState {
   hydrate: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName?: string, acceptsDataPolicy?: boolean) => Promise<void>;
-  logout: () => Promise<void>;
+  /**
+   * Cierra la sesión. `wipeLocal` (BT-014) borra además la caché local de movimientos y
+   * la cola offline: obligatorio cuando el usuario cierra sesión o borra su cuenta a
+   * propósito, para que otra cuenta en el mismo teléfono no vea datos ajenos. En el
+   * cierre forzado por token vencido NO se borra, para no perder movimientos pendientes.
+   */
+  logout: (opts?: { wipeLocal?: boolean }) => Promise<void>;
   /** Vuelve a leer /auth/me (onboarding, consentimiento, plan) y lo persiste. */
   refreshMe: () => Promise<void>;
   /** Actualiza el usuario en memoria y en disco (p. ej. onboardingDone). */
@@ -73,6 +80,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const res = await authApi.register(email, password, fullName, acceptsDataPolicy);
       // Usuario nuevo: el recorrido inicial empieza en la app (FIN-038).
       const user: User = { ...res.user, onboardingDone: false, dataConsentAt: acceptsDataPolicy ? new Date().toISOString() : null };
+      // BT-014: una cuenta nueva empieza sin restos locales de otra cuenta en este teléfono.
+      await resetLocalDb().catch(() => undefined);
       await persist(res.tokens, user);
       set({ tokens: res.tokens, user });
     } catch (e) {
@@ -83,11 +92,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout: async () => {
+  logout: async (opts) => {
     await Promise.all([
       SecureStore.deleteItemAsync(TOKENS_KEY),
       SecureStore.deleteItemAsync(USER_KEY),
     ]);
+    if (opts?.wipeLocal) await resetLocalDb().catch(() => undefined);
     set({ tokens: null, user: null });
   },
 

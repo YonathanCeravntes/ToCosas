@@ -101,7 +101,7 @@ export function SettingsScreen() {
     setMsg(null);
     try {
       await authApi.deleteAccount(deletePwd);
-      await logout();
+      await logout({ wipeLocal: true });
     } catch (e) {
       setMsg((e as Error).message);
     } finally {
@@ -223,7 +223,7 @@ export function SettingsScreen() {
       </Card>
 
       <View style={{ marginTop: spacing.lg }}>
-        <Button title="Cerrar sesión" variant="danger" onPress={() => void logout()} />
+        <Button title="Cerrar sesión" variant="danger" onPress={() => void logout({ wipeLocal: true })} />
       </View>
 
       <Text style={{ color: colors.textFaint, ...type.caption, textAlign: 'center', marginTop: spacing.xl }}>
