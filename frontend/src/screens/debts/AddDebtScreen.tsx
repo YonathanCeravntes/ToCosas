@@ -177,7 +177,13 @@ export function AddDebtScreen({ navigation }: Props) {
 
   // --- FASE SELECTOR: buscar entidad o elegir tipo ---
   const q = query.trim().toLowerCase();
-  const typeMatches = (catalog ?? []).filter((t) => !q || t.label.toLowerCase().includes(q));
+  // BT-015: con una entidad elegida que no sugiere producto (banco, cooperativa), el
+  // usuario debe elegir el tipo entre TODOS los del catálogo; antes seguía filtrado por
+  // lo escrito ("Da") y la lista quedaba vacía: no había forma de continuar.
+  const awaitingProduct = !!entity && !descriptorFor(entity.suggestedDebtType);
+  const typeMatches = awaitingProduct
+    ? catalog ?? []
+    : (catalog ?? []).filter((t) => !q || t.label.toLowerCase().includes(q));
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }} keyboardShouldPersistTaps="handled">
@@ -196,14 +202,20 @@ export function AddDebtScreen({ navigation }: Props) {
         }}
       />
 
-      {entity && !descriptorFor(entity.suggestedDebtType) ? (
-        <Text style={{ color: colors.text, marginBottom: spacing.sm }}>
-          Elige el producto de <Text style={{ fontWeight: '700' }}>{entity.name}</Text>:
-        </Text>
+      {awaitingProduct && entity ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+          <Monogram name={entity.name} type={entity.type} />
+          <Text style={{ color: colors.text, flex: 1 }}>
+            Elige el producto de <Text style={{ fontWeight: '700' }}>{entity.name}</Text>:
+          </Text>
+          <Pressable onPress={() => setEntity(null)} accessibilityRole="button" accessibilityLabel="Cambiar entidad" hitSlop={8}>
+            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>Cambiar</Text>
+          </Pressable>
+        </View>
       ) : null}
 
       {/* Entidades reconocidas (catálogo global + propias/recientes primero). */}
-      {entities.length > 0 ? (
+      {entities.length > 0 && !awaitingProduct ? (
         <View style={{ marginBottom: spacing.md }}>
           {entities.slice(0, 8).map((e) => (
             <Pressable
@@ -226,9 +238,11 @@ export function AddDebtScreen({ navigation }: Props) {
       ) : null}
 
       {/* Degradación con gracia: el camino libre SIEMPRE existe (elige un tipo). */}
-      <Text style={{ fontWeight: '700', color: colors.text, marginBottom: spacing.sm }}>
-        {q ? 'O elige el tipo' : 'Tipos de deuda'}
-      </Text>
+      {awaitingProduct ? null : (
+        <Text style={{ fontWeight: '700', color: colors.text, marginBottom: spacing.sm }}>
+          {q ? 'O elige el tipo' : 'Tipos de deuda'}
+        </Text>
+      )}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
         {typeMatches.map((t) => (
           <Pressable
