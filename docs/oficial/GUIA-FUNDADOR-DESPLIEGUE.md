@@ -176,6 +176,19 @@ programado (FIN-029). Solo hay que crearlo y conectarlo.
    freelance`, `Pagué 300.000 de la tarjeta`, `resumen`, `ayuda`. Cada registro aparece en la
    app al instante; con Telegram vinculado también llegan los recordatorios y el código de
    "Olvidé mi contraseña".
+7. **Extractos por foto (FIN-042):** envíale al bot la foto o el PDF del extracto de una
+   tarjeta o crédito (o un comprobante). La primera vez pide que respondas `autorizo`
+   (consentimiento para enviar el documento a la IA); luego reenvías el documento y te
+   propone la deuda con saldo, cupo, cuota, tasa y día de pago. Respondes `sí`, `no` o una
+   corrección (`cuota 180.000`, `tasa 28.5`, `dia 15`). Requiere la IA encendida (Parte G).
+
+## Parte G — Encender la IA (Copiloto y lectura de extractos)
+
+1. <https://console.anthropic.com> → cuenta **Individual** → **Billing** (5–10 USD) → **API
+   Keys → Create Key** (`millo-backend`, caducidad la más larga posible). Copia `sk-ant-…`.
+2. Render → Environment: `ANTHROPIC_API_KEY` = la llave; `COPILOT_PRODUCTION_ENABLED` = `true`.
+3. En la app: Más → Copiloto → **Activar inteligencia artificial** → aceptar. La suscripción
+   Claude Max NO sirve para esto: la API se paga aparte por uso (≈ medio centavo por mensaje).
 
 ## Si algo sale mal
 

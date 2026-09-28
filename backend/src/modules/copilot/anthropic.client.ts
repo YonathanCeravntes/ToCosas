@@ -173,6 +173,45 @@ export class AnthropicClient {
     throw new Error('tool_loop_exceeded');
   }
 
+  /**
+   * FIN-042 · Extracción ESTRUCTURADA de un documento (imagen o PDF en base64) con
+   * salida forzada por tool-use: el modelo solo puede responder llamando a la tool
+   * `toolName` con un objeto que cumple `schema`. Sin historial, sin contexto del
+   * usuario, sin herramientas de dominio: entra el documento y sale un JSON.
+   */
+  async extractStructured(input: {
+    document: { mediaType: string; base64: string };
+    instructions: string;
+    toolName: string;
+    schema: Record<string, unknown>;
+    maxTokens?: number;
+  }): Promise<{ data: Record<string, unknown>; inputTokens: number; outputTokens: number; model: string }> {
+    if (this.circuitOpen()) throw new Error('circuit_open');
+    const model = this.config.get<string>('LLM_MODEL', LLM_MODEL_DEFAULT);
+    const isPdf = input.document.mediaType === 'application/pdf';
+    const docBlock = isPdf
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: input.document.base64 } }
+      : { type: 'image', source: { type: 'base64', media_type: input.document.mediaType, data: input.document.base64 } };
+
+    const res = await this.request({
+      model,
+      max_tokens: input.maxTokens ?? 1200,
+      tools: [{ name: input.toolName, description: 'Devuelve los datos extraídos del documento.', input_schema: input.schema }],
+      tool_choice: { type: 'tool', name: input.toolName },
+      messages: [{ role: 'user', content: [docBlock, { type: 'text', text: input.instructions }] }],
+    });
+    const blocks = (res.content ?? []) as Array<{ type: string; name?: string; input?: unknown }>;
+    const call = blocks.find((b) => b.type === 'tool_use' && b.name === input.toolName);
+    if (!call) throw new Error('no_tool_use');
+    this.consecutiveFailures = 0;
+    return {
+      data: (call.input ?? {}) as Record<string, unknown>,
+      inputTokens: res.usage?.input_tokens ?? 0,
+      outputTokens: res.usage?.output_tokens ?? 0,
+      model,
+    };
+  }
+
   /** POST con timeout + 1 reintento (red/5xx) + registro del circuit breaker. */
   private async request(body: unknown): Promise<{
     stop_reason: string;

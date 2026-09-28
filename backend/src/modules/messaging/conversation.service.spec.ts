@@ -30,6 +30,8 @@ describe('ConversationService (FIN-029, DEC-0029 §5)', () => {
       financialEntity: { findFirst: jest.fn().mockResolvedValue(null) },
       debt: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn().mockResolvedValue(null) },
       transaction: { findFirst: jest.fn().mockResolvedValue(null) },
+      userSettings: { findUnique: jest.fn().mockResolvedValue(null), upsert: jest.fn() },
+      botPendingAction: { findUnique: jest.fn().mockResolvedValue(null), upsert: jest.fn(), deleteMany: jest.fn() },
       ...over.prisma,
     } as never;
     const transactions = {
@@ -39,7 +41,12 @@ describe('ConversationService (FIN-029, DEC-0029 §5)', () => {
     } as never;
     const debtOutlay = { outlaysByUser: jest.fn().mockResolvedValue({ totalOutlay: 0 }) } as never;
     const simulations = { run: over.simRun ?? jest.fn() } as never;
-    return new ConversationService(prisma, transactions, debtOutlay, simulations);
+    // FIN-042: sin consentimiento de documentos ni IA por defecto (los casos de
+    // documentos viven en document-flow.spec.ts).
+    const consent = { hasValidConsent: jest.fn().mockResolvedValue(false) } as never;
+    const docs = { isAvailable: jest.fn().mockReturnValue(false), extract: jest.fn() } as never;
+    const moduleRef = { get: jest.fn() } as never;
+    return new ConversationService(prisma, transactions, debtOutlay, simulations, consent, docs, moduleRef);
   };
 
   it('§5.1 — al registrar un gasto, el acuse dice QUÉ y DÓNDE', async () => {

@@ -312,6 +312,7 @@ model User {
   subscriptions   Subscription[]
   settings        UserSettings?
   passwordResets  PasswordResetToken[]
+  botPending      BotPendingAction[]
   incomeProfile   IncomeProfile?
   incomeSources   IncomeSource[]
 
@@ -831,6 +832,9 @@ model UserSettings {
   // Presupuesto y Dashboard; Score/Motor/Gamificación siguen en mes calendario.
   cycleStartDay      Int       @default(1) @map("cycle_start_day")
   dataConsentAt      DateTime? @map("data_consent_at")
+  // FIN-042: consentimiento específico para enviar FOTOS/PDF (extractos, comprobantes)
+  // a la IA — contienen datos personales que el consentimiento de chat excluye.
+  docsAiConsentAt    DateTime? @map("docs_ai_consent_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1239,3 +1243,25 @@ model PasswordResetToken {
   @@index([userId, expiresAt])
   @@map("password_reset_tokens")
 }
+
+// ---------- FIN-042 · Propuestas pendientes del bot (foto/PDF → confirmación) ----------
+
+// Una sola propuesta viva por usuario y canal: lo que el bot leyó de un extracto o
+// comprobante y espera "sí" / "no" / corrección. Nunca se registra nada sin confirmar
+// (DEC-0029). Vence sola (expires_at); el payload es la propuesta ya estructurada.
+model BotPendingAction {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  source    String
+  kind      String
+  payload   Json
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, source])
+  @@map("bot_pending_actions")
+}
+

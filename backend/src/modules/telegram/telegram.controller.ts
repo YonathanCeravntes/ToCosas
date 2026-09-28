@@ -90,8 +90,9 @@ export class TelegramController {
   private async handleMessage(msg: {
     chatId: string;
     username?: string;
-    type: 'text' | 'other';
+    type: 'text' | 'image' | 'document' | 'other';
     text?: string;
+    file?: { fileId: string; mimeType: string };
   }): Promise<string> {
     const userId = await this.links.resolveUserId(msg.chatId);
     const text = (msg.text ?? '').trim();
@@ -107,10 +108,18 @@ export class TelegramController {
       }
     }
 
+    // FIN-042: el adjunto se descarga solo si el motor lo pide (con consentimiento).
+    const file = msg.file
+      ? async () => {
+          const f = await this.provider.downloadFile(msg.file!.fileId);
+          return { data: f.data, mimeType: f.mimeType ?? msg.file!.mimeType };
+        }
+      : undefined;
     return this.conversation.handle({
       userId,
       text,
-      type: msg.type === 'text' ? 'text' : 'other',
+      type: msg.type,
+      file,
       channelLabel: 'Telegram',
       source: 'telegram',
       // La vinculación ya se maneja arriba; aquí no se re-verifica.

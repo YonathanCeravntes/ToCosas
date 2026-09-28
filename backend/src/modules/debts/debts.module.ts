@@ -22,6 +22,7 @@ import { DepthReadingService } from './depth-reading.service';
   imports: [FinanceModule, AuthModule, RemindersModule, SimulationsModule, DebtOutlayModule, InsightsModule],
   controllers: [DebtsController],
   providers: [DebtsService, DebtInsuranceService, DebtPrepaymentService, CardService, UpdateReviewService, DepthReadingService],
-  exports: [DebtsService],
+  // CardService exportado para FIN-042 (saldo inicial de una tarjeta leída de un extracto).
+  exports: [DebtsService, CardService],
 })
 export class DebtsModule {}

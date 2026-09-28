@@ -1,5 +1,19 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ConsentService } from '../copilot/consent.service';
+import { DebtsService } from '../debts/debts.service';
+import { CardService } from '../debts/card.service';
+import { DebtTypeDto, RateBasisDto, RateKindDto } from '../debts/dto/debt.dto';
+import { DocumentExtractionService, SUPPORTED_MEDIA } from './document-extraction.service';
+import {
+  DocumentProposal,
+  PROPOSAL_TTL_MINUTES,
+  applyFix,
+  describeProposal,
+  parseReply,
+  toProposal,
+} from './document-proposal';
 import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { SimulationsService } from '../simulations/simulations.service';
 import { TransactionsService } from '../transactions/transactions.service';
@@ -18,7 +32,9 @@ export interface ConversationInput {
   /** userId ya resuelto por el servicio de vinculación del canal, o null. */
   userId: string | null;
   text: string;
-  type: 'text' | 'image' | 'other';
+  type: 'text' | 'image' | 'document' | 'other';
+  /** FIN-042: descarga perezosa del adjunto (foto/PDF). Solo se invoca con consentimiento. */
+  file?: () => Promise<{ data: Buffer; mimeType: string }>;
   /** Etiqueta visible del canal, p. ej. "WhatsApp" o "Telegram". */
   channelLabel: string;
   source: ChannelSource;
@@ -54,7 +70,15 @@ export class ConversationService {
     // FIN-029 (§5.3): el bot invoca el simulador del dominio (FIN-007), no
     // reimplementa nada — mismo motor, con la cuota de IA de FIN-009.
     private readonly simulations: SimulationsService,
+    // FIN-042: lectura de documentos con IA (consentimiento específico + extracción).
+    private readonly consent: ConsentService,
+    private readonly docs: DocumentExtractionService,
+    // DebtsModule no puede importarse aquí (ciclo Debts→Reminders→Telegram→Messaging):
+    // el alta de deudas se resuelve en runtime contra el contenedor.
+    private readonly moduleRef: ModuleRef,
   ) {}
+
+  private readonly logger = new Logger(ConversationService.name);
 
   async handle(input: ConversationInput): Promise<string> {
     const text = (input.text ?? '').trim();
@@ -71,10 +95,29 @@ export class ConversationService {
       return `👋 ¡Hola! Soy Millo. Para registrar tus movimientos aquí, vincula esta cuenta: abre la app → Ajustes → ${input.channelLabel} y escríbeme el código de 6 dígitos que verás.`;
     }
 
-    // 2) Vinculado → interpretar.
-    if (input.type === 'image') {
-      return '📸 Recibí tu comprobante. La lectura automática (OCR) estará disponible pronto; por ahora regístralo con un mensaje, ej: "Gasté $45.000 en mercado".';
+    // 2) Vinculado → documentos (FIN-042) y propuestas pendientes primero.
+    if (input.type === 'image' || input.type === 'document') {
+      return this.handleDocument(input);
     }
+    if (/^revocar\s+documentos\b/i.test(text)) {
+      await this.prisma.userSettings.upsert({
+        where: { userId: input.userId },
+        create: { userId: input.userId, docsAiConsentAt: null },
+        update: { docsAiConsentAt: null },
+      });
+      await this.clearPending(input.userId, input.source);
+      return '✅ Listo, retiré el permiso: no volveré a enviar tus documentos a la IA hasta que escribas "autorizo".';
+    }
+    if (/^autorizo\b/i.test(text)) {
+      await this.prisma.userSettings.upsert({
+        where: { userId: input.userId },
+        create: { userId: input.userId, docsAiConsentAt: new Date() },
+        update: { docsAiConsentAt: new Date() },
+      });
+      return '✅ Listo. Ahora envíame la foto o el PDF del extracto o comprobante y te propongo qué registrar.';
+    }
+    const pendingReply = await this.handlePendingReply(input, text);
+    if (pendingReply) return pendingReply;
 
     const parsed = ruleParse(text, { today: new Date() });
 
@@ -112,7 +155,185 @@ export class ConversationService {
       '• "mis deudas" — saldos pendientes',
       '• "¿qué pasa si abono $200.000 a mi deuda?" — simula un escenario',
       '• "deshacer" — anula el último movimiento',
+      '',
+      '📎 Y puedes enviarme la FOTO o el PDF de un extracto de tarjeta o crédito, o de un comprobante: te propongo la deuda o el gasto y tú confirmas.',
     ].join('\n');
+  }
+
+  // ---------------------------------------------------------------------------
+  // FIN-042 · Documentos: foto/PDF → IA → propuesta → confirmación → dominio
+  // ---------------------------------------------------------------------------
+
+  private static readonly DOCS_CONSENT_TEXT =
+    '📎 Para leer tu documento lo envío a la inteligencia artificial de Millo (proveedor Anthropic, EE. UU.). ' +
+    'Un extracto contiene datos personales; Millo NO los guarda: solo toma saldo, cupo, cuota, tasa y fechas, y descarta el archivo. ' +
+    'Si estás de acuerdo, responde *autorizo* y vuelve a enviarme el documento. Para retirar el permiso escribe "revocar documentos".';
+
+  private async handleDocument(input: ConversationInput): Promise<string> {
+    const userId = input.userId as string;
+    if (!this.docs.isAvailable()) {
+      return '📎 Recibí tu documento, pero la lectura con IA no está disponible en este momento. Regístralo con un mensaje, ej: "Gasté $45.000 en mercado".';
+    }
+    const settings = await this.prisma.userSettings.findUnique({ where: { userId } });
+    if (!settings?.docsAiConsentAt) return ConversationService.DOCS_CONSENT_TEXT;
+    if (!input.file) return '📎 No pude recibir el archivo. Envíalo de nuevo como foto o PDF.';
+
+    let file: { data: Buffer; mimeType: string };
+    try {
+      file = await input.file();
+    } catch (e) {
+      const code = (e as Error).message;
+      if (code === 'file_too_large') return '📎 El archivo pesa más de 8 MB. Envía una foto más liviana o el PDF del extracto.';
+      this.logger.warn(`Descarga de adjunto falló: ${code}`);
+      return '📎 No pude descargar el archivo. Inténtalo de nuevo en un momento.';
+    }
+    if (!SUPPORTED_MEDIA.has(file.mimeType)) {
+      return '📎 Solo puedo leer fotos (JPG, PNG) o PDF. Envíame el extracto en uno de esos formatos.';
+    }
+
+    let extraction;
+    try {
+      extraction = await this.docs.extract(userId, file);
+    } catch (e) {
+      this.logger.warn(`Extracción falló: ${(e as Error).message}`);
+      return '📎 No logré leer el documento ahora mismo. Inténtalo de nuevo en unos minutos o regístralo con un mensaje.';
+    }
+
+    const proposal = toProposal(extraction);
+    if (!proposal || extraction.kind === 'desconocido' || (extraction.confidence ?? 0) < 0.35) {
+      const why = extraction.notes ? ` (${extraction.notes})` : '';
+      return `🤔 No reconocí un extracto ni un comprobante con datos suficientes${why}. Prueba con una foto más nítida, o dime los datos: "Gasté $45.000 en mercado".`;
+    }
+    await this.savePending(userId, input.source, proposal);
+    return describeProposal(proposal);
+  }
+
+  /** Respuesta a una propuesta viva: sí / no / corrección. Null si no hay propuesta o el texto no le habla. */
+  private async handlePendingReply(input: ConversationInput, text: string): Promise<string | null> {
+    const userId = input.userId as string;
+    const pending = await this.prisma.botPendingAction.findUnique({ where: { userId_source: { userId, source: input.source } } });
+    if (!pending) return null;
+    if (pending.expiresAt < new Date()) {
+      await this.clearPending(userId, input.source);
+      return null;
+    }
+    const proposal = pending.payload as unknown as DocumentProposal;
+    const reply = parseReply(text);
+    if (reply.type === 'no') {
+      await this.clearPending(userId, input.source);
+      return '👍 Listo, no registré nada. Si quieres, envíame otro documento o dime el movimiento en texto.';
+    }
+    if (reply.type === 'fix') {
+      const res = applyFix(proposal, reply.field, reply.value);
+      if ('error' in res) return res.error;
+      await this.savePending(userId, input.source, res.proposal);
+      return describeProposal(res.proposal);
+    }
+    if (reply.type === 'yes') {
+      try {
+        const ack = await this.applyProposal(userId, input.source, proposal);
+        await this.clearPending(userId, input.source);
+        return ack;
+      } catch (e) {
+        this.logger.error(`applyProposal falló: ${(e as Error).message}`);
+        return `❌ No pude registrarlo: ${(e as Error).message}. Corrige el dato y responde *sí* de nuevo, o responde *no*.`;
+      }
+    }
+    return null; // el texto no responde a la propuesta: sigue el flujo normal (resumen, gasto, etc.)
+  }
+
+  /** Ejecuta la propuesta SOLO por los servicios del dominio (nunca lógica financiera aquí). */
+  private async applyProposal(userId: string, source: ChannelSource, p: DocumentProposal): Promise<string> {
+    const today = new Date().toISOString().slice(0, 10);
+    if (p.kind === 'comprobante') {
+      await this.transactions.create(
+        userId,
+        {
+          kind: 'gasto' as unknown as TxKindDto,
+          amount: p.amount,
+          occurredAt: `${p.occurredAt}T12:00:00Z`,
+          note: p.merchant ? `Compra en ${p.merchant}` : 'Compra (comprobante)',
+        },
+        { source, rawMessage: 'comprobante', parseConfidence: 0.8 },
+      );
+      return `✅ Registré tu gasto de ${fmt(p.amount)}${p.merchant ? ` en ${p.merchant}` : ''} (${p.occurredAt}).${SEEN_IN_APP}`;
+    }
+
+    const debts = this.moduleRef.get(DebtsService, { strict: false });
+    const entity = p.entityName
+      ? await this.prisma.financialEntity.findFirst({
+          where: { name: { contains: p.entityName, mode: 'insensitive' }, OR: [{ userId }, { isGlobal: true }] },
+        })
+      : null;
+    const rate = p.annualEffectiveRate ?? 0;
+
+    if (p.kind === 'extracto_tarjeta') {
+      const cards = this.moduleRef.get(CardService, { strict: false });
+      const { debt } = await debts.create(userId, {
+        name: p.name,
+        entityId: entity?.id,
+        debtType: DebtTypeDto.tarjeta_credito,
+        originalAmount: 0,
+        currentBalance: 0,
+        startDate: today,
+        interestRate: rate,
+        rateBasis: RateBasisDto.EA,
+        rateKind: RateKindDto.fija,
+        creditLimit: p.creditLimit ?? undefined,
+        paymentDay: p.paymentDay ?? undefined,
+      });
+      if (p.balance > 0) {
+        await cards.registerPurchase(userId, {
+          debtId: debt.id,
+          amount: p.balance,
+          installments: p.installments,
+          withInterest: false,
+          note: 'Saldo del extracto',
+        });
+      }
+      return (
+        `✅ Creé la tarjeta *${p.name}* con saldo ${fmt(p.balance)}` +
+        (p.creditLimit != null ? ` y cupo ${fmt(p.creditLimit)}` : '') +
+        `. Repartí el saldo en ${p.installments} cuota${p.installments === 1 ? '' : 's'} de ≈ ${fmt(p.balance / p.installments)}. ` +
+        `Puedes ajustar cuotas, tasa y día de pago en Deudas → ${p.name}.`
+      );
+    }
+
+    const term = p.remainingInstallments ?? (p.monthlyPayment ? Math.min(360, Math.max(1, Math.ceil(p.balance / p.monthlyPayment))) : 12);
+    const { debt } = await debts.create(userId, {
+      name: p.name,
+      entityId: entity?.id,
+      debtType: DebtTypeDto.credito_personal,
+      originalAmount: p.balance,
+      currentBalance: p.balance,
+      startDate: today,
+      termMonths: term,
+      interestRate: rate,
+      rateBasis: RateBasisDto.EA,
+      rateKind: RateKindDto.fija,
+      monthlyPayment: p.monthlyPayment ?? undefined,
+      paymentDay: p.paymentDay ?? undefined,
+    });
+    return (
+      `✅ Creé la deuda *${p.name}* con saldo ${fmt(p.balance)}, ${term} cuota${term === 1 ? '' : 's'}` +
+      (p.monthlyPayment ? ` de ≈ ${fmt(p.monthlyPayment)}` : '') +
+      (rate ? ` y tasa ${rate.toFixed(1)}% E.A.` : '') +
+      `. Revisa el plan en Deudas → ${debt.name}.`
+    );
+  }
+
+  private async savePending(userId: string, source: ChannelSource, proposal: DocumentProposal): Promise<void> {
+    const expiresAt = new Date(Date.now() + PROPOSAL_TTL_MINUTES * 60_000);
+    const payload = proposal as unknown as object;
+    await this.prisma.botPendingAction.upsert({
+      where: { userId_source: { userId, source } },
+      create: { userId, source, kind: proposal.kind, payload, expiresAt },
+      update: { kind: proposal.kind, payload, expiresAt },
+    });
+  }
+
+  private async clearPending(userId: string, source: ChannelSource): Promise<void> {
+    await this.prisma.botPendingAction.deleteMany({ where: { userId, source } });
   }
 
   private async registerTransaction(

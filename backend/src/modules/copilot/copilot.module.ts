@@ -29,5 +29,7 @@ import { CopilotRetentionJob } from './copilot-retention.job';
     CopilotProductionGuard,
     CopilotRetentionJob,
   ],
+  // FIN-042: el bot (MessagingModule) reutiliza el consentimiento y el cliente de IA.
+  exports: [ConsentService, AnthropicClient],
 })
 export class CopilotModule {}

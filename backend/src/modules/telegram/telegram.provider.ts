@@ -6,9 +6,15 @@ export interface TelegramInbound {
   updateId: string; // idempotencia
   chatId: string;
   username?: string;
-  type: 'text' | 'other';
+  /** FIN-042: `image` (foto o imagen adjunta) y `document` (PDF) se envían a la IA con consentimiento. */
+  type: 'text' | 'image' | 'document' | 'other';
   text?: string;
+  /** Archivo adjunto (foto de mayor resolución o documento), si lo hay. */
+  file?: { fileId: string; mimeType: string; sizeBytes?: number };
 }
+
+/** Tamaño máximo que se descarga y envía a la IA (fotos de extracto pesan < 3 MB). */
+export const TELEGRAM_FILE_MAX_BYTES = 8 * 1024 * 1024;
 
 /**
  * Puerto de envío de Telegram (usado por recordatorios). Clase abstracta como
@@ -36,19 +42,50 @@ export class TelegramProvider extends TelegramSender {
         chat?: { id?: number | string };
         from?: { username?: string };
         text?: string;
+        caption?: string;
+        photo?: Array<{ file_id: string; file_size?: number; width?: number }>;
+        document?: { file_id: string; mime_type?: string; file_size?: number };
       };
     };
     const msg = body?.message;
     if (!msg || msg.chat?.id == null) return [];
-    return [
-      {
-        updateId: String(body.update_id ?? msg.message_id ?? `${msg.chat.id}:${Date.now()}`),
-        chatId: String(msg.chat.id),
-        username: msg.from?.username,
-        type: typeof msg.text === 'string' ? 'text' : 'other',
-        text: msg.text,
-      },
-    ];
+    const base = {
+      updateId: String(body.update_id ?? msg.message_id ?? `${msg.chat.id}:${Date.now()}`),
+      chatId: String(msg.chat.id),
+      username: msg.from?.username,
+    };
+    if (typeof msg.text === 'string') return [{ ...base, type: 'text', text: msg.text }];
+    // Foto: Telegram manda varias resoluciones; la última es la mayor.
+    if (msg.photo?.length) {
+      const best = msg.photo[msg.photo.length - 1];
+      return [{ ...base, type: 'image', text: msg.caption, file: { fileId: best.file_id, mimeType: 'image/jpeg', sizeBytes: best.file_size } }];
+    }
+    if (msg.document?.file_id) {
+      const mime = msg.document.mime_type ?? 'application/octet-stream';
+      const type = mime === 'application/pdf' ? 'document' : mime.startsWith('image/') ? 'image' : 'other';
+      return [{ ...base, type, text: msg.caption, file: { fileId: msg.document.file_id, mimeType: mime, sizeBytes: msg.document.file_size } }];
+    }
+    return [{ ...base, type: 'other' }];
+  }
+
+  /**
+   * FIN-042 · Descarga un adjunto (getFile → file_path → descarga). Devuelve el binario
+   * en memoria; NUNCA se guarda en disco ni en BD: se envía a la IA y se descarta.
+   */
+  async downloadFile(fileId: string): Promise<{ data: Buffer; mimeType?: string }> {
+    const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
+    if (!token) throw new Error('telegram_not_configured');
+    const meta = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(fileId)}`);
+    const json = (await meta.json()) as { ok: boolean; result?: { file_path?: string; file_size?: number } };
+    if (!json.ok || !json.result?.file_path) throw new Error('telegram_getfile_failed');
+    if ((json.result.file_size ?? 0) > TELEGRAM_FILE_MAX_BYTES) throw new Error('file_too_large');
+    const res = await fetch(`https://api.telegram.org/file/bot${token}/${json.result.file_path}`);
+    if (!res.ok) throw new Error('telegram_download_failed');
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.byteLength > TELEGRAM_FILE_MAX_BYTES) throw new Error('file_too_large');
+    const ext = json.result.file_path.split('.').pop()?.toLowerCase();
+    const mimeType = ext === 'pdf' ? 'application/pdf' : ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : undefined;
+    return { data: buf, mimeType };
   }
 
   async sendText(chatId: string, body: string): Promise<void> {
