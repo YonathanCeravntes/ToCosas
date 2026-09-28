@@ -85,6 +85,7 @@ describe('FIN-042 · document-proposal', () => {
     );
     if (p?.kind !== 'extracto_credito') throw new Error('kind');
     expect(p.dueDate).toBeNull();
+    expect(p.remainingInstallments).toBe(109); // plazo 120 − 11 pagadas, no el 11 leído
     expect(p.warnings.length).toBe(3);
     expect(describeProposal(p)).toContain('⚠️ Revisa');
     const step = applyFix(p, 'restantes', 109) as { proposal: typeof p };

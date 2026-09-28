@@ -98,6 +98,21 @@ describe('FIN-043 · Pagos de tarjeta aplicados a cuotas', () => {
     expect(s.data.availableCredit).toBe(3_000_000);
   });
 
+  it('cambiar el número de cuotas reparte el saldo pendiente (caso: saldo de extracto en 1 cuota)', async () => {
+    const p = await req('POST', `/v1/debts/cards/${cardId}/purchases`, { amount: 1_600_000, installments: 1, note: 'Saldo del extracto' });
+    const purchaseId = p.data.purchase.id;
+    const r = await req('POST', `/v1/debts/cards/purchases/${purchaseId}/resplit`, { installments: 16 });
+    expect(r.status).toBe(201);
+    const row = r.data.purchases.find((x: { id: string }) => x.id === purchaseId);
+    expect(row.installmentsCount).toBe(16);
+    expect(row.pendingBalance).toBe(1_600_000);
+    const list = await req('GET', '/v1/debts');
+    const card = list.data.find((d: { id: string }) => d.id === cardId);
+    expect(Number(card.monthlyPayment)).toBe(100_000);
+    const bad = await req('POST', `/v1/debts/cards/purchases/${purchaseId}/resplit`, { installments: 0 });
+    expect(bad.status).toBe(400);
+  });
+
   it('el abono a capital no aplica a tarjetas: mensaje honesto', async () => {
     const r = await req('POST', `/v1/debts/${cardId}/prepay`, { amount: 100_000, effect: 'reducir_plazo' });
     expect(r.status).toBe(400);

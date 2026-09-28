@@ -344,6 +344,31 @@ function CardSection({ debtId, tick, onChanged }: { debtId: string; tick: number
     }
   };
 
+  // FIN-043: tocar una compra ofrece repartir su saldo pendiente o anularla.
+  const [resplitId, setResplitId] = useState<string | null>(null);
+  const [resplitN, setResplitN] = useState('');
+  const onPurchase = (id: string, canVoid: boolean) => {
+    Alert.alert('¿Qué quieres hacer con esta compra?', 'Puedes repartir lo que falta por pagar en otro número de cuotas.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cambiar número de cuotas', onPress: () => { setResplitId(id); setResplitN(''); } },
+      { text: 'Anular', style: 'destructive', onPress: () => voidPurchase(id, canVoid) },
+    ]);
+  };
+  const doResplit = async () => {
+    const n = Math.round(parseAmount(resplitN));
+    if (!resplitId || !(n >= 1 && n <= 72)) {
+      Alert.alert('Número de cuotas', 'Escribe un número entre 1 y 72.');
+      return;
+    }
+    try {
+      await debtsApi.resplitPurchase(resplitId, n);
+      setResplitId(null);
+      refresh();
+    } catch (e) {
+      Alert.alert('No se pudo cambiar', (e as Error).message);
+    }
+  };
+
   const voidPurchase = (id: string, canVoid: boolean) => {
     if (!canVoid) {
       Alert.alert(
@@ -401,7 +426,8 @@ function CardSection({ debtId, tick, onChanged }: { debtId: string; tick: number
         <View style={{ marginTop: spacing.md }}>
           <Text style={{ fontWeight: '600', color: colors.text, marginBottom: 6 }}>Tus compras a cuotas</Text>
           {data.purchases.map((p, idx) => (
-            <Pressable key={p.id} onPress={() => voidPurchase(p.id, p.canVoid)} accessibilityRole="button" accessibilityLabel={`${p.note || 'Compra'} de ${formatMoney(p.amount)}, ${p.canVoid ? 'toca para anular' : 'con pagos aplicados'}`}>
+            <View key={p.id}>
+            <Pressable onPress={() => onPurchase(p.id, p.canVoid)} accessibilityRole="button" accessibilityLabel={`${p.note || 'Compra'} de ${formatMoney(p.amount)}, toca para cambiar cuotas o anular`}>
               <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: colors.text }} numberOfLines={1}>
@@ -417,6 +443,19 @@ function CardSection({ debtId, tick, onChanged }: { debtId: string; tick: number
                 <Text style={{ fontWeight: '700', color: colors.text }}>{formatMoney(p.pendingBalance)}</Text>
               </Row>
             </Pressable>
+            {resplitId === p.id ? (
+              <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, padding: spacing.sm, marginBottom: spacing.sm }}>
+                <Field label={`¿En cuántas cuotas repartes ${formatMoney(p.pendingBalance)}?`} value={resplitN} onChangeText={setResplitN} keyboardType="numeric" placeholder="16" />
+                {parseAmount(resplitN) >= 1 ? (
+                  <Text style={{ color: colors.textMuted, ...type.small, marginBottom: spacing.sm }}>
+                    ≈ {formatMoney(p.pendingBalance / Math.round(parseAmount(resplitN)))} por cuota
+                  </Text>
+                ) : null}
+                <Button title="Repartir" onPress={() => void doResplit()} />
+                <Button title="Cancelar" variant="ghost" onPress={() => setResplitId(null)} />
+              </View>
+            ) : null}
+            </View>
           ))}
         </View>
       ) : null}

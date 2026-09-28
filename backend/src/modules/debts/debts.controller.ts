@@ -18,7 +18,7 @@ import { CardService } from './card.service';
 import { UpdateReviewService } from './update-review.service';
 import { DebtRenegotiationService } from './debt-renegotiation.service';
 import { RenegotiateDebtDto } from './dto/renegotiate.dto';
-import { AnswerReviewDto, CreateCardPurchaseDto, CreateDebtDto, PrepayDto, SimulateExtraDto, UpdateDebtDto } from './dto/debt.dto';
+import { AnswerReviewDto, CreateCardPurchaseDto, ResplitPurchaseDto, CreateDebtDto, PrepayDto, SimulateExtraDto, UpdateDebtDto } from './dto/debt.dto';
 import {
   CreateDebtInsuranceDto,
   UpdateDebtInsuranceDto,
@@ -80,6 +80,11 @@ export class DebtsController {
     @Body() dto: CreateCardPurchaseDto,
   ) {
     return this.cards.registerPurchase(user.id, { debtId, ...dto });
+  }
+
+  @Post('cards/purchases/:purchaseId/resplit')
+  resplitPurchase(@CurrentUser() user: AuthUser, @Param('purchaseId') purchaseId: string, @Body() dto: ResplitPurchaseDto) {
+    return this.cards.resplitPurchase(user.id, purchaseId, dto.installments);
   }
 
   @Delete('cards/purchases/:purchaseId')

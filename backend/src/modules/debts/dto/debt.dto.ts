@@ -219,3 +219,13 @@ export class PrepayDto {
   @IsEnum(PrepayEffectDto)
   effect: 'reducir_plazo' | 'reducir_cuota' = 'reducir_plazo';
 }
+
+/** FIN-043 · Repartir el saldo pendiente de una compra en N cuotas. */
+export class ResplitPurchaseDto {
+  @ApiProperty({ example: 16 })
+  @IsInt()
+  @Min(1)
+  @Max(72)
+  installments!: number;
+}
+

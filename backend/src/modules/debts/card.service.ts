@@ -139,6 +139,69 @@ export class CardService {
     return { voided: true };
   }
 
+  /**
+   * FIN-043 · Cambiar el número de cuotas de una compra: el saldo PENDIENTE se reparte
+   * en `installments` cuotas nuevas (sin interés), desde el próximo vencimiento de la
+   * tarjeta. Las cuotas ya pagadas no se tocan. Caso típico: el saldo de un extracto
+   * que quedó en 1 cuota y se quiere repartir según el pago mínimo.
+   */
+  async resplitPurchase(userId: string, purchaseId: string, installments: number, now = new Date()) {
+    const n = Math.floor(installments);
+    if (!(n >= 1 && n <= 72)) throw new BadRequestException('El número de cuotas debe estar entre 1 y 72.');
+    const purchase = await this.prisma.cardPurchase.findFirst({
+      where: { id: purchaseId, deletedAt: null, debt: { userId, deletedAt: null } },
+      include: { installments: { where: { deletedAt: null } }, debt: { select: { id: true, paymentDay: true } } },
+    });
+    if (!purchase) throw new NotFoundException('Compra no encontrada');
+    const unpaid = purchase.installments.filter((i) => i.paidAt == null);
+    const pending = round2(unpaid.reduce((a, i) => a + Number(i.amount), 0));
+    if (pending <= 0) throw new BadRequestException('Esta compra ya está pagada.');
+    const paidCount = purchase.installments.length - unpaid.length;
+    const lastPaidDue = purchase.installments.filter((i) => i.paidAt != null).reduce<Date | null>((a, i) => (!a || i.dueDate > a ? i.dueDate : a), null);
+
+    // Primera cuota nueva: el próximo día de pago de la tarjeta (o el de la compra), a partir de hoy.
+    const day = purchase.debt.paymentDay ?? purchase.occurredAt.getUTCDate();
+    const from = lastPaidDue && lastPaidDue > now ? lastPaidDue : now;
+    const clamp = (y: number, m: number) => Math.min(day, new Date(Date.UTC(y, m + 1, 0)).getUTCDate());
+    let y = from.getUTCFullYear();
+    let m = from.getUTCMonth();
+    if (new Date(Date.UTC(y, m, clamp(y, m))) <= from) { m += 1; if (m > 11) { m = 0; y += 1; } }
+    const per = round2(pending / n);
+    const last = round2(pending - per * (n - 1));
+
+    await this.prisma.$transaction(async (tx) => {
+      const stamp = new Date();
+      await tx.cardInstallment.updateMany({ where: { id: { in: unpaid.map((i) => i.id) } }, data: { deletedAt: stamp } });
+      await tx.cardInstallment.createMany({
+        data: Array.from({ length: n }, (_, i) => {
+          const mm = m + i;
+          const yy = y + Math.floor(mm / 12);
+          const mo = mm % 12;
+          return {
+            cardPurchaseId: purchase.id,
+            periodNo: paidCount + i + 1,
+            dueDate: new Date(Date.UTC(yy, mo, clamp(yy, mo))),
+            amount: i === n - 1 ? last : per,
+          };
+        }),
+      });
+      await tx.cardPurchase.update({ where: { id: purchase.id }, data: { installmentsCount: paidCount + n } });
+      const next = await tx.cardInstallment.findFirst({
+        where: { purchase: { debtId: purchase.debtId, deletedAt: null }, deletedAt: null, paidAt: null },
+        orderBy: { dueDate: 'asc' },
+        select: { dueDate: true },
+      });
+      await tx.debt.update({ where: { id: purchase.debtId }, data: { nextDueDate: next?.dueDate ?? null } });
+      await this.outbox.enqueue(tx, {
+        aggregateType: 'debt',
+        aggregateId: purchase.debtId,
+        eventType: DomainEventType.DebtUpdated,
+        payload: { userId, reason: 'card_purchase_resplit', purchaseId: purchase.id },
+      });
+    });
+    return this.summary(userId, purchase.debtId);
+  }
+
   async summary(userId: string, debtId: string): Promise<CardSummary> {
     const card = await this.ensureCardOwned(userId, debtId);
     const purchases = await this.prisma.cardPurchase.findMany({

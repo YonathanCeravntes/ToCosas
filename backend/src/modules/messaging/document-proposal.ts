@@ -146,14 +146,18 @@ export function toProposal(x: DocumentExtraction, today = new Date()): DocumentP
     const balance = Math.round(x.balance);
     const payment = x.totalPayment ?? x.minimumPayment ?? null;
     // Cuotas restantes: lo leído; si falta, plazo − pagadas.
+    // Plazo − pagadas manda cuando el documento trae ambos y lo leído como "restantes" no
+    // cuadra (caso real: se leyó 11 = pagadas como restantes en un crédito a 120).
+    const derived = x.termMonths != null && x.paidInstallments != null ? Math.max(0, x.termMonths - x.paidInstallments) : null;
     const remaining =
-      x.remainingInstallments ??
-      (x.termMonths != null && x.paidInstallments != null ? Math.max(0, x.termMonths - x.paidInstallments) : null);
+      derived != null && (x.remainingInstallments == null || Math.abs(derived - x.remainingInstallments) > 1)
+        ? derived
+        : x.remainingInstallments ?? derived;
     const due = plausibleDue(x.dueDate, today);
     const warnings: string[] = [];
     if (payment != null && payment * 3 > balance) warnings.push('la cuota parece muy alta frente al saldo: revisa "saldo" y "cuota"');
-    if (x.termMonths != null && x.paidInstallments != null && x.remainingInstallments != null && Math.abs(x.termMonths - x.paidInstallments - x.remainingInstallments) > 1) {
-      warnings.push(`plazo ${x.termMonths} − pagadas ${x.paidInstallments} ≠ restantes ${x.remainingInstallments}: revisa "cuotas"`);
+    if (derived != null && x.remainingInstallments != null && Math.abs(derived - x.remainingInstallments) > 1) {
+      warnings.push(`leí ${x.remainingInstallments} cuotas restantes, pero plazo ${x.termMonths} − pagadas ${x.paidInstallments} = ${derived}; usé ${derived} (corrige con "restantes N" si no es así)`);
     }
     if (x.dueDate && !due) warnings.push('la fecha de pago leída no es de este año: corrígela con "vence AAAA-MM-DD"');
     return {

@@ -115,6 +115,8 @@ export const debtsApi = {
   cardSummary: (debtId: string) => api.get<CardSummary>(`/debts/cards/${debtId}`),
   registerPurchase: (debtId: string, input: { amount: number; installments: number; withInterest?: boolean; note?: string }) =>
     api.post<{ acknowledgment: string; summary: CardSummary }>(`/debts/cards/${debtId}/purchases`, input),
+  resplitPurchase: (purchaseId: string, installments: number) =>
+    api.post<CardSummary>(`/debts/cards/purchases/${purchaseId}/resplit`, { installments }),
   voidPurchase: (purchaseId: string) =>
     api.delete<{ voided: boolean }>(`/debts/cards/purchases/${purchaseId}`),
 };
