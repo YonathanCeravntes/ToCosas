@@ -53,4 +53,5 @@ Cargar una tarjeta o un crédito a mano exige leer el extracto y copiar 6 u 8 ci
 
 ## 7. Decisiones del Fundador
 - **7.1 ✅ (2026-09-28):** construir FIN-042 (`DEC-0041` §4).
-- **7.2 (pendiente):** validar con un extracto real y decidir si el reparto del saldo en N cuotas es la representación correcta para su caso.
+- **7.2 (en curso, 2026-09-28):** primera prueba real con un extracto de Banco Serfinanza: la lectura funcionó (entidad, producto, saldo, cupo) pero destapó BT-017 ("pago total" = saldo → 1 cuota) y BT-016 (Inicio no sumaba tarjetas). Ambos corregidos el mismo día. Pendiente repetir la prueba.
+- **7.3 (pendiente):** validar con un extracto real y decidir si el reparto del saldo en N cuotas es la representación correcta para su caso.

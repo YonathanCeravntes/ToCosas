@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AmortizationService } from '../finance/amortization/amortization.service';
@@ -95,9 +96,18 @@ export class DebtsService {
   }
 
   async findAll(userId: string) {
-    const debts = await this.prisma.debt.findMany({
+    const rows = await this.prisma.debt.findMany({
       where: { userId, deletedAt: null },
       orderBy: { nextDueDate: 'asc' },
+      // BT-016: tarjetas → saldo = cuotas pendientes de sus compras (FIN-031).
+      include: { cardPurchases: { where: { deletedAt: null }, include: { installments: { where: { deletedAt: null, paidAt: null } } } } },
+    });
+    // La lista expone `currentBalance` ya derivado para tarjetas: la app lo pinta tal cual
+    // (sin OTA) y ningún consumidor ve un "$0" falso. En BD sigue siendo 0 por diseño.
+    const debts = rows.map(({ cardPurchases, ...d }) => {
+      if (scheduleModelFor(d.debtType) !== 'cuotas_por_compra') return d;
+      const used = cardPurchases.reduce((a, p) => a + p.installments.reduce((b, i) => b + Number(i.amount), 0), 0);
+      return { ...d, currentBalance: new Prisma.Decimal(used) };
     });
     if (debts.length === 0) return debts;
 
@@ -233,8 +243,15 @@ export class DebtsService {
   async summaryForUser(userId: string) {
     const debts = await this.prisma.debt.findMany({
       where: { userId, deletedAt: null, status: 'activa' },
+      // BT-016: una tarjeta tiene currentBalance 0 (FIN-031: el saldo se DERIVA de las
+      // compras). "Deuda total" debe sumar lo pendiente de sus cuotas, no el 0.
+      include: { cardPurchases: { where: { deletedAt: null }, include: { installments: { where: { deletedAt: null, paidAt: null } } } } },
     });
-    const totalDebt = debts.reduce((acc, d) => acc + Number(d.currentBalance), 0);
+    const balanceOf = (d: (typeof debts)[number]) =>
+      scheduleModelFor(d.debtType) === 'cuotas_por_compra'
+        ? d.cardPurchases.reduce((a, p) => a + p.installments.reduce((b, i) => b + Number(i.amount), 0), 0)
+        : Number(d.currentBalance);
+    const totalDebt = debts.reduce((acc, d) => acc + balanceOf(d), 0);
     const monthlyTotal = debts.reduce(
       (acc, d) => acc + Number(d.monthlyPayment ?? 0),
       0,

@@ -23,14 +23,24 @@ describe('FIN-042 · document-proposal', () => {
     expect(p?.kind).toBe('extracto_tarjeta');
     if (p?.kind !== 'extracto_tarjeta') throw new Error('kind');
     expect(p.name).toBe('Davivienda · Tarjeta Visa');
-    expect(p.monthlyPayment).toBe(235_000);
-    expect(p.installments).toBe(10); // 2.350.000 / 235.000
+    expect(p.monthlyPayment).toBe(120_000); // BT-017: manda el pago mínimo, no el total
+    expect(p.installments).toBe(20); // 2.350.000 / 120.000
     expect(p.paymentDay).toBe(15);
     expect(p.annualEffectiveRate).toBeCloseTo(monthlyToEA(2.1), 6);
     const text = describeProposal(p);
     expect(text).toContain('$2.350.000');
-    expect(text).toContain('10 cuotas');
+    expect(text).toContain('20 cuotas');
     expect(text).toContain('¿Creo esta deuda');
+  });
+
+  it('BT-017: "pago total" igual al saldo no es cuota mensual → sin pago conocido (12 cuotas)', () => {
+    const p = toProposal({ kind: 'extracto_tarjeta', balance: 3_983_020, totalPayment: 3_983_020, confidence: 0.9 });
+    if (p?.kind !== 'extracto_tarjeta') throw new Error('kind');
+    expect(p.installments).toBe(12);
+    const q = toProposal({ kind: 'extracto_tarjeta', balance: 3_983_020, minimumPayment: 250_000, totalPayment: 3_983_020, confidence: 0.9 });
+    if (q?.kind !== 'extracto_tarjeta') throw new Error('kind');
+    expect(q.monthlyPayment).toBe(250_000);
+    expect(q.installments).toBe(16);
   });
 
   it('sin pago conocido reparte en 12; cuotas acotadas a [1, 36]', () => {

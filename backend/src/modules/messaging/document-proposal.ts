@@ -82,6 +82,17 @@ function dayOf(iso?: string | null): number | null {
 }
 
 /**
+ * BT-017: en los extractos colombianos "pago total" suele ser TODO el saldo (pagar para no
+ * causar intereses), no un compromiso mensual. Lo mensual es el pago mínimo; el total solo
+ * se usa si claramente es parcial (< 90 % del saldo). Sin ninguno → null (12 cuotas).
+ */
+export function cardMonthlyPayment(balance: number, minimum?: number | null, total?: number | null): number | null {
+  if (minimum && minimum > 0 && minimum < balance) return Math.round(minimum);
+  if (total && total > 0 && total < balance * 0.9) return Math.round(total);
+  return null;
+}
+
+/**
  * Saldo de tarjeta → N cuotas para que el compromiso mensual (§32) coincida con lo que el
  * extracto pide pagar. Acotado a [1, 36]; sin pago conocido, 12 (se dice en el acuse).
  */
@@ -95,8 +106,8 @@ export function toProposal(x: DocumentExtraction, today = new Date()): DocumentP
   const ea = x.annualEffectiveRate ?? (x.monthlyRate ? monthlyToEA(x.monthlyRate) : null);
   const entity = x.entityName?.trim() || null;
   if (x.kind === 'extracto_tarjeta' && x.balance != null && x.balance >= 0) {
-    const payment = x.totalPayment ?? x.minimumPayment ?? null;
     const balance = Math.round(x.balance);
+    const payment = cardMonthlyPayment(balance, x.minimumPayment, x.totalPayment);
     const name = [entity, x.productLabel?.trim() || 'Tarjeta de crédito'].filter(Boolean).join(' · ');
     return {
       kind: 'extracto_tarjeta',
@@ -153,7 +164,7 @@ export function describeProposal(p: DocumentProposal): string {
   lines.push(`• Saldo: ${fmt(p.balance)}`);
   if (p.kind === 'extracto_tarjeta') {
     if (p.creditLimit != null) lines.push(`• Cupo: ${fmt(p.creditLimit)}${p.availableCredit != null ? ` (disponible ${fmt(p.availableCredit)})` : ''}`);
-    lines.push(`• Pago mensual: ${fmt(p.monthlyPayment)} → repartiré el saldo en ${p.installments} cuota${p.installments === 1 ? '' : 's'} para que tu compromiso del mes coincida`);
+    lines.push(`• Pago mensual (mínimo): ${fmt(p.monthlyPayment)} → repartiré el saldo en ${p.installments} cuota${p.installments === 1 ? '' : 's'} para que tu compromiso del mes coincida`);
   } else {
     if (p.monthlyPayment != null) lines.push(`• Cuota: ${fmt(p.monthlyPayment)}`);
     if (p.remainingInstallments != null) lines.push(`• Cuotas restantes: ${p.remainingInstallments}`);

@@ -114,7 +114,7 @@ describe('ConversationService · documentos (FIN-042)', () => {
     const { svc } = build();
     await svc.handle(input({ type: 'image', file }));
     const reply = await svc.handle(input({ text: 'cuota 470.000' }));
-    expect(reply).toContain('Pago mensual: $470.000');
+    expect(reply).toContain('Pago mensual (mínimo): $470.000');
     expect(reply).toContain('5 cuotas');
   });
 

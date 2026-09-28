@@ -146,6 +146,7 @@ documento maestro.
 | Cifrado a nivel de campo | Técnico | DEC-0009 §4.9 | **No pendiente** — riesgo aceptado formalmente, no bloqueante | ✅ Decidido (no implementar) |
 
 ## Historial
+- 2026-09-28 — **Primera prueba real de FIN-042 (Fundador, extracto Serfinanza):** BT-016 (Inicio "Deuda total $0" con tarjeta usada: el resumen y la lista ahora derivan el saldo de tarjetas de sus cuotas pendientes) y BT-017 ("pago total" del extracto tomado como cuota → 1 cuota; ahora manda el pago mínimo) corregidos. unit 399/399, e2e 81/81.
 - 2026-09-28 — **`FIN-042` implementada** (bot lee extractos/comprobantes por foto o PDF con Claude y propone; confirmación obligatoria; consentimiento específico). Verificación: tsc 0 · unit **398/398 (52)** · e2e **81/81 (18)**. Pendiente: validación del Fundador con un extracto real. Mismo día: Telegram activado (`@Millo_finanzas_bot`), IA del Copiloto encendida en Beta cerrada (`DEC-0041`), `FIN-041` web publicada en GitHub Pages.
 - 2026-09-28 — **`FIN-041` Millo web (PWA) implementada** (plantilla + manifest + íconos, `DatePicker` web, push/offline fuera por diseño, `app.config.js` con `baseUrl` solo para web, workflow de GitHub Pages). También hoy: BT-014 (caché local al cerrar sesión) y BT-015 (Nueva deuda con banco elegido) corregidos y publicados por OTA.
 - 2026-09-27 — **`DEC-0040` §7 (2ª pasada) — cero emojis en la interfaz:** 110 sitios → íconos vectoriales (`Ico`, `SectionHeader icon`, `Button icon`); quedan solo en mensajes (voz). `InsightsScreen` eliminada (sin uso). tsc 0. Pendiente OTA.
