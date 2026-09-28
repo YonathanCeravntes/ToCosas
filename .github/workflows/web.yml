@@ -41,6 +41,8 @@ jobs:
           EXPO_PUBLIC_API_URL: https://milla-backend.onrender.com/v1
           # La app vive bajo /ToCosas/ en GitHub Pages (ver app.config.js).
           EXPO_WEB_BASE_URL: /ToCosas
+          # Ajustes muestra este código en la web: así se sabe qué versión tiene el teléfono.
+          EXPO_PUBLIC_BUILD_ID: ${{ github.sha }}
       - name: SPA fallback
         run: cp dist/index.html dist/404.html
       - uses: actions/upload-pages-artifact@v3

@@ -110,7 +110,7 @@ export function SettingsScreen() {
   };
 
   const version = Constants.expoConfig?.version ?? '0.1.0';
-  const updateId = Updates.updateId ? Updates.updateId.slice(0, 8) : Platform.OS === 'web' ? 'web' : 'apk';
+  const updateId = Updates.updateId ? Updates.updateId.slice(0, 8) : Platform.OS === 'web' ? `web ${(process.env.EXPO_PUBLIC_BUILD_ID ?? 'local').slice(0, 7)}` : 'apk';
 
   return (
     <FormScroll onRefresh={load}>
