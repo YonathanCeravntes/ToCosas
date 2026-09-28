@@ -10,6 +10,8 @@
 **Fundador (decide) ⇄ Arquitecto (ejecuta, verifica, documenta).** No hay CTO, Auditor ni CPSAO. Una FIN = un documento `docs/arquitectura/FIN-XXXX-*.md` (ARQ + Implementado + Decisiones del Fundador). Freno obligatorio: reglas de negocio, §32, UX visible, alcance, legal/gates o gobernanza → preguntar antes. Bugs → corregir y documentar.
 
 ## Trabajo activo
+**Telegram activo (2026-09-28):** bot `@Millo_finanzas_bot` conectado por webhook, cuenta del Fundador vinculada, registro por chat funcionando. **`DEC-0041`:** el Fundador enciende la IA del Copiloto en la Beta cerrada (pendiente: `ANTHROPIC_API_KEY` + `COPILOT_PRODUCTION_ENABLED=true` en Render); siguiente diseño autorizado: FIN-042 lectura de extractos por foto/PDF vía bot.
+
 **FIN-041 · Millo web (PWA)** implementada (2026-09-28): misma app por enlace, instalable en iPhone/Android desde el navegador; despliegue automático a GitHub Pages (`.github/workflows/web.yml`). **Publicada:** <https://yonathanceravntes.github.io/ToCosas/> (Pages activo, cada push a la rama la republica). **Pendiente:** validación del Fundador en iPhone. Sin push ni registro offline en web (por diseño).
 
 **Entrega 2026-09-27 VALIDADA por el Fundador en la APK Beta (Parte E completa, OTA `74f6a9af`):** `SPRINT-PULIDO-001` + `MANT-001` + `FIN-038` (Fachada Millo v1) + `FIN-039` (Cuenta y datos). Todo commiteado en `claude/finance-app-design-pr8qd5` (PR #1 → `chat`). Suites: `tsc` 0/0, unit 381/381, e2e 80/80.
