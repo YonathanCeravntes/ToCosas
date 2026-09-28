@@ -1,7 +1,7 @@
 # FIN-041 · Millo web (PWA): la misma app, por un enlace, instalable en iPhone y Android
 
 - **Versión:** 1.0 · **Fecha:** 2026-09-28 · **Autor:** Arquitecto (ciclo compacto `DEC-ORG-002` §44.3)
-- **Estado:** **Implementado — pendiente de un paso del Fundador (activar GitHub Pages) y de validación en iPhone.**
+- **Estado:** **Publicado** en <https://yonathanceravntes.github.io/ToCosas/> (2026-09-28, run 36444744864; el Fundador activó Pages → Source "GitHub Actions" y abrió la regla de ramas del ambiente `github-pages`). **Pendiente: validación en iPhone.**
 - **Origen (§27):** pregunta del Fundador (2026-09-28): "¿se puede generar un enlace con acceso directo al escritorio del iPhone, como mi app de hipertrofia, sin perder avance?". Autorizado: "Arranca, claro, para probar en teléfono".
 - **Documentos base:** `FIN-038` (fachada), `FIN-039` (cuenta), `EAS-UPDATE.md` (§40), `metro.config.js` (shims web existentes), `GOBERNANZA.md` §31, §42, §44.
 
@@ -45,4 +45,5 @@ GitHub → repositorio `ToCosas` → **Settings → Pages → Build and deployme
 
 ## 8. Decisiones del Fundador
 - **8.1** Autorización 2026-09-28 ("Arranca, claro").
-- **8.2 (pendiente):** activar GitHub Pages (§4) y validar en iPhone (§6).
+- **8.2 ✅ (2026-09-28):** GitHub Pages activado (Source: GitHub Actions) y ambiente `github-pages` sin restricción de ramas. Nota operativa: el ambiente se crea solo al activar Pages con la rama por defecto como única permitida; hubo que abrirlo porque el trabajo va en `claude/finance-app-design-pr8qd5`.
+- **8.3 (pendiente):** validación en iPhone (§6).
