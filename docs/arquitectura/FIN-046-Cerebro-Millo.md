@@ -1,6 +1,6 @@
 # FIN-046 · El cerebro de Millo (plan por fases)
 
-- **Fecha:** 2026-09-29 · **Estado:** Fases 1 y 2 implementadas; siguiente Fase 3
+- **Fecha:** 2026-09-29 · **Estado:** Fases 1, 2 y 3 implementadas (Fase 3 se activa con CRON_SECRET + rama `chat`); siguiente Fase 4
 - **Pedido:** "Necesitamos potenciar el cerebro de Millo." El Fundador eligió las 4 líneas: Copiloto con IA de verdad, Millo proactivo, que aprenda de ti y bot de Telegram más listo.
 
 ## 1. Qué hay hoy (inventario honesto)
@@ -61,3 +61,13 @@
 - **Acciones:** "crear gasto fijo" queda pendiente y se confirma con *sí* (lo crea `BudgetService`, §32); abonar, ver plan y ver presupuesto se explican con la ruta en la app (el bot no mueve plata).
 - **Recibos y facturas:** la lectura por foto (FIN-042) ya los reconocía; se afinó la instrucción para tomar el TOTAL (no subtotal, IVA ni vueltas) y el comercio; facturas de servicios toman "Total a pagar".
 - **Verificación:** 6 pruebas nuevas (`telegram-copilot.spec.ts`), unit 421/421, e2e 97/97.
+
+## 7. Fase 3 · Implementado (2026-09-29) — Millo proactivo
+- **Hallazgo:** los recordatorios de cuota (3, 1 y 0 días antes, por push/WhatsApp/Telegram) ya existían pero nunca llegaban: Render free se duerme y además corrían a las 8:00 del servidor (3:00 a. m. en Colombia). Ahora: 8:00 de Bogotá.
+- **Recorrido diario en una llamada** (`modules/cron/`): `POST /v1/internal/cron/daily` (cabecera `x-cron-secret` = `CRON_SECRET`; sin variable, apagado). Corre en orden: snapshot → tendencias/anomalías → recomendaciones → logros → memoria (domingo) → revisión por corte → **te sobró** → avisos (1/día, anti-fatiga) → recordatorios de cuotas → **resumen semanal** (domingo) → retenciones/purga/suscripciones. Cada paso es idempotente y un fallo no frena al resto.
+- **"Te sobró plata":** en los últimos 5 días del ciclo, si "Te queda" ≥ $100.000, un aviso por ciclo con la jugada del plan (FIN-045): cuánto abonar, a qué deuda y cuánto libera; y el colchón si aplica.
+- **Resumen semanal por Telegram (domingo):** lo que salió/entró en la semana, lo que queda del ciclo y por día, el próximo pago y la jugada del plan. Una vez por semana; respeta `proactiveEnabled` y el opt-in del chat.
+- **Anomalías de gasto por categoría:** ya las detecta `TrendsJob`; ahora sí corren a diario.
+- **Despertador gratis:** `.github/workflows/millo-despertador.yml` (6:50 a. m. Bogotá, con reintentos mientras Render despierta). GitHub solo agenda flujos desde la rama principal (`chat`).
+- **Activación (Fundador):** 1) crear una clave larga; 2) Render → Environment → `CRON_SECRET`; 3) GitHub → Settings → Secrets → Actions → `CRON_SECRET` (mismo valor); 4) que el flujo llegue a `chat`.
+- **Verificación:** e2e `fin046-proactivo` (clave obligatoria, recorrido completo sin fallos, "te sobró" una vez por ciclo y no a mitad de ciclo, resumen semanal); unit 421/421, e2e 103/103.

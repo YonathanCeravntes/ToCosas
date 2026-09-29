@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
+import { ENGINE_TZ } from '../financial-engine/engine.constants';
 import { RemindersService } from './reminders.service';
 
 /**
@@ -13,7 +14,8 @@ export class RemindersScheduler {
 
   constructor(private readonly reminders: RemindersService) {}
 
-  @Cron(CronExpression.EVERY_DAY_AT_8AM)
+  // FIN-046: 8:00 de BOGOTÁ (antes 8:00 del servidor = 3:00 a. m. en Colombia).
+  @Cron('0 0 8 * * *', { timeZone: ENGINE_TZ })
   async handleDailyReminders(): Promise<void> {
     try {
       const { sent } = await this.reminders.dispatchDue();

@@ -32,6 +32,7 @@ import { RecommendationsModule } from './modules/recommendations/recommendations
 import { GamificationModule } from './modules/gamification/gamification.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { CronModule } from './modules/cron/cron.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     GamificationModule,
     BillingModule,
     DashboardModule,
+    CronModule,
     // TODO (siguientes PRs): LLM fallback en el parser, OCR.
   ],
   controllers: [HealthController],

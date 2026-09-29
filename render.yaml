@@ -97,6 +97,10 @@ services:
       # (cae a LLM_MODEL si esta cuenta no lo tiene disponible).
       - key: LLM_EXTRACT_MODEL
         value: claude-sonnet-5
+      # FIN-046 Fase 3: clave del despertador (GitHub Actions → POST /v1/internal/cron/daily).
+      # Mismo valor que el secreto CRON_SECRET del repositorio en GitHub. Sin ella, el endpoint queda apagado.
+      - key: CRON_SECRET
+        sync: false
 
       # Monetización / push — opcionales en Fase 0.
       - key: REVENUECAT_WEBHOOK_SECRET
