@@ -12,7 +12,7 @@
 ## Trabajo activo
 **Telegram activo (2026-09-28):** bot `@Millo_finanzas_bot` conectado por webhook, cuenta del Fundador vinculada, registro por chat funcionando. **`DEC-0041`:** el Fundador enciende la IA del Copiloto en la Beta cerrada (pendiente: `ANTHROPIC_API_KEY` + `COPILOT_PRODUCTION_ENABLED=true` en Render); **FIN-042 implementada** (extractos/comprobantes por foto o PDF vía bot; pendiente validación con extracto real). IA del Copiloto encendida por el Fundador (`ANTHROPIC_API_KEY` + `COPILOT_PRODUCTION_ENABLED=true`).
 
-**Mis deudas · opción B (Fundador, 2026-09-29):** lista agrupada por urgencia (vencidas / próximos 30 días / más adelante / cerradas), barra total con el peso de cada deuda y barra por deuda: créditos = % pagado a capital (monto inicial − saldo), tarjetas = uso del cupo (rojo en sobrecupo). Nuevo campo opcional "¿Cuánto te prestaron al inicio?" al registrar y en el detalle (PATCH existente, sin cambio de backend). Pendiente: OTA y validación en dispositivo.
+**Mis deudas · opción B (Fundador, 2026-09-29):** lista agrupada por urgencia (vencidas / próximos 30 días / más adelante / cerradas), barra total con el peso de cada deuda y barra por deuda: créditos = % pagado a capital (monto inicial − saldo), tarjetas = uso del cupo (rojo en sobrecupo). Nuevo campo opcional "¿Cuánto te prestaron al inicio?" al registrar y en el detalle (PATCH existente, sin cambio de backend). Publicada: OTA grupo `80ccf99a` (Ajustes Android `01a0ea7f`) y web `a1171bd`. Pendiente: validación en dispositivo.
 
 **FIN-041 · Millo web (PWA)** implementada (2026-09-28): misma app por enlace, instalable en iPhone/Android desde el navegador; despliegue automático a GitHub Pages (`.github/workflows/web.yml`). **Publicada:** <https://yonathanceravntes.github.io/ToCosas/> (Pages activo, cada push a la rama la republica). **Pendiente:** validación del Fundador en iPhone. Sin push ni registro offline en web (por diseño).
 
@@ -34,7 +34,7 @@ v3.21 (`docs/GOBERNANZA.md`) — §44 equipo de dos (`DEC-ORG-002`). Controles s
 ## Beta técnica (estado de despliegue)
 - **APK instalada:** Android, Expo SDK 54 / RN 0.81, `runtimeVersion` 0.1.0, canal `preview` (`scripts/deploy/apk-baseline.json` es la fuente de verdad; se actualiza SOLO al construir una APK nueva).
 - **Primera validación del Fundador (2026-09-27):** BT-012 (barra de pestañas bajo los botones del sistema Android) → corregido y **verificado por el Fundador en dispositivo** (OTA `74f6a9af`, publicada desde su PC vía sesión Remote Control); BT-013 (ícono genérico) → íconos creados y declarados en `app.json`, se verán al construir la próxima APK (nativo, no OTA).
-- **OTA vigente en `preview`:** `24fbd0a1` (BT-020: acciones de compra de tarjeta en línea + diálogos en web; commit `0fed76f`; Ajustes muestra `01a0ea65`). Anteriores hoy: `60eb74d4`, `9d7ed901`.
+- **OTA vigente en `preview`:** `80ccf99a` (Mis deudas opción B, commit `a1171bd`; Ajustes muestra `01a0ea7f`). Anterior: `24fbd0a1` (BT-020: acciones de compra de tarjeta en línea + diálogos en web; commit `0fed76f`; Ajustes muestra `01a0ea65`). Anteriores hoy: `60eb74d4`, `9d7ed901`.
 - **Backend:** Render free `milla-backend` + Neon. Desplegado `2ce4747` (Deploy live, migración `fin039` aplicada en `startCommand`). Variables `SMTP_URL` y `MAIL_FROM` configuradas por el Fundador (Gmail App Password); `WHATSAPP_DISPLAY_NUMBER` no configurada (sin número de bot aún).
 - **Incidente de proceso 2026-09-26:** intento de subir a Expo SDK 57 revertido (`362d279`); motivó el baseline de APK en el preflight.
 
