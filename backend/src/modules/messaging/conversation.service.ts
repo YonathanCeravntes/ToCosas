@@ -503,7 +503,7 @@ export class ConversationService {
       orderBy: { interestRate: 'desc' },
     });
     if (debts.length === 0) {
-      return '🎉 No tienes deudas activas, así que no hay abono que simular.';
+      return 'No tienes deudas activas, así que no hay abono que simular.';
     }
     // Con varias, se simula sobre la de mayor tasa (la que más te cuesta) y se
     // dice explícitamente — sin decidir por la usuaria.

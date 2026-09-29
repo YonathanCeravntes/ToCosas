@@ -557,11 +557,19 @@ export interface GamificationProfile {
 
 // --- Copiloto Financiero (FIN-005) ---
 
+/** FIN-046: acción PROPUESTA por la IA; la persona la confirma con un botón. */
+export type CopilotAction =
+  | { type: 'crear_gasto_fijo'; label: string; name: string; amount: number; dayOfMonth: number | null }
+  | { type: 'abonar_deuda'; label: string; debtId: string; debtName: string; amount: number | null }
+  | { type: 'ver_plan'; label: string }
+  | { type: 'ver_presupuesto'; label: string };
+
 export interface CopilotReply {
   conversationId: string;
   reply: string;
   source: 'template' | 'llm';
   aiRemainingToday: number | null;
+  actions?: CopilotAction[];
 }
 
 export interface CopilotMessage {

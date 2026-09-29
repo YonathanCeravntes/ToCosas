@@ -31,6 +31,43 @@ export type ToolExecutor = (
 
 const TOOLS = [
   {
+    name: 'get_cashflow_plan',
+    description:
+      'Plan para LIBERAR FLUJO (regla de Millo): a qué deuda abonar primero (la que más cuota libera por peso), cuánto abonar al mes (la mitad de lo libre), cuánto va al colchón y en cuántos meses termina cada deuda con y sin plan. Úsala para "¿qué deuda pago primero?", "¿cómo salgo de deudas?", "me sobró plata, ¿qué hago?". Puedes pasar monthly para recalcular con otro monto.',
+    input_schema: {
+      type: 'object' as const,
+      properties: { monthly: { type: 'number', description: 'Monto mensual para abonar (opcional).' } },
+      required: [],
+    },
+  },
+  {
+    name: 'get_budget_now',
+    description:
+      'Cuánto le queda para gastar en el ciclo (Te queda), por día, días restantes, ingreso base y los compromisos pendientes. Úsala para "¿cuánto me queda?", "¿me alcanza?", "¿puedo gastar X?".',
+    input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
+  {
+    name: 'get_upcoming_payments',
+    description: 'Cuotas de deudas y gastos fijos de los próximos 31 días, con fecha y días que faltan.',
+    input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
+  {
+    name: 'propose_action',
+    description:
+      'PROPONE una acción concreta que el usuario puede confirmar con un botón en la app (nunca se ejecuta sola). Tipos: crear_gasto_fijo (name, amount, dayOfMonth opcional) cuando el usuario menciona un pago que se repite cada mes; abonar_deuda (debtRef, amount opcional) cuando recomiendas abonar; ver_plan para abrir su plan para liberar plata; ver_presupuesto. Úsala como máximo 2 veces por respuesta y menciónala en tu texto ("te dejo el botón para…").',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        type: { type: 'string', enum: ['crear_gasto_fijo', 'abonar_deuda', 'ver_plan', 'ver_presupuesto'] },
+        name: { type: 'string', description: 'Nombre corto del gasto fijo (p. ej. "Arriendo").' },
+        amount: { type: 'number' },
+        dayOfMonth: { type: 'number' },
+        debtRef: { type: 'string', description: 'p. ej. "deuda #2"' },
+      },
+      required: ['type'],
+    },
+  },
+  {
     name: 'get_financial_snapshot',
     description:
       'Métricas del mes, presupuesto (totales) y patrimonio del usuario. Úsala para preguntas de flujo, ahorro, liquidez o patrimonio.',
@@ -133,7 +170,7 @@ export class AnthropicClient {
     for (let round = 0; round < 4; round++) {
       const res = await this.request({
         model,
-        max_tokens: 700,
+        max_tokens: 900,
         system: [
           { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
         ],

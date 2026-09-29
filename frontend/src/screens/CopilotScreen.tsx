@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,8 +16,8 @@ import {
 } from 'react-native';
 import { Button, Card, Ico, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
-import { AiConsentStatus, CopilotMessage, Insight, InsightSeverity, Recommendation } from '../api/types';
-import { copilotApi, insightsApi, recommendationsApi } from '../api/endpoints';
+import { AiConsentStatus, CopilotAction, CopilotMessage, Insight, InsightSeverity, Recommendation } from '../api/types';
+import { budgetApi, copilotApi, insightsApi, recommendationsApi } from '../api/endpoints';
 import { useBottomInset } from '../navigation/insets';
 
 const SEVERITY_COLOR: Record<InsightSeverity, string> = {
@@ -24,18 +26,24 @@ const SEVERITY_COLOR: Record<InsightSeverity, string> = {
   info: colors.success,
 };
 
+// FIN-046: preguntas que muestran el "cerebro" (plan de flujo, Te queda, crédito).
 const STARTERS = [
-  '¿Por qué está así mi Score?',
-  'Resumen de mi mes',
   '¿Qué deuda pago primero?',
-  '¿Qué es el DTI?',
+  '¿Cuánto me queda este mes?',
+  '¿Me alcanza para un crédito de 10 millones?',
+  '¿Por qué está así mi Score?',
 ];
+
+/** Novedades guardadas antes de DEC-0040 traen emoji al inicio (🏆/🎉): se quitan al mostrar. */
+const stripEmoji = (t: string) =>
+  t.replace(/^(?:[\u2600-\u27BF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDC00-\uDFFF]|\uFE0F|\s)+/, '');
 
 interface ChatItem {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   source?: 'template' | 'llm';
+  actions?: CopilotAction[];
 }
 
 export function CopilotScreen() {
@@ -46,6 +54,8 @@ export function CopilotScreen() {
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [consent, setConsent] = useState<AiConsentStatus | null>(null);
   const [showConsent, setShowConsent] = useState(false);
+  // FIN-046: permiso de un toque al entrar (se puede posponer en esta visita).
+  const [consentLater, setConsentLater] = useState(false);
   const [aiRemaining, setAiRemaining] = useState<number | null>(null);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -93,12 +103,12 @@ export function CopilotScreen() {
       setAiRemaining(res.aiRemainingToday);
       setItems((prev) => [
         ...prev,
-        { id: `a-${Date.now()}`, role: 'assistant', content: res.reply, source: res.source },
+        { id: `a-${Date.now()}`, role: 'assistant', content: res.reply, source: res.source, actions: res.actions },
       ]);
     } catch (e) {
       setItems((prev) => [
         ...prev,
-        { id: `e-${Date.now()}`, role: 'assistant', content: `⚠️ ${(e as Error).message}`, source: 'template' },
+        { id: `e-${Date.now()}`, role: 'assistant', content: (e as Error).message, source: 'template' },
       ]);
     } finally {
       setSending(false);
@@ -142,6 +152,32 @@ export function CopilotScreen() {
         keyExtractor={(m) => m.id}
         ListEmptyComponent={
           <View>
+            {/* FIN-046 (Fundador, 2026-09-29): IA para toda la Beta con permiso de un toque. */}
+            {consent && !consent.accepted && !consentLater ? (
+              <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
+                <Text style={{ color: colors.textInverse, fontWeight: '800', fontSize: 16 }}>
+                  Millo usa inteligencia artificial para responderte con tus números
+                </Text>
+                <Text style={{ color: colors.onPrimaryMuted, fontSize: 13, marginTop: 6, lineHeight: 19 }}>
+                  Tus datos viajan resumidos: sin tu nombre, notas ni números de cuenta. Puedes quitar el permiso cuando quieras en Ajustes.
+                </Text>
+                <Row style={{ gap: spacing.sm, marginTop: spacing.md, flexWrap: 'wrap' }}>
+                  <Pressable
+                    onPress={() => void acceptConsent()}
+                    accessibilityRole="button"
+                    style={{ backgroundColor: colors.surface, borderRadius: radius.full, paddingVertical: 10, paddingHorizontal: 18 }}
+                  >
+                    <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>Acepto</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setShowConsent(true)} accessibilityRole="button" style={{ paddingVertical: 10, paddingHorizontal: 8 }}>
+                    <Text style={{ color: colors.textInverse, fontWeight: '700' }}>Ver detalles</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setConsentLater(true)} accessibilityRole="button" style={{ paddingVertical: 10, paddingHorizontal: 8 }}>
+                    <Text style={{ color: colors.onPrimaryMuted }}>Ahora no</Text>
+                  </Pressable>
+                </Row>
+              </Card>
+            ) : null}
             {/* Recomendado para ti (FIN-007): acciones con beneficio cuantificado */}
             {recommendations.length > 0 ? (
               <View style={{ marginBottom: spacing.sm }}>
@@ -169,7 +205,7 @@ export function CopilotScreen() {
                     <Card style={{ borderLeftWidth: 4, borderLeftColor: SEVERITY_COLOR[ins.severity], paddingVertical: spacing.sm }}>
                       <Row style={{ justifyContent: 'space-between' }}>
                         <Text style={{ fontWeight: '600', color: colors.text, flex: 1 }} numberOfLines={2}>
-                          {ins.title}
+                          {stripEmoji(ins.title)}
                         </Text>
                         <Pressable onPress={() => void dismissInsight(ins.id)} style={{ paddingLeft: spacing.sm }}>
                           <Ico name="close" size={18} color={colors.textMuted} />
@@ -294,26 +330,98 @@ function RecommendationCard({
 function Bubble({ item }: { item: ChatItem }) {
   const isUser = item.role === 'user';
   return (
-    <View
-      style={{
-        alignSelf: isUser ? 'flex-end' : 'flex-start',
-        backgroundColor: isUser ? colors.primary : colors.surface,
-        borderRadius: radius.md,
-        borderWidth: isUser ? 0 : 1,
-        borderColor: colors.border,
-        padding: spacing.sm,
-        marginBottom: spacing.sm,
-        maxWidth: '85%',
-      }}
-    >
-      <Text style={{ color: isUser ? colors.textInverse : colors.text, lineHeight: 20 }}>
-        {item.content}
-      </Text>
-      {!isUser && item.source ? (
-        <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>
-          {item.source === 'llm' ? 'IA' : 'instantánea'}
-        </Text>
+    <View style={{ alignSelf: isUser ? 'flex-end' : 'flex-start', maxWidth: '85%', marginBottom: spacing.sm }}>
+      <View
+        style={{
+          backgroundColor: isUser ? colors.primary : colors.surface,
+          borderRadius: radius.md,
+          borderWidth: isUser ? 0 : 1,
+          borderColor: colors.border,
+          padding: spacing.sm,
+        }}
+      >
+        <Text style={{ color: isUser ? colors.textInverse : colors.text, lineHeight: 20 }}>{item.content}</Text>
+        {!isUser && item.source ? (
+          <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>
+            {item.source === 'llm' ? 'IA' : 'instantánea'}
+          </Text>
+        ) : null}
+      </View>
+      {item.actions?.length ? (
+        <View style={{ gap: 6, marginTop: 6 }}>
+          {item.actions.map((a, i) => (
+            <ActionButton key={i} action={a} />
+          ))}
+        </View>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * FIN-046 · Una acción PROPUESTA por la IA. Nada se hace hasta que la persona toca:
+ * crear un gasto fijo se confirma aquí mismo; abonar abre la deuda (el abono real se
+ * confirma allá); plan y presupuesto solo navegan.
+ */
+function ActionButton({ action }: { action: CopilotAction }) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [state, setState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
+  const [err, setErr] = useState<string | null>(null);
+
+  const run = async () => {
+    switch (action.type) {
+      case 'crear_gasto_fijo':
+        setState('busy');
+        try {
+          await budgetApi.createFixed({ kind: 'gasto', name: action.name, amount: action.amount, dayOfMonth: action.dayOfMonth ?? undefined });
+          setState('done');
+        } catch (e) {
+          setErr((e as Error).message);
+          setState('error');
+        }
+        return;
+      case 'abonar_deuda':
+        navigation.navigate('Main', { screen: 'Debts', params: { screen: 'DebtDetail', params: { debtId: action.debtId, name: action.debtName } } });
+        return;
+      case 'ver_plan':
+        navigation.navigate('CashflowPlan');
+        return;
+      case 'ver_presupuesto':
+        navigation.navigate('Budget');
+        return;
+    }
+  };
+
+  if (state === 'done') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: radius.full, backgroundColor: colors.primarySoft }}>
+        <Ico name="checkmark-circle" color={colors.primary} />
+        <Text style={{ color: colors.primaryDark, fontWeight: '700', fontSize: 13 }}>Hecho: {action.label.replace(/^Crear /, '')}</Text>
+      </View>
+    );
+  }
+  return (
+    <View>
+      <Pressable
+        onPress={() => void run()}
+        disabled={state === 'busy'}
+        accessibilityRole="button"
+        accessibilityLabel={action.label}
+        style={({ pressed }) => ({
+          flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+          paddingVertical: 9, paddingHorizontal: 14, borderRadius: radius.full,
+          borderWidth: 1, borderColor: colors.primary,
+          backgroundColor: pressed ? colors.primarySoft : colors.surface,
+        })}
+      >
+        {state === 'busy' ? <ActivityIndicator size="small" color={colors.primary} /> : (
+          <Ico name={action.type === 'crear_gasto_fijo' ? 'add-circle-outline' : action.type === 'abonar_deuda' ? 'cash-outline' : 'arrow-forward-circle-outline'} color={colors.primary} />
+        )}
+        <Text style={{ color: colors.primaryDark, fontWeight: '700', fontSize: 13 }}>
+          {action.type === 'crear_gasto_fijo' ? `Confirmar: ${action.label}` : action.label}
+        </Text>
+      </Pressable>
+      {state === 'error' && err ? <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4 }}>{err}</Text> : null}
     </View>
   );
 }

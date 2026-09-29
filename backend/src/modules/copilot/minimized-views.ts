@@ -109,7 +109,55 @@ export interface MinimizedSimulationView extends Branded {
   specifics: Record<string, number | string | null>;
 }
 
+/** FIN-046 · Plan para liberar flujo (FIN-045) con deudas por referencia, nunca por nombre. */
+export interface MinimizedCashflowPlanView extends Branded {
+  kind: 'cashflow_plan';
+  free: number;
+  proposal: number;
+  toDebt: number;
+  toColchon: number;
+  colchonGap: number;
+  colchonMonths: number | null;
+  steps: Array<{
+    order: number;
+    ref: string;
+    balance: number;
+    payment: number;
+    annualRatePct: number;
+    freesPerHundred: number;
+    monthWithPlan: number | null;
+    monthWithout: number | null;
+  }>;
+}
+
+/** FIN-046 · "Te queda" del ciclo (fuente única §32) y lo comprometido pendiente. */
+export interface MinimizedBudgetNowView extends Branded {
+  kind: 'budget_now';
+  teQueda: number;
+  perDay: number | null;
+  daysLeft: number;
+  incomeBase: number;
+  pendingCommitments: Array<{ ref: string; amount: number; datePassed: boolean }>;
+}
+
+/** FIN-046 · Pagos de los próximos 31 días (deudas y gastos fijos por referencia). */
+export interface MinimizedUpcomingView extends Branded {
+  kind: 'upcoming_payments';
+  items: Array<{ ref: string; amount: number; date: string; daysLeft: number }>;
+}
+
+/** FIN-046 · Acuse de una acción PROPUESTA (la app pide confirmación; nada se ejecuta). */
+export interface MinimizedActionAckView extends Branded {
+  kind: 'action_proposed';
+  accepted: boolean;
+  reason?: string;
+}
+
 export type MinimizedToolView =
+  | MinimizedCashflowPlanView
+  | MinimizedBudgetNowView
+  | MinimizedUpcomingView
+  | MinimizedActionAckView
   | MinimizedSnapshotView
   | MinimizedDebtsView
   | MinimizedScoreView

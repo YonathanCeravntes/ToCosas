@@ -6,6 +6,8 @@ import { ScenarioParams } from '../simulations/simulation-engine';
 import { AnthropicClient } from './anthropic.client';
 import { ConsentService } from './consent.service';
 import { ContextAssembler, toMinimizedSimulationView } from './context-assembler';
+import { BrainViewsService, ProposedAction } from './brain-views.service';
+import { brand } from './minimized-views';
 import {
   detectIntent,
   parseSimulationIntent,
@@ -24,6 +26,8 @@ export interface CopilotReply {
   reply: string;
   source: 'template' | 'llm';
   aiRemainingToday: number | null; // null = sin consentimiento/IA no disponible
+  /** FIN-046: acciones PROPUESTAS por la IA; la app las muestra como botones a confirmar. */
+  actions?: ProposedAction[];
 }
 
 /**
@@ -43,6 +47,7 @@ export class CopilotService {
     private readonly llm: AnthropicClient,
     private readonly simulations: SimulationsService,
     private readonly entitlements: EntitlementsService,
+    private readonly brain: BrainViewsService,
   ) {}
 
   async sendMessage(userId: string, content: string, conversationId?: string): Promise<CopilotReply> {
@@ -54,9 +59,15 @@ export class CopilotService {
     const hasConsent = await this.consent.hasValidConsent(userId);
     const context = await this.assembler.buildInitialContext(userId);
 
-    // 1) Plantilla-primero (costo 0, disponible siempre).
+    // FIN-046 (Fundador, 2026-09-29): con IA disponible, la IA responde TODO — las
+    // plantillas quedan como respaldo (sin permiso, sin clave, circuito abierto o tope).
+    const aiReady = hasConsent && this.llm.isConfigured() && !this.llm.circuitOpen();
+    const usage = aiReady ? await this.dailyUsage(userId) : null;
+    const useAi = aiReady && usage !== null && usage.used < usage.limit;
+
+    // 1) Plantilla-primero (costo 0, disponible siempre) cuando no hay IA.
     // 1a) Simulaciones comunes por plantilla (FIN-007 §4.4: sin LLM).
-    const simIntent = parseSimulationIntent(content);
+    const simIntent = useAi ? null : parseSimulationIntent(content);
     if (simIntent) {
       try {
         const params: ScenarioParams | null =
@@ -87,7 +98,7 @@ export class CopilotService {
         this.logger.warn(`Simulación por plantilla falló: ${(e as Error).message}`);
       }
     }
-    const intent = detectIntent(content);
+    const intent = useAi ? null : detectIntent(content);
     if (intent) {
       const reply = renderTemplate(intent, context, content);
       return this.persistReply(userId, conversation.id, reply, 'template', hasConsent);
@@ -126,8 +137,9 @@ export class CopilotService {
       await this.prisma.aiInteractionLog.create({
         data: { userId, conversationId: conversation.id, direction: 'request', purpose: 'chat', contextFieldGroups: groups },
       });
+      const actions: ProposedAction[] = [];
       const result = await this.llm.chat(JSON.stringify(context), history, (tool, input) =>
-        this.executeTool(userId, tool, input),
+        this.executeTool(userId, tool, input, actions),
       );
       await this.prisma.aiInteractionLog.create({
         data: {
@@ -141,7 +153,8 @@ export class CopilotService {
           outputTokens: result.outputTokens,
         },
       });
-      return this.persistReply(userId, conversation.id, result.text, 'llm', hasConsent);
+      const reply = await this.persistReply(userId, conversation.id, result.text, 'llm', hasConsent);
+      return { ...reply, actions: actions.slice(0, 3) };
     } catch (e) {
       // §4.8: fallo definitivo → plantilla con nota amable + log del error.
       this.logger.warn(`LLM falló, fallback a plantilla: ${(e as Error).message}`);
@@ -156,8 +169,25 @@ export class CopilotService {
   }
 
   /** Ejecutor de tools: mapea nombre → vista minimizada (única vía, §4.3-A). */
-  private async executeTool(userId: string, tool: string, input: Record<string, unknown>) {
+  private async executeTool(userId: string, tool: string, input: Record<string, unknown>, actions: ProposedAction[] = []) {
     switch (tool) {
+      case 'get_cashflow_plan': {
+        const m = typeof input.monthly === 'number' && isFinite(input.monthly) && input.monthly >= 0 ? input.monthly : undefined;
+        return this.brain.cashflowPlanView(userId, m);
+      }
+      case 'get_budget_now':
+        return this.brain.budgetNowView(userId);
+      case 'get_upcoming_payments':
+        return this.brain.upcomingView(userId);
+      case 'propose_action': {
+        const action = actions.length < 3 ? await this.brain.toAction(userId, input) : null;
+        if (action) actions.push(action);
+        return brand({
+          kind: 'action_proposed' as const,
+          accepted: !!action,
+          ...(action ? {} : { reason: 'acción inválida o demasiadas acciones' }),
+        });
+      }
       case 'get_financial_snapshot':
         return this.assembler.buildSnapshotView(userId);
       case 'get_debts':
@@ -239,10 +269,12 @@ export class CopilotService {
       where: { id: conversationId, userId },
     });
     if (!conv) throw new NotFoundException('Conversación no encontrada');
-    return this.prisma.message.findMany({
+    const rows = await this.prisma.message.findMany({
       where: { conversationId },
       orderBy: { createdAt: 'asc' },
     });
+    const names = await this.brain.refNames(userId);
+    return rows.map((m) => (m.role === 'assistant' ? { ...m, content: this.brain.applyNames(m.content, names) } : m));
   }
 
   /** Borrado autónomo del historial (§4.7) — independiente del consentimiento. */
@@ -282,7 +314,9 @@ export class CopilotService {
       const { used, limit } = await this.dailyUsage(userId);
       aiRemainingToday = Math.max(0, limit - used);
     }
-    return { conversationId, reply, source, aiRemainingToday };
+    // FIN-046: se GUARDA con referencias (el historial vuelve a la IA sin nombres) y se
+    // MUESTRA con los nombres reales de la persona.
+    return { conversationId, reply: await this.brain.humanize(userId, reply), source, aiRemainingToday };
   }
 
   /** Últimos N mensajes de la conversación para el LLM (historial acotado). */

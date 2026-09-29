@@ -10,6 +10,9 @@ import { ContextAssembler } from './context-assembler';
 import { CopilotService } from './copilot.service';
 import { CopilotController, CopilotProductionGuard } from './copilot.controller';
 import { CopilotRetentionJob } from './copilot-retention.job';
+import { BrainViewsService } from './brain-views.service';
+import { BudgetModule } from '../budget/budget.module';
+import { CashflowPlanService } from '../debts/cashflow-plan.service';
 
 /**
  * Capa 3 · Copiloto Financiero (FIN-005). Primera integración LLM del producto,
@@ -19,7 +22,7 @@ import { CopilotRetentionJob } from './copilot-retention.job';
 @Module({
   // DebtOutlayModule (FIN-023 P5): el contexto razona con el desembolso real.
   // IncomeModule (FIN-027): el ingreso fijo del contexto es el NETO.
-  imports: [AuthModule, SimulationsModule, BillingModule, DebtOutlayModule, IncomeModule],
+  imports: [AuthModule, SimulationsModule, BillingModule, DebtOutlayModule, IncomeModule, BudgetModule],
   controllers: [CopilotController],
   providers: [
     ConsentService,
@@ -28,6 +31,9 @@ import { CopilotRetentionJob } from './copilot-retention.job';
     CopilotService,
     CopilotProductionGuard,
     CopilotRetentionJob,
+    // FIN-046: vistas del cerebro (plan de flujo, Te queda, próximos pagos, acciones).
+    BrainViewsService,
+    CashflowPlanService,
   ],
   // FIN-042: el bot (MessagingModule) reutiliza el consentimiento y el cliente de IA.
   exports: [ConsentService, AnthropicClient],

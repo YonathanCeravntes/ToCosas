@@ -106,7 +106,7 @@ export function generateSuggestions(snap: FinancialSnapshot): SuggestionOut[] {
   if (cashflow > 0 && highRate.length === 0 && out.length === 0) {
     out.push({
       type: 'felicitacion',
-      title: '¡Vas muy bien! 🎉',
+      title: '¡Vas muy bien!',
       body: `Tus finanzas del mes están en orden: flujo positivo de ${fmt(cashflow)} y sin deudas de tasa alta. Sigue así.`,
       score: 30,
     });

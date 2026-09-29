@@ -35,7 +35,11 @@ describe('AnthropicClient (§4.8)', () => {
     expect(url).toBe('https://api.anthropic.com/v1/messages');
     const body = JSON.parse(init.body);
     expect(body.system[0].cache_control).toEqual({ type: 'ephemeral' }); // prompt caching
-    expect(body.tools).toHaveLength(5); // snapshot, debts, score, memoria, simulación (FIN-007)
+    // FIN-046: + plan de flujo, Te queda, próximos pagos y propose_action.
+    expect(body.tools.map((t: { name: string }) => t.name)).toEqual([
+      'get_cashflow_plan', 'get_budget_now', 'get_upcoming_payments', 'propose_action',
+      'get_financial_snapshot', 'get_debts', 'get_score_breakdown', 'get_memory_and_insights', 'run_simulation',
+    ]);
     expect(init.headers['x-api-key']).toBe('sk-test');
   });
 

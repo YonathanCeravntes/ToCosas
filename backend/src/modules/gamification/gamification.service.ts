@@ -72,7 +72,7 @@ export class GamificationService {
       userId,
       type: 'logro',
       severity: 'info',
-      title: `🏆 ${def.title}`,
+      title: def.title,
       body: def.body,
       dedupeKey: `gami_${code}`,
       payload: { achievement: code, xp: def.xp },
