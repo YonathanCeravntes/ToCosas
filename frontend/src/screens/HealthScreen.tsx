@@ -6,7 +6,7 @@ import { RootStackParamList } from '../navigation/types';
 import { Card, ErrorState, FormScroll, GroupLabel, Ico, ProgressBar, Row, Sparkline } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney } from '../utils/format';
-import { HomeDashboard } from '../api/types';
+import { CashflowPlan, HomeDashboard } from '../api/types';
 import {
   HealthIndicator,
   HealthScore,
@@ -16,7 +16,8 @@ import {
   ScoreHistoryPoint,
 } from '../api/types';
 import { ApiError } from '../api/client';
-import { dashboardApi, healthApi, recommendationsApi } from '../api/endpoints';
+import { dashboardApi, debtsApi, healthApi, recommendationsApi } from '../api/endpoints';
+import { monthsText } from './CashflowPlanScreen';
 import { useApi } from '../utils/useApi';
 
 /**
@@ -76,21 +77,24 @@ export function HealthScreen() {
   const { data, loading, error, reload } = useApi(() => healthApi.score(), []);
   const recs = useApi(() => recommendationsApi.list(), []);
   const home = useApi(() => dashboardApi.home(), []); // DEC-0040 §7: patrimonio y ahorro viven aquí
+  const plan = useApi(() => debtsApi.cashflowPlan(), []); // FIN-045: la jugada con deudas es el plan de flujo
   const reloadRecs = recs.reload;
   const reloadHome = home.reload;
+  const reloadPlan = plan.reload;
 
   useFocusEffect(
     React.useCallback(() => {
       void reload();
       void reloadRecs();
       void reloadHome();
-    }, [reload, reloadRecs, reloadHome]),
+      void reloadPlan();
+    }, [reload, reloadRecs, reloadHome, reloadPlan]),
   );
 
   const worst = data ? worstIndicator(data.indicators) : null;
   const refresh = React.useCallback(
-    () => Promise.all([reload(), reloadRecs(), reloadHome()]),
-    [reload, reloadRecs, reloadHome],
+    () => Promise.all([reload(), reloadRecs(), reloadHome(), reloadPlan()]),
+    [reload, reloadRecs, reloadHome, reloadPlan],
   );
 
   return (
@@ -106,7 +110,7 @@ export function HealthScreen() {
           </Text>
         </Card>
       ) : null}
-      <JugadaCard recs={recs.data ?? []} worst={worst} hasScore={!!data?.score} />
+      <JugadaCard recs={recs.data ?? []} worst={worst} hasScore={!!data?.score} plan={plan.data} />
       {/* Salud · opción J (Fundador, 2026-09-29): indicadores en una lista; el
           detalle (acción, simulador, cálculo) se abre al tocar cada uno. */}
       {data?.indicators.length ? (
@@ -242,13 +246,48 @@ function JugadaCard({
   recs,
   worst,
   hasScore,
+  plan,
 }: {
   recs: Recommendation[];
   worst: HealthIndicator | null;
   hasScore: boolean;
+  plan: CashflowPlan | null;
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   if (!hasScore) return null;
+
+  // FIN-045 (Fundador, 2026-09-29): con deudas activas, la jugada NO es "simularlo"
+  // sino el consejo concreto: a cuál abonar primero, con cuánto y qué libera.
+  const step = plan?.steps[0];
+  if (plan && step) {
+    const worstLine = worst ? `${worst.title}: ${humanValue(worst.display)}.` : null;
+    return (
+      <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
+        <Text style={{ color: colors.onPrimaryMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.8 }}>
+          TU JUGADA DE MAYOR IMPACTO
+        </Text>
+        <Text style={{ color: colors.textInverse, fontSize: 18, fontWeight: '800', marginTop: 6 }}>
+          {plan.toDebt > 0 ? `Termina primero ${step.name}` : `Cuando te sobre, empieza por ${step.name}`}
+        </Text>
+        {worstLine ? (
+          <Text style={{ color: colors.onPrimaryMuted, fontSize: 13, marginTop: 4 }}>Lo que más te frena · {worstLine}</Text>
+        ) : null}
+        <Text style={{ color: colors.textInverse, fontSize: 14, lineHeight: 20, marginTop: 6 }}>
+          {plan.toDebt > 0
+            ? `Abónale ${formatMoney(plan.toDebt)} al mes y la terminas en ${monthsText(step.monthWithPlan)}: te libera ${formatMoney(step.payment)} cada mes.`
+            : `Es la que más plata te libera: ${formatMoney(step.payment)} al mes.`}
+          {plan.toColchon > 0 ? ` Y guarda ${formatMoney(plan.toColchon)} para tu colchón.` : ''}
+        </Text>
+        <Pressable
+          onPress={() => navigation.navigate('CashflowPlan')}
+          accessibilityRole="button"
+          style={{ alignSelf: 'flex-start', marginTop: spacing.md, backgroundColor: colors.surface, borderRadius: radius.full, paddingVertical: 10, paddingHorizontal: 18 }}
+        >
+          <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>Ver mi plan</Text>
+        </Pressable>
+      </Card>
+    );
+  }
 
   const top = recs.find((r) => r.status === 'new' || r.status === 'seen') ?? recs[0] ?? null;
   // FIN-026 (DEC-0026 §5.1): mapa COMPLETO de kinds del motor — el abono ya no

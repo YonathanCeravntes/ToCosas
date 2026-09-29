@@ -76,6 +76,17 @@ describe('FIN-043 · Pagos de tarjeta aplicados a cuotas', () => {
     expect(nw.data.netWorth).toBe(-1_200_000);
   });
 
+  it('FIN-045: el plan para liberar flujo incluye la tarjeta con su saldo y cuota reales', async () => {
+    const r = await req('GET', '/v1/debts/cashflow-plan');
+    expect(r.status).toBe(200);
+    const step = r.data.steps.find((s: { debtId: string }) => s.debtId === cardId);
+    expect(step.balance).toBe(1_200_000);
+    expect(step.payment).toBe(300_000);
+    expect(r.data.proposal).toBeGreaterThanOrEqual(0);
+    const custom = await req('GET', '/v1/debts/cashflow-plan?monthly=500000');
+    expect(custom.data.proposal).toBe(500_000);
+  });
+
   it('un pago parcial (450.000) salda la 1ª cuota y deja la 2ª en 150.000; el saldo baja', async () => {
     const pay = await req('POST', '/v1/transactions', { kind: 'pago_deuda', amount: 450_000, occurredAt: '2026-09-28T12:00:00Z', debtId: cardId });
     expect(pay.status).toBe(201);

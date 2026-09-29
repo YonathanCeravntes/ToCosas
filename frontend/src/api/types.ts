@@ -743,3 +743,30 @@ export interface RenegotiationRecord {
   note: string | null;
   createdAt: string;
 }
+
+// --- FIN-045: plan para liberar flujo de caja ---
+export interface CashflowPlanStep {
+  order: number;
+  debtId: string;
+  name: string;
+  balance: number;
+  payment: number;
+  annualRatePct: number;
+  freesPerHundred: number;
+  monthWithPlan: number | null;
+  monthWithout: number | null;
+}
+
+export interface CashflowPlan {
+  free: number;
+  proposal: number;
+  toDebt: number;
+  toColchon: number;
+  colchonGap: number;
+  colchonTarget: number;
+  emergencyBalance: number;
+  colchonMonths: number | null;
+  steps: CashflowPlanStep[];
+  firstFrees: number;
+  dueDates: Record<string, string | null>;
+}

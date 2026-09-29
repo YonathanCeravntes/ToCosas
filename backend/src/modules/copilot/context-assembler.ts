@@ -17,7 +17,7 @@ import {
   MinimizedSimulationView,
   MinimizedSnapshotView,
 } from './minimized-views';
-import { totalLiabilities } from '../debts/debt-balance.util';
+import { effectiveDebtBalances, totalLiabilities } from '../debts/debt-balance.util';
 
 /** Strings permitidos (catálogo cerrado): fechas ISO, estrategias y bandas. */
 const SAFE_STRING = /^(\d{4}-\d{2}-\d{2}|avalanche|snowball|critico|fragil|estable|saludable|elite)$/;
@@ -203,13 +203,18 @@ export class ContextAssembler {
       orderBy: { createdAt: 'asc' },
       include: { amortization: { orderBy: { periodNo: 'desc' }, take: 1 } },
     });
+    // BT-021/FIN-045: saldo y cuota REALES (tarjetas incluidas), mismas fuentes del plan.
+    const [balances, outlays] = await Promise.all([
+      effectiveDebtBalances(this.prisma, debts),
+      this.debtOutlay.outlaysByUser(userId),
+    ]);
     const minimized: MinimizedDebt[] = debts.map((d, i) => ({
       ref: `deuda #${i + 1} (${d.debtType})`,
       type: d.debtType,
-      balance: Number(d.currentBalance),
+      balance: balances.get(d.id) ?? Number(d.currentBalance),
       ratePct: Number(d.interestRate),
       rateBasis: d.rateBasis,
-      monthlyPayment: Number(d.monthlyPayment ?? 0),
+      monthlyPayment: outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0),
       projectedPayoffDate:
         d.amortization[0]?.dueDate.toISOString().slice(0, 10) ?? null,
     }));

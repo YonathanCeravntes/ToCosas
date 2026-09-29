@@ -106,11 +106,7 @@ export function DebtsListScreen({ navigation }: Props) {
         )}
         ListFooterComponent={
           <View style={{ marginTop: spacing.md }}>
-            <AttackPlan
-              summary={summary.data}
-              debts={active}
-              onDebt={(d) => navigation.navigate('DebtDetail', { debtId: d.debtId, name: d.name })}
-            />
+            <AttackPlan onDebt={(d) => navigation.navigate('DebtDetail', { debtId: d.debtId, name: d.name })} />
           </View>
         }
       />
@@ -201,95 +197,55 @@ function FrontHero({ summary, debts }: { summary: DebtsSummary | null; debts: De
   );
 }
 
-const STRATEGY_LABEL: Record<string, { name: string; plain: string }> = {
-  avalanche: { name: 'avalancha', plain: 'la más cara primero' },
-  snowball: { name: 'bola de nieve', plain: 'la más pequeña primero' },
-};
-
-/** P2 — El orden de ataque DEL MOTOR (FIN-007); con 1 deuda muta a la jugada
- *  de abono; con 0 o sin comparación válida, no existe (§29.1). */
-function AttackPlan({
-  summary,
-  debts,
-  onDebt,
-}: {
-  summary: DebtsSummary | null;
-  debts: Debt[];
-  onDebt: (d: { debtId: string; name: string }) => void;
-}) {
+/**
+ * P2 — FIN-045 (Fundador, 2026-09-29): el orden de ataque es el del plan para
+ * LIBERAR FLUJO (la que más cuota libera por peso primero), el mismo que da la
+ * jugada de Salud. El simulador queda para comparar otros órdenes.
+ */
+function AttackPlan({ onDebt }: { onDebt: (d: { debtId: string; name: string }) => void }) {
   const rootNav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const strategy = summary?.strategy ?? null;
-
-  if (!strategy) {
-    // Degradación declarada (ARQ P2): con UNA deuda la decisión no es el orden
-    // sino el abono — puente a la casa del abono real (el detalle).
-    if (debts.length === 1) {
-      const d = debts[0];
-      return (
-        <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
-          <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-            <Ico name="star" color={colors.accent} /> Tu jugada con esta deuda
-          </Text>
-          <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
-            Cada peso extra que le abones a {d.name} te ahorra intereses y adelanta tu fecha de
-            libertad.
-          </Text>
-          <Pressable
-            onPress={() => onDebt({ debtId: d.id, name: d.name })}
-            style={{ marginTop: spacing.sm }}
-          >
-            <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="cash-outline" color={colors.primary} /> Abonar o simularlo →</Text>
-          </Pressable>
-        </Card>
-      );
-    }
-    return null;
-  }
-
-  const rec = STRATEGY_LABEL[strategy.recommended];
-  const other = STRATEGY_LABEL[strategy.recommended === 'avalanche' ? 'snowball' : 'avalanche'];
-  // DEC-0022 §5.2: la cifra ES la diferencia entre estrategias — el copy lo dice
-  // tal cual, y con diferencia ~0 no se muestra "$0".
-  const showSavings = strategy.interestDifference >= 1000;
+  const { data: plan, reload } = useApi(() => debtsApi.cashflowPlan(), []);
+  useFocusEffect(
+    React.useCallback(() => {
+      void reload();
+    }, [reload]),
+  );
+  if (!plan || plan.steps.length === 0) return null;
 
   return (
     <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
-      <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-        <Ico name="star" color={colors.accent} /> Tu orden de ataque — {rec.name}
-      </Text>
+      <Text style={{ fontWeight: '800', fontSize: 15, color: colors.text }}>Tu orden para liberar plata</Text>
       <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
-        {showSavings
-          ? `Pagar ${rec.plain} (${rec.name}) en vez de ${other.plain} (${other.name}) te ahorra ${formatMoney(strategy.interestDifference)} en intereses.`
-          : `Con tus deudas de hoy, ambos órdenes cuestan casi lo mismo — este es el recomendado (${rec.plain}).`}
+        {plan.toDebt > 0
+          ? `Abona ${formatMoney(plan.toDebt)} al mes a la primera; al terminarla, su cuota se suma a la siguiente.`
+          : 'Cuando te sobre plata, abónale primero a la que más cuota libera.'}
       </Text>
-      <View style={{ marginTop: spacing.sm, gap: 6 }}>
-        {strategy.attackOrder.map((d, i) => (
-          <Pressable key={d.debtId} onPress={() => onDebt(d)}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ color: colors.text, flex: 1 }} numberOfLines={1}>
-                {i === 0 ? <Ico name="locate-outline" color={colors.primary} /> : null}{i === 0 ? ' ' : '    '}
-                {i + 1}º {d.name}
+      <View style={{ marginTop: spacing.sm, gap: 8 }}>
+        {plan.steps.map((s) => (
+          <Pressable key={s.debtId} onPress={() => onDebt({ debtId: s.debtId, name: s.name })} accessibilityRole="button">
+            <Row style={{ justifyContent: 'space-between', gap: 8 }}>
+              <Text style={{ color: colors.text, flex: 1, fontWeight: s.order === 1 ? '700' : '400' }} numberOfLines={1}>
+                {s.order}º {s.name}
               </Text>
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-                {formatPercent(d.ratePct)} {d.rateBasis}
-              </Text>
+              <Text style={{ color: colors.textMuted, fontSize: 13 }}>libera {formatMoney(s.payment)}/mes</Text>
             </Row>
           </Pressable>
         ))}
       </View>
-      <Pressable
-        onPress={() =>
-          // FIN-026 P2: llega con el contrato del bloque (extraBudget 0 = piso,
-          // DEC-0022 §5.3) — la MISMA cifra, explicada en pantalla.
-          rootNav.navigate('Simulator', {
-            scenario: 'estrategia_deudas',
-            params: { extraBudget: 0 },
-          })
-        }
-        style={{ marginTop: spacing.sm }}
-      >
-        <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="flask-outline" color={colors.primary} /> Verlo en el simulador →</Text>
-      </Pressable>
+      <Row style={{ justifyContent: 'space-between', marginTop: spacing.sm }}>
+        <Pressable onPress={() => rootNav.navigate('CashflowPlan')} accessibilityRole="link" hitSlop={8}>
+          <Text style={{ color: colors.primary, fontWeight: '800' }}>Ver mi plan →</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => rootNav.navigate('Simulator', { scenario: 'estrategia_deudas', params: { extraBudget: plan.toDebt } })}
+          accessibilityRole="link"
+          hitSlop={8}
+        >
+          <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+            <Ico name="flask-outline" color={colors.textMuted} /> Comparar
+          </Text>
+        </Pressable>
+      </Row>
     </Card>
   );
 }

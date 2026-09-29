@@ -118,9 +118,11 @@ describe('router plantilla-primero (§4.5)', () => {
     expect(detectIntent('¿me conviene vender mi carro para pagar la tarjeta?')).toBeNull();
   });
 
-  it('debt_priority recomienda por tasa usando el identificador no libre', () => {
+  it('debt_priority recomienda liberar flujo (FIN-045) usando el identificador no libre', () => {
     const out = renderTemplate('debt_priority', ctx, '');
-    expect(out).toContain('deuda #1 (tarjeta_credito)'); // 32% > 12%
-    expect(out).toContain('32%');
+    // 150.000/2.000.000 = 7,5 % de cuota por peso > 900.000/80.000.000 = 1,1 %.
+    expect(out.indexOf('deuda #1 (tarjeta_credito)')).toBeLessThan(out.indexOf('deuda #2 (hipotecario)'));
+    expect(out).toContain('$7,5');
+    expect(out).not.toMatch(/avalancha/i);
   });
 });

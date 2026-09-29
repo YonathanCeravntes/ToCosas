@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -18,6 +19,7 @@ import { CardService } from './card.service';
 import { UpdateReviewService } from './update-review.service';
 import { DebtRenegotiationService } from './debt-renegotiation.service';
 import { RenegotiateDebtDto } from './dto/renegotiate.dto';
+import { CashflowPlanService } from './cashflow-plan.service';
 import { AnswerReviewDto, CreateCardPurchaseDto, ResplitPurchaseDto, CreateDebtDto, PrepayDto, SimulateExtraDto, UpdateDebtDto } from './dto/debt.dto';
 import {
   CreateDebtInsuranceDto,
@@ -36,6 +38,7 @@ export class DebtsController {
     private readonly cards: CardService,
     private readonly reviews: UpdateReviewService,
     private readonly renegotiation: DebtRenegotiationService,
+    private readonly cashflowPlan_: CashflowPlanService,
   ) {}
 
   @Get('summary')
@@ -44,6 +47,13 @@ export class DebtsController {
   }
 
   // FIN-032: catálogo de tipos (la única autoridad de tipo) — alimenta el alta.
+  /** FIN-045: plan para liberar flujo (a qué deuda abonar primero, con cuánto). */
+  @Get('cashflow-plan')
+  cashflowPlan(@CurrentUser() user: AuthUser, @Query('monthly') monthly?: string) {
+    const n = monthly != null && monthly !== '' ? Number(String(monthly).replace(/[^\d]/g, '')) : NaN;
+    return this.cashflowPlan_.forUser(user.id, Number.isFinite(n) && n >= 0 ? n : undefined);
+  }
+
   @Get('catalog')
   catalog() {
     return this.debts.catalog();

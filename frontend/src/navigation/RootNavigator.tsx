@@ -11,6 +11,7 @@ import { LinkTelegramScreen } from '../screens/telegram/LinkTelegramScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
 import { IncomeProfileScreen } from '../screens/IncomeProfileScreen';
 import { SimulatorScreen } from '../screens/SimulatorScreen';
+import { CashflowPlanScreen } from '../screens/CashflowPlanScreen';
 import { AchievementsScreen } from '../screens/AchievementsScreen';
 import { MilloPlusScreen } from '../screens/MilloPlusScreen';
 import { BudgetScreen } from '../screens/BudgetScreen';
@@ -100,6 +101,11 @@ export function RootNavigator() {
               name="IncomeProfile"
               component={IncomeProfileScreen}
               options={{ headerShown: true, title: 'Mi perfil de ingresos' }}
+            />
+            <Stack.Screen
+              name="CashflowPlan"
+              component={CashflowPlanScreen}
+              options={{ headerShown: true, title: 'Tu plan para liberar plata' }}
             />
             <Stack.Screen
               name="Simulator"

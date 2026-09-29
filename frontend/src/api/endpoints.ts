@@ -17,6 +17,7 @@ import {
   PendingReview,
   ProductTypeDescriptor,
   DebtInsurance,
+  CashflowPlan,
   DebtsSummary,
   HomeDashboard,
   PaymentBreakdown,
@@ -71,6 +72,9 @@ export const authApi = {
 export const debtsApi = {
   list: () => api.get<Debt[]>('/debts'),
   summary: () => api.get<DebtsSummary>('/debts/summary'),
+  // FIN-045: plan para liberar flujo (monthly = monto que la persona ajusta).
+  cashflowPlan: (monthly?: number) =>
+    api.get<CashflowPlan>(`/debts/cashflow-plan${monthly != null ? `?monthly=${Math.round(monthly)}` : ''}`),
   // FIN-032: el catálogo de tipos (la única autoridad de tipo) que arma el alta.
   catalog: () => api.get<ProductTypeDescriptor[]>('/debts/catalog'),
   get: (id: string) =>

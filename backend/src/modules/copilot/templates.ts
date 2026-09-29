@@ -1,6 +1,7 @@
 import { EMERGENCY_FUND_MILESTONES } from '../financial-engine/metrics/emergency-fund.constants';
 import { SimulationResult } from '../simulations/simulation-engine';
 import { MinimizedContext } from './minimized-views';
+import { orderByCashflow } from '../debts/cashflow-plan.util';
 
 /**
  * Plantillas deterministas del Copiloto (FIN-005 §4.5: plantilla-primero).
@@ -204,16 +205,22 @@ export function renderSimulationResult(result: SimulationResult): string {
 
 function debtPriority(ctx: MinimizedContext): string {
   if (ctx.debts.length === 0) {
-    return '🎉 No tienes deudas activas registradas. Si adquieres una, regístrala y te ayudaré a planear cómo pagarla.';
+    return 'No tienes deudas activas registradas. Si adquieres una, regístrala y te ayudaré a planear cómo pagarla.';
   }
-  const byRate = [...ctx.debts].sort((a, b) => b.ratePct - a.ratePct);
-  const worst = byRate[0];
+  // FIN-045 (Fundador, 2026-09-29): el consejo de Millo es LIBERAR FLUJO primero —
+  // la deuda que más cuota mensual libera por peso abonado; empate → tasa más alta.
+  // Misma regla que el plan de Salud y Mis deudas (cashflow-plan.util).
+  const ordered = orderByCashflow(
+    ctx.debts.map((d) => ({ ...d, payment: d.monthlyPayment, annualRatePct: d.ratePct })),
+  );
+  const first = ordered[0];
+  const per100 = first.balance > 0 ? Math.round((first.payment / first.balance) * 1000) / 10 : 0;
   const lines = [
-    `Con el método avalancha (menos intereses), atacaría primero tu ${worst.ref}: es la de mayor tasa (${worst.ratePct}% ${worst.rateBasis}) con saldo de ${fmt(worst.balance)}.`,
+    `Para que te quede más plata libre cada mes, abónale primero a tu ${first.ref}: al terminarla dejas de pagar ${fmt(first.payment)} al mes (por cada $100 que le abonas liberas $${String(per100).replace(".", ",")} de cuota).`,
   ];
-  if (ctx.debts.length > 1) {
-    lines.push(`Orden sugerido: ${byRate.map((d) => d.ref).join(' → ')}.`);
+  if (ordered.length > 1) {
+    lines.push(`Orden sugerido: ${ordered.map((d) => d.ref).join(' → ')}. Al terminar una, suma su cuota al abono de la siguiente.`);
   }
-  lines.push('En el detalle de la deuda puedes simular cuánto ahorras con un abono extra mensual.');
+  lines.push('En Salud → "Ver mi plan" tienes cuánto abonar al mes y en cuánto tiempo terminas cada una.');
   return lines.join('\n');
 }
