@@ -135,4 +135,17 @@ describe('FIN-047 · Gastos fijos automáticos', () => {
     const item = m.data.expenses.find((e: { id: string }) => e.id === f.data.id);
     expect(item.type?.name).toBe('Suscripciones');
   });
+  it('FIN-049: "Cada mes" en Registrar enlaza el movimiento con el fijo recién creado (y solo con uno propio)', async () => {
+    const cats = await req('GET', '/v1/categories?kind=gasto');
+    const gym = cats.data.find((c: { name: string }) => c.name === 'Gimnasio');
+    const f = await req('POST', '/v1/budget/fixed-items', { kind: 'gasto', name: 'Gimnasio', amount: 90_000, dayOfMonth: new Date().getDate(), categoryId: gym.id });
+    const t = await req('POST', '/v1/transactions', { kind: 'gasto', amount: 90_000, categoryId: gym.id, note: 'Gimnasio', fixedItemId: f.data.id, occurredAt: new Date().toISOString() });
+    expect(t.status).toBe(201);
+    expect(t.data.fixedItemId).toBe(f.data.id);
+    const m = await req('GET', '/v1/budget/monthly');
+    const item = m.data.expenses.find((e: { id: string }) => e.id === f.data.id);
+    expect(item.thisCycle).toMatchObject({ status: 'registrado', auto: false });
+    const bad = await req('POST', '/v1/transactions', { kind: 'gasto', amount: 1_000, fixedItemId: '00000000-0000-0000-0000-000000000000', occurredAt: new Date().toISOString() });
+    expect(bad.status).toBe(404);
+  });
 });

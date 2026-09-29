@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import {
   IsArray,
   IsEnum,
@@ -62,10 +62,16 @@ export class CreateTransactionDto {
   @IsUUID()
   clientUuid?: string;
 
+  @ApiPropertyOptional({ description: 'FIN-049: el gasto ES este gasto fijo (se eligió "Cada mes" en Registrar)' })
+  @IsOptional()
+  @IsString()
+  fixedItemId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   currency?: string;
 }
 
-export class UpdateTransactionDto extends PartialType(CreateTransactionDto) {}
+// El enlace con un gasto fijo solo se fija al crear (lo valida el servicio).
+export class UpdateTransactionDto extends PartialType(OmitType(CreateTransactionDto, ['fixedItemId'] as const)) {}

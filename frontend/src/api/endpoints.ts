@@ -356,6 +356,8 @@ export interface CreateTransactionInput {
   debtId?: string;
   categoryId?: string;
   note?: string;
+  // FIN-049: el gasto ES este gasto fijo (se eligió "Cada mes" al registrar).
+  fixedItemId?: string;
 }
 
 export interface CreateDebtInsuranceInput {

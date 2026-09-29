@@ -33,3 +33,14 @@ Unit 424/424 (utilidades nuevas + specs ajustadas a la regla nueva), e2e 107/107
 - Nuevo gasto fijo = elegir tipo (cuadrícula con ícono) → monto, día y **nota** opcional ("Otro fijo" pide qué es). Los fijos creados por el bot o el Copiloto infieren su tipo por el nombre.
 - El cruce (FIN-047) también usa las palabras del tipo: "pagué la luz" → Servicios públicos (palabra completa: "gas" no cruza con "gasolina").
 - Verificación: unit 425/425, e2e 110/110 (3 casos nuevos en `fin047-fijos-automaticos`). Web revisada con Playwright.
+
+## FIN-049 · Fijo o variable se elige al registrar (Fundador, 2026-09-29)
+**Pedido:** "Se da mucha vuelta para ingresar un gasto fijo o variable, así mismo ingresos fijos o variables. Debería elegirse ahí, cuando vas a registrar."
+
+- **Registrar → "Un último detalle"** tiene ahora "¿Se repite cada mes?" con dos opciones: **Solo esta vez** (variable, como siempre) y **Cada mes** (fijo). Reemplaza el atajo que mandaba a Presupuesto.
+- **Gasto + Cada mes:** la cuadrícula cambia a los tipos de gasto fijo (FIN-048), pide el día de pago (por defecto, el día de la fecha) y la nota ("Otro fijo" pide qué es). Crea el gasto fijo y registra el de este mes **enlazado** (`fixedItemId` explícito, validado como propio): no se cuenta doble y el próximo mes se registra solo.
+- **Ingreso + Cada mes:** misma cuadrícula de ingresos + día + nombre opcional (por defecto, la categoría). Crea el ingreso fijo y registra lo recibido este mes; "Te queda" usa max(ingreso fijo, recibido), así que tampoco se cuenta doble.
+- Sin conexión el fijo no se guarda a medias (si el movimiento falla, se retira el fijo recién creado) y se avisa. "Deshacer" retira ambos.
+- **Bug corregido:** si las categorías no cargaban (p. ej. backend despertando o desplegando), la cuadrícula quedaba vacía sin aviso; ahora dice "No pude cargar las categorías · Reintentar".
+- Backend: `CreateTransactionDto.fixedItemId` (solo al crear; la edición no lo acepta).
+- Verificación: unit 425/425, e2e 111/111 (caso nuevo en `fin047-fijos-automaticos`). Web revisada con Playwright (gasto fijo y ingreso fijo de punta a punta).

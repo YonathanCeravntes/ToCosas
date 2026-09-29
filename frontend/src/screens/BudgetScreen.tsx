@@ -12,6 +12,7 @@ import { CategoryGlyph } from '../components/CategoryGlyph';
 import { budgetApi, categoriesApi, debtsApi, incomeApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
 import { confirmRemove } from '../utils/confirm';
+import { fixedOrder } from '../utils/fixedTypes';
 
 /**
  * FIN-020 · Presupuesto, rediseñado con el lenguaje de Mis deudas / Inicio G
@@ -423,13 +424,6 @@ function ExpensesSection({ items, onChanged }: { items: MonthlyBudget['expenses'
     </>
   );
 }
-
-/** Orden de los tipos fijos: los más comunes primero; "Otro fijo" al final. */
-const FIXED_ORDER = ['Arriendo', 'Administración', 'Servicios públicos', 'Internet y TV', 'Celular', 'Educación', 'Seguros', 'Suscripciones', 'Transporte fijo', 'Gimnasio', 'Apoyo familiar'];
-const fixedOrder = (name: string) => {
-  const i = FIXED_ORDER.indexOf(name);
-  return i === -1 ? (name === 'Otro fijo' ? 999 : 500) : i;
-};
 
 /**
  * FIN-048 (Fundador, 2026-09-29): nuevo gasto fijo = elegir el TIPO (lista con ícono),

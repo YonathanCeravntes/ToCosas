@@ -1,18 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../navigation/types';
+import { useFocusEffect } from '@react-navigation/native';
 import { DatePicker } from '../../components/DatePicker';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Field, Ico, IconButton, Row, Toast, ToastSpec } from '../../components/ui';
 import { CategoryGlyph } from '../../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { Category, Debt, TxKind } from '../../api/types';
-import { budgetApi, categoriesApi, debtsApi, gamificationApi, transactionsApi } from '../../api/endpoints';
+import { budgetApi, categoriesApi, debtsApi, gamificationApi, incomeApi, transactionsApi } from '../../api/endpoints';
 import { transactionsRepo } from '../../offline/transactionsRepo';
 import { runSync } from '../../offline/syncEngine';
 import { formatLocalDate, formatMoney, parseAmount } from '../../utils/format';
+import { fixedOrder, OTHER_FIXED } from '../../utils/fixedTypes';
 
 /**
  * FIN-035 · Registrar como puerta única del ecosistema.
@@ -64,7 +63,6 @@ const STEP_TITLE: Record<Step, string> = {
 };
 
 export function AddTransactionScreen() {
-  const rootNav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   // P0-1: historial real de pasos (el árbol bifurca por flow/method — un contador no basta).
   const [history, setHistory] = useState<Step[]>(['tipo']);
   const step = history[history.length - 1];
@@ -74,6 +72,11 @@ export function AddTransactionScreen() {
   const [occurredAt, setOccurredAt] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [catsFailed, setCatsFailed] = useState(false);
+  const [catsTry, setCatsTry] = useState(0);
+  // FIN-049 (Fundador, 2026-09-29): elegir aquí si se repite cada mes (fijo) o no.
+  const [monthly, setMonthly] = useState(false);
+  const [payDay, setPayDay] = useState('');
   const [selectedCat, setSelectedCat] = useState<Category | null>(null);
   const [note, setNote] = useState('');
   const [cards, setCards] = useState<Debt[]>([]);
@@ -118,15 +121,29 @@ export function AddTransactionScreen() {
   useEffect(() => {
     if (flow !== 'gasto' && flow !== 'ingreso') return;
     let active = true;
-    categoriesApi.list(flow).then((c) => active && setCategories(c)).catch(() => active && setCategories([]));
+    setCatsFailed(false);
+    categoriesApi
+      .list(flow)
+      .then((c) => { if (active) setCategories(c); })
+      // Antes fallaba en silencio y la cuadrícula quedaba vacía: ahora se ofrece reintentar.
+      .catch(() => { if (active) { setCategories([]); setCatsFailed(true); } });
     return () => { active = false; };
-  }, [flow]);
+  }, [flow, catsTry]);
+
+  // Gasto: "Solo esta vez" = categorías del día a día; "Cada mes" = tipos de gasto fijo.
+  // Ingreso: las mismas categorías en los dos casos.
+  const shownCats = useMemo(() => {
+    if (flow !== 'gasto') return categories;
+    return monthly
+      ? categories.filter((c) => c.isFixed).sort((a, b) => fixedOrder(a.name) - fixedOrder(b.name))
+      : categories.filter((c) => !c.isFixed);
+  }, [categories, flow, monthly]);
 
   const reset = () => {
     setHistory(['tipo']); setFlow(null); setAmount(''); setMethod(null); setSelectedCat(null);
     setNote(''); setSelectedCard(null); setSelectedDebt(null); setInstallments('1');
     setWithInterest(false); setError(null); setAcuse([]); setUndo(null); setUndone(false);
-    setOccurredAt(new Date()); setCelebration(null); setToast(null);
+    setOccurredAt(new Date()); setCelebration(null); setToast(null); setMonthly(false); setPayDay('');
     undoRef.current = null;
   };
   const [, setSelectedDebt] = useState<Debt | null>(null);
@@ -212,6 +229,72 @@ export function AddTransactionScreen() {
       ]);
       setUndo(null);
       go('acuse');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * FIN-049: "Cada mes" en Registrar. Crea el gasto fijo (o el ingreso fijo) y registra
+   * el de ESTE mes ya enlazado, así no se cuenta doble ni se vuelve a registrar solo.
+   * Requiere conexión (no hay cola offline para fijos): si falla, no se guarda nada a medias.
+   */
+  const commitMonthly = async (kind: 'gasto' | 'ingreso') => {
+    const isOther = kind === 'gasto' && selectedCat?.name === OTHER_FIXED;
+    if (kind === 'gasto' && !selectedCat) { setError('Elige qué tipo de gasto fijo es.'); return; }
+    if (isOther && !note.trim()) { setError('Escribe qué es en la nota (p. ej. "Cuota del carro").'); return; }
+    const day = payDay.trim() ? parseInt(payDay, 10) : occurredAt.getDate();
+    if (Number.isNaN(day) || day < 1 || day > 31) { setError('El día debe estar entre 1 y 31.'); return; }
+    const name = kind === 'gasto'
+      ? (isOther ? note.trim() : selectedCat!.name)
+      : (note.trim() || selectedCat?.name || 'Ingreso fijo');
+    setBusy(true); setError(null);
+    let undoFixed: (() => Promise<unknown>) | null = null;
+    try {
+      if (kind === 'gasto') {
+        const fixed = await budgetApi.createFixed({
+          kind: 'gasto', name, amount: value, dayOfMonth: day, categoryId: selectedCat!.id,
+          notes: isOther ? undefined : note.trim() || undefined,
+        });
+        undoFixed = () => budgetApi.removeFixed(fixed.id);
+        const tx = await transactionsApi.create({
+          kind: 'gasto', amount: value, occurredAt: occurredAt.toISOString(),
+          categoryId: selectedCat!.id, note: name, fixedItemId: fixed.id,
+        });
+        const lines = [
+          `✅ Registré tu gasto de ${formatMoney(value)} en ${name}.`,
+          `Quedó como gasto fijo: desde el próximo mes se registra solo el día ${day}. No tienes que volver a anotarlo.`,
+        ];
+        const b = await budgetApi.monthly().catch(() => null);
+        if (b) lines.push(`Actualicé tu presupuesto: te quedan ${formatMoney(b.teQueda.amount)} hasta el ${shortDate(b.teQueda.until)}.`);
+        lines.push('Puedes cambiar el monto o el día en Presupuesto → Gastos fijos.');
+        setAcuse(lines);
+        const rm = undoFixed;
+        armUndo(async () => { await transactionsApi.remove(tx.id); await rm(); }, `Tu gasto fijo de ${formatMoney(value)}`);
+      } else {
+        const source = await incomeApi.createSource({ name, amount: value, dayOfMonth: day });
+        undoFixed = () => incomeApi.removeSource(source.id);
+        const tx = await transactionsApi.create({
+          kind: 'ingreso', amount: value, occurredAt: occurredAt.toISOString(),
+          categoryId: selectedCat?.id, note: name,
+        });
+        const lines = [
+          `✅ Registré tu ingreso de ${formatMoney(value)}${selectedCat ? ` en ${selectedCat.name}` : ''}.`,
+          `Quedó como ingreso fijo (${name}, día ${day}): tu presupuesto ya cuenta con él cada mes.`,
+        ];
+        const b = await budgetApi.monthly().catch(() => null);
+        if (b) lines.push(`Te quedan ${formatMoney(b.teQueda.amount)} hasta el ${shortDate(b.teQueda.until)}.`);
+        lines.push('Deducciones y cambios en Presupuesto → Ingresos fijos.');
+        setAcuse(lines);
+        const rm = undoFixed;
+        armUndo(async () => { await transactionsApi.remove(tx.id); await rm(); }, `Tu ingreso fijo de ${formatMoney(value)}`);
+      }
+      go('acuse');
+      void checkCelebration();
+    } catch (e) {
+      // Nada a medias: si el fijo se creó pero el movimiento no, se retira.
+      if (undoFixed) await undoFixed().catch(() => undefined);
+      setError(`No pude guardarlo: ${(e as Error).message}. Revisa tu conexión e inténtalo de nuevo.`);
     } finally {
       setBusy(false);
     }
@@ -412,11 +495,49 @@ export function AddTransactionScreen() {
           <DatePicker value={occurredAt} mode="date" maximumDate={new Date()} onChange={(e, s) => { if (Platform.OS !== 'ios') setShowDatePicker(false); if (e.type === 'set' && s) setOccurredAt(s); }} />
         ) : null}
 
-        <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600', marginBottom: spacing.sm }}>Categoría</Text>
+        {/* FIN-049 (Fundador, 2026-09-29): decidir aquí mismo si se repite cada mes. */}
+        <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600', marginBottom: spacing.sm }}>¿Se repite cada mes?</Text>
+        <Row style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+          {[
+            { v: false, l: 'Solo esta vez', s: flow === 'ingreso' ? 'Ingreso variable' : 'Gasto variable' },
+            { v: true, l: 'Cada mes', s: flow === 'ingreso' ? 'Ingreso fijo' : 'Gasto fijo' },
+          ].map((o) => {
+            const on = monthly === o.v;
+            return (
+              <Pressable
+                key={String(o.v)}
+                onPress={() => { if (!on) { setMonthly(o.v); setSelectedCat(null); setError(null); } }}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: on }}
+                accessibilityLabel={`${o.l}. ${o.s}`}
+                style={{ flex: 1, paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, minHeight: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 2 : 1, borderColor: on ? colors.primary : colors.border }}
+              >
+                <Row style={{ gap: 6 }}>
+                  <Ico name={o.v ? 'repeat-outline' : 'flash-outline'} color={on ? colors.primaryDark : colors.textMuted} size={16} />
+                  <Text style={{ color: on ? colors.primaryDark : colors.text, ...type.body, fontWeight: on ? '800' : '600' }}>{o.l}</Text>
+                </Row>
+                <Text style={{ color: colors.textMuted, ...type.caption }}>{o.s}</Text>
+              </Pressable>
+            );
+          })}
+        </Row>
+
+        <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600', marginBottom: spacing.sm }}>
+          {monthly && flow === 'gasto' ? '¿Qué pagas cada mes?' : 'Categoría'}
+        </Text>
+        {catsFailed ? (
+          <Pressable
+            onPress={() => setCatsTry((n) => n + 1)}
+            accessibilityRole="button"
+            style={{ padding: spacing.md, marginBottom: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}
+          >
+            <Text style={{ color: colors.text, ...type.body }}>No pude cargar las categorías.</Text>
+            <Text style={{ color: colors.primary, ...type.body, fontWeight: '700', marginTop: 2 }}>Reintentar</Text>
+          </Pressable>
+        ) : null}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
-          {/* FIN-048 (Fundador, 2026-09-29): Registrar muestra solo el día a día; los
-              gastos fijos se registran solos (FIN-047). */}
-          {categories.filter((c) => !c.isFixed).map((cat) => {
+          {/* FIN-048: "Solo esta vez" muestra el día a día; FIN-049: "Cada mes" muestra los tipos de fijo. */}
+          {shownCats.map((cat) => {
             const active = selectedCat?.id === cat.id;
             return (
               <Pressable
@@ -425,29 +546,39 @@ export function AddTransactionScreen() {
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 accessibilityLabel={cat.name}
-                style={{ width: '22%', aspectRatio: 1, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? (cat.color ?? colors.primary) + '22' : colors.surface, borderWidth: 2, borderColor: active ? (cat.color ?? colors.primary) : colors.border }}
+                style={{ width: monthly && flow === 'gasto' ? '30.5%' : '22%', aspectRatio: monthly && flow === 'gasto' ? undefined : 1, minHeight: 78, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', padding: 2, backgroundColor: active ? (cat.color ?? colors.primary) + '22' : colors.surface, borderWidth: 2, borderColor: active ? (cat.color ?? colors.primary) : colors.border }}
               >
                 <CategoryGlyph size="lg" emoji={cat.icon} kind={flow === 'ingreso' ? 'ingreso' : 'gasto'} color={cat.color} />
-                <Text style={{ color: colors.textMuted, ...type.caption, marginTop: 2 }} numberOfLines={1}>{cat.name}</Text>
+                <Text style={{ color: colors.textMuted, ...type.caption, marginTop: 2, textAlign: 'center' }} numberOfLines={2} adjustsFontSizeToFit>{cat.name}</Text>
               </Pressable>
             );
           })}
         </View>
-        <Field label="Nota (opcional)" value={note} onChangeText={setNote} placeholder="detalle…" />
-        <Button title="Registrar" onPress={() => void commitCashTx(flow === 'ingreso' ? 'ingreso' : 'gasto')} loading={busy} />
-        {flow !== 'ingreso' ? (
-          <Pressable
-            onPress={() => rootNav.navigate('Budget')}
-            accessibilityRole="link"
-            style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, marginTop: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.textFaint }}
-          >
-            <Ico name="repeat-outline" color={colors.primary} size={18} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>¿Es algo que pagas cada mes?</Text>
-              <Text style={{ color: colors.textMuted, ...type.small }}>Créalo como gasto fijo y se registra solo (arriendo, servicios, internet…).</Text>
-            </View>
-          </Pressable>
+        {monthly ? (
+          <Field
+            label={flow === 'ingreso' ? '¿Qué día te llega?' : '¿Qué día lo pagas?'}
+            value={payDay}
+            onChangeText={setPayDay}
+            keyboardType="numeric"
+            placeholder={String(occurredAt.getDate())}
+            hint={flow === 'ingreso'
+              ? 'Cuenta en tu presupuesto cada mes desde ya.'
+              : `Desde el próximo mes se registra solo ese día (${payDay.trim() || occurredAt.getDate()}).`}
+          />
         ) : null}
+        <Field
+          label={monthly && flow === 'gasto' && selectedCat?.name === OTHER_FIXED ? '¿Qué es?' : monthly && flow === 'ingreso' ? 'Nombre (opcional)' : 'Nota (opcional)'}
+          value={note}
+          onChangeText={setNote}
+          placeholder={monthly ? (flow === 'ingreso' ? 'Ej: salario, arriendo que recibo…' : 'Ej: apartamento 301, plan de datos…') : 'detalle…'}
+        />
+        <Button
+          title={monthly ? (flow === 'ingreso' ? 'Registrar ingreso fijo' : 'Registrar gasto fijo') : 'Registrar'}
+          onPress={() => void (monthly
+            ? commitMonthly(flow === 'ingreso' ? 'ingreso' : 'gasto')
+            : commitCashTx(flow === 'ingreso' ? 'ingreso' : 'gasto'))}
+          loading={busy}
+        />
       </>,
     );
   }

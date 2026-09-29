@@ -111,6 +111,18 @@ export class TransactionsService {
       // (su nombre en la nota o la categoría, monto parecido) se CRUZA con el fijo: queda
       // enlazado y, si ya se había registrado solo este ciclo, ese automático se retira.
       let fixedItemId: string | null = meta?.fixedItemId ?? null;
+      // FIN-049: en Registrar se eligió "Cada mes" → el enlace viene explícito (solo un fijo propio).
+      if (!fixedItemId && dto.fixedItemId && dto.kind === 'gasto') {
+        const own = await tx.fixedItem.findFirst({ where: { id: dto.fixedItemId, userId, deletedAt: null, kind: 'gasto' } });
+        if (!own) throw new NotFoundException('Gasto fijo no encontrado');
+        fixedItemId = own.id;
+        const settings = await tx.userSettings.findUnique({ where: { userId } });
+        const period = financialPeriod(new Date(dto.occurredAt), settings?.cycleStartDay ?? 1);
+        await tx.transaction.updateMany({
+          where: { userId, fixedItemId: own.id, source: 'system', deletedAt: null, occurredAt: { gte: period.start, lt: period.end } },
+          data: { deletedAt: new Date() },
+        });
+      }
       if (!fixedItemId && dto.kind === 'gasto') {
         const items = await tx.fixedItem.findMany({ where: { userId, deletedAt: null, isActive: true, kind: 'gasto' } });
         if (items.length > 0) {
