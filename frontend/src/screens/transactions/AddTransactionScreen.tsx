@@ -176,6 +176,8 @@ export function AddTransactionScreen() {
       // P1: el acuse ENUMERA la cascada (§42) para los 3 tipos, con consecuencias
       // en lenguaje humano — solo con lo que ya se calcula (sin llamadas nuevas al Motor).
       const lines: string[] = [`✅ Registré tu ${label} de ${formatMoney(value)}${selectedCat ? ` en ${selectedCat.name}` : ''}.`];
+      // FIN-047: era un gasto fijo → se cruzó con él (no se cuenta doble).
+      if (tx.fixedItemId) lines.push('Ya lo tenías como gasto fijo: quedó cruzado y no se cuenta doble.');
       if (kind === 'gasto' || kind === 'ingreso') {
         const b = await budgetApi.monthly().catch(() => null);
         if (b) lines.push(`${kind === 'gasto' ? 'Actualicé tu presupuesto:' : 'Sumó a tu ingreso del ciclo:'} te quedan ${formatMoney(b.teQueda.amount)} hasta el ${shortDate(b.teQueda.until)}.`);

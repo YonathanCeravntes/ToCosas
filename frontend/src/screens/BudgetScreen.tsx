@@ -3,422 +3,425 @@ import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, ErrorState, Field, FormScroll, Ico, IconButton, Row } from '../components/ui';
-import { colors, radius, spacing } from '../theme/colors';
+import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButton, Row, Skeleton } from '../components/ui';
+import { IncomeSplit } from '../components/IncomeSplit';
+import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney, parseAmount } from '../utils/format';
-import { MonthlyBudget, Recommendation, TeQueda, toNumber } from '../api/types';
-import { budgetApi, incomeApi, recommendationsApi } from '../api/endpoints';
+import { CashflowPlan, MonthlyBudget, TeQueda } from '../api/types';
+import { budgetApi, debtsApi, incomeApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
 import { confirmRemove } from '../utils/confirm';
 
 /**
- * FIN-020 · Experiencia de Presupuesto (ARQ-0020 v1.1, DEC-0020).
- *
- * Zona de decisión primero (número → por día → protegido → destino), casa de
- * los compromisos después (P6). El "Te queda" viene del servicio ÚNICO del
- * backend (§32) — esta pantalla NO calcula nada.
- *
- * FIN-027 (DEC-0027 §5.2): el ingreso ya NO se declara aquí — vive en "Mi
- * perfil de ingresos" (fuentes + deducciones, sin coexistencia con FixedItem).
- * Esta pantalla solo administra GASTOS fijos; los ingresos se listan como
- * referencia con un puente a su casa real.
+ * FIN-020 · Presupuesto, rediseñado con el lenguaje de Mis deudas / Inicio G
+ * (Fundador, 2026-09-29) + FIN-047:
+ *  - "Te queda" en tarjeta blanca con la barra del ingreso (misma fuente §32).
+ *  - Con lo libre → el plan para liberar flujo (FIN-045), no el simulador.
+ *  - INGRESOS FIJOS y GASTOS FIJOS se agregan, EDITAN y borran aquí.
+ *  - Los gastos fijos se REGISTRAN SOLOS el día que tocan (no hay que anotarlos);
+ *    cada uno dice si ya se registró este ciclo o cuándo se registrará.
+ * Esta pantalla no calcula nada: todo viene del backend.
  */
-
 export function BudgetScreen() {
   const { data, loading, error, reload } = useApi(() => budgetApi.monthly(), []);
-  const recs = useApi(() => recommendationsApi.list(), []);
+  const plan = useApi(() => debtsApi.cashflowPlan(), []);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const reloadRecs = recs.reload;
+  const reloadPlan = plan.reload;
 
   useFocusEffect(
     React.useCallback(() => {
       void reload();
-      void reloadRecs();
-    }, [reload, reloadRecs]),
+      void reloadPlan();
+    }, [reload, reloadPlan]),
   );
 
-  const onRemove = (id: string, name: string) =>
-    confirmRemove(name, 'Dejará de contar en tu presupuesto.', async () => {
-      await budgetApi.removeFixed(id);
-      await reload();
-    });
+  const refresh = React.useCallback(() => Promise.all([reload(), reloadPlan()]), [reload, reloadPlan]);
 
-  const refresh = React.useCallback(
-    () => Promise.all([reload(), reloadRecs()]),
-    [reload, reloadRecs],
-  );
+  if (error && !data) return <FormScroll><ErrorState message={error} onRetry={() => void refresh()} /></FormScroll>;
+  if (!data) return <FormScroll><Skeleton hero lines={3} /><Skeleton lines={4} /></FormScroll>;
 
   return (
     <FormScroll onRefresh={refresh}>
-      {error && !data ? <ErrorState message={error} onRetry={() => void refresh()} /> : null}
+      <TeQuedaCard teQueda={data.teQueda} loading={loading} />
+      <FreeMoney teQueda={data.teQueda} plan={plan.data} />
 
-      {/* P1+P3 — el número oficial y su reparto por día */}
-      <TeQuedaHero teQueda={data?.teQueda ?? null} loading={loading} />
+      <PendingList teQueda={data.teQueda} />
 
-      {/* P4 — lo protegido, visible: la resta deja de ser una caja negra */}
-      {data?.teQueda ? <ProtectedTimeline teQueda={data.teQueda} /> : null}
+      <IncomesSection items={data.incomes} onChanged={refresh} onProfile={() => navigation.navigate('IncomeProfile')} />
+      <ExpensesSection items={data.expenses} onChanged={refresh} />
 
-      {/* P5 — qué hacer con lo libre: decidir, no solo calcular */}
-      {data?.teQueda ? <FreeMoneyBridge teQueda={data.teQueda} recs={recs.data ?? []} /> : null}
-
-      {/* P6 — la casa de los compromisos (materia prima), debajo de la decisión */}
-      <NewFixedForm onSaved={reload} />
-
-      {data ? (
+      {data.debts.length > 0 ? (
         <>
-          <IncomesReferenceCard
-            items={data.incomes}
-            onGoToProfile={() => navigation.navigate('IncomeProfile')}
-            onChanged={reload}
-          />
-          <FixedList
-            title="Gastos fijos"
-            items={data.expenses}
-            color={colors.danger}
-            onRemove={onRemove}
-          />
-          {data.debts.length > 0 ? (
-            <Card>
-              <Text style={{ fontWeight: '700', marginBottom: spacing.sm }}>
-                <Ico name="card-outline" /> Cuotas de deuda (inflexibles)
-              </Text>
-              {data.debts.map((d) => (
-                <Row key={d.debtId} style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.text }}>{d.name}</Text>
-                    {/* Ajuste post-cierre (revisión CPSAO, punto 3): fecha visible
-                        también aquí — así se verifica a simple vista por qué una
-                        cuota está o no en "Protegido para lo que viene". */}
-                    {d.nextDueDate ? (
-                      <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                        vence {shortDate(d.nextDueDate)}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <Text style={{ fontWeight: '700', color: colors.warning }}>
-                    {formatMoney(d.amount)}
-                  </Text>
-                </Row>
-              ))}
-              <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
-                Se calculan automáticamente desde tus deudas.
-                {/* FIN-023: solo cuando hay cargos aparte (§29.1). */}
-                {data.debtChargesSeparate > 0
-                  ? ' Incluyen los seguros y cargos que pagas aparte.'
-                  : ''}
-              </Text>
-            </Card>
-          ) : null}
+          <GroupLabel title="Cuotas de tus deudas" />
+          <Card style={{ paddingVertical: 0 }}>
+            {data.debts.map((d, i) => (
+              <Row key={d.debtId} style={{ paddingVertical: 12, gap: spacing.sm, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{d.name}</Text>
+                  {d.nextDueDate ? <Text style={{ color: colors.textMuted, ...type.small }}>vence {shortDate(d.nextDueDate)}</Text> : null}
+                </View>
+                <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(d.amount)}</Text>
+              </Row>
+            ))}
+          </Card>
+          <Text style={{ color: colors.textFaint, ...type.caption, marginTop: -spacing.xs, marginBottom: spacing.sm }}>
+            Salen de tus deudas; se descuentan al registrar el pago.
+            {data.debtChargesSeparate > 0 ? ' Incluyen los seguros y cargos que pagas aparte.' : ''}
+          </Text>
         </>
       ) : null}
 
-      <Button
-        icon="business-outline"
-        title="Cuentas y patrimonio"
-        variant="secondary"
-        onPress={() => navigation.navigate('Accounts')}
-      />
+      <Button icon="business-outline" title="Cuentas y patrimonio" variant="secondary" onPress={() => navigation.navigate('Accounts')} />
     </FormScroll>
   );
 }
 
-/** P1 (Alt A) + P3 (Alt A): el valor del servicio único y su "por día". */
-function TeQuedaHero({ teQueda, loading }: { teQueda: TeQueda | null; loading: boolean }) {
-  if (!teQueda) {
-    return (
-      <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-        <Text style={{ color: colors.textInverse, opacity: 0.9 }}>
-          {loading ? 'Calculando tu presupuesto…' : 'Desliza hacia abajo para actualizar'}
-        </Text>
-      </Card>
-    );
-  }
+/** Te queda (tarjeta blanca, como Inicio G). */
+function TeQuedaCard({ teQueda, loading }: { teQueda: TeQueda; loading: boolean }) {
   const negative = teQueda.amount < 0;
   return (
-    <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-      <Text style={{ color: colors.textInverse, opacity: 0.85 }}>
-        Te queda para gastar · hasta el {shortDate(teQueda.until)}
-      </Text>
-      <Text
-        style={{
-          color: negative ? colors.accent : colors.textInverse,
-          fontSize: 34,
-          fontWeight: '800',
-        }}
-      >
-        {formatMoney(teQueda.amount)}
-      </Text>
-      {teQueda.perDay !== null ? (
-        <Text style={{ color: colors.textInverse, opacity: 0.85, marginTop: 2 }}>
-          ≈ {formatMoney(teQueda.perDay)} por día ({teQueda.daysLeft} día
-          {teQueda.daysLeft === 1 ? '' : 's'})
-        </Text>
-      ) : (
-        // Margen negativo: honesto y sin juicio (§29.2) — la explicación está
-        // justo debajo, en la lista de lo protegido.
-        <Text style={{ color: colors.textInverse, opacity: 0.85, marginTop: 2 }}>
-          Ya está apartado lo que viene — abajo ves qué es
-        </Text>
-      )}
-    </Card>
-  );
-}
-
-/** P4 (Alt A): línea de tiempo de lo pendiente del ciclo, fijos + cuotas. */
-function ProtectedTimeline({ teQueda }: { teQueda: TeQueda }) {
-  if (teQueda.pendingCommitments.length === 0) return null;
-  return (
     <Card>
-      <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-        <Ico name="shield-checkmark-outline" color={colors.primary} /> Protegido para lo que viene: {formatMoney(teQueda.protectedTotal)}
+      <Row style={{ justifyContent: 'space-between' }}>
+        <Text style={{ color: colors.textMuted, ...type.small }}>Te queda para gastar</Text>
+        <Text style={{ color: colors.textMuted, ...type.small }}>hasta el {shortDate(teQueda.until)}</Text>
+      </Row>
+      <Text style={{ color: negative ? colors.dangerDeep : colors.text, fontSize: 32, fontWeight: '800', marginTop: 2 }}>
+        {loading && !teQueda ? '…' : formatMoney(teQueda.amount)}
       </Text>
-      <View style={{ marginTop: spacing.sm, gap: 8 }}>
-        {teQueda.pendingCommitments.map((c, i) => (
-          <Row key={`${c.name}-${i}`} style={{ justifyContent: 'space-between' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text }} numberOfLines={1}>
-                <Ico name={c.kind === 'cuota' ? 'card-outline' : 'home-outline'} color={colors.textMuted} /> {c.name}
-              </Text>
-              <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                {/* §4.1-bis: etiqueta NEUTRA — no afirmamos pago, solo la fecha. */}
-                {c.date === null
-                  ? 'sin fecha fija'
-                  : c.datePassed
-                    ? `ya pasó su fecha (${shortDate(c.date)})`
-                    : shortDate(c.date)}
-              </Text>
-            </View>
-            <Text style={{ fontWeight: '700', color: colors.text }}>{formatMoney(c.amount)}</Text>
-          </Row>
-        ))}
-      </View>
-      <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.sm }}>
-        Esto ya está descontado del número de arriba.
+      <Text style={{ color: colors.textMuted, ...type.small }}>
+        {teQueda.perDay !== null
+          ? `≈ ${formatMoney(teQueda.perDay)} por día · ${teQueda.daysLeft} día${teQueda.daysLeft === 1 ? '' : 's'}`
+          : 'Ya está apartado lo que viene: abajo ves qué es'}
       </Text>
-      {/* Ajuste post-cierre (revisión CPSAO, punto 1): la política §4.1-bis
-          visible al usuario — "ya pasó su fecha" NO afirma que quedó sin pagar. */}
-      {teQueda.pendingCommitments.some((c) => c.datePassed) ? (
-        <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
-          Los que ya pasaron su fecha siguen apartados hasta el {shortDate(teQueda.until)}:
-          aún no cruzamos pagos con compromisos, y preferimos apartar de más que mostrarte
-          plata que quizá no está.
-        </Text>
-      ) : null}
+      <IncomeSplit teQueda={teQueda} />
     </Card>
   );
 }
 
-/** P5 (Alt A): el destino del dinero libre sale del motor real (FIN-007);
- *  con margen negativo, aviso honesto + palanca de recorte. */
-function FreeMoneyBridge({ teQueda, recs }: { teQueda: TeQueda; recs: Recommendation[] }) {
+/** Con lo libre: la jugada del plan (FIN-045); sin margen, aviso honesto. */
+function FreeMoney({ teQueda, plan }: { teQueda: TeQueda; plan: CashflowPlan | null }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  // FIN-026 (DEC-0026 §5.1): mapa COMPLETO de kinds del motor.
-  const SIM_BY_KIND: Record<string, string> = {
-    estrategia: 'estrategia_deudas',
-    recorte_categoria: 'reducir_gastos',
-    fondo_emergencia: 'proyeccion_ahorro',
-    abono_extra: 'abono_extra',
-  };
-  const goSimulator = (scenario?: string) =>
-    navigation.navigate('Simulator', scenario ? { scenario } : undefined);
-
   if (teQueda.amount < 0) {
     return (
       <Card style={{ borderColor: colors.warning, borderWidth: 2 }}>
-        <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-          <Ico name="warning-outline" color={colors.danger} /> Este mes no alcanza para todo
+        <Text style={{ fontWeight: '800', fontSize: 15, color: colors.text }}>Este mes no alcanza para todo</Text>
+        <Text style={{ color: colors.textMuted, marginTop: 4, ...type.small, lineHeight: 19 }}>
+          Lo comprometido supera lo que entra. Mira qué gasto puedes mover: pequeños recortes cambian el cierre del mes.
         </Text>
-        <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
-          Lo comprometido supera lo que ha entrado. Mira qué gasto puedes mover — pequeños
-          recortes cambian el cierre del mes.
-        </Text>
-        <Pressable onPress={() => goSimulator('reducir_gastos')} style={{ marginTop: spacing.sm }}>
-          <Text style={{ color: colors.primary, fontWeight: '700' }}>
-            <Ico name="flask-outline" color={colors.primary} /> Simular un recorte →
-          </Text>
+        <Pressable onPress={() => navigation.navigate('Simulator', { scenario: 'reducir_gastos' })} accessibilityRole="link" style={{ marginTop: spacing.sm }}>
+          <Text style={{ color: colors.primary, fontWeight: '700' }}>Simular un recorte →</Text>
         </Pressable>
       </Card>
     );
   }
-
-  if (teQueda.amount === 0) return null;
-
-  const top = recs.find((r) => r.status === 'new' || r.status === 'seen') ?? recs[0] ?? null;
+  const step = plan?.steps[0];
+  if (!plan || !step || plan.toDebt <= 0) return null;
   return (
-    <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
-      <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-        <Ico name="star" color={colors.accent} /> Con lo libre: tu mejor destino
+    <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
+      <Text style={{ color: colors.onPrimaryMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.8 }}>CON LO LIBRE</Text>
+      <Text style={{ color: colors.textInverse, fontSize: 17, fontWeight: '800', marginTop: 6 }}>
+        Abónale {formatMoney(plan.toDebt)} a {step.name}
       </Text>
-      {top ? (
-        <>
-          <Text style={{ color: colors.text, marginTop: 6, fontWeight: '600' }}>{top.title}</Text>
-          <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
-            {top.body}
-          </Text>
-          <Pressable
-            onPress={() => goSimulator(SIM_BY_KIND[top.kind])}
-            style={{ marginTop: spacing.sm }}
-          >
-            <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="flask-outline" color={colors.primary} /> Simularlo →</Text>
-          </Pressable>
-        </>
-      ) : (
-        <>
-          <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
-            Tienes {formatMoney(teQueda.amount)} sin destino. Prueba en el simulador qué pasa si
-            los apartas.
-          </Text>
-          <Pressable onPress={() => goSimulator()} style={{ marginTop: spacing.sm }}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="flask-outline" color={colors.primary} /> Ir al simulador →</Text>
-          </Pressable>
-        </>
-      )}
+      <Text style={{ color: colors.onPrimaryMuted, ...type.small, marginTop: 4, lineHeight: 19 }}>
+        Te libera {formatMoney(step.payment)} al mes cuando la termines.
+        {plan.toColchon > 0 ? ` Y guarda ${formatMoney(plan.toColchon)} para tu colchón.` : ''}
+      </Text>
+      <Pressable
+        onPress={() => navigation.navigate('CashflowPlan')}
+        accessibilityRole="button"
+        style={{ alignSelf: 'flex-start', marginTop: spacing.md, backgroundColor: colors.surface, borderRadius: radius.full, paddingVertical: 9, paddingHorizontal: 16 }}
+      >
+        <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>Ver mi plan</Text>
+      </Pressable>
     </Card>
   );
 }
 
-/**
- * P6: alta de GASTO fijo con tap honesto — colapsado anuncia su contenido.
- * FIN-027 (§5.2): el ingreso ya no se declara aquí (ver IncomesReferenceCard).
- */
-function NewFixedForm({ onSaved }: { onSaved: () => Promise<unknown> }) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [amount, setAmount] = useState('');
-  const [day, setDay] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+/** Lo que falta por salir este ciclo (fijos aún no registrados + cuotas). */
+function PendingList({ teQueda }: { teQueda: TeQueda }) {
+  if (teQueda.pendingCommitments.length === 0) return null;
+  return (
+    <>
+      <GroupLabel title={`Por pagar este ciclo · ${formatMoney(teQueda.protectedTotal)}`} tone={colors.warningDeep} />
+      <Card style={{ paddingVertical: 0 }}>
+        {teQueda.pendingCommitments.map((c, i) => (
+          <Row key={`${c.name}-${i}`} style={{ paddingVertical: 12, gap: spacing.sm, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
+            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.warningSoft, alignItems: 'center', justifyContent: 'center' }}>
+              <Ico name={c.kind === 'cuota' ? 'card-outline' : 'home-outline'} color={colors.warningDeep} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontWeight: '600' }} numberOfLines={1}>{c.name}</Text>
+              <Text style={{ color: colors.textMuted, ...type.small }}>
+                {c.date === null ? 'sin fecha fija' : c.datePassed ? `ya pasó su fecha (${shortDate(c.date)})` : shortDate(c.date)}
+              </Text>
+            </View>
+            <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(c.amount)}</Text>
+          </Row>
+        ))}
+      </Card>
+      <Text style={{ color: colors.textFaint, ...type.caption, marginTop: -spacing.xs, marginBottom: spacing.sm }}>
+        Ya está descontado de lo que te queda.
+      </Text>
+    </>
+  );
+}
 
-  const onAdd = async () => {
-    const value = parseAmount(amount) || 0; // §39
-    if (!name.trim() || !value) {
-      setFormError('Escribe el nombre y el monto mensual.');
+type Editable = { id: string; name: string; amount: number; dayOfMonth: number | null };
+
+/** Fila editable (nombre, monto y día) — mismo patrón para ingresos y gastos fijos. */
+function EditableRow({
+  item,
+  first,
+  subtitle,
+  amountColor,
+  onSave,
+  onRemove,
+}: {
+  item: Editable;
+  first: boolean;
+  subtitle?: string;
+  amountColor: string;
+  onSave: (input: { name: string; amount: number; dayOfMonth: number | null }) => Promise<unknown>;
+  onRemove: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(item.name);
+  const [amount, setAmount] = useState(String(Math.round(item.amount)));
+  const [day, setDay] = useState(item.dayOfMonth ? String(item.dayOfMonth) : '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const save = async () => {
+    const value = parseAmount(amount); // §39
+    const d = day.trim() ? parseInt(day, 10) : null;
+    if (!name.trim() || Number.isNaN(value) || value <= 0) {
+      setErr('Escribe el nombre y el monto mensual.');
       return;
     }
-    setFormError(null);
+    if (d !== null && (Number.isNaN(d) || d < 1 || d > 31)) {
+      setErr('El día debe estar entre 1 y 31.');
+      return;
+    }
     setSaving(true);
+    setErr(null);
     try {
-      await budgetApi.createFixed({
-        kind: 'gasto',
-        name: name.trim(),
-        amount: value,
-        dayOfMonth: day ? Math.min(31, Math.max(1, parseInt(day, 10))) : undefined,
-      });
-      setName('');
-      setAmount('');
-      setDay('');
-      setOpen(false);
-      await onSaved();
+      await onSave({ name: name.trim(), amount: value, dayOfMonth: d });
+      setEditing(false);
     } catch (e) {
-      setFormError((e as Error).message);
+      setErr((e as Error).message);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Card>
-      <Pressable onPress={() => setOpen((v) => !v)}>
-        <Text style={{ fontWeight: '700', fontSize: 16 }}>
-          <Ico name="add-circle-outline" color={colors.primary} /> Nuevo gasto fijo {open ? '' : '→'}
-        </Text>
-      </Pressable>
-      {open ? (
-        <View style={{ marginTop: spacing.sm }}>
-          <Field label="Nombre" value={name} onChangeText={setName} placeholder="Arriendo, servicios…" />
-          <Field label="Monto mensual" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="1200000" />
-          <Field label="Día del mes (opcional)" value={day} onChangeText={setDay} keyboardType="numeric" placeholder="5" />
-          {formError ? <Text style={{ color: colors.danger, marginBottom: spacing.xs }}>{formError}</Text> : null}
-          <Button title="Agregar" onPress={onAdd} loading={saving} />
-        </View>
-      ) : null}
-    </Card>
-  );
-}
-
-/**
- * FIN-027 (DEC-0027 §5.2): los ingresos ya no se administran aquí — son
- * referencia de solo lectura con puente a su casa real ("Mi perfil de
- * ingresos"). Eliminar una fuente usa el endpoint de ingresos, no el de
- * compromisos fijos (son modelos distintos, aunque compartan forma visual).
- */
-function IncomesReferenceCard({
-  items,
-  onGoToProfile,
-  onChanged,
-}: {
-  items: Array<{ id: string; name: string; amount: number; dayOfMonth: number | null }>;
-  onGoToProfile: () => void;
-  onChanged: () => Promise<unknown>;
-}) {
-  const onRemove = (id: string, name: string) =>
-    confirmRemove(name, 'Dejará de contar en tu ingreso.', async () => {
-      await incomeApi.removeSource(id);
-      await onChanged();
-    });
-  return (
-    <Card>
-      <Text style={{ fontWeight: '700', marginBottom: spacing.sm }}><Ico name="cash-outline" /> Ingresos fijos</Text>
-      {items.length === 0 ? (
-        <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm }}>
-          Aún no configuras tus fuentes de ingreso.
-        </Text>
-      ) : (
-        items.map((i) => (
-          <Row key={i.id} style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text }}>{i.name}</Text>
-              {i.dayOfMonth ? (
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>Día {i.dayOfMonth}</Text>
-              ) : null}
+    <View style={{ paddingVertical: 12, borderTopWidth: first ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
+      {editing ? (
+        <View>
+          <Field label="Nombre" value={name} onChangeText={setName} />
+          <Row style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
+            <View style={{ flex: 2 }}>
+              <Field label="Monto mensual" value={amount} onChangeText={setAmount} keyboardType="numeric" />
             </View>
-            <Text style={{ fontWeight: '700', color: colors.success }}>{formatMoney(i.amount)}</Text>
-            <IconButton icon="trash-outline" label={`Eliminar ${i.name}`} onPress={() => onRemove(i.id, i.name)} />
+            <View style={{ flex: 1 }}>
+              <Field label="Día" value={day} onChangeText={setDay} keyboardType="numeric" placeholder="5" />
+            </View>
           </Row>
-        ))
+          {err ? <Text style={{ color: colors.danger, marginBottom: 6 }}>{err}</Text> : null}
+          <Row style={{ gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <Button title="Cancelar" variant="secondary" onPress={() => { setEditing(false); setErr(null); }} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button title="Guardar" onPress={() => void save()} loading={saving} />
+            </View>
+          </Row>
+        </View>
+      ) : (
+        <Row style={{ gap: spacing.sm }}>
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => setEditing(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Editar ${item.name}`}
+          >
+            <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{item.name}</Text>
+            <Text style={{ color: colors.textMuted, ...type.small }}>
+              {subtitle ?? (item.dayOfMonth ? `Día ${item.dayOfMonth}` : 'Sin día fijo')}
+            </Text>
+          </Pressable>
+          <Pressable onPress={() => setEditing(true)} accessibilityRole="button" accessibilityLabel={`Editar ${item.name}`}>
+            <Text style={{ color: amountColor, fontWeight: '800' }}>
+              {formatMoney(item.amount)} <Ico name="pencil-outline" color={colors.primary} />
+            </Text>
+          </Pressable>
+          <IconButton icon="trash-outline" label={`Eliminar ${item.name}`} onPress={onRemove} />
+        </Row>
       )}
-      <Pressable onPress={onGoToProfile}>
-        <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
-          <Ico name="briefcase-outline" color={colors.primary} /> Administrar en Mi perfil de ingresos →
-        </Text>
-      </Pressable>
-    </Card>
+    </View>
   );
 }
 
-function FixedList({
+/** Formulario de alta (se abre con "+ Agregar"). */
+function NewItemForm({
   title,
-  items,
-  color,
-  onRemove,
+  placeholder,
+  onCreate,
+  onDone,
 }: {
   title: string;
-  items: Array<{ id: string; name: string; amount: number; dayOfMonth: number | null }>;
-  color: string;
-  onRemove: (id: string, name: string) => void;
+  placeholder: string;
+  onCreate: (input: { name: string; amount: number; dayOfMonth?: number }) => Promise<unknown>;
+  onDone: () => void;
 }) {
-  if (items.length === 0) return null;
+  const [name, setName] = useState('');
+  const [amount, setAmount] = useState('');
+  const [day, setDay] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const add = async () => {
+    const value = parseAmount(amount); // §39
+    if (!name.trim() || Number.isNaN(value) || value <= 0) {
+      setErr('Escribe el nombre y el monto mensual.');
+      return;
+    }
+    const d = day.trim() ? Math.min(31, Math.max(1, parseInt(day, 10))) : undefined;
+    setSaving(true);
+    setErr(null);
+    try {
+      await onCreate({ name: name.trim(), amount: value, dayOfMonth: Number.isNaN(d as number) ? undefined : d });
+      onDone();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <Card>
-      <Text style={{ fontWeight: '700', marginBottom: spacing.sm }}>{title}</Text>
-      {items.map((i) => (
-        <Row key={i.id} style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.text }}>{i.name}</Text>
-            {i.dayOfMonth ? (
-              <Text style={{ color: colors.textMuted, fontSize: 12 }}>Día {i.dayOfMonth}</Text>
-            ) : null}
-          </View>
-          <Text style={{ fontWeight: '700', color }}>{formatMoney(toNumber(i.amount))}</Text>
-          <IconButton icon="trash-outline" label={`Eliminar ${i.name}`} onPress={() => onRemove(i.id, i.name)} />
-        </Row>
-      ))}
+      <Text style={{ fontWeight: '800', fontSize: 15, color: colors.text, marginBottom: spacing.sm }}>{title}</Text>
+      <Field label="Nombre" value={name} onChangeText={setName} placeholder={placeholder} />
+      <Row style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
+        <View style={{ flex: 2 }}>
+          <Field label="Monto mensual" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="1.200.000" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Field label="Día del mes" value={day} onChangeText={setDay} keyboardType="numeric" placeholder="5" />
+        </View>
+      </Row>
+      {err ? <Text style={{ color: colors.danger, marginBottom: 6 }}>{err}</Text> : null}
+      <Button title="Agregar" onPress={() => void add()} loading={saving} />
     </Card>
   );
 }
 
-/** Fecha corta "28 jul" (mismo formato de Inicio, FIN-018 D3-B). */
+function IncomesSection({ items, onChanged, onProfile }: { items: MonthlyBudget['incomes']; onChanged: () => Promise<unknown>; onProfile: () => void }) {
+  const [adding, setAdding] = useState(false);
+  return (
+    <>
+      <GroupLabel title="Ingresos fijos" action={adding ? 'Cerrar' : '+ Agregar'} onAction={() => setAdding(!adding)} />
+      {items.length > 0 ? (
+        <Card style={{ paddingVertical: 0 }}>
+          {items.map((i, idx) => (
+            <EditableRow
+              key={i.id}
+              item={i}
+              first={idx === 0}
+              subtitle={i.dayOfMonth ? `Te llega el día ${i.dayOfMonth}` : 'Cada mes'}
+              amountColor={colors.primary}
+              onSave={async (input) => {
+                await incomeApi.updateSource(i.id, { name: input.name, amount: input.amount, dayOfMonth: input.dayOfMonth ?? undefined });
+                await onChanged();
+              }}
+              onRemove={() =>
+                confirmRemove(i.name, 'Dejará de contar en tu ingreso.', async () => {
+                  await incomeApi.removeSource(i.id);
+                  await onChanged();
+                })
+              }
+            />
+          ))}
+        </Card>
+      ) : !adding ? (
+        <Card><Text style={{ color: colors.textMuted, ...type.small }}>Aún no tienes ingresos fijos. Agrega tu salario o lo que te llega cada mes.</Text></Card>
+      ) : null}
+      {adding ? (
+        <NewItemForm
+          title="Nuevo ingreso fijo"
+          placeholder="Salario, arriendo que recibes…"
+          onCreate={async (input) => {
+            await incomeApi.createSource({ name: input.name, amount: input.amount, dayOfMonth: input.dayOfMonth });
+            await onChanged();
+          }}
+          onDone={() => setAdding(false)}
+        />
+      ) : null}
+      <Pressable onPress={onProfile} accessibilityRole="link" style={{ marginTop: -spacing.xs, marginBottom: spacing.sm }}>
+        <Text style={{ color: colors.primary, fontWeight: '700', ...type.small }}>Deducciones y tipo de ingreso → Mi perfil de ingresos</Text>
+      </Pressable>
+    </>
+  );
+}
+
+/** FIN-047: cuándo se registró o se registrará solo este gasto fijo. */
+function fixedStatus(e: MonthlyBudget['expenses'][number]): string {
+  const c = e.thisCycle;
+  if (!c) return e.dayOfMonth ? `Día ${e.dayOfMonth}` : 'Cada mes';
+  if (c.status === 'registrado') return c.auto ? `Se registró solo el ${shortDate(c.date)}` : `Lo registraste el ${shortDate(c.date)}`;
+  const past = new Date(c.date).getTime() < Date.now() - 86_400_000;
+  return past ? 'Apartado este mes · se registra solo desde el próximo' : `Se registra solo el ${shortDate(c.date)}`;
+}
+
+function ExpensesSection({ items, onChanged }: { items: MonthlyBudget['expenses']; onChanged: () => Promise<unknown> }) {
+  const [adding, setAdding] = useState(false);
+  return (
+    <>
+      <GroupLabel title="Gastos fijos" action={adding ? 'Cerrar' : '+ Agregar'} onAction={() => setAdding(!adding)} />
+      <Text style={{ color: colors.textMuted, ...type.small, marginTop: -spacing.xs, marginBottom: spacing.sm }}>
+        Se registran solos el día que tocan: no tienes que anotarlos. Si igual lo registras, Millo lo cruza y no lo cuenta doble.
+      </Text>
+      {items.length > 0 ? (
+        <Card style={{ paddingVertical: 0 }}>
+          {items.map((e, idx) => (
+            <EditableRow
+              key={e.id}
+              item={e}
+              first={idx === 0}
+              subtitle={fixedStatus(e)}
+              amountColor={colors.text}
+              onSave={async (input) => {
+                await budgetApi.updateFixed(e.id, { name: input.name, amount: input.amount, dayOfMonth: input.dayOfMonth ?? undefined });
+                await onChanged();
+              }}
+              onRemove={() =>
+                confirmRemove(e.name, 'Dejará de registrarse y de contar en tu presupuesto.', async () => {
+                  await budgetApi.removeFixed(e.id);
+                  await onChanged();
+                })
+              }
+            />
+          ))}
+        </Card>
+      ) : !adding ? (
+        <Card><Text style={{ color: colors.textMuted, ...type.small }}>Agrega lo que pagas cada mes: arriendo, servicios, internet, suscripciones…</Text></Card>
+      ) : null}
+      {adding ? (
+        <NewItemForm
+          title="Nuevo gasto fijo"
+          placeholder="Arriendo, servicios, internet…"
+          onCreate={async (input) => {
+            await budgetApi.createFixed({ kind: 'gasto', name: input.name, amount: input.amount, dayOfMonth: input.dayOfMonth });
+            await onChanged();
+          }}
+          onDone={() => setAdding(false)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+/** Fecha corta "28 sep" (mismo formato de Inicio). */
 function shortDate(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' }).replace('.', '');
 }

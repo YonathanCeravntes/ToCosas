@@ -253,7 +253,8 @@ export function TransactionsScreen() {
             const detail = [
               t.category?.name && t.note ? t.category.name : null,
               t.debt?.name && t.note ? t.debt.name : null,
-              t.source && SOURCE_LABEL[t.source] ? `por ${SOURCE_LABEL[t.source]}` : null,
+              // FIN-047: los gastos fijos se registran solos.
+              t.fixedItemId && t.source === 'system' ? 'automático (gasto fijo)' : t.source && SOURCE_LABEL[t.source] ? `por ${SOURCE_LABEL[t.source]}` : null,
             ].filter(Boolean).join(' · ');
             return (
               <Pressable

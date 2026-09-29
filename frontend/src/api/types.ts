@@ -255,6 +255,8 @@ export interface Transaction {
   debtId: string | null;
   categoryId?: string | null;
   source: string;
+  /** FIN-047: gasto fijo al que corresponde (registrado solo o cruzado). */
+  fixedItemId?: string | null;
   createdAt?: string;
   /** FIN-038: viajan con la fila en el historial (solo lectura). */
   category?: { name: string; icon: string | null; color: string | null } | null;
@@ -629,7 +631,14 @@ export interface MonthlyBudget {
   available: number;
   committedRatio: number;
   debts: Array<{ debtId: string; name: string; amount: number; nextDueDate: string | null }>;
-  expenses: Array<{ id: string; name: string; amount: number; dayOfMonth: number | null }>;
+  expenses: Array<{
+    id: string;
+    name: string;
+    amount: number;
+    dayOfMonth: number | null;
+    /** FIN-047: estado del ciclo (se registra solo el día que toca). */
+    thisCycle?: { status: 'registrado' | 'pendiente'; date: string; auto: boolean; amount: number | null };
+  }>;
   incomes: Array<{ id: string; name: string; amount: number; dayOfMonth: number | null }>;
 }
 

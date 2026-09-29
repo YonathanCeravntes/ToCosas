@@ -4,13 +4,14 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, ErrorState, GroupLabel, Ico, ProgressBar, Row, SegmentBar, Skeleton } from '../components/ui';
+import { Button, Card, ErrorState, GroupLabel, Ico, ProgressBar, Row, Skeleton } from '../components/ui';
+import { IncomeSplit } from '../components/IncomeSplit';
 import { CategoryGlyph } from '../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatLocalDate, formatMoney } from '../utils/format';
 import { useApi } from '../utils/useApi';
 import { dashboardApi, debtsApi, gamificationApi } from '../api/endpoints';
-import { FlowSection, GamificationProfile, TeQueda } from '../api/types';
+import { FlowSection, GamificationProfile } from '../api/types';
 import { useAuthStore } from '../store/auth.store';
 import { useSync } from '../offline/useSync';
 import { LocalTransaction, transactionsRepo } from '../offline/transactionsRepo';
@@ -350,32 +351,6 @@ function cycleProgress(startIso: string, endIso: string): { day: number; total: 
 function shortDate(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
-}
-
-/**
- * Inicio G: cómo se reparte la BASE de ingreso del ciclo (misma de `teQueda`, §32):
- * por pagar (fijos + cuotas pendientes) · ya salió (gastos y pagos reales) · libre.
- */
-function IncomeSplit({ teQueda }: { teQueda: TeQueda }) {
-  const base = teQueda.incomeBase ?? 0;
-  if (base <= 0) return null;
-  const pending = teQueda.pendingCommitments.reduce((a, c) => a + c.amount, 0);
-  const free = Math.max(0, teQueda.amount);
-  const spent = Math.max(0, base - teQueda.amount - pending);
-  return (
-    <View style={{ marginTop: spacing.sm }}>
-      <SegmentBar
-        parts={[
-          { key: 'pending', label: 'Por pagar', value: pending, color: colors.warning },
-          { key: 'spent', label: 'Ya salió', value: spent, color: colors.warningDeep },
-          { key: 'free', label: 'Libre', value: free, color: colors.primary },
-        ]}
-      />
-      <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.xs }}>
-        De tu ingreso de {formatMoney(base)} este ciclo
-      </Text>
-    </View>
-  );
 }
 
 /** FIN-014 + glosario FIN-017 P4: total con desglose en lenguaje cotidiano. */

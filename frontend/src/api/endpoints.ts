@@ -237,6 +237,8 @@ export const budgetApi = {
   listFixed: () => api.get<FixedItem[]>('/budget/fixed-items'),
   createFixed: (input: CreateFixedItemInput) =>
     api.post<FixedItem>('/budget/fixed-items', input),
+  // FIN-047: editar un gasto fijo (nombre, monto, día).
+  updateFixed: (id: string, input: Partial<CreateFixedItemInput>) => api.patch<FixedItem>(`/budget/fixed-items/${id}`, input),
   removeFixed: (id: string) => api.delete<{ deleted: boolean }>(`/budget/fixed-items/${id}`),
   setCycleDay: (cycleStartDay: number) =>
     api.patch<{ cycleStartDay: number }>('/budget/period', { cycleStartDay }),
@@ -248,6 +250,8 @@ export const incomeApi = {
   setProfile: (workProfile: string) => api.post<IncomeProfile>('/income/profile', { workProfile }),
   listSources: () => api.get<IncomeSource[]>('/income/sources'),
   createSource: (input: CreateIncomeSourceInput) => api.post<IncomeSource>('/income/sources', input),
+  // FIN-047: editar un ingreso fijo (nombre, monto, día).
+  updateSource: (id: string, input: Partial<CreateIncomeSourceInput>) => api.patch<IncomeSource>(`/income/sources/${id}`, input),
   removeSource: (id: string) => api.delete<{ deleted: boolean }>(`/income/sources/${id}`),
   createDeduction: (sourceId: string, input: CreateDeductionInput) =>
     api.post(`/income/sources/${sourceId}/deductions`, input),
