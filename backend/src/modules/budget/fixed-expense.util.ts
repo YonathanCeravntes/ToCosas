@@ -35,19 +35,24 @@ export interface FixedLike {
   id: string;
   name: string;
   amount: number;
+  /** FIN-048: palabras del TIPO de fijo (p. ej. Servicios públicos → luz, agua, gas). */
+  aliases?: string[];
 }
 
 /**
- * ¿Este gasto registrado a mano ES un fijo? El nombre del fijo (≥ 3 letras) aparece en
- * la nota o en la categoría, y el monto está entre la mitad y 1,5 veces el del fijo.
+ * ¿Este gasto registrado a mano ES un fijo? El nombre del fijo o una palabra de su tipo
+ * (≥ 3 letras) aparece en la nota o en la categoría, y el monto está entre la mitad y 1,5 veces el del fijo.
  * Si varios coinciden, gana el de monto más cercano.
  */
 export function matchFixed<T extends FixedLike>(items: T[], text: string, amount: number): T | null {
   const hay = ` ${normalizeName(text)} `;
+  const found = (w: string) => {
+    const n = normalizeName(w);
+    // Palabra completa (con plural): "gas" no debe cruzar con "gasolina".
+    return n.length >= 3 && (hay.includes(` ${n} `) || hay.includes(` ${n}s `) || hay.includes(` ${n}es `));
+  };
   const candidates = items.filter((f) => {
-    const n = normalizeName(f.name);
-    if (n.length < 3) return false;
-    if (!hay.includes(` ${n} `) && !hay.includes(` ${n}`)) return false;
+    if (!found(f.name) && !(f.aliases ?? []).some(found)) return false;
     return amount >= f.amount * 0.5 && amount <= f.amount * 1.5;
   });
   if (candidates.length === 0) return null;

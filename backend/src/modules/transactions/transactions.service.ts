@@ -117,8 +117,14 @@ export class TransactionsService {
           const cat = dto.categoryId
             ? await tx.category.findUnique({ where: { id: dto.categoryId }, select: { name: true } })
             : null;
+          // FIN-048: las palabras del TIPO de fijo también cruzan ("la luz" → Servicios públicos).
+          const typeIds = [...new Set(items.map((i) => i.categoryId).filter((x): x is string => !!x))];
+          const types = typeIds.length
+            ? await tx.category.findMany({ where: { id: { in: typeIds } }, select: { id: true, keywords: true } })
+            : [];
+          const kw = new Map(types.map((t) => [t.id, t.keywords]));
           const match = matchFixed(
-            items.map((i) => ({ id: i.id, name: i.name, amount: Number(i.amount) })),
+            items.map((i) => ({ id: i.id, name: i.name, amount: Number(i.amount), aliases: i.categoryId ? kw.get(i.categoryId) ?? [] : [] })),
             `${dto.note ?? ''} ${cat?.name ?? ''}`,
             dto.amount,
           );

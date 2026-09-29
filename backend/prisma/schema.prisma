@@ -352,6 +352,8 @@ model Category {
   icon      String?
   color     String?
   isGlobal  Boolean   @default(false) @map("is_global")
+  /// FIN-048: tipo de GASTO FIJO (arriendo, servicios…) vs categoría del día a día.
+  isFixed   Boolean   @default(false) @map("is_fixed")
   keywords  String[]
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

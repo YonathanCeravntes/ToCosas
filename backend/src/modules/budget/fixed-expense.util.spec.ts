@@ -28,4 +28,14 @@ describe('FIN-047 · gastos fijos automáticos (utilidades)', () => {
     // Sin el nombre del fijo: no se cruza.
     expect(matchFixed(items, 'mercado', 1_200_000)).toBeNull();
   });
+
+  it('FIN-048: cruza por las palabras del tipo ("pagué la luz" → Servicios públicos)', () => {
+    const items = [
+      { id: 's', name: 'Servicios públicos', amount: 180_000, aliases: ['luz', 'agua', 'gas', 'energia'] },
+      { id: 'i', name: 'Internet y TV', amount: 95_000, aliases: ['internet', 'wifi'] },
+    ];
+    expect(matchFixed(items, 'Pagué la luz', 170_000)?.id).toBe('s');
+    expect(matchFixed(items, 'wifi del mes', 95_000)?.id).toBe('i');
+    expect(matchFixed(items, 'gasolina', 170_000)).toBeNull();
+  });
 });

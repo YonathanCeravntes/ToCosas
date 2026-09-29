@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../navigation/types';
 import { DatePicker } from '../../components/DatePicker';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Field, IconButton, Row, Toast, ToastSpec } from '../../components/ui';
+import { Button, Card, Field, Ico, IconButton, Row, Toast, ToastSpec } from '../../components/ui';
 import { CategoryGlyph } from '../../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { Category, Debt, TxKind } from '../../api/types';
@@ -62,6 +64,7 @@ const STEP_TITLE: Record<Step, string> = {
 };
 
 export function AddTransactionScreen() {
+  const rootNav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   // P0-1: historial real de pasos (el árbol bifurca por flow/method — un contador no basta).
   const [history, setHistory] = useState<Step[]>(['tipo']);
   const step = history[history.length - 1];
@@ -411,7 +414,9 @@ export function AddTransactionScreen() {
 
         <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600', marginBottom: spacing.sm }}>Categoría</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
-          {categories.map((cat) => {
+          {/* FIN-048 (Fundador, 2026-09-29): Registrar muestra solo el día a día; los
+              gastos fijos se registran solos (FIN-047). */}
+          {categories.filter((c) => !c.isFixed).map((cat) => {
             const active = selectedCat?.id === cat.id;
             return (
               <Pressable
@@ -430,6 +435,19 @@ export function AddTransactionScreen() {
         </View>
         <Field label="Nota (opcional)" value={note} onChangeText={setNote} placeholder="detalle…" />
         <Button title="Registrar" onPress={() => void commitCashTx(flow === 'ingreso' ? 'ingreso' : 'gasto')} loading={busy} />
+        {flow !== 'ingreso' ? (
+          <Pressable
+            onPress={() => rootNav.navigate('Budget')}
+            accessibilityRole="link"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, marginTop: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.textFaint }}
+          >
+            <Ico name="repeat-outline" color={colors.primary} size={18} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontWeight: '700' }}>¿Es algo que pagas cada mes?</Text>
+              <Text style={{ color: colors.textMuted, ...type.small }}>Créalo como gasto fijo y se registra solo (arriendo, servicios, internet…).</Text>
+            </View>
+          </Pressable>
+        ) : null}
       </>,
     );
   }

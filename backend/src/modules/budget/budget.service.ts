@@ -7,7 +7,7 @@ import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { NetIncomeService } from '../income/net-income.service';
 import { clampCycleDay, financialPeriod } from './financial-period.util';
 import { SpendableService } from './spendable.service';
-import { occurrenceInCycle } from './fixed-expense.util';
+import { normalizeName, occurrenceInCycle } from './fixed-expense.util';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -33,6 +33,16 @@ export class BudgetService {
         'Los ingresos se configuran en tu perfil de ingresos (Ajustes → Mi perfil de ingresos), no aquí.',
       );
     }
+    // FIN-048: sin tipo elegido (bot, Copiloto), se infiere el TIPO fijo por el nombre
+    // ("arriendo" → Arriendo, "la luz" → Servicios públicos); si no hay, queda sin tipo.
+    let categoryId = dto.categoryId ?? null;
+    if (!categoryId && dto.kind === 'gasto') {
+      const types = await this.prisma.category.findMany({ where: { isGlobal: true, isFixed: true, deletedAt: null } });
+      const n = ` ${normalizeName(dto.name)} `;
+      const hit = types.find((t) => n.includes(` ${normalizeName(t.name)} `)) ??
+        types.find((t) => t.keywords.some((k) => normalizeName(k).length >= 3 && n.includes(` ${normalizeName(k)} `)));
+      categoryId = hit?.id ?? null;
+    }
     // Compromiso fijo + evento de dominio en la misma transacción (outbox, FIN-002).
     return this.outbox.withEvent(async (tx) => {
       const item = await tx.fixedItem.create({
@@ -43,7 +53,7 @@ export class BudgetService {
           amount: dto.amount,
           currency: dto.currency ?? 'COP',
           dayOfMonth: dto.dayOfMonth ?? null,
-          categoryId: dto.categoryId ?? null,
+          categoryId,
           startDate: dto.startDate ? new Date(dto.startDate) : null,
           endDate: dto.endDate ? new Date(dto.endDate) : null,
           notes: dto.notes ?? null,
@@ -124,6 +134,12 @@ export class BudgetService {
       orderBy: { occurredAt: 'asc' },
     });
     const regByFixed = new Map(fixedTx.map((t) => [t.fixedItemId as string, t]));
+    // FIN-048: el TIPO de cada gasto fijo (categoría fija) para mostrar su ícono.
+    const typeIds = [...new Set(fixedItems.map((i) => i.categoryId).filter((x): x is string => !!x))];
+    const types = typeIds.length
+      ? await this.prisma.category.findMany({ where: { id: { in: typeIds } }, select: { id: true, name: true, icon: true, color: true } })
+      : [];
+    const typeById = new Map(types.map((t) => [t.id, t]));
 
     const fixedIncome = income.netFixedTotal;
     const fixedExpense = fixedItems
@@ -173,6 +189,8 @@ export class BudgetService {
             name: i.name,
             amount: Number(i.amount),
             dayOfMonth: i.dayOfMonth,
+            notes: i.notes,
+            type: i.categoryId ? typeById.get(i.categoryId) ?? null : null,
             // FIN-047: estado del ciclo para la app ("se registró solo el 5 sep" / "se registra solo el 5 oct").
             thisCycle: reg
               ? { status: 'registrado' as const, date: reg.occurredAt.toISOString(), auto: reg.source === 'system', amount: Number(reg.amount) }

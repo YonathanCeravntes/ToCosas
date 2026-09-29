@@ -373,6 +373,8 @@ export interface Category {
   icon: string | null;
   color: string | null;
   isGlobal: boolean;
+  /** FIN-048: tipo de gasto FIJO (no sale en Registrar; se elige al crear un gasto fijo). */
+  isFixed?: boolean;
 }
 
 export type AccountType = 'efectivo' | 'ahorros' | 'corriente' | 'billetera' | 'otro';
@@ -636,6 +638,9 @@ export interface MonthlyBudget {
     name: string;
     amount: number;
     dayOfMonth: number | null;
+    /** FIN-048: nota libre y TIPO de gasto fijo (categoría fija). */
+    notes?: string | null;
+    type?: { id: string; name: string; icon: string | null; color: string | null } | null;
     /** FIN-047: estado del ciclo (se registra solo el día que toca). */
     thisCycle?: { status: 'registrado' | 'pendiente'; date: string; auto: boolean; amount: number | null };
   }>;

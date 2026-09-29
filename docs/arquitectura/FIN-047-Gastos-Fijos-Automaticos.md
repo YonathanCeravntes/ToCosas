@@ -22,3 +22,14 @@ Tarjeta blanca de "Te queda" con la barra del ingreso · **Con lo libre** = juga
 
 ## Verificación
 Unit 424/424 (utilidades nuevas + specs ajustadas a la regla nueva), e2e 107/107 (nuevo `fin047-fijos-automaticos`: se registra solo, cruce sin doble conteo, borrado sin reaparecer, edición de fijo e ingreso). Web revisada con Playwright.
+
+## FIN-048 · Tipos de gasto fijo separados de los variables (Fundador, 2026-09-29)
+**Pedido:** "El nuevo gasto fijo debería tener una lista de tipos (arriendo, etc.) y una nota… toca ir separando estos ítems: una cosa son fijos y otra gastos variables."
+
+**Decisiones:** (1) dos listas; (2) Registrar muestra solo las variables, con el atajo "¿Es algo que pagas cada mes? Créalo como gasto fijo".
+- **Tipos fijos:** Arriendo · Administración · Servicios públicos · Internet y TV · Celular · Educación · Seguros · Suscripciones · Transporte fijo · Gimnasio · Apoyo familiar · Otro fijo.
+- **Variables:** Comida · Mercado · Transporte · Salud · Salidas y entretenimiento · Ropa · Hogar · Otros gastos.
+- `categories.is_fixed` (migración `20260929140000_fin048_fixed_categories`); "Servicios" → "Servicios públicos" y "Entretenimiento" → "Salidas y entretenimiento" conservando su id (el historial no cambia). El sembrado mantiene las globales alineadas (tipo y palabras clave) y asigna tipo a los fijos antiguos por su nombre.
+- Nuevo gasto fijo = elegir tipo (cuadrícula con ícono) → monto, día y **nota** opcional ("Otro fijo" pide qué es). Los fijos creados por el bot o el Copiloto infieren su tipo por el nombre.
+- El cruce (FIN-047) también usa las palabras del tipo: "pagué la luz" → Servicios públicos (palabra completa: "gas" no cruza con "gasolina").
+- Verificación: unit 425/425, e2e 110/110 (3 casos nuevos en `fin047-fijos-automaticos`). Web revisada con Playwright.

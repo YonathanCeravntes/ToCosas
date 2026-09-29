@@ -107,4 +107,32 @@ describe('FIN-047 · Gastos fijos automáticos', () => {
     expect(s.status).toBe(200);
     expect(Number(s.data.amount)).toBe(5_500_000);
   });
+
+  it('FIN-048: los tipos fijos vienen separados de las categorías del día a día', async () => {
+    const cats = await req('GET', '/v1/categories?kind=gasto');
+    const fixed = cats.data.filter((c: { isFixed: boolean }) => c.isFixed).map((c: { name: string }) => c.name);
+    const variable = cats.data.filter((c: { isFixed: boolean; isGlobal: boolean }) => !c.isFixed && c.isGlobal).map((c: { name: string }) => c.name);
+    expect(fixed).toEqual(expect.arrayContaining(['Arriendo', 'Servicios públicos', 'Internet y TV', 'Suscripciones', 'Otro fijo']));
+    expect(variable).toEqual(expect.arrayContaining(['Comida', 'Mercado', 'Transporte']));
+    expect(variable).not.toContain('Arriendo');
+  });
+
+  it('FIN-048: un fijo por tipo con nota; "pagué la luz" lo cruza por las palabras del tipo', async () => {
+    const cats = await req('GET', '/v1/categories?kind=gasto');
+    const sp = cats.data.find((c: { name: string }) => c.name === 'Servicios públicos');
+    const f = await req('POST', '/v1/budget/fixed-items', { kind: 'gasto', name: 'Servicios públicos', amount: 180_000, dayOfMonth: 20, categoryId: sp.id, notes: 'luz y agua' });
+    expect(f.status).toBe(201);
+    const m = await req('GET', '/v1/budget/monthly');
+    const item = m.data.expenses.find((e: { id: string }) => e.id === f.data.id);
+    expect(item).toMatchObject({ notes: 'luz y agua', type: { name: 'Servicios públicos' } });
+    const t = await req('POST', '/v1/transactions', { kind: 'gasto', amount: 172_000, note: 'Pagué la luz', occurredAt: new Date().toISOString() });
+    expect(t.data.fixedItemId).toBe(f.data.id);
+  });
+
+  it('FIN-048: "gasto fijo" por nombre (bot/Copiloto) infiere el tipo', async () => {
+    const f = await req('POST', '/v1/budget/fixed-items', { kind: 'gasto', name: 'netflix', amount: 45_000, dayOfMonth: 12 });
+    const m = await req('GET', '/v1/budget/monthly');
+    const item = m.data.expenses.find((e: { id: string }) => e.id === f.data.id);
+    expect(item.type?.name).toBe('Suscripciones');
+  });
 });

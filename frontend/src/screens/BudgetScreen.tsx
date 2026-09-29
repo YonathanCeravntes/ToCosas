@@ -7,8 +7,9 @@ import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButto
 import { IncomeSplit } from '../components/IncomeSplit';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney, parseAmount } from '../utils/format';
-import { CashflowPlan, MonthlyBudget, TeQueda } from '../api/types';
-import { budgetApi, debtsApi, incomeApi } from '../api/endpoints';
+import { CashflowPlan, Category, MonthlyBudget, TeQueda } from '../api/types';
+import { CategoryGlyph } from '../components/CategoryGlyph';
+import { budgetApi, categoriesApi, debtsApi, incomeApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
 import { confirmRemove } from '../utils/confirm';
 
@@ -166,7 +167,7 @@ function PendingList({ teQueda }: { teQueda: TeQueda }) {
   );
 }
 
-type Editable = { id: string; name: string; amount: number; dayOfMonth: number | null };
+type Editable = { id: string; name: string; amount: number; dayOfMonth: number | null; notes?: string | null };
 
 /** Fila editable (nombre, monto y día) — mismo patrón para ingresos y gastos fijos. */
 function EditableRow({
@@ -176,18 +177,24 @@ function EditableRow({
   amountColor,
   onSave,
   onRemove,
+  leading,
+  withNote,
 }: {
   item: Editable;
   first: boolean;
   subtitle?: string;
   amountColor: string;
-  onSave: (input: { name: string; amount: number; dayOfMonth: number | null }) => Promise<unknown>;
+  onSave: (input: { name: string; amount: number; dayOfMonth: number | null; notes?: string | null }) => Promise<unknown>;
   onRemove: () => void;
+  /** FIN-048: ícono del tipo y nota editable (gastos fijos). */
+  leading?: React.ReactNode;
+  withNote?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.name);
   const [amount, setAmount] = useState(String(Math.round(item.amount)));
   const [day, setDay] = useState(item.dayOfMonth ? String(item.dayOfMonth) : '');
+  const [note, setNote] = useState(item.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -205,7 +212,7 @@ function EditableRow({
     setSaving(true);
     setErr(null);
     try {
-      await onSave({ name: name.trim(), amount: value, dayOfMonth: d });
+      await onSave({ name: name.trim(), amount: value, dayOfMonth: d, ...(withNote ? { notes: note.trim() || null } : {}) });
       setEditing(false);
     } catch (e) {
       setErr((e as Error).message);
@@ -227,6 +234,7 @@ function EditableRow({
               <Field label="Día" value={day} onChangeText={setDay} keyboardType="numeric" placeholder="5" />
             </View>
           </Row>
+          {withNote ? <Field label="Nota (opcional)" value={note} onChangeText={setNote} placeholder="Ej: apartamento 301, luz y agua…" /> : null}
           {err ? <Text style={{ color: colors.danger, marginBottom: 6 }}>{err}</Text> : null}
           <Row style={{ gap: spacing.sm }}>
             <View style={{ flex: 1 }}>
@@ -239,13 +247,17 @@ function EditableRow({
         </View>
       ) : (
         <Row style={{ gap: spacing.sm }}>
+          {leading}
           <Pressable
             style={{ flex: 1 }}
             onPress={() => setEditing(true)}
             accessibilityRole="button"
             accessibilityLabel={`Editar ${item.name}`}
           >
-            <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{item.name}</Text>
+            <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>
+              {item.name}
+              {item.notes ? <Text style={{ color: colors.textMuted, fontWeight: '400' }}> · {item.notes}</Text> : null}
+            </Text>
             <Text style={{ color: colors.textMuted, ...type.small }}>
               {subtitle ?? (item.dayOfMonth ? `Día ${item.dayOfMonth}` : 'Sin día fijo')}
             </Text>
@@ -389,8 +401,10 @@ function ExpensesSection({ items, onChanged }: { items: MonthlyBudget['expenses'
               first={idx === 0}
               subtitle={fixedStatus(e)}
               amountColor={colors.text}
+              withNote
+              leading={<CategoryGlyph emoji={e.type?.icon} kind="gasto" color={e.type?.color} />}
               onSave={async (input) => {
-                await budgetApi.updateFixed(e.id, { name: input.name, amount: input.amount, dayOfMonth: input.dayOfMonth ?? undefined });
+                await budgetApi.updateFixed(e.id, { name: input.name, amount: input.amount, dayOfMonth: input.dayOfMonth ?? undefined, notes: input.notes ?? undefined });
                 await onChanged();
               }}
               onRemove={() =>
@@ -405,18 +419,118 @@ function ExpensesSection({ items, onChanged }: { items: MonthlyBudget['expenses'
       ) : !adding ? (
         <Card><Text style={{ color: colors.textMuted, ...type.small }}>Agrega lo que pagas cada mes: arriendo, servicios, internet, suscripciones…</Text></Card>
       ) : null}
-      {adding ? (
-        <NewItemForm
-          title="Nuevo gasto fijo"
-          placeholder="Arriendo, servicios, internet…"
-          onCreate={async (input) => {
-            await budgetApi.createFixed({ kind: 'gasto', name: input.name, amount: input.amount, dayOfMonth: input.dayOfMonth });
-            await onChanged();
-          }}
-          onDone={() => setAdding(false)}
-        />
-      ) : null}
+      {adding ? <NewFixedExpenseForm onChanged={onChanged} onDone={() => setAdding(false)} /> : null}
     </>
+  );
+}
+
+/** Orden de los tipos fijos: los más comunes primero; "Otro fijo" al final. */
+const FIXED_ORDER = ['Arriendo', 'Administración', 'Servicios públicos', 'Internet y TV', 'Celular', 'Educación', 'Seguros', 'Suscripciones', 'Transporte fijo', 'Gimnasio', 'Apoyo familiar'];
+const fixedOrder = (name: string) => {
+  const i = FIXED_ORDER.indexOf(name);
+  return i === -1 ? (name === 'Otro fijo' ? 999 : 500) : i;
+};
+
+/**
+ * FIN-048 (Fundador, 2026-09-29): nuevo gasto fijo = elegir el TIPO (lista con ícono),
+ * luego monto, día y una nota opcional con información de más. "Otro fijo" pide nombre.
+ */
+function NewFixedExpenseForm({ onChanged, onDone }: { onChanged: () => Promise<unknown>; onDone: () => void }) {
+  const [types, setTypes] = useState<Category[]>([]);
+  const [typeSel, setTypeSel] = useState<Category | null>(null);
+  const [amount, setAmount] = useState('');
+  const [day, setDay] = useState('');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    let alive = true;
+    categoriesApi
+      .list('gasto')
+      .then((c) => alive && setTypes(c.filter((x) => x.isFixed).sort((a, b) => fixedOrder(a.name) - fixedOrder(b.name))))
+      .catch(() => alive && setTypes([]));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const isOther = typeSel?.name === 'Otro fijo';
+  const add = async () => {
+    const value = parseAmount(amount); // §39
+    if (!typeSel) return setErr('Elige el tipo de gasto fijo.');
+    if (isOther && !note.trim()) return setErr('Escribe qué es (p. ej. "Cuota del carro de mi papá").');
+    if (Number.isNaN(value) || value <= 0) return setErr('Escribe el monto mensual.');
+    const d = day.trim() ? parseInt(day, 10) : undefined;
+    if (d !== undefined && (Number.isNaN(d) || d < 1 || d > 31)) return setErr('El día debe estar entre 1 y 31.');
+    setSaving(true);
+    setErr(null);
+    try {
+      await budgetApi.createFixed({
+        kind: 'gasto',
+        name: isOther ? note.trim() : typeSel.name,
+        amount: value,
+        dayOfMonth: d,
+        categoryId: typeSel.id,
+        notes: isOther ? undefined : note.trim() || undefined,
+      });
+      await onChanged();
+      onDone();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <Text style={{ fontWeight: '800', fontSize: 15, color: colors.text, marginBottom: spacing.sm }}>Nuevo gasto fijo</Text>
+      <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600', marginBottom: spacing.sm }}>¿Qué pagas cada mes?</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
+        {types.map((t) => {
+          const active = typeSel?.id === t.id;
+          return (
+            <Pressable
+              key={t.id}
+              onPress={() => setTypeSel(active ? null : t)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={t.name}
+              style={{
+                width: '30.5%', minHeight: 78, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', padding: 6, gap: 4,
+                backgroundColor: active ? colors.primarySoft : colors.surface, borderWidth: active ? 2 : 1, borderColor: active ? colors.primary : colors.border,
+              }}
+            >
+              <CategoryGlyph emoji={t.icon} kind="gasto" color={t.color} />
+              <Text style={{ color: active ? colors.primaryDark : colors.text, fontSize: 11, fontWeight: active ? '800' : '600', textAlign: 'center' }} numberOfLines={2} adjustsFontSizeToFit>
+                {t.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {typeSel ? (
+        <>
+          <Row style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
+            <View style={{ flex: 2 }}>
+              <Field label="Monto mensual" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="1.200.000" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Field label="Día del mes" value={day} onChangeText={setDay} keyboardType="numeric" placeholder="5" />
+            </View>
+          </Row>
+          <Field
+            label={isOther ? '¿Qué es?' : 'Nota (opcional)'}
+            value={note}
+            onChangeText={setNote}
+            placeholder={isOther ? 'Ej: cuota del carro de mi papá' : 'Ej: apartamento 301, luz y agua…'}
+          />
+        </>
+      ) : null}
+      {err ? <Text style={{ color: colors.danger, marginBottom: 6 }}>{err}</Text> : null}
+      <Button title="Agregar gasto fijo" onPress={() => void add()} loading={saving} disabled={!typeSel} />
+    </Card>
   );
 }
 

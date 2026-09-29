@@ -25,6 +25,16 @@ const EMOJI_TO_ICON: Record<string, IconName> = {
   '📚': 'book-outline',
   '🛋️': 'bed-outline',
   '📦': 'cube-outline',
+  // tipos de gasto fijo (FIN-048)
+  '🏢': 'business-outline',
+  '📶': 'wifi-outline',
+  '📱': 'phone-portrait-outline',
+  '🛡️': 'shield-checkmark-outline',
+  '📺': 'tv-outline',
+  '🅿️': 'car-outline',
+  '🏋️': 'barbell-outline',
+  '👪': 'people-outline',
+  '📌': 'pin-outline',
   // ingresos
   '💰': 'cash-outline',
   '💵': 'cash-outline',
