@@ -10,6 +10,8 @@ import { DomainEventType } from '../events/domain-events';
 import { CreateTransactionDto, UpdateTransactionDto } from './dto/transaction.dto';
 import { DEBT_LOCKED_FIELDS, diffTransaction } from './transaction-events.util';
 import { applyCardPayment, isCardDebt, revertCardPayment } from '../debts/card-payment.util';
+import { matchFixed } from '../budget/fixed-expense.util';
+import { financialPeriod } from '../budget/financial-period.util';
 
 /**
  * FIN-028 (DEC-0028 §5.2) · Filtro compartido de movimientos ACTIVOS — un solo
@@ -52,6 +54,8 @@ export class TransactionsService {
       rawMessage?: string;
       waMessageId?: string;
       parseConfidence?: number;
+      /** FIN-047: el movimiento ES este gasto fijo (registro automático). */
+      fixedItemId?: string;
     },
   ) {
     if (dto.clientUuid) {
@@ -103,6 +107,33 @@ export class TransactionsService {
         if (rows.length === 0) throw new NotFoundException('Deuda no encontrada');
       }
 
+      // FIN-047 (Fundador, 2026-09-29): un gasto registrado a mano que ES un gasto fijo
+      // (su nombre en la nota o la categoría, monto parecido) se CRUZA con el fijo: queda
+      // enlazado y, si ya se había registrado solo este ciclo, ese automático se retira.
+      let fixedItemId: string | null = meta?.fixedItemId ?? null;
+      if (!fixedItemId && dto.kind === 'gasto') {
+        const items = await tx.fixedItem.findMany({ where: { userId, deletedAt: null, isActive: true, kind: 'gasto' } });
+        if (items.length > 0) {
+          const cat = dto.categoryId
+            ? await tx.category.findUnique({ where: { id: dto.categoryId }, select: { name: true } })
+            : null;
+          const match = matchFixed(
+            items.map((i) => ({ id: i.id, name: i.name, amount: Number(i.amount) })),
+            `${dto.note ?? ''} ${cat?.name ?? ''}`,
+            dto.amount,
+          );
+          if (match) {
+            fixedItemId = match.id;
+            const settings = await tx.userSettings.findUnique({ where: { userId } });
+            const period = financialPeriod(new Date(dto.occurredAt), settings?.cycleStartDay ?? 1);
+            await tx.transaction.updateMany({
+              where: { userId, fixedItemId: match.id, source: 'system', deletedAt: null, occurredAt: { gte: period.start, lt: period.end } },
+              data: { deletedAt: new Date() },
+            });
+          }
+        }
+      }
+
       const created = await tx.transaction.create({
         data: {
           userId,
@@ -120,6 +151,7 @@ export class TransactionsService {
           rawMessage: meta?.rawMessage ?? null,
           waMessageId: meta?.waMessageId ?? null,
           parseConfidence: meta?.parseConfidence ?? null,
+          fixedItemId,
           status: 'confirmada',
         },
       });

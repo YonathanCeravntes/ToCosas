@@ -581,7 +581,11 @@ export class ConversationService {
     }
     const label = parsed.kind === 'ingreso' ? 'ingreso' : parsed.kind === 'gasto' ? 'gasto' : 'movimiento';
     const cat = parsed.categoryGuess ? ` en ${parsed.categoryGuess}` : '';
-    void tx;
+    // FIN-047: si era un gasto fijo, se dice que quedó cruzado (no se cuenta doble).
+    if (tx.fixedItemId) {
+      const fixed = await this.prisma.fixedItem.findUnique({ where: { id: tx.fixedItemId } });
+      return `✅ Registré tu ${label} de ${fmt(parsed.amount)}${cat} ${when}. Ya lo tenía como gasto fijo (${fixed?.name ?? 'fijo'}): quedó cruzado y no se cuenta doble.${SEEN_IN_APP}`;
+    }
     return `✅ Registré tu ${label} de ${fmt(parsed.amount)}${cat} ${when}.${SEEN_IN_APP}`;
   }
 

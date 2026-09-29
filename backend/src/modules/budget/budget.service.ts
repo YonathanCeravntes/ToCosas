@@ -7,6 +7,7 @@ import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { NetIncomeService } from '../income/net-income.service';
 import { clampCycleDay, financialPeriod } from './financial-period.util';
 import { SpendableService } from './spendable.service';
+import { occurrenceInCycle } from './fixed-expense.util';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -116,6 +117,13 @@ export class BudgetService {
     ]);
     // FIN-016: ciclo financiero activo (con día 1 = mes calendario, sin cambio).
     const period = financialPeriod(new Date(), settings?.cycleStartDay ?? 1);
+    // FIN-047: qué gastos fijos ya se registraron este ciclo (solos o cruzados a mano).
+    const fixedTx = await this.prisma.transaction.findMany({
+      where: { userId, deletedAt: null, kind: 'gasto', fixedItemId: { not: null }, occurredAt: { gte: period.start, lt: period.end } },
+      select: { fixedItemId: true, occurredAt: true, source: true, amount: true },
+      orderBy: { occurredAt: 'asc' },
+    });
+    const regByFixed = new Map(fixedTx.map((t) => [t.fixedItemId as string, t]));
 
     const fixedIncome = income.netFixedTotal;
     const fixedExpense = fixedItems
@@ -157,7 +165,20 @@ export class BudgetService {
       })),
       expenses: fixedItems
         .filter((i) => i.kind === 'gasto')
-        .map((i) => ({ id: i.id, name: i.name, amount: Number(i.amount), dayOfMonth: i.dayOfMonth })),
+        .map((i) => {
+          const reg = regByFixed.get(i.id);
+          const occ = occurrenceInCycle(i.dayOfMonth, period);
+          return {
+            id: i.id,
+            name: i.name,
+            amount: Number(i.amount),
+            dayOfMonth: i.dayOfMonth,
+            // FIN-047: estado del ciclo para la app ("se registró solo el 5 sep" / "se registra solo el 5 oct").
+            thisCycle: reg
+              ? { status: 'registrado' as const, date: reg.occurredAt.toISOString(), auto: reg.source === 'system', amount: Number(reg.amount) }
+              : { status: 'pendiente' as const, date: occ.toISOString(), auto: false, amount: null },
+          };
+        }),
       // FIN-027 (§32): las fuentes de ingreso FIJAS reemplazan al FixedItem
       // legado (migrado); las variables no aparecen aquí (no son "fijas").
       incomes: sources.map((s) => ({

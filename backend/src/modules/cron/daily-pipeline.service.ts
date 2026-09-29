@@ -15,6 +15,7 @@ import { BillingExpirationJob } from '../billing/billing.module';
 import { ENGINE_TZ } from '../financial-engine/engine.constants';
 import { CashflowAlertsService } from './cashflow-alerts.service';
 import { WeeklySummaryService } from './weekly-summary.service';
+import { FixedExpenseService } from '../budget/fixed-expense.service';
 
 export interface PipelineStep {
   step: string;
@@ -66,6 +67,8 @@ export class DailyPipelineService {
       }
     };
     try {
+      // FIN-047: primero se registran los gastos fijos del día (así todo lo demás los ve).
+      await step('gastos_fijos', () => get(FixedExpenseService).materializeAll(now));
       await step('snapshot', () => get(SnapshotJob).run(now));
       await step('tendencias', () => get(TrendsJob).run(now));
       await step('recomendaciones', () => get(RecommendationsJob).run(now));

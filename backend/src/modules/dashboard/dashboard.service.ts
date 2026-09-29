@@ -100,7 +100,10 @@ export class DashboardService {
     // FIN-027 (§32): el ingreso fijo es el NETO de la fuente única (los
     // FixedItem-ingreso legados fueron migrados; ya no se leen aquí).
     const fixedIncome = income.netFixedTotal;
-    const fixedExpense = sumFixed(fixedItems, 'gasto');
+    // FIN-047: los gastos fijos se REGISTRAN solos el día que tocan; "fijos del mes" es lo
+    // que ya se registró de ellos (antes se sumaba lo declarado aunque no hubiera llegado
+    // su día, y registrarlo a mano lo contaba doble).
+    let fixedExpense = 0;
 
     const incomeByCat = new Map<string, CategoryBucket>();
     const expenseByCat = new Map<string, CategoryBucket>();
@@ -114,7 +117,8 @@ export class DashboardService {
         variableIncome += amt;
         bucket(incomeByCat, t, amt);
       } else if (t.kind === 'gasto') {
-        variableExpense += amt;
+        if (t.fixedItemId) fixedExpense += amt;
+        else variableExpense += amt;
         bucket(expenseByCat, t, amt);
       } else if (t.kind === 'pago_deuda') {
         debtPayments += amt;
@@ -153,7 +157,7 @@ export class DashboardService {
         fixed: round2(fixedExpense),
         variable: round2(variableExpense),
         total: round2(expenseTotal),
-        byCategory: toSorted(expenseByCat, variableExpense),
+        byCategory: toSorted(expenseByCat, fixedExpense + variableExpense),
       },
       debtPayments: round2(debtPayments),
       // FIN-020: `estimatedCashflow` (proyección estructural) se conserva en el

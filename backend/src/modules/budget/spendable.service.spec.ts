@@ -36,10 +36,13 @@ describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
     },
     transaction: {
       // DEC-0042: la 2ª agrupación (por debtId) devuelve los pagos del ciclo por deuda.
+      // FIN-047: la 3ª (por fixedItemId) devuelve lo ya registrado de cada gasto fijo.
       groupBy: jest.fn().mockImplementation(async (args: { by: string[] }) =>
         args.by.includes('debtId')
           ? Object.entries(opts.paidByDebt ?? {}).map(([debtId, amount]) => ({ debtId, _sum: { amount } }))
-          : groupBy(opts.sums),
+          : args.by.includes('fixedItemId')
+            ? []
+            : groupBy(opts.sums),
       ),
     },
     fixedItem: { findMany: jest.fn().mockResolvedValue(opts.fixedItems) },

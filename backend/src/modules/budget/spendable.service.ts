@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { FixedExpenseService } from './fixed-expense.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { NetIncomeService } from '../income/net-income.service';
@@ -79,14 +80,33 @@ export class SpendableService {
     // retenidas en la fuente) son compromiso del ciclo — se inyectan, nunca
     // se recalculan aquí.
     private readonly netIncome: NetIncomeService,
+    // FIN-047: antes de calcular, registra los gastos fijos que ya llegaron a su día.
+    @Optional() private readonly fixedExpenses?: FixedExpenseService,
   ) {}
 
+  private readonly logger = new Logger(SpendableService.name);
+  private readonly lastMaterialized = new Map<string, number>();
+
+  /** Registro perezoso de fijos (como mucho cada 5 min por usuario; solo con la fecha REAL). */
+  private async materializeFixed(userId: string, now: Date): Promise<void> {
+    if (!this.fixedExpenses || Math.abs(now.getTime() - Date.now()) > 60_000) return;
+    const last = this.lastMaterialized.get(userId) ?? 0;
+    if (Date.now() - last < 5 * 60_000) return;
+    this.lastMaterialized.set(userId, Date.now());
+    try {
+      await this.fixedExpenses.materialize(userId, now);
+    } catch (e) {
+      this.logger.warn(`Registro automático de fijos falló: ${(e as Error).message}`);
+    }
+  }
+
   async compute(userId: string, now = new Date()): Promise<TeQueda> {
+    await this.materializeFixed(userId, now);
     const settings = await this.prisma.userSettings.findUnique({ where: { userId } });
     const period = financialPeriod(now, settings?.cycleStartDay ?? 1);
     const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-    const [txByKind, fixedItems, debts, outlays, income, paidByDebt] = await Promise.all([
+    const [txByKind, fixedItems, debts, outlays, income, paidByDebt, paidByFixed] = await Promise.all([
       this.prisma.transaction.groupBy({
         by: ['kind'],
         where: {
@@ -118,7 +138,21 @@ export class SpendableService {
         },
         _sum: { amount: true },
       }),
+      // FIN-047: lo ya registrado de cada gasto fijo en el ciclo (solo o cruzado a mano).
+      this.prisma.transaction.groupBy({
+        by: ['fixedItemId'],
+        where: {
+          userId,
+          deletedAt: null,
+          status: 'confirmada',
+          kind: 'gasto',
+          fixedItemId: { not: null },
+          occurredAt: { gte: period.start, lt: period.end },
+        },
+        _sum: { amount: true },
+      }),
     ]);
+    const paidByFixedItem = new Map(paidByFixed.map((p) => [p.fixedItemId as string, Number(p._sum.amount ?? 0)]));
     const paidThisCycle = new Map(paidByDebt.map((p) => [p.debtId as string, Number(p._sum.amount ?? 0)]));
 
     const sumKind = (k: string) =>
@@ -146,9 +180,12 @@ export class SpendableService {
         date = inStartMonth >= period.start ? inStartMonth : new Date(Date.UTC(period.start.getUTCFullYear(), period.start.getUTCMonth() + 1, Math.min(f.dayOfMonth, 28)));
         if (date >= period.end) date = new Date(period.end.getTime() - DAY_MS);
       }
+      // FIN-047: si ya se registró (solo o a mano) sale de lo protegido y entra como gasto real.
+      const fixedPending = round2(Math.max(0, Number(f.amount) - (paidByFixedItem.get(f.id) ?? 0)));
+      if (fixedPending <= 0) continue;
       commitments.push({
         name: f.name,
-        amount: Number(f.amount),
+        amount: fixedPending,
         kind: 'fijo',
         date: date ? date.toISOString() : null,
         datePassed: date ? date < startOfToday : false,

@@ -25,6 +25,8 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     { kind: 'gasto', amount: 200_000, categoryId: 'c2', category: cat('Comida') },
     { kind: 'gasto', amount: 100_000, categoryId: 'c2', category: cat('Comida') },
     { kind: 'pago_deuda', amount: 450_000, categoryId: null, category: null },
+    // FIN-047: el arriendo (gasto fijo) ya se registró solo este ciclo.
+    { kind: 'gasto', amount: 1_500_000, categoryId: 'c3', category: cat('Hogar'), fixedItemId: 'f-arriendo' },
   ];
 
   const prisma = {
@@ -93,10 +95,12 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     expect(home.savings.total).toBe(3_500_000);
     expect(home.savings.emergencyFund).toBe(1_500_000);
 
-    // Ingresos y gastos diferencian fijo (declarado) de variable (del ciclo).
+    // Ingresos: fijo declarado vs variable. Gastos (FIN-047): fijo = lo YA registrado de
+    // los gastos fijos (solo o cruzado); variable = el resto de gastos del ciclo.
     expect(home.income).toMatchObject({ fixed: 4_000_000, variable: 500_000, total: 4_500_000 });
     expect(home.expense).toMatchObject({ fixed: 1_500_000, variable: 300_000, total: 1_800_000 });
-    expect(home.expense.byCategory[0]).toMatchObject({ name: 'Comida', amount: 300_000, percent: 100 });
+    expect(home.expense.byCategory[0]).toMatchObject({ name: 'Hogar', amount: 1_500_000 });
+    expect(home.expense.byCategory[1]).toMatchObject({ name: 'Comida', amount: 300_000 });
     expect(home.income.byCategory[0]).toMatchObject({ name: 'Freelance', amount: 500_000 });
 
     // Flujo estimado = ingresos totales − gastos totales − pagos de deuda.

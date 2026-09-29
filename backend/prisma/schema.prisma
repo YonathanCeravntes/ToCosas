@@ -576,6 +576,8 @@ model Transaction {
   waMessageId     String?     @unique @map("wa_message_id")
   clientUuid      String?     @map("client_uuid") @db.Uuid
   accountId       String?     @map("account_id") @db.Uuid
+  /// FIN-047: gasto fijo al que corresponde (registrado solo el día que toca, o cruzado a mano).
+  fixedItemId     String?     @map("fixed_item_id") @db.Uuid
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
   deletedAt       DateTime?   @map("deleted_at")
@@ -585,12 +587,14 @@ model Transaction {
   entity       FinancialEntity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
   debt         Debt?            @relation(fields: [debtId], references: [id], onDelete: SetNull)
   account      Account?         @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  fixedItem    FixedItem?       @relation(fields: [fixedItemId], references: [id], onDelete: SetNull)
   // FIN-031: si esta transacción originó una compra a cuotas (causalidad G).
   cardPurchase CardPurchase?
 
   @@unique([userId, clientUuid])
   @@index([userId, occurredAt])
   @@index([debtId])
+  @@index([fixedItemId])
   @@map("transactions")
 }
 
@@ -689,7 +693,8 @@ model FixedItem {
   updatedAt  DateTime  @updatedAt @map("updated_at")
   deletedAt  DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 
   @@index([userId, isActive])
   @@map("fixed_items")
