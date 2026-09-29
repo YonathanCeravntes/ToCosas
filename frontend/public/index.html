@@ -56,5 +56,33 @@
   <body>
     <noscript>Millo necesita JavaScript para funcionar.</noscript>
     <div id="root"></div>
+    <!-- BT-023: si la app no llega a dibujarse (pantalla en blanco en el iPhone), en vez de
+         blanco se muestra qué pasó y un botón para recargar. Solo lectura: no toca datos. -->
+    <script>
+      (function () {
+        var errs = [];
+        window.addEventListener('error', function (e) {
+          errs.push((e.message || 'error') + ' @ ' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || ''));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          var r = e && e.reason;
+          errs.push('promesa: ' + ((r && r.message) || r));
+        });
+        setTimeout(function () {
+          var root = document.getElementById('root');
+          var empty = !root || (!root.innerText.trim() && !root.querySelector('[role="progressbar"]'));
+          if (!empty) return;
+          var d = document.createElement('div');
+          d.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;justify-content:center;padding:24px;font-family:-apple-system,system-ui,sans-serif;background:#F6F8F7;color:#12211C;z-index:9999';
+          d.innerHTML = '<h2 style="color:#0B6E4F;margin:0 0 8px">Millo no pudo abrir</h2>' +
+            '<p style="margin:0 0 12px;line-height:1.4">Toca Recargar. Si se repite, envía una captura de esta pantalla.</p>' +
+            '<button style="padding:14px;border-radius:12px;border:0;background:#0B6E4F;color:#fff;font-size:16px;font-weight:700">Recargar</button>' +
+            '<pre style="white-space:pre-wrap;font-size:11px;color:#5B6B64;margin-top:16px"></pre>';
+          d.querySelector('button').onclick = function () { location.reload(); };
+          d.querySelector('pre').textContent = (errs.join('\n') || 'La app no respondió.') + '\n' + navigator.userAgent + '\n' + location.href;
+          document.body.appendChild(d);
+        }, 9000);
+      })();
+    </script>
   </body>
 </html>

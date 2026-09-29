@@ -2,12 +2,29 @@
 // En web (entorno de captura/preview) los tokens viven en localStorage; el
 // almacenamiento seguro real (Keychain/Keystore) es del bundle nativo, que
 // no cambia.
+// BT-023: en Safari (modo privado, app de pantalla de inicio con el almacenamiento
+// bloqueado) localStorage puede lanzar error; sin datos guardados se muestra el ingreso
+// en vez de romper el arranque.
 module.exports = {
-  getItemAsync: async (key) => window.localStorage.getItem(key),
+  getItemAsync: async (key) => {
+    try {
+      return window.localStorage.getItem(key);
+    } catch (e) {
+      return null;
+    }
+  },
   setItemAsync: async (key, value) => {
-    window.localStorage.setItem(key, value);
+    try {
+      window.localStorage.setItem(key, value);
+    } catch (e) {
+      /* almacenamiento no disponible: la sesión dura mientras la app esté abierta */
+    }
   },
   deleteItemAsync: async (key) => {
-    window.localStorage.removeItem(key);
+    try {
+      window.localStorage.removeItem(key);
+    } catch (e) {
+      /* nada que borrar */
+    }
   },
 };
