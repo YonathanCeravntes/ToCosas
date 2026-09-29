@@ -11,6 +11,7 @@ import { CreateTransactionDto, UpdateTransactionDto } from './dto/transaction.dt
 import { DEBT_LOCKED_FIELDS, diffTransaction } from './transaction-events.util';
 import { applyCardPayment, isCardDebt, revertCardPayment } from '../debts/card-payment.util';
 import { matchFixed } from '../budget/fixed-expense.util';
+import { merchantKey } from './merchant-key.util';
 import { financialPeriod } from '../budget/financial-period.util';
 
 /**
@@ -69,7 +70,14 @@ export class TransactionsService {
       throw new BadRequestException('Un pago de deuda requiere debtId');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    // FIN-046 Fase 4: sin categoría, se usa la que la persona ya le dio a ese comercio.
+    const chosenCategory = dto.categoryId;
+    if (!dto.categoryId && dto.note && (dto.kind === 'gasto' || dto.kind === 'ingreso')) {
+      const learned = await this.suggestCategory(userId, dto.note, dto.kind);
+      if (learned) dto = { ...dto, categoryId: learned.id };
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
       // FIN-043 (BT-018): en una TARJETA el saldo vive en las cuotas de sus compras;
       // el pago se aplica a ellas (más antigua primero) y NO al current_balance (que es 0).
       const card = dto.kind === 'pago_deuda' && dto.debtId ? await isCardDebt(tx, userId, dto.debtId) : false;
@@ -195,6 +203,46 @@ export class TransactionsService {
       }
       return created;
     });
+
+    // Lo que la persona elige (no lo automático) enseña la categoría de ese comercio.
+    if (chosenCategory && dto.note && meta?.source !== 'system') {
+      await this.learnCategory(userId, dto.note, chosenCategory).catch(() => undefined);
+    }
+    return result;
+  }
+
+  /**
+   * FIN-046 Fase 4 · Categoría aprendida para la nota (por comercio), si la hay y sigue
+   * vigente. La usan el registro sin categoría y el bot (antes de sus palabras clave).
+   */
+  async suggestCategory(userId: string, note: string, kind: 'gasto' | 'ingreso') {
+    const key = merchantKey(note);
+    if (!key) return null;
+    const hint = await this.prisma.categoryHint.findUnique({
+      where: { userId_key: { userId, key } },
+      include: { category: true },
+    });
+    const c = hint?.category;
+    if (!c || c.deletedAt || c.kind !== kind || (c.userId && c.userId !== userId)) return null;
+    return c;
+  }
+
+  /** Recuerda (o corrige) la categoría de un comercio. La última elección manda. */
+  async learnCategory(userId: string, note: string, categoryId: string): Promise<void> {
+    const key = merchantKey(note);
+    if (!key) return;
+    const cat = await this.prisma.category.findUnique({ where: { id: categoryId }, select: { name: true } });
+    // "Comida" en la categoría Comida no enseña nada.
+    if (!cat || merchantKey(cat.name) === key) return;
+    const prev = await this.prisma.categoryHint.findUnique({ where: { userId_key: { userId, key } } });
+    if (!prev) {
+      await this.prisma.categoryHint.create({ data: { userId, key, categoryId } });
+    } else {
+      await this.prisma.categoryHint.update({
+        where: { id: prev.id },
+        data: prev.categoryId === categoryId ? { hits: { increment: 1 } } : { categoryId, hits: 1 },
+      });
+    }
   }
 
   async findAll(userId: string, q: TransactionQuery) {
@@ -264,6 +312,12 @@ export class TransactionsService {
 
     // Nada cambió realmente: no se toca la BD ni se emite evento (idempotente).
     if (diff.changedFields.length === 0) return prev;
+
+    // FIN-046 Fase 4: corregir la categoría enseña a Millo para la próxima vez.
+    const note = (dto.note ?? prev.note) as string | null;
+    if (dto.categoryId && diff.changedFields.includes('categoryId') && note) {
+      await this.learnCategory(userId, note, dto.categoryId).catch(() => undefined);
+    }
 
     return this.outbox.withEvent(async (tx) => {
       const updated = await tx.transaction.update({

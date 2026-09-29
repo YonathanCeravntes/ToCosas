@@ -24,6 +24,7 @@ describe('ConversationService (FIN-029, DEC-0029 §5)', () => {
     txCreate?: jest.Mock;
     txRemove?: jest.Mock;
     simRun?: jest.Mock;
+    suggest?: jest.Mock;
   } = {}) => {
     const prisma = {
       category: { findFirst: jest.fn().mockResolvedValue(null) },
@@ -38,6 +39,8 @@ describe('ConversationService (FIN-029, DEC-0029 §5)', () => {
       create: over.txCreate ?? jest.fn().mockResolvedValue({ id: 't1' }),
       remove: over.txRemove ?? jest.fn().mockResolvedValue({ deleted: true }),
       monthlyDashboard: jest.fn().mockResolvedValue({ income: 0, expense: 0, estimatedCashflow: 0 }),
+      // FIN-046 Fase 4: sin nada aprendido, el bot usa sus palabras clave.
+      suggestCategory: over.suggest ?? jest.fn().mockResolvedValue(null),
     } as never;
     const debtOutlay = { outlaysByUser: jest.fn().mockResolvedValue({ totalOutlay: 0 }) } as never;
     const simulations = { run: over.simRun ?? jest.fn() } as never;
@@ -71,6 +74,16 @@ describe('ConversationService (FIN-029, DEC-0029 §5)', () => {
     const reply = await svc.handle(baseInput('Gasté $45.000 en mercado'));
     expect(reply).toContain('45.000');
     expect(reply.toLowerCase()).toContain('en tus movimientos'); // el DÓNDE
+  });
+
+  it('FIN-046 Fase 4 — lo aprendido de la persona gana sobre las palabras clave', async () => {
+    const txCreate = jest.fn().mockResolvedValue({ id: 't1' });
+    const suggest = jest.fn().mockResolvedValue({ id: 'c-sus', name: 'Suscripciones' });
+    const svc = build({ txCreate, suggest });
+    const reply = await svc.handle(baseInput('Gasté 45000 en netflix'));
+    expect(suggest).toHaveBeenCalledWith(expect.any(String), expect.stringMatching(/netflix/i), 'gasto');
+    expect(txCreate.mock.calls[0][1]).toMatchObject({ categoryId: 'c-sus' });
+    expect(reply).toContain('en Suscripciones');
   });
 
   it('§5.1 — al anular, también acusa con el DÓNDE', async () => {

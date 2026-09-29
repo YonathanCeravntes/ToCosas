@@ -6,6 +6,7 @@ import { RetentionJob } from '../financial-engine/jobs/retention.job';
 import { RecommendationsJob } from '../recommendations/recommendations.job';
 import { GamificationJob } from '../gamification/gamification.support';
 import { MemoryJob } from '../memory/memory.job';
+import { ProposalsService } from '../memory/proposals.service';
 import { UpdateReviewService } from '../debts/update-review.service';
 import { ProactivityJob } from '../insights/proactivity.job';
 import { RemindersService } from '../reminders/reminders.service';
@@ -74,6 +75,8 @@ export class DailyPipelineService {
       await step('recomendaciones', () => get(RecommendationsJob).run(now));
       await step('logros', () => get(GamificationJob).run(now));
       if (bogotaWeekday(now) === 0) await step('memoria', () => get(MemoryJob).run(now));
+      // FIN-046 Fase 4: propuestas de un toque (gasto fijo, ingresos) antes de los avisos.
+      await step('propuestas', () => get(ProposalsService).run(now));
       await step('revision_corte', () => get(UpdateReviewService).seedReviewInsights(now));
       await step('te_sobro', () => this.alerts.run(now));
       await step('avisos', () => get(ProactivityJob).run(now));

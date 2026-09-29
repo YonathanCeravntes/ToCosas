@@ -1,6 +1,6 @@
 # FIN-046 · El cerebro de Millo (plan por fases)
 
-- **Fecha:** 2026-09-29 · **Estado:** Fases 1, 2 y 3 implementadas (Fase 3 se activa con CRON_SECRET + rama `chat`); siguiente Fase 4
+- **Fecha:** 2026-09-29 · **Estado:** Fases 1, 2, 3 y 4 implementadas (Fase 3 se activa con CRON_SECRET + rama `chat`)
 - **Pedido:** "Necesitamos potenciar el cerebro de Millo." El Fundador eligió las 4 líneas: Copiloto con IA de verdad, Millo proactivo, que aprenda de ti y bot de Telegram más listo.
 
 ## 1. Qué hay hoy (inventario honesto)
@@ -71,3 +71,13 @@
 - **Despertador gratis:** `.github/workflows/millo-despertador.yml` (6:50 a. m. Bogotá, con reintentos mientras Render despierta). GitHub solo agenda flujos desde la rama principal (`chat`).
 - **Activación (Fundador):** 1) crear una clave larga; 2) Render → Environment → `CRON_SECRET`; 3) GitHub → Settings → Secrets → Actions → `CRON_SECRET` (mismo valor); 4) que el flujo llegue a `chat`.
 - **Verificación:** e2e `fin046-proactivo` (clave obligatoria, recorrido completo sin fallos, "te sobró" una vez por ciclo y no a mitad de ciclo, resumen semanal); unit 421/421, e2e 103/103.
+
+## 8. Fase 4 · Implementado (2026-09-29) — Aprende de ti
+- **Categorías por comercio** (`category_hints`, migración `20260929160000_fin046_category_hints`): cuando la persona elige o **corrige** una categoría, Millo la recuerda para ese comercio (la nota sin montos, tildes ni palabras de relleno: "Pagué Netflix $45.000" → `netflix`). La próxima vez sin categoría (app o bot) ya viene bien; en el bot lo aprendido gana sobre las palabras clave genéricas. La última elección manda. Lo automático (gastos fijos) no enseña.
+- **"¿Pagas Netflix cada mes?"**: un comercio registrado **una vez por mes**, en meses seguidos (2 o más, el último este mes o el anterior), con monto ±15% y día ±5, que no sea ya un gasto fijo → propuesta. Varias compras en un mes (almuerzos, Uber) no cuentan.
+- **Ingresos que Millo no conoce** (3 meses completos): sin ingresos declarados y lo recibido es estable → "¿Te entra plata cada mes?" (ingreso fijo con lo mínimo recibido); con ingresos declarados y los 3 meses llegó ≥10% más → "Te está entrando más de lo que declaraste" (ingreso variable con lo mínimo que sobró, redondeado a $10.000, desde $50.000). Así el plan de flujo y Mi mes cuentan con esa plata.
+- **Un toque, nunca solo:** cada propuesta es una novedad `oportunidad` con `payload.action`; sale una sola vez y, si se descarta, no vuelve. "Sí, hazlo" → `POST /v1/proposals/:id/accept`: crea el gasto fijo (tipo inferido por el nombre) y **enlaza lo ya pagado este ciclo** para no contarlo doble, o crea el ingreso fijo/variable.
+- **Dónde se ve:** Copiloto ("Millo notó") y Mi mes. Por Telegram llega como aviso (tope anti-fatiga de siempre) y se confirma en la app.
+- **Privacidad:** a la IA solo cruzan los números del payload (nunca el nombre del comercio).
+- **Recorrido diario:** nuevo paso `propuestas` después de `memoria`.
+- **Verificación:** unit 437/437 (detección y clave de comercio, bot con lo aprendido), e2e 116/116 (nuevo `fin046-aprende`: aprende y corrige categorías, propone Netflix una sola vez, confirma sin doble conteo, ingreso fijo detectado). Web revisada con Playwright.

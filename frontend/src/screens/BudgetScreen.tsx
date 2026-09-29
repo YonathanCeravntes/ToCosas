@@ -8,7 +8,8 @@ import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney, parseAmount } from '../utils/format';
 import { CashflowPlan, Category, MonthlyBudget, TeQueda } from '../api/types';
 import { CategoryGlyph } from '../components/CategoryGlyph';
-import { budgetApi, categoriesApi, debtsApi, incomeApi } from '../api/endpoints';
+import { budgetApi, categoriesApi, debtsApi, incomeApi, insightsApi } from '../api/endpoints';
+import { isProposal, ProposalCard } from '../components/ProposalCard';
 import { useApi } from '../utils/useApi';
 import { confirmRemove } from '../utils/confirm';
 import { fixedOrder } from '../utils/fixedTypes';
@@ -25,6 +26,8 @@ import { fixedOrder } from '../utils/fixedTypes';
 export function BudgetScreen() {
   const { data, loading, error, reload } = useApi(() => budgetApi.monthly(), []);
   const plan = useApi(() => debtsApi.cashflowPlan(), []);
+  // FIN-046 Fase 4: propuestas de gasto fijo / ingreso aparecen también aquí, donde aplican.
+  const proposals = useApi(() => insightsApi.list().then((l) => l.filter(isProposal)), []);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const reloadPlan = plan.reload;
   const [editing, setEditing] = useState(false);
@@ -33,6 +36,8 @@ export function BudgetScreen() {
     React.useCallback(() => {
       void reload();
       void reloadPlan();
+      void proposals.reload();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [reload, reloadPlan]),
   );
 
@@ -47,6 +52,9 @@ export function BudgetScreen() {
     <FormScroll onRefresh={refresh}>
       <MonthCard teQueda={data.teQueda} label={data.period.label} loading={loading} />
       <FreeMoney teQueda={data.teQueda} plan={plan.data} />
+      {(proposals.data ?? []).map((p) => (
+        <ProposalCard key={p.id} insight={p} onDone={() => void Promise.all([refresh(), proposals.reload()])} />
+      ))}
 
       <CommittedList teQueda={data.teQueda} total={committedTotal} />
       {data.debtChargesSeparate > 0 ? (

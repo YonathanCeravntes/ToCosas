@@ -19,6 +19,7 @@ import { colors, radius, spacing } from '../theme/colors';
 import { AiConsentStatus, CopilotAction, CopilotMessage, Insight, InsightSeverity, Recommendation } from '../api/types';
 import { budgetApi, copilotApi, insightsApi, recommendationsApi } from '../api/endpoints';
 import { useBottomInset } from '../navigation/insets';
+import { isProposal, ProposalCard } from '../components/ProposalCard';
 
 // FIN-053 (opción 2): novedades en filas con ícono en círculo, como Mis deudas / Mi mes.
 const SEVERITY_STYLE: Record<InsightSeverity, { icon: IconName; fg: string; bg: string }> = {
@@ -163,6 +164,15 @@ export function CopilotScreen() {
                 </Row>
               </Card>
             ) : null}
+            {/* FIN-046 Fase 4: lo que Millo aprendió de ti, para confirmar con un toque */}
+            {insights.some(isProposal) ? (
+              <>
+                <GroupLabel title="Millo notó" />
+                {insights.filter(isProposal).map((ins) => (
+                  <ProposalCard key={ins.id} insight={ins} onDone={() => setInsights((prev) => prev.filter((x) => x.id !== ins.id))} />
+                ))}
+              </>
+            ) : null}
             {/* Recomendado para ti (FIN-007): acciones con beneficio cuantificado */}
             {recommendations.length > 0 ? (
               <>
@@ -181,11 +191,11 @@ export function CopilotScreen() {
               </>
             ) : null}
             {/* Novedades (FIN-006): tocar una la conversa con el Copiloto */}
-            {insights.length > 0 ? (
+            {insights.some((i) => !isProposal(i)) ? (
               <>
                 <GroupLabel title="Novedades" />
                 <Card style={{ paddingVertical: 0 }}>
-                  {insights.slice(0, 4).map((ins, i) => {
+                  {insights.filter((i) => !isProposal(i)).slice(0, 4).map((ins, i) => {
                     const st = SEVERITY_STYLE[ins.severity] ?? SEVERITY_STYLE.info;
                     return (
                       <Pressable

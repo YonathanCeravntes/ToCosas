@@ -204,6 +204,11 @@ export const insightsApi = {
     api.patch<{ proactiveEnabled: boolean }>('/insights/preferences', { proactiveEnabled: enabled }),
 };
 
+// FIN-046 Fase 4: confirmar una propuesta de un toque (gasto fijo, ingreso).
+export const proposalsApi = {
+  accept: (insightId: string) => api.post<{ done: boolean; action?: string }>(`/proposals/${insightId}/accept`, {}),
+};
+
 export const copilotApi = {
   send: (content: string, conversationId?: string) =>
     api.post<CopilotReply>('/copilot/messages', { content, conversationId }),

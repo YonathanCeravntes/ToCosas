@@ -476,6 +476,8 @@ export interface Insight {
   body: string;
   status: 'new' | 'seen' | 'dismissed';
   createdAt: string;
+  /** FIN-046 Fase 4: si trae `action`, es una propuesta que se confirma con un toque. */
+  payload?: { action?: 'crear_gasto_fijo' | 'crear_ingreso_fijo' | 'crear_ingreso_variable'; [k: string]: unknown } | null;
 }
 
 // --- Simulador y recomendaciones (FIN-007) ---

@@ -520,16 +520,25 @@ export class ConversationService {
       return '🤔 ¿Ese movimiento fue un *gasto*, un *ingreso* o un *pago de deuda*?';
     }
 
-    const categoryId = parsed.categoryGuess
-      ? (
-          await this.prisma.category.findFirst({
-            where: {
-              name: { equals: parsed.categoryGuess, mode: 'insensitive' },
-              OR: [{ userId }, { isGlobal: true }],
-            },
-          })
-        )?.id
-      : undefined;
+    // FIN-046 Fase 4: lo aprendido de la persona ("netflix" → Suscripciones) gana sobre
+    // las palabras clave genéricas; si no hay nada aprendido, se usan ellas.
+    const learned =
+      parsed.note && (parsed.kind === 'gasto' || parsed.kind === 'ingreso')
+        ? await this.transactions.suggestCategory(userId, parsed.note, parsed.kind).catch(() => null)
+        : null;
+    const categoryName = learned?.name ?? parsed.categoryGuess;
+    const categoryId = learned
+      ? learned.id
+      : parsed.categoryGuess
+        ? (
+            await this.prisma.category.findFirst({
+              where: {
+                name: { equals: parsed.categoryGuess, mode: 'insensitive' },
+                OR: [{ userId }, { isGlobal: true }],
+              },
+            })
+          )?.id
+        : undefined;
 
     const entity = parsed.entityGuess
       ? await this.prisma.financialEntity.findFirst({
@@ -580,7 +589,7 @@ export class ConversationService {
       return `✅ Registré tu pago de ${fmt(parsed.amount)}${debt ? ` a ${debt.name}` : ''} ${when}. Nuevo saldo: ${fmt(Number(debt?.currentBalance ?? 0))}.${SEEN_IN_APP}`;
     }
     const label = parsed.kind === 'ingreso' ? 'ingreso' : parsed.kind === 'gasto' ? 'gasto' : 'movimiento';
-    const cat = parsed.categoryGuess ? ` en ${parsed.categoryGuess}` : '';
+    const cat = categoryName ? ` en ${categoryName}` : '';
     // FIN-047: si era un gasto fijo, se dice que quedó cruzado (no se cuenta doble).
     if (tx.fixedItemId) {
       const fixed = await this.prisma.fixedItem.findUnique({ where: { id: tx.fixedItemId } });
