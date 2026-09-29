@@ -68,3 +68,10 @@ Unit 424/424 (utilidades nuevas + specs ajustadas a la regla nueva), e2e 107/107
 - Solo se sugieren las que falten por tipo; cambiar de perfil no borra ni cambia deducciones ya creadas.
 - Cada deducción muestra su valor en pesos, sobre qué base y si te la descuentan o la pagas tú.
 - Sin cambios de backend (usa `NetIncomeService` y la API existente). Web revisada con Playwright.
+
+## FIN-052 · Simulador "¿Qué pasa si…?" opción 2 (Fundador, 2026-09-29)
+- Escenarios en una **fila de chips** con nombre corto (Abono extra, Crédito, Recortar gastos, Cambio de ingreso, Avalancha o bola, Refinanciar, Vender activo, Ahorro); la pregunta completa va de título y "Nada de esto cambia tus datos reales".
+- **Deuda en lista de opción única** (tarjeta blanca, fila elegida en verde suave) con saldo, tasa y marca "tu plan empieza aquí" o "la más cara". La deuda por defecto es la primera del **plan para liberar flujo** (FIN-045), no el orden de ataque anterior.
+- **Campos grandes con unidad** ($, meses, % EA) y **montos rápidos** de un toque ("100 mil", "200 mil", "1 millón", "36 meses"…).
+- Resultado con los colores nuevos y el siguiente paso como botón verde ("Hazlo real: abonar a capital"); "Ajusta tus compromisos en Mi mes".
+- Sin cambios de backend. Web revisada con Playwright (abono extra y crédito).

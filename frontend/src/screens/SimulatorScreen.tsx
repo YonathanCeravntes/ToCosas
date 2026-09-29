@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
-import { Button, Card, Field, FormScroll, Ico, IconName, Row } from '../components/ui';
-import { colors, radius, spacing } from '../theme/colors';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Button, Card, FormScroll, GroupLabel, Ico, IconName, Row } from '../components/ui';
+import { colors, radius, spacing, type } from '../theme/colors';
 import { formatLocalDate, formatMoney, parseAmount, parseDecimal } from '../utils/format';
 import {
   Asset,
@@ -22,6 +22,9 @@ import { RootStackParamList } from '../navigation/types';
  * motor (FIN-007) usables, con la pregunta precargada desde las jugadas, el
  * veredicto narrado (§29, titular liderado por el DELTA del Score) y el puente
  * de vuelta a la acción real. La pantalla NO calcula cifras — solo formatea.
+ *
+ * Rediseño opción 2 (Fundador, 2026-09-29, FIN-052): escenarios en fila de chips,
+ * la pregunta como título, la deuda en lista con su tasa y montos rápidos.
  */
 interface FieldDef {
   name: string;
@@ -30,11 +33,17 @@ interface FieldDef {
   /** DEC-0026 §5.2: el backend acepta 0 donde tiene sentido (extraBudget). */
   allowZero?: boolean;
   helper?: string;
+  /** FIN-052: montos rápidos de un toque ("200 mil"). */
+  quick?: number[];
+  /** Unidad del campo: plata ($), meses o tasa (%). */
+  unit?: 'money' | 'months' | 'pct';
 }
 
 interface ScenarioDef {
   key: SimulationType;
   label: string;
+  /** Nombre corto para el chip. */
+  short: string;
   icon: IconName;
   fields: FieldDef[];
   /** Selector requerido: deuda (abono/refinanciación) o activo (venta). */
@@ -48,43 +57,50 @@ const SCENARIOS: ScenarioDef[] = [
     // P1 (máxima prioridad DEC-0026): la jugada de abono por fin aterriza aquí.
     key: 'abono_extra',
     label: '¿Y si abono extra a una deuda?',
+    short: 'Abono extra',
     icon: 'cash-outline',
     needs: 'debt',
-    fields: [{ name: 'extraMonthly', label: 'Abono extra mensual', placeholder: '200000' }],
+    fields: [{ name: 'extraMonthly', label: 'Abono extra al mes', placeholder: '200.000', unit: 'money', quick: [100_000, 200_000, 500_000, 1_000_000] }],
   },
   {
     key: 'nueva_deuda',
     label: '¿Y si tomo un crédito?',
+    short: 'Crédito',
     icon: 'car-outline',
     fields: [
-      { name: 'amount', label: 'Monto', placeholder: '20000000' },
-      { name: 'termMonths', label: 'Plazo (meses)', placeholder: '60' },
-      { name: 'ratePct', label: 'Tasa % EA', placeholder: '18' },
+      { name: 'amount', label: 'Monto', placeholder: '20.000.000', unit: 'money', quick: [5_000_000, 10_000_000, 20_000_000, 50_000_000] },
+      { name: 'termMonths', label: 'Plazo', placeholder: '60', unit: 'months', quick: [12, 24, 36, 60] },
+      { name: 'ratePct', label: 'Tasa efectiva anual', placeholder: '18', unit: 'pct' },
     ],
   },
   {
     key: 'reducir_gastos',
     label: '¿Y si recorto gastos?',
+    short: 'Recortar gastos',
     icon: 'cut-outline',
-    fields: [{ name: 'monthlyAmount', label: 'Recorte mensual', placeholder: '300000' }],
+    fields: [{ name: 'monthlyAmount', label: 'Recorte al mes', placeholder: '300.000', unit: 'money', quick: [100_000, 300_000, 500_000, 1_000_000] }],
   },
   {
     key: 'cambio_ingreso',
     label: '¿Y si cambia mi ingreso?',
+    short: 'Cambio de ingreso',
     icon: 'briefcase-outline',
-    fields: [{ name: 'newMonthlyIncome', label: 'Nuevo ingreso mensual', placeholder: '6000000' }],
+    fields: [{ name: 'newMonthlyIncome', label: 'Nuevo ingreso al mes', placeholder: '6.000.000', unit: 'money' }],
   },
   {
     key: 'estrategia_deudas',
     label: '¿Avalancha o bola de nieve?',
+    short: 'Avalancha o bola',
     icon: 'trail-sign-outline',
     needsTwoDebts: true,
     fields: [
       {
         name: 'extraBudget',
-        label: 'Extra mensual para deudas',
+        label: 'Extra al mes para deudas',
         placeholder: '0',
         allowZero: true,
+        unit: 'money',
+        quick: [0, 200_000, 500_000, 1_000_000],
         // P2 (DEC-0022 §5.3 ante la usuaria): mismo contrato del bloque de Deudas.
         helper: 'Con $0 extra ves tu PISO (solo cuotas mínimas) — agrega un extra para ver el techo.',
       },
@@ -93,28 +109,31 @@ const SCENARIOS: ScenarioDef[] = [
   {
     key: 'refinanciar',
     label: '¿Y si refinancio una deuda?',
+    short: 'Refinanciar',
     icon: 'repeat-outline',
     needs: 'debt',
     fields: [
-      { name: 'newRatePct', label: 'Nueva tasa % EA', placeholder: '14' },
-      { name: 'newTermMonths', label: 'Nuevo plazo (meses)', placeholder: '36' },
+      { name: 'newRatePct', label: 'Nueva tasa efectiva anual', placeholder: '14', unit: 'pct' },
+      { name: 'newTermMonths', label: 'Nuevo plazo', placeholder: '36', unit: 'months', quick: [12, 24, 36, 60] },
     ],
   },
   {
     key: 'vender_activo',
     label: '¿Y si vendo un activo?',
+    short: 'Vender activo',
     icon: 'home-outline',
     needs: 'asset',
-    fields: [{ name: 'salePrice', label: 'Precio de venta', placeholder: '30000000' }],
+    fields: [{ name: 'salePrice', label: 'Precio de venta', placeholder: '30.000.000', unit: 'money' }],
   },
   {
     key: 'proyeccion_ahorro',
     label: '¿Cuánto tendría ahorrando?',
+    short: 'Ahorro',
     icon: 'wallet-outline',
     fields: [
-      { name: 'monthlyContribution', label: 'Aporte mensual', placeholder: '200000' },
-      { name: 'annualRatePct', label: 'Tasa % EA (tú la eliges, p. ej. 8)', placeholder: '8' },
-      { name: 'months', label: 'Horizonte (meses)', placeholder: '36' },
+      { name: 'monthlyContribution', label: 'Aporte al mes', placeholder: '200.000', unit: 'money', quick: [100_000, 200_000, 500_000] },
+      { name: 'annualRatePct', label: 'Rentabilidad efectiva anual (tú la eliges)', placeholder: '8', unit: 'pct', quick: [5, 8, 10] },
+      { name: 'months', label: 'Horizonte', placeholder: '36', unit: 'months', quick: [12, 36, 60] },
     ],
   },
 ];
@@ -147,12 +166,18 @@ export function SimulatorScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const debtsQ = useApi(() => debtsApi.list(), []);
-  const summaryQ = useApi(() => debtsApi.summary(), []);
+  // FIN-045: la deuda por defecto es la primera del plan para liberar flujo (la regla vigente).
+  const planQ = useApi(() => debtsApi.cashflowPlan(), []);
   const assetsQ = useApi(() => accountsApi.listAssets(), []);
   const historyQ = useApi(() => simulationsApi.history(), []);
 
   const debts = useMemo(() => (debtsQ.data ?? []).filter((d) => d.status === 'activa'), [debtsQ.data]);
   const assets = assetsQ.data ?? [];
+  // "La más cara" = mayor tasa efectiva anual (las tasas MV/NMV se llevan a EA solo para comparar).
+  const priciest = useMemo(() => {
+    if (debts.length < 2) return null;
+    return [...debts].sort((a, b) => toEA(b) - toEA(a))[0]?.id ?? null;
+  }, [debts]);
 
   // Precarga desde las jugadas (P1): params → campos y selectores.
   useEffect(() => {
@@ -166,14 +191,14 @@ export function SimulatorScreen() {
     setValues((prev) => ({ ...next, ...prev }));
   }, [route.params?.params]);
 
-  // Default §32 del selector de deuda: la MISMA deuda que el motor recomienda
-  // atacar (attackOrder[0], FIN-022) — inyección de la fuente única, no heurística
-  // propia; sin bloque de estrategia, la primera activa.
+  // Default §32 del selector de deuda: la MISMA deuda con la que empieza el plan para
+  // liberar flujo (FIN-045, fuente única), no una heurística propia; sin plan, la primera activa.
+  const planFirst = planQ.data?.steps?.[0]?.debtId ?? null;
   useEffect(() => {
     if (debtId || debts.length === 0) return;
-    const recommended = summaryQ.data?.strategy?.attackOrder?.[0]?.debtId;
-    setDebtId(recommended && debts.some((d) => d.id === recommended) ? recommended : debts[0].id);
-  }, [debtId, debts, summaryQ.data]);
+    if (!planQ.data && !planQ.error) return; // espera el plan para no elegir otra y cambiarla después
+    setDebtId(planFirst && debts.some((d) => d.id === planFirst) ? planFirst : debts[0].id);
+  }, [debtId, debts, planFirst, planQ.data, planQ.error]);
 
   useEffect(() => {
     if (!assetId && assets.length > 0) setAssetId(assets[0].id);
@@ -190,7 +215,7 @@ export function SimulatorScreen() {
   // ANTES de mostrar un formulario que simularía sobre el vacío.
   const emptyReason = (() => {
     if (scenario.needs === 'debt' && debts.length === 0) {
-      return { text: 'No tienes deudas activas — nada que abonar 🎉' };
+      return { text: 'No tienes deudas activas: no hay nada que abonar.' };
     }
     if (scenario.needsTwoDebts && debts.length < 2) {
       return { text: 'Necesitas al menos 2 deudas activas para comparar órdenes de pago.' };
@@ -240,41 +265,42 @@ export function SimulatorScreen() {
 
   return (
     <FormScroll>
-      <Text style={{ color: colors.textMuted, marginBottom: spacing.sm }}>
-        Prueba decisiones antes de tomarlas — nada de esto modifica tus datos reales.
-      </Text>
+      {/* FIN-052: escenarios en una fila de chips (el nombre corto); la pregunta va de título. */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing.md, marginTop: -spacing.xs }} contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.sm }}>
+        {SCENARIOS.map((s) => {
+          const on = scenario.key === s.key;
+          return (
+            <Pressable
+              key={s.key}
+              onPress={() => pickScenario(s)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={s.label}
+              style={{
+                height: 36, paddingHorizontal: 14, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 6,
+                backgroundColor: on ? colors.primary : colors.surface, borderWidth: 1, borderColor: on ? colors.primary : colors.border,
+              }}
+            >
+              <Ico name={s.icon} color={on ? colors.textInverse : colors.textMuted} />
+              <Text style={{ color: on ? colors.textInverse : colors.text, fontSize: 13, fontWeight: on ? '700' : '600' }}>{s.short}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       {unknownScenario ? (
         <Card style={{ borderColor: colors.warning, borderWidth: 1 }}>
           <Text style={{ color: colors.text, fontSize: 13 }}>
-            <Ico name="warning-outline" color={colors.danger} /> No encontré el escenario que buscabas — elige uno de la lista.
+            <Ico name="warning-outline" color={colors.warningDeep} /> No encontré el escenario que buscabas: elige uno de la lista.
           </Text>
         </Card>
       ) : null}
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
-        {SCENARIOS.map((s) => (
-          <Pressable
-            key={s.key}
-            onPress={() => pickScenario(s)}
-            style={{
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              borderRadius: radius.full,
-              backgroundColor: scenario.key === s.key ? colors.primary : colors.surface,
-              borderWidth: 1,
-              borderColor: scenario.key === s.key ? colors.primary : colors.border,
-            }}
-          >
-            <Text style={{ color: scenario.key === s.key ? colors.textInverse : colors.text, fontSize: 13 }}>
-              <Ico name={s.icon} color={scenario.key === s.key ? colors.textInverse : colors.text} /> {s.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800', marginTop: spacing.sm }} accessibilityRole="header">{scenario.label}</Text>
+      <Text style={{ color: colors.textMuted, ...type.small, marginBottom: spacing.xs }}>Nada de esto cambia tus datos reales.</Text>
 
       {emptyReason ? (
-        <Card>
+        <Card style={{ marginTop: spacing.sm }}>
           <Text style={{ color: colors.textMuted }}>{emptyReason.text}</Text>
           {emptyReason.cta ? (
             <Pressable onPress={() => navigation.navigate(emptyReason.cta!.to)} style={{ marginTop: spacing.sm }}>
@@ -285,11 +311,13 @@ export function SimulatorScreen() {
       ) : (
         <>
           {scenario.needs === 'debt' ? (
-            <Picker
+            <RadioList
               label={scenario.key === 'abono_extra' ? '¿A cuál deuda?' : '¿Cuál deuda refinancias?'}
               options={debts.map((d) => ({
                 id: d.id,
-                label: `${d.name} · ${formatMoney(toNumber(d.currentBalance))}`,
+                title: d.name,
+                sub: rateLabel(d) + (d.id === planFirst ? ' · tu plan empieza aquí' : d.id === priciest ? ' · la más cara' : ''),
+                right: formatMoney(toNumber(d.currentBalance)),
               }))}
               selected={debtId}
               onSelect={setDebtId}
@@ -297,21 +325,18 @@ export function SimulatorScreen() {
           ) : null}
           {scenario.needs === 'asset' ? (
             <>
-              <Picker
+              <RadioList
                 label="¿Cuál activo venderías?"
-                options={assets.map((a) => ({
-                  id: a.id,
-                  label: `${a.name} · ${formatMoney(toNumber(a.currentValue))}`,
-                }))}
+                options={assets.map((a) => ({ id: a.id, title: a.name, sub: 'Valor de hoy', right: formatMoney(toNumber(a.currentValue)) }))}
                 selected={assetId}
                 onSelect={setAssetId}
               />
               {debts.length > 0 ? (
-                <Picker
-                  label="¿Le abonas a una deuda con la venta? (opcional)"
+                <RadioList
+                  label="¿Le abonas a una deuda con la venta?"
                   options={[
-                    { id: '', label: 'No, me quedo con la plata' },
-                    ...debts.map((d) => ({ id: d.id, label: d.name })),
+                    { id: '', title: 'No, me quedo con la plata' },
+                    ...debts.map((d) => ({ id: d.id, title: d.name, right: formatMoney(toNumber(d.currentBalance)) })),
                   ]}
                   selected={applyToDebtId ?? ''}
                   onSelect={(id) => setApplyToDebtId(id === '' ? null : id)}
@@ -321,20 +346,12 @@ export function SimulatorScreen() {
           ) : null}
 
           {scenario.fields.map((f) => (
-            <View key={f.name}>
-              <Field
-                label={f.label}
-                value={values[f.name] ?? ''}
-                onChangeText={(t) => setValues((prev) => ({ ...prev, [f.name]: t }))}
-                keyboardType="numeric"
-                placeholder={f.placeholder}
-              />
-              {f.helper ? (
-                <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: -6, marginBottom: spacing.sm }}>
-                  {f.helper}
-                </Text>
-              ) : null}
-            </View>
+            <AmountField
+              key={f.name}
+              def={f}
+              value={values[f.name] ?? ''}
+              onChange={(t) => setValues((prev) => ({ ...prev, [f.name]: t }))}
+            />
           ))}
           {error ? (
             <View style={{ marginBottom: 8 }}>
@@ -346,7 +363,9 @@ export function SimulatorScreen() {
               ) : null}
             </View>
           ) : null}
-          <Button title="Simular" onPress={() => void run()} loading={loading} />
+          <View style={{ marginTop: spacing.sm }}>
+            <Button title="Simular" onPress={() => void run()} loading={loading} />
+          </View>
         </>
       )}
 
@@ -377,40 +396,115 @@ export function SimulatorScreen() {
   );
 }
 
-function Picker({
+/** Tasa llevada a efectiva anual (solo para ordenar cuál es "la más cara"). */
+function toEA(d: Debt): number {
+  const r = toNumber(d.interestRate) / 100;
+  if (!r) return 0;
+  if (d.rateBasis === 'MV') return Math.pow(1 + r, 12) - 1;
+  if (d.rateBasis === 'NMV' || d.rateBasis === 'NAMV') return Math.pow(1 + r / 12, 12) - 1;
+  return r;
+}
+
+function rateLabel(d: Debt): string {
+  const r = toNumber(d.interestRate);
+  if (!r) return 'Sin tasa registrada';
+  return `${String(Math.round(r * 100) / 100).replace('.', ',')}% ${d.rateBasis}`;
+}
+
+/** "200 mil", "1 millón", "36 meses", "8%". */
+function quickLabel(v: number, unit: FieldDef['unit']): string {
+  if (unit === 'months') return `${v} meses`;
+  if (unit === 'pct') return `${v}%`;
+  if (v === 0) return '$0';
+  if (v >= 1_000_000) {
+    const m = v / 1_000_000;
+    return `${String(m).replace('.', ',')} ${m === 1 ? 'millón' : 'millones'}`;
+  }
+  return `${v / 1000} mil`;
+}
+
+/** Lista de opción única en tarjeta blanca (la fila elegida se tiñe de verde suave). */
+function RadioList({
   label,
   options,
   selected,
   onSelect,
 }: {
   label: string;
-  options: Array<{ id: string; label: string }>;
+  options: Array<{ id: string; title: string; sub?: string; right?: string }>;
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
   return (
-    <View style={{ marginBottom: spacing.sm }}>
-      <Text style={{ color: colors.text, fontWeight: '600', marginBottom: 6 }}>{label}</Text>
-      <View style={{ gap: 6 }}>
-        {options.map((o) => (
-          <Pressable
-            key={o.id || 'none'}
-            onPress={() => onSelect(o.id)}
-            style={{
-              padding: spacing.sm,
-              borderRadius: radius.md,
-              backgroundColor: selected === o.id ? colors.primary : colors.surface,
-              borderWidth: 1,
-              borderColor: selected === o.id ? colors.primary : colors.border,
-            }}
-          >
-            <Text style={{ color: selected === o.id ? colors.textInverse : colors.text, fontSize: 13 }} numberOfLines={1}>
-              {o.label}
-            </Text>
-          </Pressable>
-        ))}
+    <>
+      <GroupLabel title={label} />
+      <Card style={{ paddingVertical: 0, paddingHorizontal: 0, overflow: 'hidden' }}>
+        {options.map((o, i) => {
+          const on = selected === o.id;
+          return (
+            <Pressable
+              key={o.id || 'none'}
+              onPress={() => onSelect(o.id)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 12, paddingHorizontal: spacing.md, minHeight: 52, backgroundColor: on ? colors.primarySoft : colors.surface, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}
+            >
+              <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: on ? colors.primary : colors.textFaint, alignItems: 'center', justifyContent: 'center' }}>
+                {on ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary }} /> : null}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{o.title}</Text>
+                {o.sub ? <Text style={{ color: colors.textMuted, ...type.small }} numberOfLines={1}>{o.sub}</Text> : null}
+              </View>
+              {o.right ? <Text style={{ color: colors.text, fontWeight: '800' }}>{o.right}</Text> : null}
+            </Pressable>
+          );
+        })}
+      </Card>
+    </>
+  );
+}
+
+/** Campo grande con su unidad y montos rápidos de un toque. */
+function AmountField({ def, value, onChange }: { def: FieldDef; value: string; onChange: (t: string) => void }) {
+  const current = /Pct$/.test(def.name) ? parseDecimal(value) : parseAmount(value);
+  return (
+    <>
+      <GroupLabel title={def.label} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 52, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: spacing.md }}>
+        {def.unit === 'money' ? <Text style={{ color: colors.textMuted, fontSize: 18, fontWeight: '800' }}>$</Text> : null}
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          keyboardType="numeric"
+          placeholder={def.placeholder}
+          placeholderTextColor={colors.textFaint}
+          accessibilityLabel={def.label}
+          style={{ flex: 1, fontSize: 18, fontWeight: '800', color: colors.text, paddingVertical: 0 }}
+        />
+        {def.unit === 'months' ? <Text style={{ color: colors.textMuted, fontWeight: '700' }}>meses</Text> : null}
+        {def.unit === 'pct' ? <Text style={{ color: colors.textMuted, fontWeight: '700' }}>% EA</Text> : null}
       </View>
-    </View>
+      {def.quick ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }}>
+          {def.quick.map((q) => {
+            const on = value.trim() !== '' && current === q;
+            return (
+              <Pressable
+                key={q}
+                onPress={() => onChange(def.unit === 'money' ? formatMoney(q).replace(/[^0-9.]/g, '') : String(q))}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                style={{ height: 34, paddingHorizontal: 12, borderRadius: 17, justifyContent: 'center', backgroundColor: on ? colors.primary : colors.surface, borderWidth: 1, borderColor: on ? colors.primary : colors.border }}
+              >
+                <Text style={{ color: on ? colors.textInverse : colors.text, fontSize: 13, fontWeight: on ? '700' : '600' }}>{quickLabel(q, def.unit)}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+      {def.helper ? <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xs }}>{def.helper}</Text> : null}
+    </>
   );
 }
 
@@ -472,7 +566,7 @@ function ResultCard({ result }: { result: SimulationResult }) {
     return (
       <Card style={{ marginTop: spacing.md }}>
         <Text style={{ fontWeight: '700', fontSize: 16 }}><Ico name="wallet-outline" size={16} /> Tu ahorro proyectado</Text>
-        <Text style={{ fontSize: 30, fontWeight: '800', color: colors.success, marginTop: 4 }}>
+        <Text style={{ fontSize: 30, fontWeight: '800', color: colors.primary, marginTop: 4 }}>
           {formatMoney(Number(s.futureValue))}
         </Text>
         <Row style={{ justifyContent: 'space-between', marginTop: spacing.sm }}>
@@ -537,7 +631,7 @@ function ResultCard({ result }: { result: SimulationResult }) {
         <Row key={r.label} style={{ justifyContent: 'space-between', marginBottom: 6 }}>
           <Text style={{ color: colors.textMuted, flex: 1 }}>{r.label}</Text>
           <Text style={{ color: colors.text }}>{r.before} → </Text>
-          <Text style={{ fontWeight: '800', color: r.good ? colors.success : colors.danger }}>
+          <Text style={{ fontWeight: '800', color: r.good ? colors.primary : colors.dangerDeep }}>
             {r.after}
           </Text>
         </Row>
@@ -581,7 +675,7 @@ function NextStep({
         };
       case 'reducir_gastos':
         return {
-          label: 'Ajusta tus compromisos →',
+          label: 'Ajusta tus compromisos en Mi mes →',
           go: () => navigation.navigate('Budget'),
         };
       case 'vender_activo': {
@@ -596,11 +690,13 @@ function NextStep({
   })();
   if (!cta) return null;
   return (
-    <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
-      <Pressable onPress={cta.go}>
-        <Text style={{ color: colors.primary, fontWeight: '700' }}>{cta.label}</Text>
-      </Pressable>
-    </Card>
+    <Pressable
+      onPress={cta.go}
+      accessibilityRole="button"
+      style={{ backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, alignItems: 'center' }}
+    >
+      <Text style={{ color: colors.textInverse, fontWeight: '800' }}>{cta.label}</Text>
+    </Pressable>
   );
 }
 
