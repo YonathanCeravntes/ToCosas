@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Button, Card, ErrorState, Field, FormScroll, Ico, IconButton, IconName, Row } from '../components/ui';
-import { colors, radius, spacing } from '../theme/colors';
+import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButton, IconName, Row, SegmentBar } from '../components/ui';
+import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney, parseAmount, parseDecimal } from '../utils/format';
 import { IncomeSource, NetIncomeSummary, WorkProfile, toNumber } from '../api/types';
 import { incomeApi } from '../api/endpoints';
 import { useApi } from '../utils/useApi';
 import { confirmRemove } from '../utils/confirm';
+import { PROFILE_PRESETS, ProfilePresets, presetSummary } from '../utils/deductionPresets';
 
 /**
- * FIN-027 · Mi perfil de ingresos (DEC-0027). El usuario lo configura UNA vez;
- * Milla reutiliza bruto → deducciones → neto en toda la app (§32,
- * `NetIncomeService`). Fijas y variables COEXISTEN (n fuentes); la base de
- * cada deducción es configurable (total o parcial — requisito duro).
+ * FIN-027 · Mi perfil de ingresos (DEC-0027), rediseñado en la opción 2 "De bruto a neto"
+ * (Fundador, 2026-09-29, FIN-051):
+ *  - La cuenta a la vista: bruto − deducciones (+ variables estimados) = neto disponible.
+ *  - Fuentes separadas en FIJOS y VARIABLES (coexisten, n fuentes).
+ *  - "¿De qué vives?" ahora sirve: sugiere las deducciones típicas del perfil y se
+ *    agregan con un toque (la base de cada deducción sigue siendo total o parcial).
+ * Esta pantalla no calcula el neto: viene de `NetIncomeService` (§32).
  */
 const PROFILES: Array<{ key: WorkProfile; label: string; icon: IconName }> = [
   { key: 'empleado', label: 'Empleado', icon: 'briefcase-outline' },
@@ -21,7 +25,7 @@ const PROFILES: Array<{ key: WorkProfile; label: string; icon: IconName }> = [
   { key: 'empresario', label: 'Empresario', icon: 'business-outline' },
   { key: 'pensionado', label: 'Pensionado', icon: 'person-outline' },
   { key: 'estudiante', label: 'Estudiante', icon: 'school-outline' },
-  { key: 'otro', label: 'Otro', icon: 'add-circle-outline' },
+  { key: 'otro', label: 'Otro', icon: 'ellipsis-horizontal-circle-outline' },
 ];
 
 export function IncomeProfileScreen() {
@@ -37,77 +41,123 @@ export function IncomeProfileScreen() {
   useFocusEffect(React.useCallback(() => { void refresh(); }, [refresh]));
 
   const loadError = sources.data ? null : sources.error ?? summary.error;
+  const workProfile = profile.data?.workProfile ?? null;
+  const presets = workProfile ? PROFILE_PRESETS[workProfile] ?? null : null;
+  const fixed = (sources.data ?? []).filter((s) => !s.isVariable);
+  const variable = (sources.data ?? []).filter((s) => s.isVariable);
 
   return (
     <FormScroll onRefresh={refresh}>
       {loadError ? <ErrorState message={loadError} onRetry={() => void refresh()} /> : null}
-      <Text style={{ color: colors.textMuted, marginBottom: spacing.sm, fontSize: 13 }}>
-        Configúralo una vez — Millo calcula tu ingreso neto disponible automáticamente en
-        toda la app, sin que repitas cálculos cada mes.
-      </Text>
 
-      <NetSummaryCard summary={summary.data} />
+      <NetCard summary={summary.data} />
 
-      <Card>
-        <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>¿De qué vives?</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          {PROFILES.map((p) => (
+      <GroupLabel title="¿De qué vives?" />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.xs }}>
+        {PROFILES.map((p) => {
+          const on = workProfile === p.key;
+          return (
             <Pressable
               key={p.key}
               onPress={() => void incomeApi.setProfile(p.key).then(refresh)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on }}
               style={{
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                borderRadius: radius.full,
-                backgroundColor: profile.data?.workProfile === p.key ? colors.primary : colors.surface,
-                borderWidth: 1,
-                borderColor: profile.data?.workProfile === p.key ? colors.primary : colors.border,
+                flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, minHeight: 40, borderRadius: radius.full,
+                backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 2 : 1, borderColor: on ? colors.primary : colors.border,
               }}
             >
-              <Text style={{ color: profile.data?.workProfile === p.key ? colors.textInverse : colors.text, fontSize: 13 }}>
-                <Ico name={p.icon} color={profile.data?.workProfile === p.key ? colors.textInverse : colors.text} /> {p.label}
-              </Text>
+              <Ico name={p.icon} color={on ? colors.primaryDark : colors.textMuted} />
+              <Text style={{ color: on ? colors.primaryDark : colors.text, fontSize: 13, fontWeight: on ? '800' : '600' }}>{p.label}</Text>
             </Pressable>
+          );
+        })}
+      </View>
+      <Text style={{ color: colors.textFaint, ...type.caption, marginBottom: spacing.sm }}>
+        {presets
+          ? `Con esto te sugerimos tus deducciones: ${presetSummary(presets)}.`
+          : workProfile
+            ? 'Para este perfil no hay deducciones típicas; si te descuentan algo, agrégalo en tu ingreso.'
+            : 'Elige tu perfil y te sugerimos las deducciones típicas (salud, pensión).'}
+      </Text>
+
+      <GroupLabel title="Fijos" />
+      {fixed.length === 0 ? (
+        <EmptyBox title="Aún no tienes ingresos fijos" sub="Tu salario, mesada o lo que te llega igual cada mes." />
+      ) : (
+        fixed.map((s) => <SourceCard key={s.id} source={s} presets={presets} onChanged={refresh} />)
+      )}
+
+      <GroupLabel title="Variables" />
+      {variable.length === 0 ? (
+        <EmptyBox title="Aún no tienes ingresos variables" sub="Comisiones, trabajos extra o ventas. Se suman como estimado del mes." />
+      ) : (
+        <Card style={{ paddingVertical: 0 }}>
+          {variable.map((s, i) => (
+            <Row key={s.id} style={{ paddingVertical: 12, gap: spacing.sm, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{s.name}</Text>
+                <Text style={{ color: colors.textMuted, ...type.small }}>Estimado al mes</Text>
+              </View>
+              <Text style={{ color: colors.primary, fontWeight: '800' }}>~{formatMoney(toNumber(s.amount))}</Text>
+              <IconButton
+                icon="trash-outline"
+                label={`Eliminar ${s.name}`}
+                onPress={() => confirmRemove(s.name, 'Dejará de contar en tu ingreso.', () => incomeApi.removeSource(s.id).then(refresh))}
+              />
+            </Row>
           ))}
-        </View>
-      </Card>
+        </Card>
+      )}
 
       <NewSourceForm onSaved={refresh} />
-
-      {(sources.data ?? []).map((s) => (
-        <SourceCard key={s.id} source={s} onChanged={refresh} />
-      ))}
     </FormScroll>
   );
 }
 
-function NetSummaryCard({ summary }: { summary: NetIncomeSummary | null }) {
+/** De bruto a neto, a la vista (tarjeta blanca como Inicio G / Mi mes). */
+function NetCard({ summary }: { summary: NetIncomeSummary | null }) {
   if (!summary || (summary.grossFixedTotal === 0 && summary.grossVariableEstimate === 0)) {
     return (
-      <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-        <Text style={{ color: colors.textInverse, opacity: 0.9 }}>
-          Aún no registras tus fuentes de ingreso — agrégalas abajo.
-        </Text>
+      <Card>
+        <Text style={{ color: colors.textMuted, ...type.small }}>Tu ingreso neto disponible</Text>
+        <Text style={{ color: colors.text, fontSize: 32, fontWeight: '800', marginTop: 2 }}>$0</Text>
+        <Text style={{ color: colors.textMuted, ...type.small }}>Agrega abajo lo que te entra: Millo calcula lo que de verdad puedes usar cada mes.</Text>
       </Card>
     );
   }
+  const deductions = summary.deductions.reduce((a, d) => a + d.amount, 0);
   return (
-    <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-      <Text style={{ color: colors.textInverse, opacity: 0.85 }}>Tu ingreso neto disponible</Text>
-      <Text style={{ color: colors.textInverse, fontSize: 30, fontWeight: '800' }}>
+    <Card>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <Text style={{ color: colors.textMuted, ...type.small }}>Tu ingreso neto disponible</Text>
+        <Text style={{ color: colors.textMuted, ...type.small }}>al mes</Text>
+      </Row>
+      <Text style={{ color: colors.text, fontSize: 32, fontWeight: '800', marginTop: 2, marginBottom: spacing.sm }}>
         {formatMoney(summary.netMonthlyEstimate)}
       </Text>
-      {summary.hasDeductions ? (
-        <Text style={{ color: colors.textInverse, opacity: 0.85, marginTop: 4, fontSize: 13 }}>
-          Ya descontamos tus deducciones — este es lo que de verdad puedes usar.
-        </Text>
-      ) : null}
-      {summary.grossVariableEstimate > 0 ? (
-        <Text style={{ color: colors.textInverse, opacity: 0.7, marginTop: 2, fontSize: 12 }}>
-          Incluye ~{formatMoney(summary.grossVariableEstimate)} estimados de fuentes variables.
-        </Text>
-      ) : null}
+      <SegmentBar
+        parts={[
+          { key: 'neto', label: 'Te llega', value: summary.netFixedTotal, color: colors.primary },
+          { key: 'var', label: 'Variable estimado', value: summary.grossVariableEstimate, color: colors.primaryLight },
+          { key: 'ded', label: 'Deducciones', value: deductions, color: colors.warning },
+        ]}
+      />
+      <Text style={{ color: colors.textFaint, ...type.small, marginTop: spacing.sm }}>
+        Fijo {formatMoney(summary.grossFixedTotal)} − deducciones {formatMoney(deductions)}
+        {summary.grossVariableEstimate > 0 ? ` + variables ~${formatMoney(summary.grossVariableEstimate)}` : ''}.
+        {summary.selfPaidDeductionsTotal > 0 ? ` Las que pagas tú (${formatMoney(summary.selfPaidDeductionsTotal)}) quedan apartadas en Mi mes.` : ''}
+      </Text>
     </Card>
+  );
+}
+
+function EmptyBox({ title, sub }: { title: string; sub: string }) {
+  return (
+    <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.textFaint, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm }}>
+      <Text style={{ color: colors.text, fontWeight: '700' }}>{title}</Text>
+      <Text style={{ color: colors.textMuted, ...type.small, marginTop: 2 }}>{sub}</Text>
+    </View>
   );
 }
 
@@ -115,116 +165,111 @@ function NewSourceForm({ onSaved }: { onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
+  const [day, setDay] = useState('');
   const [isVariable, setIsVariable] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   const add = async () => {
     const value = parseAmount(amount); // §39
-    if (!name.trim() || !value) return;
+    if (!name.trim() || !value) return setErr('Escribe el nombre y el monto.');
+    const d = !isVariable && day.trim() ? parseInt(day, 10) : undefined;
+    if (d !== undefined && (Number.isNaN(d) || d < 1 || d > 31)) return setErr('El día debe estar entre 1 y 31.');
     setSaving(true);
+    setErr(null);
     try {
-      await incomeApi.createSource({ name: name.trim(), amount: value, isVariable });
-      setName('');
-      setAmount('');
-      setIsVariable(false);
-      setOpen(false);
+      await incomeApi.createSource({ name: name.trim(), amount: value, isVariable, dayOfMonth: d });
+      setName(''); setAmount(''); setDay(''); setIsVariable(false); setOpen(false);
       onSaved();
+    } catch (e) {
+      setErr((e as Error).message);
     } finally {
       setSaving(false);
     }
   };
 
+  if (!open) return <Button title="Nueva fuente de ingreso" icon="add" onPress={() => setOpen(true)} />;
+
   return (
     <Card>
-      <Pressable onPress={() => setOpen((v) => !v)}>
-        <Text style={{ fontWeight: '700', fontSize: 16 }}>
-          <Ico name="add-circle-outline" color={colors.primary} /> Nueva fuente de ingreso {open ? '' : '(fija o variable) →'}
-        </Text>
-      </Pressable>
-      {open ? (
-        <View style={{ marginTop: spacing.sm }}>
-          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
-            {[
-              { v: false, label: 'Fija (monto estable)' },
-              { v: true, label: 'Variable (varía cada mes)' },
-            ].map((opt) => (
-              <Pressable
-                key={String(opt.v)}
-                onPress={() => setIsVariable(opt.v)}
-                style={{
-                  flex: 1,
-                  padding: spacing.sm,
-                  borderRadius: radius.md,
-                  alignItems: 'center',
-                  backgroundColor: isVariable === opt.v ? colors.primary : colors.surface,
-                  borderWidth: 1,
-                  borderColor: isVariable === opt.v ? colors.primary : colors.border,
-                }}
-              >
-                <Text style={{ color: isVariable === opt.v ? colors.textInverse : colors.text, fontSize: 12 }}>
-                  {opt.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <Field label="Nombre" value={name} onChangeText={setName} placeholder="Salario, comisiones, honorarios…" />
-          <Field
-            label={isVariable ? 'Monto mensual ESTIMADO' : 'Monto mensual'}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-            placeholder="4200000"
-          />
-          <Button title="Agregar" onPress={() => void add()} loading={saving} />
+      <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm }}>
+        <Text style={{ fontWeight: '800', fontSize: 15, color: colors.text }}>Nueva fuente de ingreso</Text>
+        <Pressable onPress={() => { setOpen(false); setErr(null); }} accessibilityRole="button"><Text style={{ color: colors.primary, fontWeight: '700' }}>Cerrar</Text></Pressable>
+      </Row>
+      <Row style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+        {[
+          { v: false, l: 'Fija', s: 'Llega igual cada mes' },
+          { v: true, l: 'Variable', s: 'Cambia cada mes' },
+        ].map((o) => {
+          const on = isVariable === o.v;
+          return (
+            <Pressable
+              key={String(o.v)}
+              onPress={() => setIsVariable(o.v)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on }}
+              style={{ flex: 1, padding: spacing.sm, minHeight: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 2 : 1, borderColor: on ? colors.primary : colors.border }}
+            >
+              <Text style={{ color: on ? colors.primaryDark : colors.text, fontWeight: on ? '800' : '600' }}>{o.l}</Text>
+              <Text style={{ color: colors.textMuted, ...type.caption }}>{o.s}</Text>
+            </Pressable>
+          );
+        })}
+      </Row>
+      <Field label="Nombre" value={name} onChangeText={setName} placeholder={isVariable ? 'Comisiones, ventas, trabajos extra…' : 'Salario, mesada, honorarios…'} />
+      <Row style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
+        <View style={{ flex: 2 }}>
+          <Field label={isVariable ? 'Estimado al mes' : 'Monto mensual (bruto)'} value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="4.200.000" />
         </View>
-      ) : null}
+        {!isVariable ? (
+          <View style={{ flex: 1 }}>
+            <Field label="Día que llega" value={day} onChangeText={setDay} keyboardType="numeric" placeholder="1" />
+          </View>
+        ) : null}
+      </Row>
+      {err ? <Text style={{ color: colors.danger, marginBottom: 6 }}>{err}</Text> : null}
+      <Button title="Agregar" onPress={() => void add()} loading={saving} />
     </Card>
   );
 }
 
 const DEDUCTION_LABEL: Record<string, string> = { salud: 'Salud', pension: 'Pensión', otra: 'Otra' };
 
-function SourceCard({ source, onChanged }: { source: IncomeSource; onChanged: () => void }) {
+function SourceCard({ source, presets, onChanged }: { source: IncomeSource; presets: ProfilePresets | null; onChanged: () => void }) {
   const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState('');
-  const [percent, setPercent] = useState('');
-  const [base, setBase] = useState<'total' | 'parcial'>('total');
-  const [baseAmount, setBaseAmount] = useState('');
-  const [withheldAtSource, setWithheldAtSource] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const amount = toNumber(source.amount);
+  const active = source.deductions.filter((d) => d.isActive);
+  // Sugerencia del perfil: solo las que aún no tiene (por tipo).
+  const missing = (presets?.items ?? []).filter((p) => !active.some((d) => d.kind === p.kind));
 
-  const addDeduction = async () => {
-    const pct = parseDecimal(percent); // §39: "4,5" y "4.5" son lo mismo
-    if (!name.trim() || !pct) return;
-    setSaving(true);
+  const addPresets = async () => {
+    setAdding(true);
     try {
-      await incomeApi.createDeduction(source.id, {
-        name: name.trim(),
-        percent: pct,
-        base,
-        baseAmount: base === 'parcial' ? parseAmount(baseAmount) || undefined : undefined,
-        withheldAtSource,
-      });
-      setName('');
-      setPercent('');
-      setBaseAmount('');
-      setShowForm(false);
+      for (const p of missing) {
+        await incomeApi.createDeduction(source.id, {
+          kind: p.kind,
+          name: p.name,
+          percent: p.percent,
+          base: p.baseShare < 1 ? 'parcial' : 'total',
+          baseAmount: p.baseShare < 1 ? Math.round(amount * p.baseShare) : undefined,
+          withheldAtSource: p.withheldAtSource,
+        });
+      }
       onChanged();
     } finally {
-      setSaving(false);
+      setAdding(false);
     }
   };
 
   return (
-    <Card>
-      <Row style={{ justifyContent: 'space-between' }}>
+    <Card style={{ paddingVertical: 0 }}>
+      <Row style={{ paddingVertical: 12, gap: spacing.sm }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontWeight: '700', color: colors.text }}>{source.name}</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-            {source.isVariable ? 'Variable (estimado)' : 'Fija'}
-          </Text>
+          <Text style={{ color: colors.text, fontWeight: '700', fontSize: 15 }} numberOfLines={1}>{source.name}</Text>
+          <Text style={{ color: colors.textMuted, ...type.small }}>{source.dayOfMonth ? `Llega el día ${source.dayOfMonth}` : 'Cada mes'} · bruto</Text>
         </View>
-        <Text style={{ fontWeight: '700', color: colors.success }}>{formatMoney(toNumber(source.amount))}</Text>
+        <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 15 }}>{formatMoney(amount)}</Text>
         <IconButton
           icon="trash-outline"
           label={`Eliminar ${source.name}`}
@@ -232,96 +277,137 @@ function SourceCard({ source, onChanged }: { source: IncomeSource; onChanged: ()
         />
       </Row>
 
-      {source.deductions.map((d) => (
-        <Row key={d.id} style={{ justifyContent: 'space-between', marginTop: spacing.sm, opacity: d.isActive ? 1 : 0.5 }}>
-          <Text style={{ color: colors.text, flex: 1 }} numberOfLines={1}>
-            {DEDUCTION_LABEL[d.kind] ?? d.name} · {d.base === 'parcial' ? 'base parcial' : 'base total'} ·{' '}
-            {d.withheldAtSource ? 'retenida' : 'la pagas tú'}
-          </Text>
-          <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 13 }}>
-            {d.percent != null ? `${d.percent}%` : formatMoney(toNumber(d.fixedAmount))}
-          </Text>
-          <IconButton
-            icon="trash-outline"
-            size={18}
-            label={`Eliminar ${DEDUCTION_LABEL[d.kind] ?? d.name}`}
-            onPress={() => confirmRemove(DEDUCTION_LABEL[d.kind] ?? d.name, 'Tu ingreso neto se recalculará.', () => incomeApi.removeDeduction(d.id).then(onChanged))}
-          />
-        </Row>
-      ))}
+      {active.map((d) => {
+        const base = d.base === 'parcial' ? toNumber(d.baseAmount) : amount;
+        const value = d.percent != null ? (base * Number(d.percent)) / 100 : toNumber(d.fixedAmount);
+        return (
+          <Row key={d.id} style={{ paddingVertical: 10, gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.surfaceAlt }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontWeight: '600' }} numberOfLines={1}>
+                {DEDUCTION_LABEL[d.kind] ?? d.name}{d.percent != null ? ` ${String(d.percent).replace('.', ',')}%` : ''}
+              </Text>
+              <Text style={{ color: colors.textMuted, ...type.small }} numberOfLines={1}>
+                {d.base === 'parcial' ? `sobre ${formatMoney(base)}` : 'sobre el total'} · {d.withheldAtSource ? 'te la descuentan' : 'la pagas tú'}
+              </Text>
+            </View>
+            <Text style={{ color: colors.warningDeep, fontWeight: '800' }}>−{formatMoney(value)}</Text>
+            <IconButton
+              icon="trash-outline"
+              size={18}
+              label={`Eliminar ${DEDUCTION_LABEL[d.kind] ?? d.name}`}
+              onPress={() => confirmRemove(DEDUCTION_LABEL[d.kind] ?? d.name, 'Tu ingreso neto se recalculará.', () => incomeApi.removeDeduction(d.id).then(onChanged))}
+            />
+          </Row>
+        );
+      })}
 
-      {!source.isVariable ? (
-        showForm ? (
-          <View style={{ marginTop: spacing.sm }}>
-            <Field label="Nombre" value={name} onChangeText={setName} placeholder="Salud (EPS)" />
-            <Field label="% de la base" value={percent} onChangeText={setPercent} keyboardType="numeric" placeholder="4" />
-            <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
-              {[
-                { v: 'total' as const, label: 'Base total' },
-                { v: 'parcial' as const, label: 'Base parcial' },
-              ].map((opt) => (
-                <Pressable
-                  key={opt.v}
-                  onPress={() => setBase(opt.v)}
-                  style={{
-                    flex: 1,
-                    padding: spacing.sm,
-                    borderRadius: radius.md,
-                    alignItems: 'center',
-                    backgroundColor: base === opt.v ? colors.primary : colors.surface,
-                    borderWidth: 1,
-                    borderColor: base === opt.v ? colors.primary : colors.border,
-                  }}
-                >
-                  <Text style={{ color: base === opt.v ? colors.textInverse : colors.text, fontSize: 12 }}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </Row>
-            {base === 'parcial' ? (
-              <Field
-                label="Monto de la base parcial"
-                value={baseAmount}
-                onChangeText={setBaseAmount}
-                keyboardType="numeric"
-                placeholder="2500000"
-              />
-            ) : null}
-            <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
-              {[
-                { v: true, label: 'Retenida (no sale de tu bolsillo)' },
-                { v: false, label: 'La pagas tú (compromiso del ciclo)' },
-              ].map((opt) => (
-                <Pressable
-                  key={String(opt.v)}
-                  onPress={() => setWithheldAtSource(opt.v)}
-                  style={{
-                    flex: 1,
-                    padding: spacing.sm,
-                    borderRadius: radius.md,
-                    alignItems: 'center',
-                    backgroundColor: withheldAtSource === opt.v ? colors.primary : colors.surface,
-                    borderWidth: 1,
-                    borderColor: withheldAtSource === opt.v ? colors.primary : colors.border,
-                  }}
-                >
-                  <Text style={{ color: withheldAtSource === opt.v ? colors.textInverse : colors.text, fontSize: 11 }}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </Row>
-            <Button title="Agregar deducción" onPress={() => void addDeduction()} loading={saving} />
-          </View>
-        ) : (
-          <Pressable onPress={() => setShowForm(true)} style={{ marginTop: spacing.sm }}>
-            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
-              <Ico name="add-circle-outline" color={colors.primary} /> Agregar deducción (salud, pensión…) →
+      {presets && missing.length > 0 && !showForm ? (
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.surfaceAlt, paddingVertical: 12 }}>
+          <View style={{ backgroundColor: colors.primarySoft, borderRadius: radius.md, padding: spacing.md }}>
+            <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>{presets.intro}:</Text>
+            <Text style={{ color: colors.text, marginTop: 4 }}>
+              {missing.map((p) => `${p.name} ${String(p.percent).replace('.', ',')}% (${formatMoney((amount * p.baseShare * p.percent) / 100)})`).join(' · ')}
             </Text>
+            {presets.note ? <Text style={{ color: colors.textMuted, ...type.small, marginTop: 4 }}>{presets.note}</Text> : null}
+            <Row style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+              <Pressable
+                onPress={() => void addPresets()}
+                disabled={adding}
+                accessibilityRole="button"
+                style={{ backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 9, paddingHorizontal: 16, opacity: adding ? 0.6 : 1 }}
+              >
+                <Text style={{ color: colors.textInverse, fontWeight: '800' }}>{adding ? 'Agregando…' : missing.length > 1 ? `Agregar las ${missing.length}` : 'Agregarla'}</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowForm(true)} accessibilityRole="button" style={{ paddingVertical: 9, paddingHorizontal: 8 }}>
+                <Text style={{ color: colors.primary, fontWeight: '700' }}>Otra deducción</Text>
+              </Pressable>
+            </Row>
+          </View>
+        </View>
+      ) : showForm ? (
+        <DeductionForm sourceId={source.id} onDone={() => { setShowForm(false); onChanged(); }} onCancel={() => setShowForm(false)} />
+      ) : (
+        <Row style={{ paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.surfaceAlt }}>
+          <Text style={{ color: colors.textMuted, ...type.small, flex: 1 }}>{active.length === 0 ? 'Deducciones: ninguna' : 'Salud, pensión u otra'}</Text>
+          <Pressable onPress={() => setShowForm(true)} accessibilityRole="button">
+            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>+ Agregar deducción</Text>
           </Pressable>
-        )
-      ) : null}
+        </Row>
+      )}
     </Card>
+  );
+}
+
+/** Deducción manual: % sobre base total o parcial; retenida o pagada por la persona. */
+function DeductionForm({ sourceId, onDone, onCancel }: { sourceId: string; onDone: () => void; onCancel: () => void }) {
+  const [name, setName] = useState('');
+  const [percent, setPercent] = useState('');
+  const [base, setBase] = useState<'total' | 'parcial'>('total');
+  const [baseAmount, setBaseAmount] = useState('');
+  const [withheldAtSource, setWithheldAtSource] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const add = async () => {
+    const pct = parseDecimal(percent); // §39: "4,5" y "4.5" son lo mismo
+    if (!name.trim() || !pct) return setErr('Escribe el nombre y el porcentaje.');
+    setSaving(true);
+    setErr(null);
+    try {
+      await incomeApi.createDeduction(sourceId, {
+        name: name.trim(),
+        percent: pct,
+        base,
+        baseAmount: base === 'parcial' ? parseAmount(baseAmount) || undefined : undefined,
+        withheldAtSource,
+      });
+      onDone();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const Toggle = <T,>({ value, set, options }: { value: T; set: (v: T) => void; options: Array<{ v: T; l: string }> }) => (
+    <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
+      {options.map((o) => {
+        const on = value === o.v;
+        return (
+          <Pressable
+            key={String(o.v)}
+            onPress={() => set(o.v)}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: on }}
+            style={{ flex: 1, padding: spacing.sm, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 2 : 1, borderColor: on ? colors.primary : colors.border }}
+          >
+            <Text style={{ color: on ? colors.primaryDark : colors.text, fontSize: 12, fontWeight: on ? '800' : '600', textAlign: 'center' }}>{o.l}</Text>
+          </Pressable>
+        );
+      })}
+    </Row>
+  );
+
+  return (
+    <View style={{ borderTopWidth: 1, borderTopColor: colors.surfaceAlt, paddingVertical: 12 }}>
+      <Row style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
+        <View style={{ flex: 2 }}>
+          <Field label="Nombre" value={name} onChangeText={setName} placeholder="Salud (EPS)" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Field label="%" value={percent} onChangeText={setPercent} keyboardType="numeric" placeholder="4" />
+        </View>
+      </Row>
+      <Toggle value={base} set={setBase} options={[{ v: 'total' as const, l: 'Sobre el total' }, { v: 'parcial' as const, l: 'Sobre una parte' }]} />
+      {base === 'parcial' ? (
+        <Field label="¿Sobre cuánto?" value={baseAmount} onChangeText={setBaseAmount} keyboardType="numeric" placeholder="2.500.000" />
+      ) : null}
+      <Toggle value={withheldAtSource} set={setWithheldAtSource} options={[{ v: true, l: 'Te la descuentan' }, { v: false, l: 'La pagas tú' }]} />
+      {err ? <Text style={{ color: colors.danger, marginBottom: 6 }}>{err}</Text> : null}
+      <Row style={{ gap: spacing.sm }}>
+        <View style={{ flex: 1 }}><Button title="Cancelar" variant="secondary" onPress={onCancel} /></View>
+        <View style={{ flex: 1 }}><Button title="Agregar" onPress={() => void add()} loading={saving} /></View>
+      </Row>
+    </View>
   );
 }

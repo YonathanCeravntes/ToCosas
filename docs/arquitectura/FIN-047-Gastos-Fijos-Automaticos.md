@@ -54,3 +54,17 @@ Unit 424/424 (utilidades nuevas + specs ajustadas a la regla nueva), e2e 107/107
 - "Con lo libre" (plan FIN-045) se mantiene bajo la tarjeta.
 - Renombrado en Más, en el título, en los acuses de Registrar, en Ajustes, en el botón del Copiloto ("Ver mi mes") y en el bot de Telegram.
 - Verificación: unit 425/425, e2e 112/112 (caso nuevo: la cuenta de Mi mes cuadra con Te queda). Web revisada con Playwright.
+
+## FIN-051 · Mi perfil de ingresos: "De bruto a neto" + deducciones sugeridas (Fundador, 2026-09-29)
+**Decisión:** opción 2 del boceto y darle uso a "¿De qué vives?" (antes se guardaba y nada lo usaba).
+
+- **Tarjeta blanca** con el neto disponible, barra Te llega / Variable estimado / Deducciones y la cuenta: *Fijo − deducciones + variables*. Si hay deducciones que paga la persona, se indica que quedan apartadas en Mi mes.
+- **Fuentes separadas en FIJOS y VARIABLES.** El alta pide fija o variable, monto bruto (o estimado) y el **día que llega** (antes no se pedía aquí).
+- **Deducciones sugeridas por perfil** (`frontend/src/utils/deductionPresets.ts`), se agregan con un toque y se pueden borrar o ajustar:
+  - Empleado: Salud 4% + Pensión 4%, sobre el total, retenidas (nota: +1% al fondo de solidaridad desde 4 SMMLV).
+  - Independiente (y Empresario que no está en nómina): Salud 12,5% + Pensión 16% sobre el 40% del ingreso, las paga la persona (se apartan como compromiso).
+  - Pensionado: Salud 12%, retenida (nota: con mesadas bajas puede ser menor).
+  - Estudiante / Otro: sin sugerencia.
+- Solo se sugieren las que falten por tipo; cambiar de perfil no borra ni cambia deducciones ya creadas.
+- Cada deducción muestra su valor en pesos, sobre qué base y si te la descuentan o la pagas tú.
+- Sin cambios de backend (usa `NetIncomeService` y la API existente). Web revisada con Playwright.
