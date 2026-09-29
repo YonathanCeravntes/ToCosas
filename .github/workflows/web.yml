@@ -45,7 +45,7 @@ jobs:
           EXPO_PUBLIC_BUILD_ID: ${{ github.sha }}
       - name: SPA fallback
         run: cp dist/index.html dist/404.html
-      - name: Versión publicada (BT-022: la app avisa cuando hay una nueva)
+      - name: "Versión publicada (BT-022, la app avisa cuando hay una nueva)"
         run: echo "{\"build\":\"${{ github.sha }}\"}" > dist/version.json
       - uses: actions/upload-pages-artifact@v3
         with:
