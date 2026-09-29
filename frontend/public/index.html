@@ -2,6 +2,10 @@
 <html lang="%LANG_ISO_CODE%">
   <head>
     <meta charset="utf-8" />
+    <!-- BT-022: la portada no se guarda en caché (así el iPhone toma la versión nueva). -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
     <!-- viewport-fit=cover: la app usa todo el alto en iPhone con notch (los insets los maneja safe-area-context). -->
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
