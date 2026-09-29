@@ -14,6 +14,8 @@
 
 **Mis deudas · opción B (Fundador, 2026-09-29):** lista agrupada por urgencia (vencidas / próximos 30 días / más adelante / cerradas), barra total con el peso de cada deuda y barra por deuda: créditos = % pagado a capital (monto inicial − saldo), tarjetas = uso del cupo (rojo en sobrecupo). Nuevo campo opcional "¿Cuánto te prestaron al inicio?" al registrar y en el detalle (PATCH existente, sin cambio de backend). Publicada: OTA grupo `80ccf99a` (Ajustes Android `01a0ea7f`) y web `a1171bd`. Pendiente: validación en dispositivo.
 
+**Nueva deuda · opción D (Fundador, 2026-09-29), guardada para implementar:** primero el tipo en cuadrícula de 2 columnas con ícono por tipo, agrupada en "Tarjetas y cupos" y "Créditos" + "Ver más tipos"; buscador arriba; luego el banco. Mismo lenguaje de color que Mis deudas (monogramas verde suave, títulos de grupo en mayúscula verde). Boceto: canvas "Millo · Lista de deudas (opciones)", artboard `NuevaD`.
+
 **FIN-041 · Millo web (PWA)** implementada (2026-09-28): misma app por enlace, instalable en iPhone/Android desde el navegador; despliegue automático a GitHub Pages (`.github/workflows/web.yml`). **Publicada:** <https://yonathanceravntes.github.io/ToCosas/> (Pages activo, cada push a la rama la republica). **Pendiente:** validación del Fundador en iPhone. Sin push ni registro offline en web (por diseño).
 
 **Entrega 2026-09-27 VALIDADA por el Fundador en la APK Beta (Parte E completa, OTA `74f6a9af`):** `SPRINT-PULIDO-001` + `MANT-001` + `FIN-038` (Fachada Millo v1) + `FIN-039` (Cuenta y datos). Todo commiteado en `claude/finance-app-design-pr8qd5` (PR #1 → `chat`). Suites (2026-09-28): `tsc` 0/0, unit 399/399 (52), e2e 86/86 (19). Hoy también: FIN-043 (pagos de tarjeta a cuotas, BT-016…019).
