@@ -586,3 +586,63 @@ const styles = StyleSheet.create({
     minHeight: 36,
   },
 });
+
+/**
+ * Título de grupo del lenguaje de "Mis deudas" (opción B): mayúscula, verde,
+ * espaciado. `tone` cambia el color para grupos de aviso (naranja/rojo).
+ */
+export function GroupLabel({
+  title,
+  tone = colors.primaryDark,
+  action,
+  onAction,
+}: {
+  title: string;
+  tone?: string;
+  action?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: spacing.md, marginBottom: spacing.sm }}>
+      <Text accessibilityRole="header" style={{ color: tone, fontSize: 12, fontWeight: '800', letterSpacing: 0.8 }}>
+        {title.toUpperCase()}
+      </Text>
+      {action && onAction ? (
+        <Pressable onPress={onAction} accessibilityRole="button" hitSlop={8}>
+          <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '700' }}>{action}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/** Barra segmentada (tramos proporcionales) con leyenda — Mis deudas / Inicio. */
+export function SegmentBar({ parts, height = 14 }: { parts: Array<{ key: string; label: string; value: number; color: string }>; height?: number }) {
+  const shown = parts.filter((p) => p.value > 0);
+  const total = shown.reduce((a, p) => a + p.value, 0);
+  if (total <= 0) return null;
+  const pct = (v: number) => {
+    const n = (v / total) * 100;
+    return n > 0 && n < 1 ? n.toFixed(1).replace('.', ',') : String(Math.round(n));
+  };
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', height, borderRadius: height / 2, overflow: 'hidden', gap: 2 }}>
+        {shown.map((p) => (
+          // minWidth: un tramo diminuto (0,4%) sigue visible.
+          <View key={p.key} style={{ flex: p.value / total, minWidth: 3, backgroundColor: p.color }} />
+        ))}
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4, marginTop: spacing.sm }}>
+        {shown.map((p) => (
+          <View key={p.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: p.color }} />
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+              {p.label} {pct(p.value)}%
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}

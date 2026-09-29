@@ -3,8 +3,8 @@ import { Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-na
 import { DatePicker } from '../../components/DatePicker';
 import { formatLocalDate } from '../../utils/format';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Field, Ico } from '../../components/ui';
-import { colors, entityColors, radius, spacing } from '../../theme/colors';
+import { Button, Field, Ico, IconName } from '../../components/ui';
+import { colors, radius, spacing } from '../../theme/colors';
 import { debtsApi, entitiesApi, CreateDebtInput } from '../../api/endpoints';
 import { FinancialEntity, ProductFieldSpec, ProductTypeDescriptor } from '../../api/types';
 import { useApi } from '../../utils/useApi';
@@ -13,15 +13,43 @@ import { DebtsStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<DebtsStackParamList, 'AddDebt'>;
 
-// SPRINT-PULIDO-001 P3: los colores viven en el theme (entityColors), no aquí.
-const CATEGORY: Record<string, { label: string; color: string }> = {
-  banco: { label: 'Banco', color: entityColors.banco },
-  cooperativa: { label: 'Cooperativa', color: entityColors.cooperativa },
-  fintech: { label: 'Fintech', color: entityColors.fintech },
-  prestamista_particular: { label: 'Préstamo informal', color: entityColors.prestamista_particular },
-  tarjeta: { label: 'Tarjeta', color: entityColors.tarjeta },
-  otro: { label: 'Financiera', color: entityColors.otro },
+const CATEGORY: Record<string, string> = {
+  banco: 'Banco',
+  cooperativa: 'Cooperativa',
+  fintech: 'Fintech',
+  prestamista_particular: 'Préstamo informal',
+  tarjeta: 'Tarjeta',
+  otro: 'Financiera',
 };
+
+/**
+ * Nueva deuda · opción D (Fundador, 2026-09-29): primero el TIPO en cuadrícula,
+ * agrupado; después la entidad. Mismo lenguaje visual de Mis deudas.
+ */
+const TYPE_GROUPS: Array<{ title: string; types: string[] }> = [
+  { title: 'TARJETAS Y CUPOS', types: ['tarjeta_credito', 'fintech'] },
+  { title: 'CRÉDITOS', types: ['libre_inversion', 'libranza', 'hipotecario', 'vehiculo'] },
+];
+const TYPE_ICON: Record<string, IconName> = {
+  tarjeta_credito: 'card-outline',
+  fintech: 'phone-portrait-outline',
+  compra_a_cuotas: 'bag-handle-outline',
+  credito_personal: 'person-outline',
+  libre_inversion: 'cash-outline',
+  libranza: 'briefcase-outline',
+  hipotecario: 'home-outline',
+  vehiculo: 'car-outline',
+  educativo: 'school-outline',
+  gota_a_gota: 'water-outline',
+  prestamo_familiar: 'people-outline',
+  otro: 'ellipsis-horizontal-circle-outline',
+};
+
+/** "Tarjeta/cupo fintech (Nu, RappiCard…)" → título + ejemplos en pequeño. */
+function splitLabel(label: string): { main: string; sub: string | null } {
+  const m = label.match(/^(.*?)\s*\((.*)\)\s*$/);
+  return m ? { main: m[1], sub: m[2] } : { main: label, sub: null };
+}
 
 /**
  * FIN-034 · Selector moderno de obligaciones. Reemplaza el muro de 12 chips por
@@ -44,6 +72,9 @@ export function AddDebtScreen({ navigation }: Props) {
   // hace 2 años no puede nacer con cronograma desde hoy. Por defecto, hoy.
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
+  // Opción D: tras elegir el tipo, paso 2 = "¿Con qué entidad?" (se puede omitir).
+  const [choosingEntity, setChoosingEntity] = useState(false);
+  const [showAllTypes, setShowAllTypes] = useState(false);
 
   // Búsqueda/browse: se recarga al cambiar el texto (sin q = estado de exploración).
   useEffect(() => {
@@ -95,12 +126,38 @@ export function AddDebtScreen({ navigation }: Props) {
     // Con tipo sugerido → abre el alta (editable); sin él (banco/coop) → pide el
     // producto sin bloquear (el usuario elige de las anclas de tipo).
     if (inferred) pickType(inferred, ent);
-    else setValues({ name: ent.name });
+    else {
+      setValues({ name: ent.name });
+      setQuery('');
+    }
   };
 
   const reset = () => {
     setType(null);
+    setEntity(null);
+    setChoosingEntity(false);
+    setQuery('');
     setError(null);
+  };
+
+  /** Paso 1 de la opción D: el tipo desde la cuadrícula → paso 2 (entidad),
+   *  salvo deudas informales (no hay banco que elegir). */
+  const pickTypeFromGrid = (desc: ProductTypeDescriptor) => {
+    setQuery('');
+    // Entidad ya elegida por búsqueda (banco sin producto sugerido): directo al alta.
+    if (entity) {
+      pickType(desc, entity);
+      return;
+    }
+    pickType(desc, null);
+    setChoosingEntity(desc.scheduleModel !== 'saldo_y_cuota_pactada');
+  };
+
+  const pickEntityForType = (ent: FinancialEntity | null) => {
+    if (!type) return;
+    setEntity(ent);
+    prefill(type, ent);
+    setChoosingEntity(false);
   };
 
   const amt = (s?: string) => {
@@ -146,7 +203,7 @@ export function AddDebtScreen({ navigation }: Props) {
   };
 
   // --- FASE FORMULARIO: tipo elegido → alta mínima del descriptor ---
-  if (type) {
+  if (type && !choosingEntity) {
     return (
       <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
@@ -182,103 +239,223 @@ export function AddDebtScreen({ navigation }: Props) {
     );
   }
 
-  // --- FASE SELECTOR: buscar entidad o elegir tipo ---
   const q = query.trim().toLowerCase();
-  // BT-015: con una entidad elegida que no sugiere producto (banco, cooperativa), el
-  // usuario debe elegir el tipo entre TODOS los del catálogo; antes seguía filtrado por
-  // lo escrito ("Da") y la lista quedaba vacía: no había forma de continuar.
-  const awaitingProduct = !!entity && !descriptorFor(entity.suggestedDebtType);
-  const typeMatches = awaitingProduct
-    ? catalog ?? []
-    : (catalog ?? []).filter((t) => !q || t.label.toLowerCase().includes(q));
+
+  // --- PASO 2 (opción D): tipo elegido → ¿con qué entidad? (omitible) ---
+  if (type && choosingEntity) {
+    return (
+      <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }} keyboardShouldPersistTaps="handled">
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+          <TypeBadge debtType={type.debtType} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{splitLabel(type.label).main}</Text>
+            <Text style={{ fontWeight: '800', fontSize: 20, color: colors.text }}>¿Con qué entidad?</Text>
+          </View>
+          <Pressable onPress={reset} accessibilityRole="button" hitSlop={8}>
+            <Text style={{ color: colors.primary, fontWeight: '700' }}>Cambiar</Text>
+          </Pressable>
+        </View>
+        <SearchBox value={query} onChange={setQuery} placeholder="Busca tu banco o entidad" />
+        <Pressable
+          onPress={() => pickEntityForType(null)}
+          accessibilityRole="button"
+          style={{ minHeight: 52, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.textFaint, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, marginTop: spacing.md, marginBottom: spacing.md }}
+        >
+          <Ico name="add" color={colors.primary} size={18} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontWeight: '700' }}>{q ? `No está "${query}"` : 'Otra entidad o sin banco'}</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>Sigue y escribe tú el nombre</Text>
+          </View>
+        </Pressable>
+        {entities.length > 0 ? (
+          <View style={listCard}>
+            {entities.slice(0, 12).map((e, i) => (
+              <EntityRow key={e.id} entity={e} last={i === Math.min(entities.length, 12) - 1} onPress={() => pickEntityForType(e)} />
+            ))}
+          </View>
+        ) : null}
+      </ScrollView>
+    );
+  }
+
+  // --- PASO 1 (opción D): ¿qué tipo de deuda es? (cuadrícula agrupada) ---
+  const all = catalog ?? [];
+  const byType = new Map(all.map((t) => [t.debtType as string, t]));
+  const grouped = new Set(TYPE_GROUPS.flatMap((g) => g.types));
+  const groups = TYPE_GROUPS.map((g) => ({
+    title: g.title,
+    items: g.types.map((t) => byType.get(t)).filter((t): t is ProductTypeDescriptor => !!t),
+  }));
+  const others = all.filter((t) => !grouped.has(t.debtType));
+  const typeMatches = all.filter((t) => t.label.toLowerCase().includes(q));
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }} keyboardShouldPersistTaps="handled">
-      <Text style={{ fontWeight: '800', fontSize: 18, color: colors.text, marginBottom: 4 }}>¿Qué deuda tienes?</Text>
-      <Text style={{ color: colors.textMuted, marginBottom: spacing.md }}>Busca tu banco o tarjeta, o elige el tipo.</Text>
-
-      <TextInput
-        value={query}
-        onChangeText={setQuery}
-        placeholder="Busca: Nu, Bancolombia, tarjeta…"
-        placeholderTextColor={colors.textMuted}
-        style={{
-          borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
-          paddingHorizontal: spacing.md, paddingVertical: spacing.sm, color: colors.text,
-          backgroundColor: colors.surface, marginBottom: spacing.md,
-        }}
-      />
-
-      {awaitingProduct && entity ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
-          <Monogram name={entity.name} type={entity.type} />
+      <Text style={{ fontWeight: '800', fontSize: 22, color: colors.text, marginBottom: 4 }}>¿Qué tipo de deuda es?</Text>
+      {entity ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+          <Monogram name={entity.name} />
           <Text style={{ color: colors.text, flex: 1 }}>
-            Elige el producto de <Text style={{ fontWeight: '700' }}>{entity.name}</Text>:
+            Elige el producto de <Text style={{ fontWeight: '700' }}>{entity.name}</Text>
           </Text>
           <Pressable onPress={() => setEntity(null)} accessibilityRole="button" accessibilityLabel="Cambiar entidad" hitSlop={8}>
             <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>Cambiar</Text>
           </Pressable>
         </View>
-      ) : null}
-
-      {/* Entidades reconocidas (catálogo global + propias/recientes primero). */}
-      {entities.length > 0 && !awaitingProduct ? (
-        <View style={{ marginBottom: spacing.md }}>
-          {entities.slice(0, 8).map((e) => (
-            <Pressable
-              key={e.id}
-              onPress={() => pickEntity(e)}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, gap: spacing.sm }}
-            >
-              <Monogram name={e.name} type={e.type} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text, fontWeight: '600' }}>{e.name}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                  {CATEGORY[e.type]?.label ?? 'Financiera'}
-                  {e.isGlobal ? '' : ' · tuya'}
-                </Text>
-              </View>
-              <Text style={{ color: colors.textMuted }}>›</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-
-      {/* Degradación con gracia: el camino libre SIEMPRE existe (elige un tipo). */}
-      {awaitingProduct ? null : (
-        <Text style={{ fontWeight: '700', color: colors.text, marginBottom: spacing.sm }}>
-          {q ? 'O elige el tipo' : 'Tipos de deuda'}
-        </Text>
+      ) : (
+        <Text style={{ color: colors.textMuted, marginBottom: spacing.md }}>Después eliges el banco.</Text>
       )}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-        {typeMatches.map((t) => (
-          <Pressable
-            key={t.debtType}
-            onPress={() => pickType(t)}
-            style={{
-              paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.md,
-              backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-            }}
-          >
-            <Text style={{ color: colors.text, fontSize: 13 }}>{t.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-      {q && entities.length === 0 ? (
-        <Text style={{ color: colors.textMuted, marginTop: spacing.md, fontSize: 13 }}>
-          No está "{query}" en el catálogo — elige el tipo y ponle ese nombre. Nadie queda por fuera.
-        </Text>
-      ) : null}
+      <SearchBox value={query} onChange={setQuery} placeholder="Busca banco o tipo" />
+
+      {q ? (
+        <>
+          {typeMatches.length > 0 ? <TypeGrid title="TIPOS" items={typeMatches} onPick={pickTypeFromGrid} /> : null}
+          {entities.length > 0 ? (
+            <>
+              <GroupTitle>ENTIDADES</GroupTitle>
+              <View style={listCard}>
+                {entities.slice(0, 8).map((e, i) => (
+                  <EntityRow key={e.id} entity={e} last={i === Math.min(entities.length, 8) - 1} onPress={() => pickEntity(e)} />
+                ))}
+              </View>
+            </>
+          ) : null}
+          {typeMatches.length === 0 && entities.length === 0 ? (
+            <Text style={{ color: colors.textMuted, marginTop: spacing.sm, fontSize: 13 }}>
+              No está "{query}" en el catálogo: elige el tipo y ponle ese nombre. Nadie queda por fuera.
+            </Text>
+          ) : null}
+        </>
+      ) : (
+        <>
+          {groups.map((g) => (g.items.length ? <TypeGrid key={g.title} title={g.title} items={g.items} onPick={pickTypeFromGrid} /> : null))}
+          {others.length > 0 ? (
+            showAllTypes ? (
+              <TypeGrid title="OTROS TIPOS" items={others} onPick={pickTypeFromGrid} />
+            ) : (
+              <Pressable
+                onPress={() => setShowAllTypes(true)}
+                accessibilityRole="button"
+                style={{ minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, paddingHorizontal: spacing.md }}
+              >
+                <Text style={{ color: colors.primary, fontWeight: '700', textAlign: 'center' }}>
+                  Ver más tipos ({others.map((t) => splitLabel(t.label).main.toLowerCase()).slice(0, 3).join(', ')}…)
+                </Text>
+              </Pressable>
+            )
+          ) : null}
+        </>
+      )}
     </ScrollView>
   );
 }
 
-/** Monograma de respaldo (sin logos remotos en P1): inicial + color por categoría. */
-function Monogram({ name, type }: { name: string; type: string }) {
-  const bg = CATEGORY[type]?.color ?? colors.textMuted;
+const listCard = {
+  backgroundColor: colors.surface,
+  borderWidth: 1,
+  borderColor: colors.border,
+  borderRadius: radius.md,
+  overflow: 'hidden' as const,
+};
+
+function GroupTitle({ children }: { children: React.ReactNode }) {
   return (
-    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: '#fff', fontWeight: '800' }}>{name.trim().charAt(0).toUpperCase()}</Text>
+    <Text style={{ color: colors.primaryDark, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginTop: spacing.md, marginBottom: spacing.sm }}>
+      {children}
+    </Text>
+  );
+}
+
+function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48,
+        borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
+        paddingHorizontal: spacing.md, backgroundColor: colors.surface,
+      }}
+    >
+      <Ico name="search" color={colors.textMuted} size={18} />
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        accessibilityLabel={placeholder}
+        style={{ flex: 1, color: colors.text, fontSize: 15, paddingVertical: spacing.sm }}
+      />
+    </View>
+  );
+}
+
+function TypeBadge({ debtType, size = 34 }: { debtType: string; size?: number }) {
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+      <Ico name={TYPE_ICON[debtType] ?? 'ellipsis-horizontal-circle-outline'} color={colors.primary} size={size / 2} />
+    </View>
+  );
+}
+
+function TypeGrid({ title, items, onPick }: { title: string; items: ProductTypeDescriptor[]; onPick: (t: ProductTypeDescriptor) => void }) {
+  return (
+    <>
+      <GroupTitle>{title}</GroupTitle>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        {items.map((t) => {
+          const { main, sub } = splitLabel(t.label);
+          return (
+            <Pressable
+              key={t.debtType}
+              onPress={() => onPick(t)}
+              accessibilityRole="button"
+              accessibilityLabel={t.label}
+              style={({ pressed }) => ({
+                flexBasis: '47%', flexGrow: 1, minHeight: 92, padding: 12, gap: 8,
+                borderRadius: radius.md, borderWidth: 1,
+                borderColor: pressed ? colors.primary : colors.border,
+                backgroundColor: pressed ? colors.primarySoft : colors.surface,
+                justifyContent: 'space-between',
+              })}
+            >
+              <TypeBadge debtType={t.debtType} />
+              <View>
+                <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{main}</Text>
+                {sub ? <Text style={{ color: colors.textMuted, fontSize: 11 }} numberOfLines={1}>{sub}</Text> : null}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
+  );
+}
+
+function EntityRow({ entity, last, onPress }: { entity: FinancialEntity; last: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 56, paddingHorizontal: spacing.md,
+        borderBottomWidth: last ? 0 : 1, borderBottomColor: colors.surfaceAlt,
+      }}
+    >
+      <Monogram name={entity.name} />
+      <Text style={{ color: colors.text, fontWeight: '600', flex: 1 }}>{entity.name}</Text>
+      <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+        {CATEGORY[entity.type] ?? 'Financiera'}
+        {entity.isGlobal ? '' : ' · tuya'}
+      </Text>
+      <Ico name="chevron-forward" color={colors.textFaint} size={16} />
+    </Pressable>
+  );
+}
+
+/** Monograma de respaldo (sin logos remotos): inicial sobre verde suave (opción D). */
+function Monogram({ name }: { name: string }) {
+  return (
+    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>{name.trim().charAt(0).toUpperCase()}</Text>
     </View>
   );
 }

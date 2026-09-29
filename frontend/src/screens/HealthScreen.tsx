@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Card, ErrorState, FormScroll, Ico, Row, SectionHeader, Sparkline } from '../components/ui';
+import { Card, ErrorState, FormScroll, GroupLabel, Ico, ProgressBar, Row, Sparkline } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney } from '../utils/format';
 import { HomeDashboard } from '../api/types';
@@ -25,19 +25,26 @@ import { useApi } from '../utils/useApi';
  * Cero backend: toda la materia prima viene de FIN-004/005/007.
  */
 
-const BAND_META: Record<ScoreBand, { label: string; color: string }> = {
-  critico: { label: 'Crítico', color: colors.danger },
-  fragil: { label: 'Frágil', color: colors.bandFragil },
-  estable: { label: 'Estable', color: colors.warning },
-  saludable: { label: 'Saludable', color: colors.success },
-  elite: { label: 'Élite', color: colors.primaryDark },
+const BAND_META: Record<ScoreBand, { label: string; text: string; soft: string }> = {
+  critico: { label: 'Crítico', text: colors.dangerDeep, soft: colors.dangerSoft },
+  fragil: { label: 'Frágil', text: colors.warningDeep, soft: colors.warningSoft },
+  estable: { label: 'Estable', text: colors.warningDeep, soft: colors.warningSoft },
+  saludable: { label: 'Saludable', text: colors.primaryDark, soft: colors.primarySoft },
+  elite: { label: 'Élite', text: colors.primaryDark, soft: colors.primarySoft },
 };
 
+/** Texto (legible sobre blanco) y barra por nivel del indicador. */
 const LEVEL_COLOR: Record<IndicatorLevel, string> = {
-  verde: colors.success,
+  verde: colors.primaryDark,
+  amarillo: colors.warningDeep,
+  rojo: colors.dangerDeep,
+  sin_datos: colors.textMuted,
+};
+const LEVEL_BAR: Record<IndicatorLevel, string> = {
+  verde: colors.primary,
   amarillo: colors.warning,
   rojo: colors.danger,
-  sin_datos: colors.textMuted,
+  sin_datos: colors.textFaint,
 };
 
 /** Nombres llanos de los pilares (P1, §29.2). */
@@ -100,7 +107,21 @@ export function HealthScreen() {
         </Card>
       ) : null}
       <JugadaCard recs={recs.data ?? []} worst={worst} hasScore={!!data?.score} />
-      {data?.indicators.map((ind) => <IndicatorCard key={ind.key} ind={ind} />)}
+      {/* Salud · opción J (Fundador, 2026-09-29): indicadores en una lista; el
+          detalle (acción, simulador, cálculo) se abre al tocar cada uno. */}
+      {data?.indicators.length ? (
+        <>
+          <GroupLabel title="Tus indicadores" />
+          <Card style={{ paddingVertical: 0, paddingHorizontal: 0, overflow: 'hidden' }}>
+            {data.indicators.map((ind, i) => (
+              <IndicatorRow key={ind.key} ind={ind} first={i === 0} />
+            ))}
+          </Card>
+          <Text style={{ color: colors.textFaint, ...type.caption, marginTop: -spacing.xs, marginBottom: spacing.sm }}>
+            Toca un indicador para ver cómo se calcula y cómo mejorarlo.
+          </Text>
+        </>
+      ) : null}
       <WealthSection d={home.data} />
       <HistorySection />
       <CopilotBridge />
@@ -169,66 +190,48 @@ function ScoreCard({
 
   const band = data?.band ? BAND_META[data.band] : null;
   return (
-    // P4: SIEMPRE el verde institucional — el color no califica a la persona.
-    <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Text style={{ color: colors.textInverse, opacity: 0.85 }}>Score Millo</Text>
-        {data?.delta != null && data.delta !== 0 ? (
-          <Text style={{ color: colors.textInverse, opacity: 0.9 }}>
-            {data.delta > 0 ? '▲ +' : '▼ '}
-            {Math.abs(data.delta)} este mes
-          </Text>
-        ) : null}
-      </Row>
-      <Row style={{ alignItems: 'flex-end', gap: 8 }}>
-        <Text style={{ color: colors.textInverse, fontSize: 52, fontWeight: '800' }}>
-          {data?.score ?? (loading ? '…' : '—')}
-        </Text>
-        <Text style={{ color: colors.textInverse, opacity: 0.8, marginBottom: 10 }}>de 1.000</Text>
-        {band ? (
-          // La banda vive en un chip pequeño: informa sin teñir la experiencia.
-          <View style={{ backgroundColor: band.color, borderRadius: radius.full, paddingVertical: 3, paddingHorizontal: 10, marginBottom: 10 }}>
-            <Text style={{ color: colors.textInverse, fontWeight: '700', fontSize: 12 }}>{band.label}</Text>
-          </View>
-        ) : null}
+    // Salud J: tarjeta blanca compacta. La banda solo tiñe el aro y su palabra;
+    // los pilares siguen NEUTROS (P1 ruta b: el semáforo vive en los indicadores).
+    <Card>
+      <Row style={{ gap: spacing.md }}>
+        <View
+          style={{
+            width: 76, height: 76, borderRadius: 38, borderWidth: 6,
+            borderColor: band ? band.soft : colors.border,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800' }}>{data?.score ?? (loading ? '…' : '—')}</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 10 }}>de 1.000</Text>
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={{ color: colors.textMuted, ...type.small }}>Score Millo</Text>
+          {band ? <Text style={{ color: band.text, fontSize: 18, fontWeight: '800' }}>{band.label}</Text> : null}
+          {data?.delta != null && data.delta !== 0 ? (
+            <Text style={{ color: colors.textMuted, ...type.small }}>
+              {data.delta > 0 ? '+' : '−'}
+              {Math.abs(data.delta)} este mes
+            </Text>
+          ) : null}
+          <Text style={{ color: colors.textFaint, ...type.caption }}>No es un puntaje crediticio</Text>
+        </View>
       </Row>
 
-      {/* P1 ruta (b): pilares como barras NEUTRAS 0–100 — mismo tratamiento los 4;
-          el semáforo vive en los indicadores, que sí tienen niveles auditados. */}
       {data?.pillars?.length ? (
-        <View style={{ marginTop: spacing.sm, gap: 6 }}>
+        <View style={{ marginTop: spacing.md, gap: 8 }}>
           {data.pillars.map((p) => (
             <Row key={p.key} style={{ gap: 8 }}>
-              <Text style={{ color: colors.textInverse, opacity: 0.9, fontSize: 12, width: 92 }}>
-                {PILLAR_LABEL[p.key] ?? p.label}
-              </Text>
-              <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: colors.onPrimaryTrack, overflow: 'hidden' }}>
-                <View
-                  style={{
-                    width: `${Math.max(0, Math.min(100, p.value ?? 0))}%`,
-                    height: 6,
-                    backgroundColor: colors.textInverse,
-                  }}
-                />
+              <Text style={{ color: colors.textMuted, fontSize: 12, width: 92 }}>{PILLAR_LABEL[p.key] ?? p.label}</Text>
+              <View style={{ flex: 1 }}>
+                <ProgressBar value={Math.max(0, Math.min(100, p.value ?? 0)) / 100} color={colors.primary} height={6} label={PILLAR_LABEL[p.key] ?? p.label} />
               </View>
-              <Text style={{ color: colors.textInverse, opacity: 0.75, fontSize: 11, width: 30, textAlign: 'right' }}>
+              <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700', width: 28, textAlign: 'right' }}>
                 {p.value != null ? Math.round(p.value) : '—'}
               </Text>
             </Row>
           ))}
         </View>
       ) : null}
-
-      {/* Derivada del peor INDICADOR (niveles auditados); se omite si todo va bien. */}
-      {worst ? (
-        <Text style={{ color: colors.textInverse, marginTop: spacing.sm, fontWeight: '600', fontSize: 13 }}>
-          Lo que más te frena: {worst.title.toLowerCase()}
-        </Text>
-      ) : null}
-
-      <Text style={{ color: colors.textInverse, opacity: 0.65, marginTop: 8, fontSize: 11 }}>
-        No es un puntaje crediticio
-      </Text>
     </Card>
   );
 }
@@ -261,85 +264,78 @@ function JugadaCard({
 
   if (!top && !worst) return null;
 
+  const title = top ? top.title : `Mejora tu ${worst!.title.toLowerCase()}`;
+  const body = top ? top.body : worst!.actions[0] ?? null;
+  const worstLine = worst ? `${worst.title}: ${humanValue(worst.display)}.` : null;
   return (
-    <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
-      <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-        <Ico name="star" color={colors.accent} /> Tu jugada de mayor impacto
+    // Salud J: la jugada es el protagonista (verde institucional, como el hero de Mis deudas).
+    <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
+      <Text style={{ color: colors.onPrimaryMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.8 }}>
+        TU JUGADA DE MAYOR IMPACTO
       </Text>
-      {top ? (
-        <>
-          <Text style={{ color: colors.text, marginTop: 6, fontWeight: '600' }}>{top.title}</Text>
-          <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
-            {top.body}
-          </Text>
-          <Pressable onPress={() => goSimulator(SIM_BY_KIND[top.kind])} style={{ marginTop: spacing.sm }}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="flask-outline" color={colors.primary} /> Simularlo →</Text>
-          </Pressable>
-        </>
-      ) : worst ? (
-        <>
-          <Text style={{ color: colors.text, marginTop: 6, fontWeight: '600' }}>
-            Mejora tu {worst.title.toLowerCase()}
-          </Text>
-          {worst.actions[0] ? (
-            <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
-              {worst.actions[0]}
-            </Text>
-          ) : null}
-          <Pressable onPress={() => goSimulator()} style={{ marginTop: spacing.sm }}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="flask-outline" color={colors.primary} /> Simularlo →</Text>
-          </Pressable>
-        </>
+      <Text style={{ color: colors.textInverse, fontSize: 18, fontWeight: '800', marginTop: 6 }}>{title}</Text>
+      {worstLine ? (
+        <Text style={{ color: colors.onPrimaryMuted, fontSize: 13, marginTop: 4 }}>Lo que más te frena · {worstLine}</Text>
       ) : null}
+      {body ? <Text style={{ color: colors.textInverse, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{body}</Text> : null}
+      <Pressable
+        onPress={() => goSimulator(top ? SIM_BY_KIND[top.kind] : undefined)}
+        accessibilityRole="button"
+        style={{ alignSelf: 'flex-start', marginTop: spacing.md, backgroundColor: colors.surface, borderRadius: radius.full, paddingVertical: 10, paddingHorizontal: 18 }}
+      >
+        <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>Simularlo</Text>
+      </Pressable>
     </Card>
   );
 }
 
-/** P3: interpretación siempre visible; palanca donde duele; tap honesto. */
-function IndicatorCard({ ind }: { ind: HealthIndicator }) {
+/** P3 (Salud J): fila con valor y barra; al tocar se abre qué significa, la
+ *  palanca, el simulador y el cálculo — la acción ya no se repite en cada tarjeta. */
+function IndicatorRow({ ind, first }: { ind: HealthIndicator; first: boolean }) {
   const [open, setOpen] = useState(false);
-  const color = LEVEL_COLOR[ind.level];
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const needsAction = ind.level === 'rojo' || ind.level === 'amarillo';
+  // Solo los valores en % tienen una barra honesta (0–100); meses, veces… no.
+  const pct = /%\s*$/.test(ind.display) ? parseFloat(ind.display.replace(',', '.')) : NaN;
 
   return (
-    <Card style={{ borderLeftWidth: 4, borderLeftColor: color }}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Text style={{ fontWeight: '700', color: colors.text, fontSize: 15 }}>{ind.title}</Text>
-        <Text style={{ fontWeight: '800', color, fontSize: 15 }}>{humanValue(ind.display)}</Text>
-      </Row>
-      <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13 }}>{ind.meaning}</Text>
-
-      {/* La palanca visible exactamente donde hay dolor (P3 / intención). */}
-      {needsAction && ind.actions[0] ? (
-        <View style={{ marginTop: spacing.sm }}>
-          <Text style={{ color: colors.text, fontSize: 13 }}><Ico name="checkmark-circle-outline" color={colors.success} /> {ind.actions[0]}</Text>
-          <Pressable onPress={() => navigation.navigate('Simulator')} style={{ marginTop: 4 }}>
-            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
-              <Ico name="flask-outline" color={colors.primary} /> Simularlo →
-            </Text>
-          </Pressable>
+    <View style={{ borderTopWidth: first ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
+      <Pressable
+        onPress={() => setOpen(!open)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={`${ind.title}: ${humanValue(ind.display)}`}
+        style={{ paddingVertical: 12, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}
+      >
+        <View style={{ flex: 1, gap: 6 }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text style={{ fontWeight: '700', color: colors.text, fontSize: 14 }}>{ind.title}</Text>
+            <Text style={{ fontWeight: '800', color: LEVEL_COLOR[ind.level], fontSize: 14 }}>{humanValue(ind.display)}</Text>
+          </Row>
+          {Number.isFinite(pct) ? <ProgressBar value={pct / 100} color={LEVEL_BAR[ind.level]} height={6} label={ind.title} /> : null}
         </View>
-      ) : null}
-
-      {/* El tap ahora anuncia su contenido: profundización, no acciones. */}
-      <Pressable onPress={() => setOpen(!open)} style={{ marginTop: 6 }}>
-        <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-          {open ? '▾ Cómo se calcula' : '¿Cómo se calcula? →'}
-        </Text>
+        <Ico name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textFaint} />
       </Pressable>
       {open ? (
-        <View style={{ marginTop: 4 }}>
-          <Text style={{ color: colors.text, fontSize: 13, marginBottom: 4 }}><Ico name="calculator-outline" color={colors.textMuted} /> {ind.howComputed}</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 12 }}>{ind.ranges}</Text>
-          {ind.actions.slice(needsAction ? 1 : 0).map((a, i) => (
-            <Text key={i} style={{ color: colors.primaryDark, fontSize: 13, marginTop: 2 }}>
-              <Ico name="checkmark-circle-outline" color={colors.success} /> {a}
+        <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: 6 }}>
+          <Text style={{ color: colors.textMuted, fontSize: 13 }}>{ind.meaning}</Text>
+          {ind.actions.map((a, i) => (
+            <Text key={i} style={{ color: colors.text, fontSize: 13 }}>
+              <Ico name="checkmark-circle-outline" color={colors.primary} /> {a}
             </Text>
           ))}
+          {needsAction ? (
+            <Pressable onPress={() => navigation.navigate('Simulator')} accessibilityRole="link">
+              <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>Simularlo →</Text>
+            </Pressable>
+          ) : null}
+          <Text style={{ color: colors.text, fontSize: 12, marginTop: 4 }}>
+            <Ico name="calculator-outline" color={colors.textMuted} /> {ind.howComputed}
+          </Text>
+          <Text style={{ color: colors.textFaint, fontSize: 12 }}>{ind.ranges}</Text>
         </View>
       ) : null}
-    </Card>
+    </View>
   );
 }
 
@@ -354,7 +350,7 @@ function WealthSection({ d }: { d: HomeDashboard | null }) {
   if (!d) return null;
   return (
     <>
-      <SectionHeader title="Lo que tienes" />
+      <GroupLabel title="Lo que tienes" />
       <Row style={{ gap: spacing.md, alignItems: 'stretch' }}>
         <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Accounts')} accessibilityRole="button" accessibilityLabel="Cuentas y patrimonio">
           <Card style={{ flex: 1 }}>

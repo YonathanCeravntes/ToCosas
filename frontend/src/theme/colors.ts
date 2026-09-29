@@ -21,6 +21,10 @@ export const colors = {
   successSoft: '#EAF7F1',
   warning: '#E08A00',
   warningSoft: '#FFF6E5',
+  /** Naranja oscuro: texto de aviso legible sobre blanco y tramo "ya salió" (Inicio G). */
+  warningDeep: '#9A5A00',
+  /** Rojo oscuro: texto crítico legible sobre blanco (Salud J). */
+  dangerDeep: '#9E2B2B',
   /** Banda 'Frágil' del Score (entre warning y danger). */
   bandFragil: '#E06A00',
   info: '#2563EB',

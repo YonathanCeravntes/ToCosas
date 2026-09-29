@@ -4,13 +4,13 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, ErrorState, HeroCard, Ico, ProgressBar, Row, SectionHeader, Skeleton } from '../components/ui';
+import { Button, Card, ErrorState, GroupLabel, Ico, ProgressBar, Row, SegmentBar, Skeleton } from '../components/ui';
 import { CategoryGlyph } from '../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatLocalDate, formatMoney } from '../utils/format';
 import { useApi } from '../utils/useApi';
 import { dashboardApi, debtsApi, gamificationApi } from '../api/endpoints';
-import { FlowSection, GamificationProfile } from '../api/types';
+import { FlowSection, GamificationProfile, TeQueda } from '../api/types';
 import { useAuthStore } from '../store/auth.store';
 import { useSync } from '../offline/useSync';
 import { LocalTransaction, transactionsRepo } from '../offline/transactionsRepo';
@@ -25,7 +25,6 @@ const KIND_META: Record<string, { sign: string; color: string }> = {
 
 /** Semáforo de interpretación (antes emojis 🟢🟡🔴, DEC-0040 §7). */
 const LEVEL_COLOR: Record<string, string> = { verde: colors.success, amarillo: colors.warning, rojo: colors.danger };
-const LEVEL_COLOR_ON_PRIMARY: Record<string, string> = { verde: '#9BE7C4', amarillo: colors.accent, rojo: '#FFB3B3' };
 
 export function DashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -106,33 +105,36 @@ export function DashboardScreen() {
         <Skeleton hero lines={3} />
       ) : d ? (
         <Pressable onPress={() => navigation.navigate('Budget')} accessibilityRole="button" accessibilityLabel={`Te queda para gastar ${formatMoney(d.teQueda.amount)}. Abrir presupuesto`}>
-          <HeroCard>
+          {/* Inicio · opción G (Fundador, 2026-09-29): tarjeta blanca + barra que reparte
+              el ingreso del ciclo. Todas las cifras salen de `teQueda` (§32). */}
+          <Card style={{ padding: spacing.md }}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ color: colors.onPrimaryMuted, ...type.body }}>
-                Te queda para gastar · hasta el {shortDate(d.teQueda.until)}
-              </Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.onPrimaryMuted} />
+              <Text style={{ color: colors.textMuted, ...type.small }}>Te queda para gastar</Text>
+              <Row style={{ gap: 2 }}>
+                <Text style={{ color: colors.textMuted, ...type.small }}>hasta el {shortDate(d.teQueda.until)}</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.textFaint} />
+              </Row>
             </Row>
-            <Text style={{ color: colors.textInverse, ...type.hero }}>{formatMoney(d.teQueda.amount)}</Text>
+            <Text style={{ color: d.teQueda.amount < 0 ? colors.danger : colors.text, fontSize: 32, fontWeight: '800', marginTop: 2 }}>
+              {formatMoney(d.teQueda.amount)}
+            </Text>
             {d.teQueda.perDay !== null && d.teQueda.amount > 0 ? (
-              <Text style={{ color: colors.onPrimaryMuted, ...type.body }}>
+              <Text style={{ color: colors.textMuted, ...type.small }}>
                 ≈ {formatMoney(d.teQueda.perDay)} por día · {d.teQueda.daysLeft} día{d.teQueda.daysLeft === 1 ? '' : 's'}
               </Text>
             ) : null}
+            <IncomeSplit teQueda={d.teQueda} />
             {d.interpretation.cashflow ? (
-              <Text style={{ color: colors.onPrimaryMuted, ...type.body, marginTop: spacing.xs }}>
-                <Ico name="ellipse" size={10} color={LEVEL_COLOR_ON_PRIMARY[d.interpretation.cashflow.level] ?? colors.onPrimaryMuted} /> {d.interpretation.cashflow.text}
+              <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.sm }}>
+                <Ico name="ellipse" size={10} color={LEVEL_COLOR[d.interpretation.cashflow.level] ?? colors.textMuted} /> {d.interpretation.cashflow.text}
               </Text>
             ) : null}
             {cycle ? (
-              <View style={{ marginTop: spacing.sm }}>
-                <ProgressBar value={cycle.ratio} color={colors.textInverse} track={colors.onPrimaryTrack} height={5} label="Avance del ciclo" />
-                <Text style={{ color: colors.onPrimaryFaint, ...type.caption, marginTop: spacing.xxs }}>
-                  Día {cycle.day} de {cycle.total} del ciclo · {d.period.label}
-                </Text>
-              </View>
+              <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.xs }}>
+                Día {cycle.day} de {cycle.total} del ciclo · {d.period.label}
+              </Text>
             ) : null}
-          </HeroCard>
+          </Card>
         </Pressable>
       ) : null}
 
@@ -151,68 +153,77 @@ export function DashboardScreen() {
         </Pressable>
       ) : null}
 
-      {/* FIN-017 P2: Deuda total como tarjeta normal (el hero es único). */}
-      <Pressable
-        onPress={() =>
-          (navigation as unknown as { navigate: (name: string, params?: unknown) => void }).navigate('Debts', { screen: 'DebtsList' })
-        }
-        accessibilityRole="button"
-        accessibilityLabel="Ver mis deudas"
-      >
-        <Card>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ color: colors.textMuted, ...type.body }}>Deuda total</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
-          </Row>
-          <Text style={{ color: colors.text, ...type.display }}>{formatMoney(summary.data?.totalDebt ?? 0)}</Text>
-          <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xxs }}>
-            {summary.data?.debtsCount ?? 0} deuda(s) · {formatMoney(d?.debtPayments ?? 0)} pagado desde el {d ? shortDate(d.period.start) : '—'}
-          </Text>
-          {d?.interpretation.debt ? (
-            <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xxs }}>
-              <Ico name="ellipse" size={10} color={LEVEL_COLOR[d.interpretation.debt.level] ?? colors.textMuted} /> {d.interpretation.debt.text}
-            </Text>
-          ) : null}
-          {summary.data?.upcoming?.[0] ? (
-            <Row style={{ gap: spacing.xs, marginTop: spacing.sm }}>
-              <Ionicons name="calendar-outline" size={14} color={colors.text} />
-              <Text style={{ color: colors.text, ...type.small, fontWeight: '600', flex: 1 }}>
-                Próximo: {summary.data.upcoming[0].name} · {formatMoney(summary.data.upcoming[0].amount)} · vence {shortDate(summary.data.upcoming[0].dueDate)}
-              </Text>
-            </Row>
-          ) : null}
-          {/* FIN-018 4ª iteración — puente narrativo: margen verde + deuda viva → abono. */}
-          {d?.interpretation.cashflow?.level === 'verde' && summary.data?.upcoming?.[0] ? (
-            <Pressable
-              onPress={() =>
-                (navigation as unknown as { navigate: (name: string, params: unknown) => void }).navigate('Debts', {
-                  screen: 'DebtDetail',
-                  params: { debtId: summary.data!.upcoming[0].debtId, name: summary.data!.upcoming[0].name },
-                })
-              }
-              accessibilityRole="link"
-              style={{ marginTop: spacing.sm }}
-            >
-              <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>
-                <Ico name="bulb-outline" color={colors.primary} /> Tienes margen: adelanta un pago y ahorra intereses →
-              </Text>
-            </Pressable>
-          ) : null}
-        </Card>
-      </Pressable>
-
       {/* DEC-0040 §7 (orden de Inicio): Inicio responde solo "¿cómo voy este ciclo?":
-          Te queda → deudas → lo que entró/salió → en qué se va → últimos movimientos.
-          Patrimonio y ahorro viven ahora en Salud ("Lo que tienes"), que es su casa. */}
-      <Row style={{ gap: spacing.md }}>
-        <FlowStat label="Gastos" flow={d?.expense} color={colors.danger} onPress={() => navigation.navigate('Transactions', { kind: 'gasto' })} />
-        <FlowStat label="Ingresos" flow={d?.income} color={colors.success} onPress={() => navigation.navigate('Transactions', { kind: 'ingreso' })} />
+          Te queda → este mes → próximo pago → en qué se va → últimos movimientos.
+          Patrimonio y ahorro viven en Salud ("Lo que tienes"), que es su casa. */}
+      <GroupLabel title="Este mes" />
+      <Row style={{ gap: spacing.md, alignItems: 'stretch' }}>
+        <FlowStat label="Gastos" flow={d?.expense} color={colors.text} onPress={() => navigation.navigate('Transactions', { kind: 'gasto' })} />
+        <FlowStat label="Ingresos" flow={d?.income} color={colors.primary} onPress={() => navigation.navigate('Transactions', { kind: 'ingreso' })} />
       </Row>
+
+      {/* FIN-017 P2: la deuda como tarjeta normal (el hero es único). */}
+      {summary.data && summary.data.debtsCount > 0 ? (
+        <>
+          <GroupLabel title={summary.data.upcoming?.[0] ? 'Próximo pago' : 'Tus deudas'} tone={summary.data.upcoming?.[0] ? colors.warningDeep : colors.primaryDark} />
+          <Pressable
+            onPress={() =>
+              (navigation as unknown as { navigate: (name: string, params?: unknown) => void }).navigate('Debts', { screen: 'DebtsList' })
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Ver mis deudas"
+          >
+            <Card>
+              {summary.data.upcoming?.[0] ? (
+                <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 }} numberOfLines={1}>
+                    {summary.data.upcoming[0].name}
+                  </Text>
+                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>{formatMoney(summary.data.upcoming[0].amount)}</Text>
+                </Row>
+              ) : null}
+              <Row style={{ justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
+                <Text style={{ color: colors.textMuted, ...type.small, flex: 1 }}>
+                  Debes {formatMoney(summary.data.totalDebt)} en {summary.data.debtsCount} deuda{summary.data.debtsCount === 1 ? '' : 's'}
+                </Text>
+                {summary.data.upcoming?.[0] ? (
+                  <Text style={{ color: colors.textMuted, ...type.small }}>vence {shortDate(summary.data.upcoming[0].dueDate)}</Text>
+                ) : null}
+              </Row>
+              <Text style={{ color: colors.textFaint, ...type.caption, marginTop: 2 }}>
+                {formatMoney(d?.debtPayments ?? 0)} pagado desde el {d ? shortDate(d.period.start) : '—'}
+              </Text>
+              {d?.interpretation.debt ? (
+                <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xs }}>
+                  <Ico name="ellipse" size={10} color={LEVEL_COLOR[d.interpretation.debt.level] ?? colors.textMuted} /> {d.interpretation.debt.text}
+                </Text>
+              ) : null}
+              {/* FIN-018 4ª iteración — puente narrativo: margen verde + deuda viva → abono. */}
+              {d?.interpretation.cashflow?.level === 'verde' && summary.data.upcoming?.[0] ? (
+                <Pressable
+                  onPress={() =>
+                    (navigation as unknown as { navigate: (name: string, params: unknown) => void }).navigate('Debts', {
+                      screen: 'DebtDetail',
+                      params: { debtId: summary.data!.upcoming[0].debtId, name: summary.data!.upcoming[0].name },
+                    })
+                  }
+                  accessibilityRole="link"
+                  style={{ marginTop: spacing.sm }}
+                >
+                  <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>
+                    Tienes margen: adelanta un pago y ahorra intereses →
+                  </Text>
+                </Pressable>
+              ) : null}
+            </Card>
+          </Pressable>
+        </>
+      ) : null}
 
       {d && d.expense.byCategory.length > 0 ? (
         <>
-          <SectionHeader
-            title="¿En qué se te va la plata?"
+          <GroupLabel
+            title="En qué se te va"
             action={d.expense.byCategory.length > 3 ? 'Ver todo' : undefined}
             onAction={() => navigation.navigate('Budget')}
           />
@@ -239,7 +250,7 @@ export function DashboardScreen() {
 
       {/* Movimientos recientes (FIN-014/018/028) — el detalle completo vive en el
           historial (FIN-038), no en Registrar. */}
-      <SectionHeader title="Movimientos recientes" action="Ver todos" onAction={() => navigation.navigate('Transactions')} />
+      <GroupLabel title="Movimientos recientes" action="Ver todos" onAction={() => navigation.navigate('Transactions')} />
       {d?.recentTransactions.length ? (
         <Card>
           {d.recentTransactions.slice(0, 4).map((t, i) => {
@@ -341,6 +352,32 @@ function shortDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
+/**
+ * Inicio G: cómo se reparte la BASE de ingreso del ciclo (misma de `teQueda`, §32):
+ * por pagar (fijos + cuotas pendientes) · ya salió (gastos y pagos reales) · libre.
+ */
+function IncomeSplit({ teQueda }: { teQueda: TeQueda }) {
+  const base = teQueda.incomeBase ?? 0;
+  if (base <= 0) return null;
+  const pending = teQueda.pendingCommitments.reduce((a, c) => a + c.amount, 0);
+  const free = Math.max(0, teQueda.amount);
+  const spent = Math.max(0, base - teQueda.amount - pending);
+  return (
+    <View style={{ marginTop: spacing.sm }}>
+      <SegmentBar
+        parts={[
+          { key: 'pending', label: 'Por pagar', value: pending, color: colors.warning },
+          { key: 'spent', label: 'Ya salió', value: spent, color: colors.warningDeep },
+          { key: 'free', label: 'Libre', value: free, color: colors.primary },
+        ]}
+      />
+      <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.xs }}>
+        De tu ingreso de {formatMoney(base)} este ciclo
+      </Text>
+    </View>
+  );
+}
+
 /** FIN-014 + glosario FIN-017 P4: total con desglose en lenguaje cotidiano. */
 function FlowStat({ label, flow, color, onPress }: { label: string; flow?: FlowSection; color: string; onPress: () => void }) {
   return (
@@ -390,7 +427,7 @@ function CategoryBar({ c }: { c: { name: string; icon: string; color: string; am
           {formatMoney(c.amount)} · {c.percent}%
         </Text>
       </Row>
-      <ProgressBar value={c.percent / 100} color={c.color} label={`${c.name} ${c.percent}%`} />
+      <ProgressBar value={c.percent / 100} color={colors.primary} height={6} label={`${c.name} ${c.percent}%`} />
     </View>
   );
 }
