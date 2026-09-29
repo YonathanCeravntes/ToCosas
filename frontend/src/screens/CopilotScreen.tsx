@@ -14,16 +14,17 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Button, Card, Ico, Row } from '../components/ui';
+import { Button, Card, GroupLabel, Ico, IconName, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { AiConsentStatus, CopilotAction, CopilotMessage, Insight, InsightSeverity, Recommendation } from '../api/types';
 import { budgetApi, copilotApi, insightsApi, recommendationsApi } from '../api/endpoints';
 import { useBottomInset } from '../navigation/insets';
 
-const SEVERITY_COLOR: Record<InsightSeverity, string> = {
-  critical: colors.danger,
-  warning: colors.warning,
-  info: colors.success,
+// FIN-053 (opción 2): novedades en filas con ícono en círculo, como Mis deudas / Mi mes.
+const SEVERITY_STYLE: Record<InsightSeverity, { icon: IconName; fg: string; bg: string }> = {
+  critical: { icon: 'alert-circle-outline', fg: colors.dangerDeep, bg: colors.dangerSoft },
+  warning: { icon: 'trending-up-outline', fg: colors.warningDeep, bg: colors.warningSoft },
+  info: { icon: 'trophy-outline', fg: colors.primaryDark, bg: colors.primarySoft },
 };
 
 // FIN-046: preguntas que muestran el "cerebro" (plan de flujo, Te queda, crédito).
@@ -128,22 +129,6 @@ export function CopilotScreen() {
       style={{ flex: 1, backgroundColor: colors.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Banner de modo */}
-      <View style={{ backgroundColor: consent?.accepted ? colors.primarySoft : colors.surface, padding: spacing.sm, borderBottomWidth: 1, borderColor: colors.border }}>
-        <Text style={{ fontSize: 12, color: colors.textMuted, textAlign: 'center' }}>
-          {consent?.accepted
-            ? `IA activa${aiRemaining !== null ? ` · ${aiRemaining} mensajes IA hoy` : ''}`
-            : 'Modo básico (respuestas instantáneas). Activa la IA para preguntas abiertas.'}
-        </Text>
-        {!consent?.accepted ? (
-          <Pressable onPress={() => setShowConsent(true)}>
-            <Text style={{ color: colors.primary, fontWeight: '700', textAlign: 'center', marginTop: 2 }}>
-              Activar inteligencia artificial
-            </Text>
-          </Pressable>
-        ) : null}
-      </View>
-
       <FlatList
         ref={listRef}
         style={{ flex: 1 }}
@@ -180,80 +165,104 @@ export function CopilotScreen() {
             ) : null}
             {/* Recomendado para ti (FIN-007): acciones con beneficio cuantificado */}
             {recommendations.length > 0 ? (
-              <View style={{ marginBottom: spacing.sm }}>
-                <Text style={{ fontWeight: '700', color: colors.text, marginBottom: 6 }}>
-                  <Ico name="sparkles-outline" color={colors.primary} /> Recomendado para ti
-                </Text>
-                {recommendations.map((rec) => (
-                  <RecommendationCard
-                    key={rec.id}
-                    rec={rec}
-                    onDismiss={() => void dismissRecommendation(rec.id)}
-                    onDone={() => void markDone(rec.id)}
-                  />
-                ))}
-              </View>
-            ) : null}
-            {/* Novedades (FIN-006): insights como arrancadores con contexto */}
-            {insights.length > 0 ? (
-              <View style={{ marginBottom: spacing.sm }}>
-                <Text style={{ fontWeight: '700', color: colors.text, marginBottom: 6 }}>
-                  <Ico name="notifications-outline" color={colors.primary} /> Novedades
-                </Text>
-                {insights.slice(0, 4).map((ins) => (
-                  <Pressable key={ins.id} onPress={() => openInsight(ins)}>
-                    <Card style={{ borderLeftWidth: 4, borderLeftColor: SEVERITY_COLOR[ins.severity], paddingVertical: spacing.sm }}>
-                      <Row style={{ justifyContent: 'space-between' }}>
-                        <Text style={{ fontWeight: '600', color: colors.text, flex: 1 }} numberOfLines={2}>
-                          {stripEmoji(ins.title)}
-                        </Text>
-                        <Pressable onPress={() => void dismissInsight(ins.id)} style={{ paddingLeft: spacing.sm }}>
-                          <Ico name="close" size={18} color={colors.textMuted} />
-                        </Pressable>
-                      </Row>
-                      <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }} numberOfLines={2}>
-                        {ins.body}
-                      </Text>
-                    </Card>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-            <Card>
-              <Text style={{ fontWeight: '700', fontSize: 16, color: colors.text }}>
-                <Ico name="chatbubble-ellipses-outline" size={16} color={colors.primary} /> Soy tu Copiloto Financiero
-              </Text>
-              <Text style={{ color: colors.textMuted, marginTop: 4, lineHeight: 20 }}>
-                Interpreto tus números y te los explico. Prueba con:
-              </Text>
-            </Card>
-            {STARTERS.map((s) => (
-              <Pressable key={s} onPress={() => void send(s)}>
-                <Card style={{ paddingVertical: spacing.sm }}>
-                  <Text style={{ color: colors.primary, fontWeight: '600' }}>{s}</Text>
+              <>
+                <GroupLabel title="Recomendado para ti" />
+                <Card style={{ paddingVertical: 0 }}>
+                  {recommendations.map((rec, i) => (
+                    <RecommendationRow
+                      key={rec.id}
+                      rec={rec}
+                      first={i === 0}
+                      onDismiss={() => void dismissRecommendation(rec.id)}
+                      onDone={() => void markDone(rec.id)}
+                    />
+                  ))}
                 </Card>
-              </Pressable>
-            ))}
+              </>
+            ) : null}
+            {/* Novedades (FIN-006): tocar una la conversa con el Copiloto */}
+            {insights.length > 0 ? (
+              <>
+                <GroupLabel title="Novedades" />
+                <Card style={{ paddingVertical: 0 }}>
+                  {insights.slice(0, 4).map((ins, i) => {
+                    const st = SEVERITY_STYLE[ins.severity] ?? SEVERITY_STYLE.info;
+                    return (
+                      <Pressable
+                        key={ins.id}
+                        onPress={() => openInsight(ins)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${stripEmoji(ins.title)}. Preguntarle al Copiloto`}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}
+                      >
+                        <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: st.bg, alignItems: 'center', justifyContent: 'center' }}>
+                          <Ico name={st.icon} color={st.fg} size={16} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{stripEmoji(ins.title)}</Text>
+                          <Text style={{ color: colors.textMuted, fontSize: 12 }} numberOfLines={2}>{ins.body}</Text>
+                        </View>
+                        <Pressable onPress={() => void dismissInsight(ins.id)} accessibilityRole="button" accessibilityLabel="Descartar" hitSlop={8} style={{ padding: 6 }}>
+                          <Ico name="close" size={16} color={colors.textFaint} />
+                        </Pressable>
+                      </Pressable>
+                    );
+                  })}
+                </Card>
+              </>
+            ) : null}
+            <View style={{ marginTop: spacing.md }}>
+              <Bubble item={{ id: 'hola', role: 'assistant', content: 'Hola, soy tu Copiloto. Leo tus números y te digo qué hacer con ellos. ¿Por dónde empezamos?' }} />
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingLeft: 44 }}>
+              {STARTERS.map((q) => (
+                <Pressable
+                  key={q}
+                  onPress={() => void send(q)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => ({ minHeight: 38, justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 19, borderWidth: 1, borderColor: colors.primary, backgroundColor: pressed ? colors.primarySoft : colors.surface })}
+                >
+                  <Text style={{ color: colors.primaryDark, fontSize: 13, fontWeight: '700' }}>{q}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
         }
         renderItem={({ item }) => <Bubble item={item} />}
       />
 
-      {/* Input */}
-      <View style={{ flexDirection: 'row', padding: spacing.sm, borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
+      {/* Estado de la IA + campo para escribir (opción 2) */}
+      <View style={{ paddingHorizontal: spacing.md, paddingTop: 10, borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
+        {consent?.accepted ? (
+          <Text style={{ fontSize: 12, color: colors.textMuted }}>
+            <Ico name="sparkles-outline" color={colors.primary} size={12} /> IA activa{aiRemaining !== null ? ` · te quedan ${aiRemaining} mensajes hoy` : ''}
+          </Text>
+        ) : (
+          <Text style={{ fontSize: 12, color: colors.textMuted }}>
+            Modo básico ·{' '}
+            <Text onPress={() => setShowConsent(true)} accessibilityRole="link" style={{ color: colors.primary, fontWeight: '800' }}>
+              Activar IA para preguntas abiertas
+            </Text>
+          </Text>
+        )}
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.surface }}>
         <TextInput
           value={input}
           onChangeText={setInput}
           placeholder="Pregúntame sobre tus finanzas…"
           placeholderTextColor={colors.textMuted}
-          style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: 10, color: colors.text }}
+          accessibilityLabel="Mensaje"
+          style={{ flex: 1, height: 48, backgroundColor: colors.surfaceAlt, borderRadius: 24, paddingHorizontal: spacing.md, color: colors.text, fontSize: 15 }}
           onSubmitEditing={() => void send(input)}
           editable={!sending}
         />
         <Pressable
           onPress={() => void send(input)}
           disabled={sending}
-          style={{ marginLeft: spacing.sm, backgroundColor: colors.primary, borderRadius: radius.full, width: 42, height: 42, alignItems: 'center', justifyContent: 'center' }}
+          accessibilityRole="button"
+          accessibilityLabel="Enviar"
+          style={{ marginLeft: spacing.sm, backgroundColor: colors.primary, borderRadius: 24, width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}
         >
           {sending ? <ActivityIndicator color={colors.textInverse} /> : <Ico name="send" size={18} color={colors.textInverse} />}
         </Pressable>
@@ -284,45 +293,45 @@ export function CopilotScreen() {
   );
 }
 
-function RecommendationCard({
+function RecommendationRow({
   rec,
+  first,
   onDismiss,
   onDone,
 }: {
   rec: Recommendation;
+  first: boolean;
   onDismiss: () => void;
   onDone: () => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <Pressable onPress={() => setOpen(!open)}>
-      <Card style={{ borderLeftWidth: 4, borderLeftColor: colors.accent, paddingVertical: spacing.sm }}>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Text style={{ fontWeight: '700', color: colors.text, flex: 1 }} numberOfLines={2}>
-            {rec.title}
-          </Text>
-          <Pressable onPress={onDismiss} style={{ paddingLeft: spacing.sm }}>
-            <Ico name="close" size={18} color={colors.textMuted} />
-          </Pressable>
-        </Row>
-        <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 2 }} numberOfLines={open ? undefined : 2}>
-          {rec.body}
-        </Text>
-        {open ? (
-          <View style={{ marginTop: spacing.sm }}>
-            <Text style={{ color: colors.danger, fontSize: 12, marginBottom: 6 }}>
-              Si no lo haces: {rec.whatIfNot}
-            </Text>
-            <Row style={{ gap: spacing.sm }}>
-              <View style={{ flex: 1 }}>
-                <Button icon="checkmark" title="Lo hice" variant="secondary" onPress={onDone} />
-              </View>
-            </Row>
-          </View>
-        ) : (
-          <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 4 }}>Toca para ver más</Text>
-        )}
-      </Card>
+    <Pressable
+      onPress={() => setOpen(!open)}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
+      style={{ paddingVertical: 12, borderTopWidth: first ? 0 : 1, borderTopColor: colors.surfaceAlt }}
+    >
+      <Row style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
+        <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Ico name="bulb-outline" color={colors.primaryDark} size={16} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontWeight: '700', color: colors.text }} numberOfLines={2}>{rec.title}</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }} numberOfLines={open ? undefined : 2}>{rec.body}</Text>
+          {open ? (
+            <View style={{ marginTop: spacing.sm }}>
+              <Text style={{ color: colors.warningDeep, fontSize: 12, marginBottom: 6 }}>Si no lo haces: {rec.whatIfNot}</Text>
+              <Button icon="checkmark" title="Lo hice" variant="secondary" onPress={onDone} />
+            </View>
+          ) : (
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700', marginTop: 4 }}>Ver más</Text>
+          )}
+        </View>
+        <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Descartar" hitSlop={8} style={{ padding: 6 }}>
+          <Ico name="close" size={16} color={colors.textFaint} />
+        </Pressable>
+      </Row>
     </Pressable>
   );
 }
@@ -330,17 +339,27 @@ function RecommendationCard({
 function Bubble({ item }: { item: ChatItem }) {
   const isUser = item.role === 'user';
   return (
-    <View style={{ alignSelf: isUser ? 'flex-end' : 'flex-start', maxWidth: '85%', marginBottom: spacing.sm }}>
+    <View style={{ flexDirection: 'row', gap: 10, alignSelf: isUser ? 'flex-end' : 'flex-start', maxWidth: isUser ? '85%' : '100%', marginBottom: spacing.sm }}>
+      {!isUser ? (
+        <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+          <Ico name="chatbox-outline" color={colors.textInverse} size={16} />
+        </View>
+      ) : null}
+      <View style={{ flexShrink: 1, maxWidth: isUser ? undefined : '88%' }}>
       <View
         style={{
           backgroundColor: isUser ? colors.primary : colors.surface,
-          borderRadius: radius.md,
+          borderTopLeftRadius: isUser ? 14 : 4,
+          borderTopRightRadius: isUser ? 4 : 14,
+          borderBottomLeftRadius: 14,
+          borderBottomRightRadius: 14,
           borderWidth: isUser ? 0 : 1,
           borderColor: colors.border,
-          padding: spacing.sm,
+          paddingVertical: 10,
+          paddingHorizontal: 14,
         }}
       >
-        <Text style={{ color: isUser ? colors.textInverse : colors.text, lineHeight: 20 }}>{item.content}</Text>
+        <Text style={{ color: isUser ? colors.textInverse : colors.text, lineHeight: 21, fontSize: 14 }}>{item.content}</Text>
         {!isUser && item.source ? (
           <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>
             {item.source === 'llm' ? 'IA' : 'instantánea'}
@@ -354,6 +373,7 @@ function Bubble({ item }: { item: ChatItem }) {
           ))}
         </View>
       ) : null}
+      </View>
     </View>
   );
 }

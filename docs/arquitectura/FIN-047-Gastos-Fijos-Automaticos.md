@@ -75,3 +75,11 @@ Unit 424/424 (utilidades nuevas + specs ajustadas a la regla nueva), e2e 107/107
 - **Campos grandes con unidad** ($, meses, % EA) y **montos rápidos** de un toque ("100 mil", "200 mil", "1 millón", "36 meses"…).
 - Resultado con los colores nuevos y el siguiente paso como botón verde ("Hazlo real: abonar a capital"); "Ajusta tus compromisos en Mi mes".
 - Sin cambios de backend. Web revisada con Playwright (abono extra y crédito).
+
+## FIN-053 · Copiloto opción 2 "Conversación + chips" (Fundador, 2026-09-29)
+- Arranca como una conversación: el Copiloto saluda en su burbuja (con su ícono) y las preguntas sugeridas son **chips** debajo; al tocar una se envía.
+- **Novedades** y **Recomendado para ti** en tarjeta blanca con filas (ícono en círculo por tipo, título, detalle y ✕ para descartar). Tocar una novedad se la pregunta al Copiloto.
+- El estado de la IA pasa al pie, junto al campo de escribir: "Modo básico · Activar IA para preguntas abiertas" o "IA activa · te quedan N mensajes hoy". Se quitó la franja de arriba.
+- El permiso de un toque (FIN-046) se mantiene arriba mientras no se haya aceptado.
+- Burbujas nuevas: la del Copiloto en blanco con esquina recta hacia su ícono; la tuya en verde.
+- Sin cambios de backend. Web revisada con Playwright (permiso, novedades, chips y respuesta).
