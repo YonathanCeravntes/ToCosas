@@ -60,10 +60,16 @@ export function AddDebtScreen({ navigation }: Props) {
   const descriptorFor = (debtType: string | null | undefined) =>
     (catalog ?? []).find((t) => t.debtType === debtType) ?? null;
 
-  const fields = useMemo(
-    () => (type ? [...type.requiredFields, ...type.optionalFields] : []),
-    [type],
-  );
+  const fields = useMemo(() => {
+    if (!type) return [];
+    const all = [...type.requiredFields, ...type.optionalFields];
+    // Mis deudas (opción B): la barra "pagado a capital" necesita cuánto te prestaron.
+    // Las tarjetas no lo usan (su barra es el uso del cupo).
+    if (type.scheduleModel === 'cuotas_por_compra') return all;
+    const at = all.findIndex((f) => f.key === 'currentBalance');
+    all.splice(at + 1, 0, ORIGINAL_AMOUNT_FIELD);
+    return all;
+  }, [type]);
 
   const set = (key: string, v: string) => setValues((s) => ({ ...s, [key]: v }));
 
@@ -114,7 +120,8 @@ export function AddDebtScreen({ navigation }: Props) {
     const payload: CreateDebtInput = {
       name: values.name,
       debtType: type.debtType,
-      originalAmount: balance,
+      // Sin el monto inicial, se toma el saldo de hoy (la barra arranca en 0%).
+      originalAmount: amt(values.originalAmount) > 0 ? amt(values.originalAmount) : balance,
       currentBalance: balance,
       startDate: startDate.toISOString().slice(0, 10),
       termMonths: values.termMonths ? amt(values.termMonths) : undefined,
@@ -277,6 +284,13 @@ function Monogram({ name, type }: { name: string; type: string }) {
 }
 
 /** Renderiza un campo del alta según su `kind` declarado en el descriptor. */
+const ORIGINAL_AMOUNT_FIELD: ProductFieldSpec = {
+  key: 'originalAmount',
+  label: '¿Cuánto te prestaron al inicio? (opcional, para ver tu avance)',
+  kind: 'money',
+  placeholder: 'Ej: 80.000.000',
+};
+
 function FieldFromSpec({
   spec,
   value,

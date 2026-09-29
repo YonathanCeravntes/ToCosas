@@ -83,6 +83,9 @@ export const debtsApi = {
     >(`/debts/${id}`),
   amortization: (id: string) => api.get<AmortizationEntry[]>(`/debts/${id}/amortization`),
   create: (input: CreateDebtInput) => api.post<{ debt: Debt }>('/debts', input),
+  // Mis deudas (opción B): cuánto te prestaron, para la barra "pagado a capital".
+  setOriginalAmount: (id: string, originalAmount: number) =>
+    api.patch<Debt>(`/debts/${id}`, { originalAmount }),
   simulateExtra: (id: string, extraMonthly: number) =>
     api.post<SimulateResult>(`/debts/${id}/simulate-extra`, { extraMonthly }),
   // FIN-044: renegociación (vista previa sin efectos, aplicar, historial).

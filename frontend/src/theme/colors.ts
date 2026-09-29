@@ -44,6 +44,12 @@ export const colors = {
   scrim: 'rgba(0,0,0,0.45)',
 };
 
+/**
+ * Mis deudas (opción B): tramos de la barra "cuánto pesa cada deuda en tu total".
+ * Alternan claro/oscuro para distinguirse por luminosidad, no solo por tono.
+ */
+export const debtShareColors = ['#0B6E4F', '#E08A00', '#7FB8A3', '#2563EB', '#B45309', '#9DB4AB'];
+
 /** Colores por categoría de entidad financiera (antes paleta paralela en AddDebt). */
 export const entityColors: Record<string, string> = {
   banco: '#2563EB',

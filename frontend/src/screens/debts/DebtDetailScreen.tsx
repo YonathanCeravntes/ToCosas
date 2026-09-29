@@ -3,7 +3,7 @@ import { Alert, Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, ErrorState, Field, FormScroll, HeroCard, Ico, Row, Skeleton } from '../../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, HeroCard, Ico, ProgressBar, Row, Skeleton } from '../../components/ui';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { formatDate, formatMoney, parseAmount, parseDecimal } from '../../utils/format';
 import { AmortizationEntry, CardSummary, Debt, DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, toNumber } from '../../api/types';
@@ -105,6 +105,11 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
 
       {/* SPRINT-PULIDO-001 P3 (punto 10): de un vistazo — próximo vencimiento, días
           restantes y último pago. Datos que YA viajan en el payload; solo se pintan. */}
+      {/* Mis deudas (opción B): cuánto llevas pagado a capital (y cuánto te prestaron). */}
+      {model !== 'cuotas_por_compra' ? (
+        <CapitalProgress debt={data} onChanged={() => void reload()} />
+      ) : null}
+
       <AtAGlance debt={data} amort={amort} />
 
       {/* FIN-044: renegociación (cuotas, tasa fija/variable, cuota, día de pago, desde cuándo). */}
@@ -271,6 +276,95 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
 }
 
 /** Resumen de un vistazo (P3 punto 10). Solo pinta lo que el payload ya trae. */
+/**
+ * Barra "pagado a capital" = (monto inicial − saldo) / monto inicial. Al registrar
+ * sin el monto inicial se guarda el saldo de ese día: aquí se puede corregir.
+ */
+function CapitalProgress({ debt, onChanged }: { debt: Debt; onChanged: () => void }) {
+  const balance = toNumber(debt.currentBalance);
+  const original = toNumber(debt.originalAmount);
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const known = original > balance;
+  const paid = known ? Math.min(1, (original - balance) / original) : 0;
+
+  const save = async () => {
+    const n = parseAmount(value);
+    if (Number.isNaN(n) || n <= 0) {
+      setErr('Escribe el monto que te prestaron.');
+      return;
+    }
+    if (n < balance) {
+      setErr(`Debe ser mayor o igual al saldo de hoy (${formatMoney(balance)}).`);
+      return;
+    }
+    setSaving(true);
+    setErr(null);
+    try {
+      await debtsApi.setOriginalAmount(debt.id, n);
+      setEditing(false);
+      onChanged();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <Text style={{ fontWeight: '700', color: colors.text }}>Pagado a capital</Text>
+        <Text style={{ fontWeight: '800', color: colors.primary }}>{known ? `${Math.round(paid * 100)}%` : '—'}</Text>
+      </Row>
+      <View style={{ marginTop: spacing.sm }}>
+        <ProgressBar value={paid} color={colors.primary} height={10} label="Pagado a capital" />
+      </View>
+      <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 6 }}>
+        {known
+          ? `Te prestaron ${formatMoney(original)} · has pagado ${formatMoney(original - balance)} · faltan ${formatMoney(balance)}`
+          : 'Agrega cuánto te prestaron al inicio para ver cuánto llevas pagado.'}
+      </Text>
+      {editing ? (
+        <View style={{ marginTop: spacing.sm }}>
+          <Field
+            label="¿Cuánto te prestaron al inicio?"
+            value={value}
+            onChangeText={setValue}
+            keyboardType="numeric"
+            placeholder="Ej: 80.000.000"
+          />
+          {err ? <Text style={{ color: colors.danger, marginBottom: 6 }}>{err}</Text> : null}
+          <Row style={{ gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <Button title="Cancelar" variant="secondary" onPress={() => setEditing(false)} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button title="Guardar" onPress={save} loading={saving} />
+            </View>
+          </Row>
+        </View>
+      ) : (
+        <Pressable
+          onPress={() => {
+            setValue(known ? String(Math.round(original)) : '');
+            setErr(null);
+            setEditing(true);
+          }}
+          accessibilityRole="button"
+          style={{ marginTop: spacing.sm, minHeight: 32, justifyContent: 'center' }}
+        >
+          <Text style={{ color: colors.primary, fontWeight: '700' }}>
+            {known ? 'Cambiar monto inicial' : 'Agregar monto inicial'}
+          </Text>
+        </Pressable>
+      )}
+    </Card>
+  );
+}
+
 function AtAGlance({ debt, amort }: { debt: Debt; amort: AmortizationEntry[] }) {
   const items: Array<{ icon: React.ComponentProps<typeof Ionicons>['name']; label: string; value: string; tone?: string }> = [];
   if (debt.nextDueDate) {
@@ -600,7 +694,7 @@ function OverdueBlock({ days }: { days: number }) {
   return (
     <Card style={{ borderColor: colors.warning, borderWidth: 2 }}>
       <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-        ⏰ Esta cuota venció hace {days} día{days === 1 ? '' : 's'}
+        <Ico name="alarm-outline" color={colors.warning} /> Esta cuota venció hace {days} día{days === 1 ? '' : 's'}
       </Text>
       <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
         No hay un pago registrado para esta cuota. Si ya la pagaste por otro medio, regístrala
@@ -881,8 +975,13 @@ function InsuranceSection({
           <Text style={{ fontWeight: '700', color: colors.text, marginRight: spacing.sm }}>
             {formatMoney(toNumber(ins.monthlyPremium))}
           </Text>
-          <Pressable onPress={() => void toggleActive(ins)} style={{ marginRight: spacing.sm }}>
-            <Text style={{ fontSize: 16 }}>{ins.active ? '⏸️' : '▶️'}</Text>
+          <Pressable
+            onPress={() => void toggleActive(ins)}
+            style={{ marginRight: spacing.sm }}
+            accessibilityRole="button"
+            accessibilityLabel={ins.active ? 'Pausar seguro' : 'Activar seguro'}
+          >
+            <Ico name={ins.active ? 'pause-circle-outline' : 'play-circle-outline'} size={20} color={colors.textMuted} />
           </Pressable>
           <Pressable onPress={() => void remove(ins)}>
             <Ico name="trash-outline" size={18} color={colors.textMuted} />
