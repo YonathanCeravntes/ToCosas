@@ -70,6 +70,12 @@ describe('FIN-043 · Pagos de tarjeta aplicados a cuotas', () => {
     expect(summary.data.monthlyPaymentsTotal).toBe(300_000);
   });
 
+  it('BT-021: el patrimonio resta el saldo real de la tarjeta (no el 0 guardado)', async () => {
+    const nw = await req('GET', '/v1/net-worth');
+    expect(nw.data.totalLiabilities).toBe(1_200_000);
+    expect(nw.data.netWorth).toBe(-1_200_000);
+  });
+
   it('un pago parcial (450.000) salda la 1ª cuota y deja la 2ª en 150.000; el saldo baja', async () => {
     const pay = await req('POST', '/v1/transactions', { kind: 'pago_deuda', amount: 450_000, occurredAt: '2026-09-28T12:00:00Z', debtId: cardId });
     expect(pay.status).toBe(201);

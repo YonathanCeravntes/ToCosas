@@ -17,6 +17,7 @@ import {
   MinimizedSimulationView,
   MinimizedSnapshotView,
 } from './minimized-views';
+import { totalLiabilities } from '../debts/debt-balance.util';
 
 /** Strings permitidos (catálogo cerrado): fechas ISO, estrategias y bandas. */
 const SAFE_STRING = /^(\d{4}-\d{2}-\d{2}|avalanche|snowball|critico|fragil|estable|saludable|elite)$/;
@@ -157,7 +158,7 @@ export class ContextAssembler {
     // Nota: su `available` NO se unifica con teQueda — solo mejora este insumo.
     const debtMonthly = (await this.debtOutlay.outlaysByUser(userId)).totalOutlay;
 
-    const liabilities = debts.reduce((a, d) => a + Number(d.currentBalance), 0);
+    const liabilities = await totalLiabilities(this.prisma, debts);
     const nw = computeNetWorth(
       accounts.map((a) => ({
         currentBalance: Number(a.currentBalance),

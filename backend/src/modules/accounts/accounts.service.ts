@@ -5,6 +5,7 @@ import { DomainEventType } from '../events/domain-events';
 import { computeNetWorth } from './networth.util';
 import { CreateAccountDto, UpdateAccountDto } from './dto/account.dto';
 import { CreateAssetDto, UpdateAssetDto } from './dto/asset.dto';
+import { totalLiabilities } from '../debts/debt-balance.util';
 
 @Injectable()
 export class AccountsService {
@@ -191,7 +192,7 @@ export class AccountsService {
       this.prisma.debt.findMany({ where: { userId, deletedAt: null, status: 'activa' } }),
     ]);
 
-    const liabilities = debts.reduce((a, d) => a + Number(d.currentBalance), 0);
+    const liabilities = await totalLiabilities(this.prisma, debts);
     const summary = computeNetWorth(
       accounts.map((a) => ({
         currentBalance: Number(a.currentBalance),

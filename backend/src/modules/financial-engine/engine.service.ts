@@ -8,6 +8,7 @@ import { computeScore, SCORE_VERSION } from '../health/score.util';
 import { computeCoreMetrics, MetricValue } from './metrics/core-metrics';
 import { daysBetween, monthStart } from './metrics/series.util';
 import { COLD_START_DAYS, MetricKey } from './engine.constants';
+import { totalLiabilities } from '../debts/debt-balance.util';
 
 /**
  * Núcleo del Motor Financiero (FIN-003). `recompute(userId)` es una función de
@@ -70,7 +71,7 @@ export class EngineService {
     // construcción DTI, gasto esencial, fondo de emergencia y runway; las
     // Recomendaciones se corrigen SOLAS al leer las lecturas persistidas (FIN-021).
     const debtMonthly = outlays.totalOutlay;
-    const liabilities = debts.reduce((a, d) => a + Number(d.currentBalance), 0);
+    const liabilities = await totalLiabilities(this.prisma, debts);
 
     const nw = computeNetWorth(
       accounts.map((a) => ({

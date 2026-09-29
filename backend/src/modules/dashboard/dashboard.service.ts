@@ -8,6 +8,7 @@ import { MetricKey } from '../financial-engine/engine.constants';
 import { EMERGENCY_FUND_MILESTONES } from '../financial-engine/metrics/emergency-fund.constants';
 import { monthStart } from '../financial-engine/metrics/series.util';
 import { DEBT_RATIO_CUTS } from '../health/score.util';
+import { totalLiabilities } from '../debts/debt-balance.util';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -76,7 +77,7 @@ export class DashboardService {
     ]);
 
     // Patrimonio (util pura de FIN-002, misma fuente que /net-worth).
-    const liabilities = debts.reduce((acc, d) => acc + Number(d.currentBalance), 0);
+    const liabilities = await totalLiabilities(this.prisma, debts);
     const netWorth = computeNetWorth(
       accounts.map((a) => ({
         currentBalance: Number(a.currentBalance),

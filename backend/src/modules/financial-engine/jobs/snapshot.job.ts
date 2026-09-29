@@ -4,6 +4,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { computeNetWorth } from '../../accounts/networth.util';
 import { MetricKey, ACTIVE_USER_WINDOW_DAYS, ENGINE_TZ } from '../engine.constants';
 import { EngineService } from '../engine.service';
+import { totalLiabilities } from '../../debts/debt-balance.util';
 
 /**
  * Snapshot diario de patrimonio (FIN-003 §4.1) para usuarios ACTIVOS
@@ -75,7 +76,7 @@ export class SnapshotJob {
         where: { userId, deletedAt: null, status: 'activa' },
       }),
     ]);
-    const liabilities = debts.reduce((a, d) => a + Number(d.currentBalance), 0);
+    const liabilities = await totalLiabilities(this.prisma, debts);
     const nw = computeNetWorth(
       accounts.map((a) => ({
         currentBalance: Number(a.currentBalance),
