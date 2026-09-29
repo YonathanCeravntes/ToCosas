@@ -14,7 +14,7 @@ const SECTIONS: Array<{ title: string; items: Item[] }> = [
   {
     title: 'Tu dinero',
     items: [
-      { icon: 'wallet-outline', title: 'Presupuesto', sub: 'Te queda, lo protegido y tus gastos fijos', to: 'Budget' },
+      { icon: 'wallet-outline', title: 'Mi mes', sub: 'Lo que entra, lo comprometido y lo libre', to: 'Budget' },
       { icon: 'list-outline', title: 'Movimientos', sub: 'Historial completo con filtros y búsqueda', to: 'Transactions' },
       { icon: 'business-outline', title: 'Cuentas y patrimonio', sub: 'Saldos, activos y fondo de emergencia', to: 'Accounts' },
       { icon: 'briefcase-outline', title: 'Mi perfil de ingresos', sub: 'Fuentes, deducciones y neto mensual', to: 'IncomeProfile' },

@@ -236,7 +236,7 @@ export class ConversationService {
     for (const a of actions) {
       if (a.type === 'abonar_deuda') reply += `\n\n💵 Para abonar: app → Deudas → ${a.debtName} → Abonar.`;
       if (a.type === 'ver_plan') reply += '\n\n📋 Tu plan completo: app → Salud → Ver mi plan.';
-      if (a.type === 'ver_presupuesto') reply += '\n\n📊 Tu presupuesto: app → Más → Presupuesto.';
+      if (a.type === 'ver_presupuesto') reply += '\n\n📊 Tu mes: app → Más → Mi mes.';
     }
     return reply;
   }

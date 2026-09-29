@@ -74,7 +74,7 @@ export function RootNavigator() {
               <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             ) : null}
             <Stack.Screen name="Main" component={MainTabs} options={{ contentStyle: { backgroundColor: colors.bg } }} />
-            <Stack.Screen name="Budget" component={BudgetScreen} options={{ headerShown: true, title: 'Presupuesto' }} />
+            <Stack.Screen name="Budget" component={BudgetScreen} options={{ headerShown: true, title: 'Mi mes' }} />
             <Stack.Screen name="Copilot" component={CopilotScreen} options={{ headerShown: true, title: 'Copiloto' }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: true, title: 'Ajustes' }} />
             <Stack.Screen

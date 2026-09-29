@@ -157,7 +157,7 @@ export function SettingsScreen() {
               {cycleDay === 1 ? 'Tu presupuesto sigue el mes calendario.' : `Tu ciclo empieza el día ${cycleDay} de cada mes (p. ej. tu fecha de pago).`}
             </Text>
             <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.xxs }}>
-              Aplica a Presupuesto e Inicio; tu Score sigue el mes calendario.
+              Aplica a Mi mes e Inicio; tu Score sigue el mes calendario.
             </Text>
           </View>
           <Row style={{ gap: spacing.xs }}>

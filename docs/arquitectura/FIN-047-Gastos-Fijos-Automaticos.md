@@ -44,3 +44,13 @@ Unit 424/424 (utilidades nuevas + specs ajustadas a la regla nueva), e2e 107/107
 - **Bug corregido:** si las categorías no cargaban (p. ej. backend despertando o desplegando), la cuadrícula quedaba vacía sin aviso; ahora dice "No pude cargar las categorías · Reintentar".
 - Backend: `CreateTransactionDto.fixedItemId` (solo al crear; la edición no lo acepta).
 - Verificación: unit 425/425, e2e 111/111 (caso nuevo en `fin047-fijos-automaticos`). Web revisada con Playwright (gasto fijo y ingreso fijo de punta a punta).
+
+## FIN-050 · Presupuesto → "Mi mes" (Fundador, 2026-09-29)
+**Pregunta del Fundador:** ¿qué queremos transmitir con Presupuesto? **Respuesta acordada:** "¿cuánto puedo gastar sin tocar lo comprometido hasta que me vuelva a entrar plata?". Se eligió el nombre **"Mi mes"** y la **opción 1 · La cuenta del mes** (boceto en el lienzo de diseño).
+
+- **Tarjeta principal:** barra Comprometido / Día a día / Libre y la cuenta a la vista: *Te entra − Comprometido (fijos y deudas) − Día a día (ya gastado) = Libre*. Es "Te queda" (§32) partido en tres: `TeQueda` suma `committedPaid`, `dailySpent` y `paidCommitments` (backend), y siempre cuadra: `incomeBase − committedPaid − protectedTotal − dailySpent = amount`.
+- **Comprometido, uno por uno:** lo que falta (con fecha; si ya pasó, etiqueta neutra §4.1-bis) y lo ya hecho: **Registrado** (gasto fijo) o **Pagado** (cuota con pago registrado). Reemplaza "Por pagar este ciclo" y "Cuotas de tus deudas".
+- **Te entra:** ingresos fijos (solo lectura). **"Editar fijos e ingresos"** abre la edición de FIN-047/048 en la misma pantalla.
+- "Con lo libre" (plan FIN-045) se mantiene bajo la tarjeta.
+- Renombrado en Más, en el título, en los acuses de Registrar, en Ajustes, en el botón del Copiloto ("Ver mi mes") y en el bot de Telegram.
+- Verificación: unit 425/425, e2e 112/112 (caso nuevo: la cuenta de Mi mes cuadra con Te queda). Web revisada con Playwright.

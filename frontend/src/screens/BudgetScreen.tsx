@@ -3,8 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButton, Row, Skeleton } from '../components/ui';
-import { IncomeSplit } from '../components/IncomeSplit';
+import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButton, Row, SegmentBar, Skeleton } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney, parseAmount } from '../utils/format';
 import { CashflowPlan, Category, MonthlyBudget, TeQueda } from '../api/types';
@@ -15,13 +14,12 @@ import { confirmRemove } from '../utils/confirm';
 import { fixedOrder } from '../utils/fixedTypes';
 
 /**
- * FIN-020 · Presupuesto, rediseñado con el lenguaje de Mis deudas / Inicio G
- * (Fundador, 2026-09-29) + FIN-047:
- *  - "Te queda" en tarjeta blanca con la barra del ingreso (misma fuente §32).
- *  - Con lo libre → el plan para liberar flujo (FIN-045), no el simulador.
- *  - INGRESOS FIJOS y GASTOS FIJOS se agregan, EDITAN y borran aquí.
- *  - Los gastos fijos se REGISTRAN SOLOS el día que tocan (no hay que anotarlos);
- *    cada uno dice si ya se registró este ciclo o cuándo se registrará.
+ * FIN-050 · "Mi mes" (antes Presupuesto), opción 1 del Fundador (2026-09-29):
+ *  - La cuenta del mes a la vista: Te entra − Comprometido − Día a día = Libre.
+ *    Es "Te queda" (§32) partido en tres; el backend entrega cada parte.
+ *  - Lo comprometido, uno por uno: Pagado/Registrado o lo que Falta.
+ *  - Con lo libre → el plan para liberar flujo (FIN-045).
+ *  - Editar fijos e ingresos queda en un enlace discreto al final (FIN-047/048).
  * Esta pantalla no calcula nada: todo viene del backend.
  */
 export function BudgetScreen() {
@@ -29,6 +27,7 @@ export function BudgetScreen() {
   const plan = useApi(() => debtsApi.cashflowPlan(), []);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const reloadPlan = plan.reload;
+  const [editing, setEditing] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -42,34 +41,51 @@ export function BudgetScreen() {
   if (error && !data) return <FormScroll><ErrorState message={error} onRetry={() => void refresh()} /></FormScroll>;
   if (!data) return <FormScroll><Skeleton hero lines={3} /><Skeleton lines={4} /></FormScroll>;
 
+  const committedTotal = (data.teQueda.committedPaid ?? 0) + data.teQueda.protectedTotal;
+
   return (
     <FormScroll onRefresh={refresh}>
-      <TeQuedaCard teQueda={data.teQueda} loading={loading} />
+      <MonthCard teQueda={data.teQueda} label={data.period.label} loading={loading} />
       <FreeMoney teQueda={data.teQueda} plan={plan.data} />
 
-      <PendingList teQueda={data.teQueda} />
+      <CommittedList teQueda={data.teQueda} total={committedTotal} />
+      {data.debtChargesSeparate > 0 ? (
+        <Text style={{ color: colors.textFaint, ...type.caption, marginTop: -spacing.xs, marginBottom: spacing.sm }}>
+          Las cuotas incluyen los seguros y cargos que pagas aparte.
+        </Text>
+      ) : null}
 
-      <IncomesSection items={data.incomes} onChanged={refresh} onProfile={() => navigation.navigate('IncomeProfile')} />
-      <ExpensesSection items={data.expenses} onChanged={refresh} />
-
-      {data.debts.length > 0 ? (
+      {data.incomes.length > 0 ? (
         <>
-          <GroupLabel title="Cuotas de tus deudas" />
+          <GroupLabel title="Te entra" />
           <Card style={{ paddingVertical: 0 }}>
-            {data.debts.map((d, i) => (
-              <Row key={d.debtId} style={{ paddingVertical: 12, gap: spacing.sm, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
+            {data.incomes.map((i, idx) => (
+              <Row key={i.id} style={{ paddingVertical: 12, gap: spacing.sm, borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{d.name}</Text>
-                  {d.nextDueDate ? <Text style={{ color: colors.textMuted, ...type.small }}>vence {shortDate(d.nextDueDate)}</Text> : null}
+                  <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{i.name}</Text>
+                  <Text style={{ color: colors.textMuted, ...type.small }}>{i.dayOfMonth ? `Llega el día ${i.dayOfMonth}` : 'Cada mes'}</Text>
                 </View>
-                <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(d.amount)}</Text>
+                <Text style={{ color: colors.primary, fontWeight: '800' }}>{formatMoney(i.amount)}</Text>
               </Row>
             ))}
           </Card>
-          <Text style={{ color: colors.textFaint, ...type.caption, marginTop: -spacing.xs, marginBottom: spacing.sm }}>
-            Salen de tus deudas; se descuentan al registrar el pago.
-            {data.debtChargesSeparate > 0 ? ' Incluyen los seguros y cargos que pagas aparte.' : ''}
-          </Text>
+        </>
+      ) : null}
+
+      <Pressable
+        onPress={() => setEditing(!editing)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: editing }}
+        style={{ alignItems: 'center', paddingVertical: spacing.md }}
+      >
+        <Text style={{ color: colors.primary, fontWeight: '800' }}>
+          {editing ? 'Cerrar edición' : 'Editar fijos e ingresos'}
+        </Text>
+      </Pressable>
+      {editing ? (
+        <>
+          <IncomesSection items={data.incomes} onChanged={refresh} onProfile={() => navigation.navigate('IncomeProfile')} />
+          <ExpensesSection items={data.expenses} onChanged={refresh} />
         </>
       ) : null}
 
@@ -78,25 +94,61 @@ export function BudgetScreen() {
   );
 }
 
-/** Te queda (tarjeta blanca, como Inicio G). */
-function TeQuedaCard({ teQueda, loading }: { teQueda: TeQueda; loading: boolean }) {
-  const negative = teQueda.amount < 0;
+/** La cuenta del mes: Te entra − Comprometido − Día a día = Libre (misma fuente §32). */
+function MonthCard({ teQueda, label, loading }: { teQueda: TeQueda; label: string; loading: boolean }) {
+  const income = teQueda.incomeBase ?? 0;
+  const committed = (teQueda.committedPaid ?? 0) + teQueda.protectedTotal;
+  const daily = teQueda.dailySpent ?? 0;
+  const free = teQueda.amount;
+  const negative = free < 0;
   return (
     <Card>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Text style={{ color: colors.textMuted, ...type.small }}>Te queda para gastar</Text>
-        <Text style={{ color: colors.textMuted, ...type.small }}>hasta el {shortDate(teQueda.until)}</Text>
-      </Row>
-      <Text style={{ color: negative ? colors.dangerDeep : colors.text, fontSize: 32, fontWeight: '800', marginTop: 2 }}>
-        {loading && !teQueda ? '…' : formatMoney(teQueda.amount)}
-      </Text>
-      <Text style={{ color: colors.textMuted, ...type.small }}>
+      <Text style={{ color: colors.textMuted, ...type.small, marginBottom: spacing.sm }}>Así va tu plata · {label}</Text>
+      <SegmentBar
+        parts={[
+          { key: 'comp', label: 'Comprometido', value: committed, color: colors.textMuted },
+          { key: 'dia', label: 'Día a día', value: daily, color: colors.warning },
+          { key: 'libre', label: 'Libre', value: Math.max(0, free), color: colors.primary },
+        ]}
+      />
+      <View style={{ marginTop: spacing.md, gap: 8 }}>
+        <EqLine label="Te entra" value={formatMoney(income)} bold />
+        <EqLine label="− Comprometido (fijos y deudas)" value={formatMoney(committed)} dot={colors.textMuted} />
+        <EqLine label="− Día a día (ya gastado)" value={formatMoney(daily)} dot={colors.warning} />
+        <View style={{ height: 1, backgroundColor: colors.border }} />
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Row style={{ gap: 8 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: negative ? colors.dangerDeep : colors.primary }} />
+            <Text style={{ color: colors.text, fontWeight: '800' }}>= {negative ? 'Te falta' : 'Libre'}</Text>
+          </Row>
+          <Text style={{ color: negative ? colors.dangerDeep : colors.primary, fontSize: 22, fontWeight: '800' }}>
+            {loading && !teQueda ? '…' : formatMoney(negative ? -free : free)}
+          </Text>
+        </Row>
+      </View>
+      <Text style={{ color: colors.textFaint, ...type.small, marginTop: spacing.sm }}>
         {teQueda.perDay !== null
-          ? `≈ ${formatMoney(teQueda.perDay)} por día · ${teQueda.daysLeft} día${teQueda.daysLeft === 1 ? '' : 's'}`
-          : 'Ya está apartado lo que viene: abajo ves qué es'}
+          ? `Quedan ${teQueda.daysLeft} día${teQueda.daysLeft === 1 ? '' : 's'} · unos ${formatMoney(teQueda.perDay)} por día · hasta el ${shortDate(teQueda.until)}`
+          : `Ciclo hasta el ${shortDate(teQueda.until)}`}
       </Text>
-      <IncomeSplit teQueda={teQueda} />
+      {income === 0 ? (
+        <Text style={{ color: colors.warningDeep, ...type.small, marginTop: 4 }}>
+          Aún no tienes ingresos fijos. Agrégalos en "Editar fijos e ingresos" para ver tu mes completo.
+        </Text>
+      ) : null}
     </Card>
+  );
+}
+
+function EqLine({ label, value, dot, bold }: { label: string; value: string; dot?: string; bold?: boolean }) {
+  return (
+    <Row style={{ justifyContent: 'space-between', gap: spacing.sm }}>
+      <Row style={{ gap: 8, flex: 1 }}>
+        {dot ? <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: dot }} /> : null}
+        <Text style={{ color: colors.text, ...type.body }} numberOfLines={1}>{label}</Text>
+      </Row>
+      <Text style={{ color: colors.text, fontWeight: bold ? '800' : '700' }}>{value}</Text>
+    </Row>
   );
 }
 
@@ -139,30 +191,53 @@ function FreeMoney({ teQueda, plan }: { teQueda: TeQueda; plan: CashflowPlan | n
   );
 }
 
-/** Lo que falta por salir este ciclo (fijos aún no registrados + cuotas). */
-function PendingList({ teQueda }: { teQueda: TeQueda }) {
-  if (teQueda.pendingCommitments.length === 0) return null;
+/** Lo comprometido del ciclo, uno por uno: lo que falta primero (por fecha) y luego lo ya pagado. */
+function CommittedList({ teQueda, total }: { teQueda: TeQueda; total: number }) {
+  const paid = teQueda.paidCommitments ?? [];
+  const pending = teQueda.pendingCommitments;
+  if (paid.length === 0 && pending.length === 0) return null;
+  const rows = [
+    ...pending.map((c) => ({
+      name: c.name,
+      amount: c.amount,
+      kind: c.kind,
+      // §4.1-bis: si ya pasó su fecha y no se ha registrado, etiqueta neutra (nunca "pagado").
+      sub: c.date === null ? 'Sin fecha fija' : c.datePassed ? `Ya pasó su fecha (${shortDate(c.date)})` : `${c.kind === 'cuota' ? 'Cuota' : 'Se registra solo'} · ${shortDate(c.date)}`,
+      tag: 'Falta' as const,
+    })),
+    ...paid.map((c) => ({
+      name: c.name,
+      amount: c.amount,
+      kind: c.kind,
+      sub: c.kind === 'cuota' ? 'Pago registrado este mes' : 'Registrado este mes',
+      tag: (c.kind === 'cuota' ? 'Pagado' : 'Registrado') as 'Pagado' | 'Registrado',
+    })),
+  ];
   return (
     <>
-      <GroupLabel title={`Por pagar este ciclo · ${formatMoney(teQueda.protectedTotal)}`} tone={colors.warningDeep} />
+      <GroupLabel title={`Comprometido · ${formatMoney(total)}`} />
       <Card style={{ paddingVertical: 0 }}>
-        {teQueda.pendingCommitments.map((c, i) => (
-          <Row key={`${c.name}-${i}`} style={{ paddingVertical: 12, gap: spacing.sm, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
-            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.warningSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Ico name={c.kind === 'cuota' ? 'card-outline' : 'home-outline'} color={colors.warningDeep} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, fontWeight: '600' }} numberOfLines={1}>{c.name}</Text>
-              <Text style={{ color: colors.textMuted, ...type.small }}>
-                {c.date === null ? 'sin fecha fija' : c.datePassed ? `ya pasó su fecha (${shortDate(c.date)})` : shortDate(c.date)}
+        {rows.map((r, i) => {
+          const done = r.tag !== 'Falta';
+          return (
+            <Row key={`${r.tag}-${r.name}-${i}`} style={{ paddingVertical: 12, gap: spacing.sm, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
+              <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: done ? colors.primarySoft : colors.warningSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <Ico name={r.kind === 'cuota' ? 'card-outline' : 'home-outline'} color={done ? colors.primaryDark : colors.warningDeep} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{r.name}</Text>
+                <Text style={{ color: colors.textMuted, ...type.small }} numberOfLines={1}>{r.sub}</Text>
+              </View>
+              <Text style={{ fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, overflow: 'hidden', color: done ? colors.primaryDark : colors.warningDeep, backgroundColor: done ? colors.primarySoft : colors.warningSoft }}>
+                {r.tag}
               </Text>
-            </View>
-            <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(c.amount)}</Text>
-          </Row>
-        ))}
+              <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(r.amount)}</Text>
+            </Row>
+          );
+        })}
       </Card>
       <Text style={{ color: colors.textFaint, ...type.caption, marginTop: -spacing.xs, marginBottom: spacing.sm }}>
-        Ya está descontado de lo que te queda.
+        Lo que falta ya está apartado: no cuenta como libre.
       </Text>
     </>
   );

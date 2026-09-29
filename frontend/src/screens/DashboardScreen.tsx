@@ -105,7 +105,7 @@ export function DashboardScreen() {
       ) : !d && loading ? (
         <Skeleton hero lines={3} />
       ) : d ? (
-        <Pressable onPress={() => navigation.navigate('Budget')} accessibilityRole="button" accessibilityLabel={`Te queda para gastar ${formatMoney(d.teQueda.amount)}. Abrir presupuesto`}>
+        <Pressable onPress={() => navigation.navigate('Budget')} accessibilityRole="button" accessibilityLabel={`Te queda para gastar ${formatMoney(d.teQueda.amount)}. Abrir Mi mes`}>
           {/* Inicio · opción G (Fundador, 2026-09-29): tarjeta blanca + barra que reparte
               el ingreso del ciclo. Todas las cifras salen de `teQueda` (§32). */}
           <Card style={{ padding: spacing.md }}>

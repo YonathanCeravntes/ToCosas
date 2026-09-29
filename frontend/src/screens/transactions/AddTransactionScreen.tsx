@@ -267,7 +267,7 @@ export function AddTransactionScreen() {
         ];
         const b = await budgetApi.monthly().catch(() => null);
         if (b) lines.push(`Actualicé tu presupuesto: te quedan ${formatMoney(b.teQueda.amount)} hasta el ${shortDate(b.teQueda.until)}.`);
-        lines.push('Puedes cambiar el monto o el día en Presupuesto → Gastos fijos.');
+        lines.push('Puedes cambiar el monto o el día en Mi mes → Editar fijos e ingresos.');
         setAcuse(lines);
         const rm = undoFixed;
         armUndo(async () => { await transactionsApi.remove(tx.id); await rm(); }, `Tu gasto fijo de ${formatMoney(value)}`);
@@ -284,7 +284,7 @@ export function AddTransactionScreen() {
         ];
         const b = await budgetApi.monthly().catch(() => null);
         if (b) lines.push(`Te quedan ${formatMoney(b.teQueda.amount)} hasta el ${shortDate(b.teQueda.until)}.`);
-        lines.push('Deducciones y cambios en Presupuesto → Ingresos fijos.');
+        lines.push('Deducciones y cambios en Mi mes → Editar fijos e ingresos.');
         setAcuse(lines);
         const rm = undoFixed;
         armUndo(async () => { await transactionsApi.remove(tx.id); await rm(); }, `Tu ingreso fijo de ${formatMoney(value)}`);

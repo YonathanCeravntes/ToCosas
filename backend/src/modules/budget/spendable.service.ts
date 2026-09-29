@@ -34,6 +34,18 @@ export interface TeQueda {
   /** BT-004 · Base de ingreso usada en el cálculo = max(take-home fijo, recibido).
    *  Es el denominador de la interpretación §4.1-ter (misma base que el Score). */
   incomeBase: number;
+  /** FIN-050 · "Mi mes": lo comprometido que YA se pagó este ciclo (fijos registrados + pagos a deudas). */
+  committedPaid: number;
+  /** FIN-050 · Gasto del día a día del ciclo = gasto real − lo comprometido ya pagado. */
+  dailySpent: number;
+  /** FIN-050 · Lo comprometido ya pagado, uno por fijo o deuda (para "Pagado" en Mi mes). */
+  paidCommitments: PaidCommitment[];
+}
+
+export interface PaidCommitment {
+  name: string;
+  amount: number;
+  kind: 'fijo' | 'cuota';
 }
 
 /**
@@ -237,6 +249,31 @@ export class SpendableService {
       return a.date < b.date ? -1 : 1;
     });
 
+    // FIN-050 · "Mi mes": entra − comprometido (pagado + pendiente) − día a día = libre.
+    // Es la MISMA cuenta de "Te queda" partida en tres; no cambia el resultado.
+    const paidCommitments: PaidCommitment[] = [];
+    for (const f of fixedItems) {
+      const paid = paidByFixedItem.get(f.id) ?? 0;
+      if (paid > 0) paidCommitments.push({ name: f.name, amount: round2(paid), kind: 'fijo' });
+    }
+    // Fijos borrados o pausados que sí se registraron este ciclo siguen contando como pagados.
+    const orphanFixedIds = [...paidByFixedItem.keys()].filter((id) => !fixedItems.some((f) => f.id === id));
+    if (orphanFixedIds.length) {
+      const gone = await this.prisma.fixedItem.findMany({ where: { id: { in: orphanFixedIds } }, select: { id: true, name: true } });
+      for (const f of gone) paidCommitments.push({ name: f.name, amount: round2(paidByFixedItem.get(f.id) ?? 0), kind: 'fijo' });
+    }
+    const debtNames = new Map(debts.map((d) => [d.id, d.name]));
+    const missingDebtIds = [...paidThisCycle.keys()].filter((id) => !debtNames.has(id));
+    if (missingDebtIds.length) {
+      const closed = await this.prisma.debt.findMany({ where: { id: { in: missingDebtIds } }, select: { id: true, name: true } });
+      for (const d of closed) debtNames.set(d.id, d.name);
+    }
+    for (const [debtId, paid] of paidThisCycle) {
+      if (paid > 0) paidCommitments.push({ name: debtNames.get(debtId) ?? 'Deuda', amount: round2(paid), kind: 'cuota' });
+    }
+    const committedPaid = round2(paidCommitments.reduce((acc, c) => acc + c.amount, 0));
+    const dailySpent = round2(Math.max(0, realOut - committedPaid));
+
     const protectedTotal = round2(commitments.reduce((acc, c) => acc + c.amount, 0));
     const amount = round2(incomeBase - realOut - protectedTotal);
     const daysLeft = Math.max(1, Math.ceil((period.end.getTime() - startOfToday.getTime()) / DAY_MS));
@@ -250,6 +287,9 @@ export class SpendableService {
       pendingCommitments: commitments,
       receivedIncome,
       incomeBase,
+      committedPaid,
+      dailySpent,
+      paidCommitments,
     };
   }
 }

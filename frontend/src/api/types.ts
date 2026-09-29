@@ -327,6 +327,10 @@ export interface TeQueda {
   receivedIncome: number;
   /** BT-004: base de ingreso del ciclo (declarado vs recibido, el mayor). */
   incomeBase?: number;
+  /** FIN-050 · "Mi mes": comprometido ya pagado, día a día y lo pagado uno por uno. */
+  committedPaid?: number;
+  dailySpent?: number;
+  paidCommitments?: Array<{ name: string; amount: number; kind: 'fijo' | 'cuota' }>;
 }
 
 export interface HomeDashboard {

@@ -148,4 +148,14 @@ describe('FIN-047 · Gastos fijos automáticos', () => {
     const bad = await req('POST', '/v1/transactions', { kind: 'gasto', amount: 1_000, fixedItemId: '00000000-0000-0000-0000-000000000000', occurredAt: new Date().toISOString() });
     expect(bad.status).toBe(404);
   });
+  it('FIN-050: "Mi mes" parte Te queda en entra − comprometido (pagado + pendiente) − día a día, y cuadra', async () => {
+    await req('POST', '/v1/transactions', { kind: 'gasto', amount: 55_000, note: 'Almuerzo', occurredAt: new Date().toISOString() });
+    const t = (await req('GET', '/v1/budget/monthly')).data.teQueda;
+    expect(t.committedPaid).toBeGreaterThan(0);
+    expect(t.dailySpent).toBeGreaterThanOrEqual(55_000);
+    expect(t.paidCommitments.map((c: { name: string }) => c.name)).toEqual(expect.arrayContaining(['Gimnasio']));
+    const paidSum = t.paidCommitments.reduce((a: number, c: { amount: number }) => a + c.amount, 0);
+    expect(paidSum).toBeCloseTo(t.committedPaid, 2);
+    expect(t.incomeBase - t.committedPaid - t.protectedTotal - t.dailySpent).toBeCloseTo(t.amount, 2);
+  });
 });

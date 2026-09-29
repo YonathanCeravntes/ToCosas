@@ -169,7 +169,7 @@ export class BrainViewsService {
       case 'ver_plan':
         return { type: 'ver_plan', label: 'Ver mi plan para liberar plata' };
       case 'ver_presupuesto':
-        return { type: 'ver_presupuesto', label: 'Ver mi presupuesto' };
+        return { type: 'ver_presupuesto', label: 'Ver mi mes' };
       default:
         return null;
     }
