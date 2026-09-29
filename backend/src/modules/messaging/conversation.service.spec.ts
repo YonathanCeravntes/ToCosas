@@ -47,7 +47,7 @@ describe('ConversationService (FIN-029, DEC-0029 §5)', () => {
     const docs = { isAvailable: jest.fn().mockReturnValue(false), extract: jest.fn() } as never;
     const moduleRef = { get: jest.fn() } as never;
     const budget = { create: jest.fn().mockResolvedValue({ id: 'f1' }) } as never;
-    return new ConversationService(prisma, transactions, debtOutlay, simulations, consent, docs, moduleRef, budget);
+    return new ConversationService(prisma, transactions, debtOutlay, simulations, consent, docs, moduleRef, budget, { sendMessage: jest.fn() } as never);
   };
 
   it('gasto fijo por chat: "gasto fijo arriendo 1.200.000 día 5" crea el FixedItem por BudgetService (§32) y lo dice', async () => {
@@ -57,7 +57,7 @@ describe('ConversationService (FIN-029, DEC-0029 §5)', () => {
       transaction: { findFirst: jest.fn() }, userSettings: { findUnique: jest.fn(), upsert: jest.fn() },
       botPendingAction: { findUnique: jest.fn().mockResolvedValue(null), upsert: jest.fn(), deleteMany: jest.fn() },
     } as never;
-    const svc = new ConversationService(prisma, {} as never, {} as never, {} as never, {} as never, { isAvailable: () => false } as never, {} as never, budget as never);
+    const svc = new ConversationService(prisma, {} as never, {} as never, {} as never, {} as never, { isAvailable: () => false } as never, {} as never, budget as never, { sendMessage: jest.fn() } as never);
     const reply = await svc.handle(baseInput('gasto fijo arriendo 1.200.000 día 5'));
     expect(budget.create).toHaveBeenCalledWith('u1', { kind: 'gasto', name: 'arriendo', amount: 1_200_000, dayOfMonth: 5 });
     expect(reply).toContain('Guardé el gasto fijo');

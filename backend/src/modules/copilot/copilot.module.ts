@@ -36,6 +36,7 @@ import { CashflowPlanService } from '../debts/cashflow-plan.service';
     CashflowPlanService,
   ],
   // FIN-042: el bot (MessagingModule) reutiliza el consentimiento y el cliente de IA.
-  exports: [ConsentService, AnthropicClient],
+  // FIN-046 Fase 2: el bot conversa con el MISMO cerebro (CopilotService).
+  exports: [ConsentService, AnthropicClient, CopilotService],
 })
 export class CopilotModule {}

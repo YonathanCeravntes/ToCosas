@@ -59,6 +59,7 @@ Glosario de extractos colombianos (Davivienda, Bancolombia, BBVA, Serfinanza, Nu
 - "Plazo" (en meses) → termMonths.
 - "Cupo", "Cupo total" → creditLimit; "Cupo disponible" → availableCredit.
 - Tasas: "15,39% E.A." → annualEffectiveRate 15.39; "2,1% M.V." → monthlyRate 2.1.
+- Comprobantes (FIN-046 Fase 2): en un recibo, tiquete de supermercado o factura de compra, amount = el TOTAL pagado ("Total", "Total a pagar", "Valor pagado"), nunca un subtotal, el IVA ni el cambio/vueltas; merchant = el nombre del comercio que aparece arriba. En una factura de servicios (luz, agua, gas, internet, celular) amount = "Total a pagar" y merchant = la empresa del servicio.
 
 Reglas:
 1. Clasifica: extracto de tarjeta de crédito, extracto/plan de pagos de un crédito, comprobante/recibo/factura de compra, o desconocido.

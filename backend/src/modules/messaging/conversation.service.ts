@@ -2,6 +2,9 @@ import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConsentService } from '../copilot/consent.service';
+import { CopilotService } from '../copilot/copilot.service';
+import { AI_CONSENT_TEXT } from '../copilot/copilot.constants';
+import type { ProposedAction } from '../copilot/brain-views.service';
 import { BudgetService } from '../budget/budget.service';
 import { FixedKindDto } from '../budget/dto/fixed-item.dto';
 import { DebtsService } from '../debts/debts.service';
@@ -83,6 +86,8 @@ export class ConversationService {
     private readonly moduleRef: ModuleRef,
     // Gastos fijos por chat: mismo servicio que Presupuesto (§32, una autoridad).
     private readonly budget: BudgetService,
+    // FIN-046 Fase 2: preguntas libres → el mismo cerebro del Copiloto de la app.
+    private readonly copilot: CopilotService,
   ) {}
 
   private readonly logger = new Logger(ConversationService.name);
@@ -123,6 +128,19 @@ export class ConversationService {
       });
       return '✅ Listo. Ahora envíame la foto o el PDF del extracto o comprobante y te propongo qué registrar.';
     }
+    // FIN-046 Fase 2: permiso de IA del Copiloto por chat (mismo consentimiento de la app).
+    if (/^activar\s+(la\s+)?ia\b/i.test(text)) {
+      return `${AI_CONSENT_TEXT}\n\nSi estás de acuerdo, responde: acepto ia`;
+    }
+    if (/^acepto\s+(la\s+)?ia\b/i.test(text)) {
+      await this.consent.grant(input.userId);
+      return '✅ Listo, la IA quedó activa. Pregúntame lo que quieras: "¿cuánto me queda este mes?", "¿qué deuda pago primero?", "¿me alcanza para un crédito de 10 millones?". Para quitar el permiso escribe "revocar ia".';
+    }
+    if (/^revocar\s+(la\s+)?ia\b/i.test(text)) {
+      await this.consent.revoke(input.userId);
+      return '✅ Listo, retiré el permiso: no volveré a usar la IA con tus datos. Sigo registrando tus movimientos como siempre.';
+    }
+
     const pendingReply = await this.handlePendingReply(input, text);
     if (pendingReply) return pendingReply;
 
@@ -142,6 +160,19 @@ export class ConversationService {
 
     const parsed = ruleParse(text, { today: new Date() });
 
+    // FIN-046 Fase 2: una PREGUNTA (o una simulación) va al cerebro del Copiloto; los
+    // movimientos, el resumen y los comandos siguen por reglas (instantáneos, sin IA).
+    // Sin permiso de IA, las simulaciones siguen respondiéndose por reglas (como antes).
+    const isSim = parsed.intent === 'consulta_simulacion';
+    // Un "¿…" explícito es pregunta aunque traiga un monto ("¿me alcanza con 200.000?").
+    const isQuestion = looksLikeQuestion(text) && (parsed.intent !== 'registrar_transaccion' || text.trim().startsWith('¿'));
+    const hasAi = isSim || isQuestion ? await this.consent.hasValidConsent(input.userId) : false;
+    // Sin IA, lo que las reglas ya saben responder (resumen, simulación) se responde por reglas.
+    const rulesCanAnswer = parsed.intent === 'consulta_resumen' || isSim;
+    if ((isSim || isQuestion) && (hasAi || !rulesCanAnswer)) {
+      return this.askCopilot(input.userId, input.source, text);
+    }
+
     switch (parsed.intent) {
       case 'saludo':
         return '👋 ¡Hola! Cuéntame un movimiento (ej: "Gasté $30.000 en almuerzo") o escribe "resumen".';
@@ -160,8 +191,70 @@ export class ConversationService {
       default:
         // FIN-029 (§5.2): honestidad — se dice claro que no se entendió y se
         // ofrece el camino; JAMÁS un falso "ya lo anoté".
-        return '🤔 No te entendí. Puedes decir algo como "Gasté $45.000 en mercado", "Pagué $200.000 al crédito" o "resumen". Escribe "ayuda" para ejemplos.';
+        // Con IA activa, lo que no es un comando lo piensa el Copiloto; sin IA, honestidad.
+        if (await this.consent.hasValidConsent(input.userId)) return this.askCopilot(input.userId, input.source, text);
+        return '🤔 No te entendí. Puedes decir algo como "Gasté $45.000 en mercado", "Pagué $200.000 al crédito" o "resumen". Si era una pregunta sobre tu plata, activa la IA escribiendo "activar ia". Escribe "ayuda" para ejemplos.';
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // FIN-046 Fase 2 · Telegram = Copiloto
+  // ---------------------------------------------------------------------------
+
+  /** Pregunta libre → CopilotService (mismo cerebro, mismas reglas, mismo consentimiento). */
+  private async askCopilot(userId: string, source: ChannelSource, text: string): Promise<string> {
+    if (!(await this.consent.hasValidConsent(userId))) {
+      return (
+        '🤔 Eso lo respondo con inteligencia artificial usando tus números, y necesito tu permiso. ' +
+        'Escribe "activar ia" para verlo. Mientras tanto puedo registrar movimientos ("Gasté $45.000 en mercado") o darte tu "resumen".'
+      );
+    }
+    // Continúa la conversación reciente (2 h) para que el bot recuerde el hilo.
+    const recent = await this.prisma.conversation.findFirst({
+      where: { userId, updatedAt: { gte: new Date(Date.now() - 2 * 3_600_000) } },
+      orderBy: { updatedAt: 'desc' },
+    });
+    let res;
+    try {
+      res = await this.copilot.sendMessage(userId, text, recent?.id);
+    } catch (e) {
+      this.logger.warn(`Copiloto por chat falló: ${(e as Error).message}`);
+      return '🤔 No pude pensar la respuesta ahora mismo. Inténtalo de nuevo en un momento o escribe "resumen".';
+    }
+    // Texto plano (Telegram sin formato): sin negritas de Markdown.
+    let reply = res.reply.replace(/\*\*(.+?)\*\*/g, '$1');
+    const actions = res.actions ?? [];
+    const fixed = actions.find((a) => a.type === 'crear_gasto_fijo');
+    if (fixed) {
+      await this.prisma.botPendingAction.upsert({
+        where: { userId_source: { userId, source } },
+        create: { userId, source, kind: 'accion_copiloto', payload: fixed as object, expiresAt: new Date(Date.now() + PROPOSAL_TTL_MINUTES * 60_000) },
+        update: { kind: 'accion_copiloto', payload: fixed as object, expiresAt: new Date(Date.now() + PROPOSAL_TTL_MINUTES * 60_000) },
+      });
+      reply += `\n\n👉 ${fixed.label}. ¿Lo hago? Responde *sí* o *no*.`;
+    }
+    for (const a of actions) {
+      if (a.type === 'abonar_deuda') reply += `\n\n💵 Para abonar: app → Deudas → ${a.debtName} → Abonar.`;
+      if (a.type === 'ver_plan') reply += '\n\n📋 Tu plan completo: app → Salud → Ver mi plan.';
+      if (a.type === 'ver_presupuesto') reply += '\n\n📊 Tu presupuesto: app → Más → Presupuesto.';
+    }
+    return reply;
+  }
+
+  private async handleCopilotActionReply(userId: string, source: ChannelSource, action: ProposedAction, text: string): Promise<string | null> {
+    const reply = parseReply(text);
+    if (reply.type === 'no') {
+      await this.clearPending(userId, source);
+      return '👍 Listo, no lo creé.';
+    }
+    if (reply.type !== 'yes' || action.type !== 'crear_gasto_fijo') return null;
+    await this.budget.create(userId, { kind: FixedKindDto.gasto, name: action.name, amount: action.amount, dayOfMonth: action.dayOfMonth ?? undefined });
+    await this.clearPending(userId, source);
+    return (
+      `✅ Guardé el gasto fijo *${action.name}* de ${fmt(action.amount)} al mes` +
+      (action.dayOfMonth ? ` (día ${action.dayOfMonth})` : '') +
+      '. Desde ahora queda apartado en "Te queda". Lo ves en Presupuesto → Gastos fijos.'
+    );
   }
 
   private helpText(): string {
@@ -179,7 +272,9 @@ export class ConversationService {
       '• "gasto fijo arriendo 1.200.000 día 5" — crea un gasto fijo mensual',
       '• "renegociar crédito carro cuotas 60 tasa 13,5 variable dia 15 desde 2026-11-01" — cambia las condiciones de un crédito',
       '',
-      '📎 Y puedes enviarme la FOTO o el PDF de un extracto de tarjeta o crédito, o de un comprobante: te propongo la deuda o el gasto y tú confirmas.',
+      '📎 Y puedes enviarme la FOTO o el PDF de un extracto de tarjeta o crédito, o de un recibo o factura: te propongo la deuda o el gasto y tú confirmas.',
+      '',
+      '💬 Pregúntame lo que quieras sobre tu plata: "¿cuánto me queda este mes?", "¿qué deuda pago primero?", "¿me alcanza para un crédito de 10 millones?" (usa IA; actívala con "activar ia").',
     ].join('\n');
   }
 
@@ -240,6 +335,7 @@ export class ConversationService {
       await this.clearPending(userId, input.source);
       return null;
     }
+    if (pending.kind === 'accion_copiloto') return this.handleCopilotActionReply(userId, input.source, pending.payload as unknown as ProposedAction, text);
     if (pending.kind === 'renegociacion') return this.handleRenegotiationReply(userId, input.source, pending.payload as unknown as { debtId: string; dto: RenegotiationCommand['dto'] }, text);
     const proposal = pending.payload as unknown as DocumentProposal;
     const reply = parseReply(text);
@@ -614,3 +710,14 @@ export function describeRenegotiation(p: RenegotiationPreview): string {
   return lines.join('\n');
 }
 
+
+/**
+ * FIN-046 Fase 2 · ¿Es una pregunta para el Copiloto? Signos de interrogación o
+ * arranques típicos ("cuánto me queda", "me alcanza", "qué hago con", "debo"...).
+ */
+export function looksLikeQuestion(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (!t) return false;
+  if (t.includes('?') || t.startsWith('¿')) return true;
+  return /^(qu[eé]|cu[aá]nto|cu[aá]l|c[oó]mo|por\s*qu[eé]|me\s+alcanza|puedo|debo|deber[ií]a|conviene|me\s+conviene|ay[uú]dame|expl[ií]came|dime|quiero\s+saber|necesito\s+saber)(?=[\s,.!?]|$)/.test(t);
+}

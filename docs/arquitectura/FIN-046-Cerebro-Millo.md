@@ -1,6 +1,6 @@
 # FIN-046 · El cerebro de Millo (plan por fases)
 
-- **Fecha:** 2026-09-29 · **Estado:** decisiones tomadas; Fase 1 en curso
+- **Fecha:** 2026-09-29 · **Estado:** Fases 1 y 2 implementadas; siguiente Fase 3
 - **Pedido:** "Necesitamos potenciar el cerebro de Millo." El Fundador eligió las 4 líneas: Copiloto con IA de verdad, Millo proactivo, que aprenda de ti y bot de Telegram más listo.
 
 ## 1. Qué hay hoy (inventario honesto)
@@ -54,3 +54,10 @@
 - **Limpieza:** sin emoji en títulos de logros/novedades (backend y los ya guardados, en la app).
 - **Verificación:** unit 415/415, e2e 97/97 (nuevo `fin046-copiloto-cerebro`: sin permiso = plantilla; con permiso = IA + acciones; nada con nombre cruza a la IA). Web revisada con Playwright (sin clave de IA local → respaldo por plantilla, esperado).
 - **Límite diario:** se mantiene en 10 mensajes con IA por día (gratis). Se puede subir si la Beta lo pide.
+
+## 6. Fase 2 · Implementado (2026-09-29) — Telegram = Copiloto
+- **Preguntas libres → el mismo cerebro:** el bot manda las preguntas (signos "¿?" o arranques como "cuánto", "me alcanza", "qué", "debo") a `CopilotService.sendMessage` y continúa el hilo de las últimas 2 h. Movimientos, resumen, deshacer, gasto fijo y renegociar siguen por reglas (instantáneos).
+- **Mismo permiso que la app:** "activar ia" muestra el texto de consentimiento; "acepto ia" lo otorga; "revocar ia" lo quita. Sin permiso: el bot no llama a la IA, responde lo que las reglas saben (resumen, simulación) y dice cómo activarla; lo que no entiende lo dice claro (§5.2).
+- **Acciones:** "crear gasto fijo" queda pendiente y se confirma con *sí* (lo crea `BudgetService`, §32); abonar, ver plan y ver presupuesto se explican con la ruta en la app (el bot no mueve plata).
+- **Recibos y facturas:** la lectura por foto (FIN-042) ya los reconocía; se afinó la instrucción para tomar el TOTAL (no subtotal, IVA ni vueltas) y el comercio; facturas de servicios toman "Total a pagar".
+- **Verificación:** 6 pruebas nuevas (`telegram-copilot.spec.ts`), unit 421/421, e2e 97/97.

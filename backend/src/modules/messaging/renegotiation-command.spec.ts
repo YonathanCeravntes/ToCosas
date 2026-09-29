@@ -35,7 +35,7 @@ describe('FIN-044 · renegociación por chat', () => {
         deleteMany: jest.fn().mockImplementation(async () => { store.pending = null; }),
       },
     };
-    const svc = new ConversationService(prisma as never, {} as never, {} as never, {} as never, {} as never, { isAvailable: () => false } as never, { get: () => reneg } as never, {} as never);
+    const svc = new ConversationService(prisma as never, {} as never, {} as never, {} as never, {} as never, { isAvailable: () => false } as never, { get: () => reneg } as never, {} as never, { sendMessage: jest.fn() } as never);
     return { svc, reneg, store, preview };
   };
 

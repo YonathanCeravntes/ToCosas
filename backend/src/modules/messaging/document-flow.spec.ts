@@ -67,6 +67,7 @@ describe('ConversationService · documentos (FIN-042)', () => {
       docs as never,
       moduleRef as never,
       { create: jest.fn() } as never,
+      { sendMessage: jest.fn() } as never,
     );
     return { svc, prisma, transactions, debts, cards, docs, store };
   };
