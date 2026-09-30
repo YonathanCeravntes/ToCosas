@@ -1,11 +1,13 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Query, Req, Res, UseGuards, DefaultValuePipe } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Query, Req, Res, UseGuards, DefaultValuePipe, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
-import { IsBoolean, IsOptional } from 'class-validator';
+import { IsBoolean, IsOptional, IsUUID } from 'class-validator';
 import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AuthUser, CurrentUser } from '../auth/current-user.decorator';
 import { DocumentsService } from './documents.service';
+import { DocumentIntakeService } from './document-intake.service';
 
 class ConsentDto {
   @ApiProperty({ description: 'También guardar facturas de salud (dato sensible, opt-in).' })
@@ -20,13 +22,44 @@ class RevokeDto {
   deleteAll?: boolean;
 }
 
+class LinkDto {
+  @ApiProperty({ description: 'Movimiento registrado a partir de la propuesta.' })
+  @IsUUID()
+  transactionId!: string;
+}
+
+/** Mismo tope que el bot (FIN-042). */
+const UPLOAD_MAX_BYTES = 8 * 1024 * 1024;
+
 const thisYear = () => new Date().getUTCFullYear();
 
 /** FIN-054 · Mis documentos. */
 @ApiTags('documents')
 @Controller('documents')
 export class DocumentsController {
-  constructor(private readonly docs: DocumentsService) {}
+  constructor(
+    private readonly docs: DocumentsService,
+    private readonly intake: DocumentIntakeService,
+  ) {}
+
+  /** FIN-056 · Subir una foto o PDF desde la app: misma lectura y misma bóveda que el bot. */
+  @Post('upload')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: UPLOAD_MAX_BYTES, files: 1 } }))
+  upload(@CurrentUser() user: AuthUser, @UploadedFile() file?: { buffer: Buffer; mimetype: string; size: number }) {
+    if (!file?.buffer?.length) throw new BadRequestException('Adjunta una foto (JPG, PNG) o un PDF.');
+    return this.intake.intake(user.id, { data: file.buffer, mimeType: file.mimetype });
+  }
+
+  /** FIN-056 · Enlaza el documento con el gasto que la app registró tras la propuesta. */
+  @Post(':id/link')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  link(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: LinkDto) {
+    return this.intake.link(user.id, id, dto.transactionId);
+  }
 
   @Get('consent')
   @ApiBearerAuth()

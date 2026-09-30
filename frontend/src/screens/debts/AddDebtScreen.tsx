@@ -9,6 +9,9 @@ import { debtsApi, entitiesApi, CreateDebtInput } from '../../api/endpoints';
 import { FinancialEntity, ProductFieldSpec, ProductTypeDescriptor } from '../../api/types';
 import { useApi } from '../../utils/useApi';
 import { parseDecimal, parseAmount } from '../../utils/format';
+import { localDateKey } from '../../utils/dates';
+import { RateInput } from '../../components/RateInput';
+import { RateUnit, toEA } from '../../utils/rates';
 import { DebtsStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<DebtsStackParamList, 'AddDebt'>;
@@ -75,6 +78,8 @@ export function AddDebtScreen({ navigation }: Props) {
   // Opción D: tras elegir el tipo, paso 2 = "¿Con qué entidad?" (se puede omitir).
   const [choosingEntity, setChoosingEntity] = useState(false);
   const [showAllTypes, setShowAllTypes] = useState(false);
+  // FIN-056: unidad de la tasa; la pista de la entidad (typicalRate) viene en EA.
+  const [rateUnit, setRateUnit] = useState<RateUnit>('mensual');
 
   // Búsqueda/browse: se recarga al cambiar el texto (sin q = estado de exploración).
   useEffect(() => {
@@ -109,7 +114,10 @@ export function AddDebtScreen({ navigation }: Props) {
     const next: Record<string, string> = {};
     if (ent) next.name = ent.name;
     const hasRate = [...desc.requiredFields, ...desc.optionalFields].some((f) => f.key === 'interestRate');
-    if (ent?.typicalRate != null && hasRate) next.interestRate = String(ent.typicalRate);
+    if (ent?.typicalRate != null && hasRate) {
+      next.interestRate = String(ent.typicalRate);
+      setRateUnit('anual');
+    }
     setValues(next);
   };
 
@@ -180,10 +188,12 @@ export function AddDebtScreen({ navigation }: Props) {
       // Sin el monto inicial, se toma el saldo de hoy (la barra arranca en 0%).
       originalAmount: amt(values.originalAmount) > 0 ? amt(values.originalAmount) : balance,
       currentBalance: balance,
-      startDate: startDate.toISOString().slice(0, 10),
+      // BT-027: día LOCAL (antes toISOString daba el día siguiente después de las 7 p. m.).
+      startDate: localDateKey(startDate),
       termMonths: values.termMonths ? amt(values.termMonths) : undefined,
       // La tasa que el usuario confirma GANA sobre la pista de la entidad (DEC-0034 §3.2).
-      interestRate: values.interestRate ? parseDecimal(values.interestRate) : undefined,
+      // FIN-056 (boceto 5): la tasa se escribe como la conoce la persona y viaja en EA.
+      interestRate: values.interestRate ? toEA(parseDecimal(values.interestRate), rateUnit) : undefined,
       rateKind: (values.rateKind as 'fija' | 'variable') || undefined,
       monthlyPayment: values.monthlyPayment ? amt(values.monthlyPayment) : undefined,
       paymentDay: values.paymentDay ? amt(values.paymentDay) : undefined,
@@ -217,9 +227,19 @@ export function AddDebtScreen({ navigation }: Props) {
           </Pressable>
         </View>
 
-        {fields.map((f) => (
-          <FieldFromSpec key={f.key} spec={f} value={values[f.key] ?? ''} onChange={(v) => set(f.key, v)} />
-        ))}
+        {fields.map((f) =>
+          f.kind === 'rate' ? (
+            <RateInput
+              key={f.key}
+              label={f.label.replace(/\s*\(% EA(, opcional)?\)/, (m) => (m.includes('opcional') ? ' (opcional)' : ''))}
+              value={values[f.key] ?? ''}
+              unit={rateUnit}
+              onChange={(v, u) => { set(f.key, v); setRateUnit(u); }}
+            />
+          ) : (
+            <FieldFromSpec key={f.key} spec={f} value={values[f.key] ?? ''} onChange={(v) => set(f.key, v)} />
+          ),
+        )}
         <Text style={{ color: colors.textMuted, marginBottom: 6, fontSize: 13 }}>¿Cuándo empezó? (opcional)</Text>
         <Pressable
           onPress={() => setShowStartPicker(true)}

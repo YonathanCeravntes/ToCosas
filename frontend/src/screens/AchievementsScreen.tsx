@@ -32,10 +32,10 @@ export function AchievementsScreen() {
             <View style={{ alignItems: 'center' }}>
               <Ico name="flame" size={30} color={colors.accent} />
               <Text style={{ color: colors.textInverse, fontWeight: '800' }}>
-                {data.streak.current} sem
+                {data.streak.current} semana{data.streak.current === 1 ? '' : 's'}
               </Text>
               <Text style={{ color: colors.textInverse, opacity: 0.8, fontSize: 11 }}>
-                mejor: {data.streak.best}
+seguidas · mejor: {data.streak.best}
               </Text>
             </View>
           </Row>

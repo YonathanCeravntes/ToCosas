@@ -29,7 +29,7 @@ import { useApi } from '../utils/useApi';
 const BAND_META: Record<ScoreBand, { label: string; text: string; soft: string }> = {
   critico: { label: 'Crítico', text: colors.dangerDeep, soft: colors.dangerSoft },
   fragil: { label: 'Frágil', text: colors.warningDeep, soft: colors.warningSoft },
-  estable: { label: 'Estable', text: colors.warningDeep, soft: colors.warningSoft },
+  estable: { label: 'Estable', text: colors.primaryDark, soft: colors.primarySoft },
   saludable: { label: 'Saludable', text: colors.primaryDark, soft: colors.primarySoft },
   elite: { label: 'Élite', text: colors.primaryDark, soft: colors.primarySoft },
 };
@@ -54,6 +54,17 @@ const PILLAR_LABEL: Record<string, string> = {
   debt: 'Tus deudas',
   savings: 'Tu ahorro',
   wealth: 'Lo que tienes',
+};
+
+/** FIN-056 (BT-033): cada indicador abre el escenario del simulador que lo mueve. */
+const SCENARIO_BY_INDICATOR: Record<string, string> = {
+  debt: 'estrategia_deudas',
+  dti: 'abono_extra',
+  emergency_fund: 'proyeccion_ahorro',
+  liquidity: 'reducir_gastos',
+  savings: 'proyeccion_ahorro',
+  savings_rate: 'reducir_gastos',
+  wealth: 'abono_extra',
 };
 
 /** El peor indicador con nivel auditado (rojo primero, luego amarillo). */
@@ -364,7 +375,7 @@ function IndicatorRow({ ind, first }: { ind: HealthIndicator; first: boolean }) 
             </Text>
           ))}
           {needsAction ? (
-            <Pressable onPress={() => navigation.navigate('Simulator')} accessibilityRole="link">
+            <Pressable onPress={() => navigation.navigate('Simulator', SCENARIO_BY_INDICATOR[ind.key] ? { scenario: SCENARIO_BY_INDICATOR[ind.key] } : undefined)} accessibilityRole="link">
               <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>Simularlo →</Text>
             </Pressable>
           ) : null}

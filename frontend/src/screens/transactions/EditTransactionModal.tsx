@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
-import { Alert, Modal, Platform, Pressable, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { DatePicker } from '../../components/DatePicker';
 import { Button, Card, Field, Ico } from '../../components/ui';
-import { colors, radius, spacing } from '../../theme/colors';
+import { CategoryGlyph } from '../../components/CategoryGlyph';
+import { colors, radius, spacing, type } from '../../theme/colors';
 import { formatLocalDate, parseAmount } from '../../utils/format';
+import { fromApiDate, toApiDate } from '../../utils/dates';
+import { loadCategoriesByUsage, TOP_CATEGORIES } from '../../utils/categoryUsage';
 import { transactionsApi } from '../../api/endpoints';
+import { Category } from '../../api/types';
 import { useBottomInset } from '../../navigation/insets';
 
 /**
@@ -12,6 +16,9 @@ import { useBottomInset } from '../../navigation/insets';
  * registrarlo (DEC-028-010). Edición rápida (monto/fecha/nota) + anulación con
  * confirmación previa (DEC-028-003). Guardarraíl P6: en un pago de deuda,
  * monto/fecha no se editan en sitio — el usuario anula y registra de nuevo.
+ *
+ * FIN-056 (boceto 2): también la CATEGORÍA. Al cambiarla, el servidor aprende el
+ * comercio (FIN-046 Fase 4): la próxima vez que se escriba esa nota irá ahí.
  */
 export interface EditableMovement {
   id: string;
@@ -19,6 +26,7 @@ export interface EditableMovement {
   amount: number;
   occurredAt: string;
   note: string | null;
+  categoryId?: string | null;
 }
 
 export function EditTransactionModal({
@@ -32,23 +40,39 @@ export function EditTransactionModal({
 }) {
   const bottomInset = useBottomInset(); // BT-012: la hoja no debe quedar bajo la barra del sistema
   const isDebt = movement?.kind === 'pago_deuda';
+  const hasCategory = movement?.kind === 'gasto' || movement?.kind === 'ingreso';
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState<Date | null>(null);
   const [showPicker, setShowPicker] = useState(false);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [showAll, setShowAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Reinicia los campos cada vez que se abre con un movimiento distinto.
-  React.useEffect(() => {
+  useEffect(() => {
     if (!movement) return;
     setAmount(String(Math.round(movement.amount)));
     setNote(movement.note ?? '');
-    setDate(new Date(movement.occurredAt));
+    setDate(fromApiDate(movement.occurredAt));
+    setCategoryId(movement.categoryId ?? null);
+    setShowAll(false);
     setError(null);
+    if (movement.kind === 'gasto' || movement.kind === 'ingreso') {
+      loadCategoriesByUsage(movement.kind).then(setCategories).catch(() => setCategories([]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [movement?.id]);
 
   if (!movement) return null;
+
+  // Las más usadas primero; la actual siempre visible aunque no esté entre ellas.
+  const dayToDay = categories.filter((c) => !c.isFixed);
+  const shown = showAll ? dayToDay : [...dayToDay.slice(0, TOP_CATEGORIES), ...dayToDay.slice(TOP_CATEGORIES).filter((c) => c.id === categoryId)];
+  const truncated = dayToDay.length > shown.length;
+  const changedCategory = hasCategory && categoryId !== (movement.categoryId ?? null) && !!categoryId;
 
   const save = async () => {
     setError(null);
@@ -60,9 +84,11 @@ export function EditTransactionModal({
         return;
       }
       if (value !== Math.round(movement.amount)) patch.amount = value;
-      if (date && date.toISOString() !== movement.occurredAt) patch.occurredAt = date.toISOString();
+      // BT-027: la fecha viaja como día local (mediodía UTC), igual que al registrar.
+      if (date && toApiDate(date) !== movement.occurredAt && toApiDate(date) !== toApiDate(fromApiDate(movement.occurredAt))) patch.occurredAt = toApiDate(date);
     }
     if (note !== (movement.note ?? '')) patch.note = note;
+    if (changedCategory && categoryId) patch.categoryId = categoryId;
     if (Object.keys(patch).length === 0) {
       onClose();
       return;
@@ -110,52 +136,94 @@ export function EditTransactionModal({
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.scrim }}>
-        <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.md, paddingBottom: spacing.md + bottomInset }}>
-          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: spacing.sm }}>
-            Editar movimiento
-          </Text>
+        <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: '92%', paddingBottom: spacing.md + bottomInset }}>
+          <ScrollView contentContainerStyle={{ padding: spacing.md }} keyboardShouldPersistTaps="handled">
+            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: spacing.sm }}>Editar movimiento</Text>
 
-          {isDebt ? (
-            <Card style={{ borderColor: colors.warning, borderWidth: 1 }}>
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-                Es un pago de deuda: para cambiar el monto o la fecha, anúlalo y regístralo de nuevo
-                — así el saldo de tu deuda queda correcto. Aquí puedes ajustar la nota.
-              </Text>
-            </Card>
-          ) : (
-            <>
-              <Field label="Monto" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="0" />
-              <Text style={{ color: colors.text, fontWeight: '600', marginBottom: 6 }}>Fecha</Text>
-              <Pressable
-                onPress={() => setShowPicker(true)}
-                style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.md }}
-              >
-                <Text style={{ color: colors.text }}><Ico name="calendar-outline" /> {date ? formatLocalDate(date) : '—'}</Text>
-              </Pressable>
-              {showPicker ? (
-                <DatePicker
-                  value={date ?? new Date()}
-                  mode="date"
-                  onChange={(_, d) => {
-                    setShowPicker(Platform.OS === 'ios');
-                    if (d) setDate(d);
-                  }}
-                />
-              ) : null}
-            </>
-          )}
+            {isDebt ? (
+              <Card style={{ borderColor: colors.warning, borderWidth: 1 }}>
+                <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+                  Es un pago de deuda: para cambiar el monto o la fecha, anúlalo y regístralo de nuevo
+                  — así el saldo de tu deuda queda correcto. Aquí puedes ajustar la nota.
+                </Text>
+              </Card>
+            ) : (
+              <>
+                <Field label="Monto" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="0" />
+                <Text style={{ color: colors.text, fontWeight: '600', marginBottom: 6 }}>Fecha</Text>
+                <Pressable
+                  onPress={() => setShowPicker(true)}
+                  accessibilityRole="button"
+                  style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.md, backgroundColor: colors.surface }}
+                >
+                  <Text style={{ color: colors.text }}><Ico name="calendar-outline" /> {date ? formatLocalDate(date) : '—'}</Text>
+                </Pressable>
+                {showPicker ? (
+                  <DatePicker
+                    value={date ?? new Date()}
+                    mode="date"
+                    maximumDate={new Date()}
+                    onChange={(_, d) => {
+                      setShowPicker(Platform.OS === 'ios');
+                      if (d) setDate(d);
+                    }}
+                  />
+                ) : null}
+              </>
+            )}
 
-          <Field label="Nota" value={note} onChangeText={setNote} placeholder="Descripción" />
+            {hasCategory ? (
+              <View style={{ marginBottom: spacing.md }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={{ color: colors.text, fontWeight: '600' }}>Categoría</Text>
+                  {truncated || showAll ? (
+                    <Pressable onPress={() => setShowAll(!showAll)} accessibilityRole="button" hitSlop={8}>
+                      <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>{showAll ? 'Menos' : `Ver todas (${dayToDay.length})`}</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                  {shown.map((c) => {
+                    const on = categoryId === c.id;
+                    return (
+                      <Pressable
+                        key={c.id}
+                        onPress={() => setCategoryId(c.id)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: on }}
+                        accessibilityLabel={c.name}
+                        style={{ height: 36, paddingHorizontal: 10, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 2 : 1, borderColor: on ? colors.primary : colors.border }}
+                      >
+                        <CategoryGlyph size="sm" emoji={c.icon} kind={movement.kind === 'ingreso' ? 'ingreso' : 'gasto'} color={c.color} />
+                        <Text style={{ color: on ? colors.primaryDark : colors.text, ...type.small, fontWeight: on ? '800' : '600' }}>{c.name}</Text>
+                      </Pressable>
+                    );
+                  })}
+                  {categories.length === 0 ? <Text style={{ color: colors.textMuted, ...type.small }}>Cargando categorías…</Text> : null}
+                </View>
+                {changedCategory && movement.note ? (
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: colors.primarySoft, borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.sm }}>
+                    <Ico name="bulb-outline" color={colors.primaryDark} size={16} />
+                    <Text style={{ color: colors.primaryDark, ...type.small, flex: 1 }}>
+                      Millo aprende: la próxima vez que escribas «{movement.note}» irá a esta categoría.
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
 
-          {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
+            <Field label="Nota" value={note} onChangeText={setNote} placeholder="Descripción" />
 
-          <Button title="Guardar" onPress={() => void save()} loading={busy} />
-          <Pressable onPress={anular} disabled={busy} style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
-            <Text style={{ color: colors.danger, fontWeight: '700' }}><Ico name="trash-outline" color={colors.danger} /> Anular movimiento</Text>
-          </Pressable>
-          <Pressable onPress={onClose} disabled={busy} style={{ alignItems: 'center', paddingVertical: 4 }}>
-            <Text style={{ color: colors.textMuted }}>Cerrar</Text>
-          </Pressable>
+            {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
+
+            <Button title="Guardar" onPress={() => void save()} loading={busy} />
+            <Pressable onPress={anular} disabled={busy} accessibilityRole="button" style={{ alignItems: 'center', paddingVertical: spacing.sm, minHeight: 44, justifyContent: 'center' }}>
+              <Text style={{ color: colors.danger, fontWeight: '700' }}><Ico name="trash-outline" color={colors.danger} /> Anular movimiento</Text>
+            </Pressable>
+            <Pressable onPress={onClose} disabled={busy} accessibilityRole="button" style={{ alignItems: 'center', paddingVertical: 4, minHeight: 40, justifyContent: 'center' }}>
+              <Text style={{ color: colors.textMuted }}>Cerrar</Text>
+            </Pressable>
+          </ScrollView>
         </View>
       </View>
     </Modal>

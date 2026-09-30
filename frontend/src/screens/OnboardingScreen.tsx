@@ -127,11 +127,13 @@ export function OnboardingScreen() {
             </View>
             <HeroCard>
               <Text style={{ color: colors.onPrimaryMuted, ...type.body }}>
-                {work === 'independiente' || work === 'empresario' ? 'Ingreso mensual estimado' : 'Ingreso mensual neto'}
+                {work === 'independiente' || work === 'empresario' ? 'Ingreso mensual estimado' : 'Tu salario al mes (antes de descuentos)'}
               </Text>
               <Text style={{ color: colors.textInverse, ...type.hero }}>{value ? formatMoney(value) : '$0'}</Text>
               <Text style={{ color: colors.onPrimaryFaint, ...type.small }}>
-                Lo que realmente te llega. Luego puedes afinar deducciones en tu perfil.
+                {work === 'independiente' || work === 'empresario'
+                  ? 'Un promedio sirve. Luego lo afinas en tu perfil de ingresos.'
+                  : 'El de tu contrato. Millo descuenta salud y pensión y te dice lo que de verdad te llega.'}
               </Text>
             </HeroCard>
             <Field label="Monto" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="3.500.000" />

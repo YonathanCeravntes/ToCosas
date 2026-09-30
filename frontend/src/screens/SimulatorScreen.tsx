@@ -3,6 +3,8 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Button, Card, FormScroll, GroupLabel, Ico, IconName, Row } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatLocalDate, formatMoney, parseAmount, parseDecimal } from '../utils/format';
+import { RateInput } from '../components/RateInput';
+import { RateUnit, toEA as rateToEA } from '../utils/rates';
 import {
   Asset,
   Debt,
@@ -70,7 +72,7 @@ const SCENARIOS: ScenarioDef[] = [
     fields: [
       { name: 'amount', label: 'Monto', placeholder: '20.000.000', unit: 'money', quick: [5_000_000, 10_000_000, 20_000_000, 50_000_000] },
       { name: 'termMonths', label: 'Plazo', placeholder: '60', unit: 'months', quick: [12, 24, 36, 60] },
-      { name: 'ratePct', label: 'Tasa efectiva anual', placeholder: '18', unit: 'pct' },
+      { name: 'ratePct', label: 'Tasa del crédito', placeholder: '18', unit: 'pct' },
     ],
   },
   {
@@ -113,7 +115,7 @@ const SCENARIOS: ScenarioDef[] = [
     icon: 'repeat-outline',
     needs: 'debt',
     fields: [
-      { name: 'newRatePct', label: 'Nueva tasa efectiva anual', placeholder: '14', unit: 'pct' },
+      { name: 'newRatePct', label: 'Nueva tasa', placeholder: '14', unit: 'pct' },
       { name: 'newTermMonths', label: 'Nuevo plazo', placeholder: '36', unit: 'months', quick: [12, 24, 36, 60] },
     ],
   },
@@ -164,6 +166,9 @@ export function SimulatorScreen() {
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // FIN-056 (boceto 5): la tasa de un crédito se escribe como la conoce la persona.
+  const [rateUnit, setRateUnit] = useState<RateUnit>('mensual');
+  const isLoanRate = (name: string) => name === 'ratePct' || name === 'newRatePct';
 
   const debtsQ = useApi(() => debtsApi.list(), []);
   // FIN-045: la deuda por defecto es la primera del plan para liberar flujo (la regla vigente).
@@ -240,7 +245,7 @@ export function SimulatorScreen() {
         const v = /Pct$/.test(f.name) ? parseDecimal(raw) : parseAmount(raw);
         const invalid = Number.isNaN(v) || (f.allowZero ? v < 0 : v <= 0);
         if (invalid) throw new Error(`Ingresa un valor válido en "${f.label}"`);
-        params[f.name] = v;
+        params[f.name] = isLoanRate(f.name) ? rateToEA(v, rateUnit) : v;
       }
       if (scenario.needs === 'debt') {
         if (!debtId) throw new Error('Elige la deuda');
@@ -345,14 +350,24 @@ export function SimulatorScreen() {
             </>
           ) : null}
 
-          {scenario.fields.map((f) => (
-            <AmountField
-              key={f.name}
-              def={f}
-              value={values[f.name] ?? ''}
-              onChange={(t) => setValues((prev) => ({ ...prev, [f.name]: t }))}
-            />
-          ))}
+          {scenario.fields.map((f) =>
+            isLoanRate(f.name) ? (
+              <RateInput
+                key={f.name}
+                label={f.label}
+                value={values[f.name] ?? ''}
+                unit={rateUnit}
+                onChange={(t, u) => { setValues((prev) => ({ ...prev, [f.name]: t })); setRateUnit(u); }}
+              />
+            ) : (
+              <AmountField
+                key={f.name}
+                def={f}
+                value={values[f.name] ?? ''}
+                onChange={(t) => setValues((prev) => ({ ...prev, [f.name]: t }))}
+              />
+            ),
+          )}
           {error ? (
             <View style={{ marginBottom: 8 }}>
               <Text style={{ color: colors.danger }}>{error}</Text>

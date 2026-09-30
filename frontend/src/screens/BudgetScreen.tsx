@@ -51,6 +51,14 @@ export function BudgetScreen() {
   return (
     <FormScroll onRefresh={refresh}>
       <MonthCard teQueda={data.teQueda} label={data.period.label} loading={loading} />
+      {/* FIN-056: con el mes vacío, la invitación va arriba (antes quedaba escondida al final). */}
+      {data.incomes.length === 0 && !editing ? (
+        <Pressable onPress={() => setEditing(true)} accessibilityRole="button" style={{ borderWidth: 1, borderStyle: 'dashed', borderColor: colors.primary, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface }}>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>Arma tu mes en un minuto</Text>
+          <Text style={{ color: colors.textMuted, ...type.small, marginTop: 2 }}>Agrega lo que te entra y lo que pagas cada mes: así "Te queda" será real.</Text>
+          <Text style={{ color: colors.primary, fontWeight: '800', marginTop: spacing.sm }}>Agregar ingresos y fijos →</Text>
+        </Pressable>
+      ) : null}
       <FreeMoney teQueda={data.teQueda} plan={plan.data} />
       {(proposals.data ?? []).map((p) => (
         <ProposalCard key={p.id} insight={p} onDone={() => void Promise.all([refresh(), proposals.reload()])} />
@@ -97,7 +105,6 @@ export function BudgetScreen() {
         </>
       ) : null}
 
-      <Button icon="business-outline" title="Cuentas y patrimonio" variant="secondary" onPress={() => navigation.navigate('Accounts')} />
     </FormScroll>
   );
 }

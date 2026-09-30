@@ -10,6 +10,7 @@ import { AmortizationEntry, CardSummary, Debt, DebtInsurance, PaymentBreakdown, 
 import { debtsApi, simulationsApi, SimulateResult } from '../../api/endpoints';
 import { useApi } from '../../utils/useApi';
 import { DebtsStackParamList } from '../../navigation/types';
+import { confirmRemove } from '../../utils/confirm';
 
 type Props = NativeStackScreenProps<DebtsStackParamList, 'DebtDetail'>;
 
@@ -32,6 +33,7 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
     await reload();
   }, [reload]);
   const [showPlan, setShowPlan] = useState(false);
+  const [showAllPlan, setShowAllPlan] = useState(false);
   const [extra, setExtra] = useState('');
   const [sim, setSim] = useState<SimulateResult | null>(null);
   const [scoreDelta, setScoreDelta] = useState<number | null>(null);
@@ -112,18 +114,20 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
 
       <AtAGlance debt={data} amort={amort} />
 
-      {/* FIN-044: renegociación (cuotas, tasa fija/variable, cuota, día de pago, desde cuándo). */}
-      {model !== 'cuotas_por_compra' ? (
-        <Button
-          title="Renegociar / actualizar condiciones"
-          icon="swap-horizontal-outline"
-          variant="secondary"
-          onPress={() => stackNav.navigate('RenegotiateDebt', { debtId, name: data.name })}
-        />
-      ) : null}
+      {/* FIN-056 (boceto 4): editar datos; FIN-044: renegociar condiciones. */}
+      <Row style={{ gap: spacing.sm }}>
+        <View style={{ flex: 1 }}>
+          <Button title="Editar datos" icon="create-outline" variant="secondary" onPress={() => stackNav.navigate('EditDebt', { debtId, name: data.name })} />
+        </View>
+        {model !== 'cuotas_por_compra' ? (
+          <View style={{ flex: 1 }}>
+            <Button title="Renegociar" icon="swap-horizontal-outline" variant="secondary" onPress={() => stackNav.navigate('RenegotiateDebt', { debtId, name: data.name })} />
+          </View>
+        ) : null}
+      </Row>
 
       {/* FIN-031/032: productos con cupo (tarjeta/fintech) — compras a cuotas. */}
-      {hasCard ? <CardSection debtId={debtId} tick={tick} onChanged={() => void reload()} /> : null}
+      {hasCard ? <CardSection debtId={debtId} tick={tick} onChanged={() => void reload()} onEdit={() => stackNav.navigate('EditDebt', { debtId, name: data.name })} /> : null}
 
       {/* FIN-036: confirmación de actualización por corte (nivel 2, §42). */}
       <ReviewSection debtId={debtId} tick={tick} onChanged={() => void reload()} />
@@ -248,7 +252,7 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
             <Text style={{ color: colors.text, ...type.title }}>Plan de pago · {amort.length} cuotas</Text>
             <Ionicons name={showPlan ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textMuted} />
           </Pressable>
-          {showPlan ? amort.slice(0, 12).map((e) => (
+          {showPlan ? (showAllPlan ? amort : amort.slice(0, 12)).map((e) => (
             <Card key={e.periodNo} style={{ paddingVertical: spacing.sm }}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <Text style={{ fontWeight: '600' }}>#{e.periodNo} · {formatDate(e.dueDate)}</Text>
@@ -264,10 +268,10 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
               </Row>
             </Card>
           )) : null}
-          {showPlan && amort.length > 12 ? (
-            <Text style={{ color: colors.textMuted, textAlign: 'center', marginBottom: spacing.lg }}>
-              … y {amort.length - 12} cuotas más
-            </Text>
+          {showPlan && amort.length > 12 && !showAllPlan ? (
+            <Pressable onPress={() => setShowAllPlan(true)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.lg }}>
+              <Text style={{ color: colors.primary, fontWeight: '700' }}>Ver las {amort.length - 12} cuotas restantes</Text>
+            </Pressable>
           ) : null}
         </>
       ) : null}
@@ -401,7 +405,7 @@ function AtAGlance({ debt, amort }: { debt: Debt; amort: AmortizationEntry[] }) 
 
 /** FIN-031 · Tarjeta de crédito: cupo/saldo (derivados), compras a cuotas con
  *  su trazabilidad (G) y registro de una compra nueva (baja fricción, H). */
-function CardSection({ debtId, tick, onChanged }: { debtId: string; tick: number; onChanged: () => void }) {
+function CardSection({ debtId, tick, onChanged, onEdit }: { debtId: string; tick: number; onChanged: () => void; onEdit: () => void }) {
   const { data, error: loadError, reload } = useApi(() => debtsApi.cardSummary(debtId), [debtId, tick]);
   const [open, setOpen] = useState(false);
   // P1(d): la MISMA acción desde aquí y desde Registrar da el MISMO acuse.
@@ -511,9 +515,11 @@ function CardSection({ debtId, tick, onChanged }: { debtId: string; tick: number
           </Row>
         </>
       ) : (
-        <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-          Registra el cupo de tu tarjeta al editarla para ver cuánto te queda.
-        </Text>
+        <Pressable onPress={onEdit} accessibilityRole="link">
+          <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+            Aún no tiene cupo registrado. <Text style={{ color: colors.primary, fontWeight: '700' }}>Agrégalo en Editar datos →</Text> para ver cuánto te queda.
+          </Text>
+        </Pressable>
       )}
 
       {data.purchases.length > 0 ? (
@@ -924,10 +930,8 @@ function InsuranceSection({
     onChanged();
   };
 
-  const remove = async (ins: DebtInsurance) => {
-    await debtsApi.removeInsurance(ins.id);
-    onChanged();
-  };
+  const remove = (ins: DebtInsurance) =>
+    confirmRemove(ins.name, 'Dejará de contar en tu cuota real.', () => debtsApi.removeInsurance(ins.id).then(onChanged));
 
   return (
     <Card>
@@ -983,7 +987,7 @@ function InsuranceSection({
           >
             <Ico name={ins.active ? 'pause-circle-outline' : 'play-circle-outline'} size={20} color={colors.textMuted} />
           </Pressable>
-          <Pressable onPress={() => void remove(ins)}>
+          <Pressable onPress={() => remove(ins)} accessibilityRole="button" accessibilityLabel={`Eliminar ${ins.name}`}>
             <Ico name="trash-outline" size={18} color={colors.textMuted} />
           </Pressable>
         </Row>

@@ -1077,7 +1077,7 @@ export function archiveNote(a: ArchiveStatus): string {
 export const STORAGE_CONSENT_TEXT =
   '📁 *Millo va a guardar tus documentos*\n' +
   'Guardo tus facturas, extractos y certificados *cifrados* para armar tus informes y el borrador de tu renta. ' +
-  'Un servicio de inteligencia artificial los lee para sacar los datos; no guardo tu cédula ni tus números de cuenta. ' +
+  'La inteligencia artificial de Millo (Google Gemini, EE. UU.) los lee para sacar los datos; no guardo tu cédula ni tus números de cuenta. ' +
   'Se almacenan en servidores de Estados Unidos (país con protección adecuada según la SIC). ' +
   'Los conservo 5 años o hasta que los borres. Las facturas de salud son datos sensibles: puedes no autorizarlas. ' +
   'Puedes descargar o borrar todo cuando quieras en la app (Más → Mis documentos).\n\n' +

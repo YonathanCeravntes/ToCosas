@@ -258,7 +258,7 @@ export function TransactionsScreen() {
             ].filter(Boolean).join(' · ');
             return (
               <Pressable
-                onPress={() => setEditing({ id: t.id, kind: t.kind, amount: toNumber(t.amount), occurredAt: t.occurredAt, note: t.note })}
+                onPress={() => setEditing({ id: t.id, kind: t.kind, amount: toNumber(t.amount), occurredAt: t.occurredAt, note: t.note, categoryId: t.categoryId })}
                 accessibilityRole="button"
                 accessibilityLabel={`${title}, ${meta.sign}${formatMoney(toNumber(t.amount))}`}
                 style={({ pressed }) => ({

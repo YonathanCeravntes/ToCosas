@@ -17,6 +17,14 @@ export enum TxKindDto {
   transferencia = 'transferencia',
 }
 
+/** FIN-056: cómo se pagó (mismo enum que Mis documentos). */
+export enum PaymentMethodDto {
+  tarjeta = 'tarjeta',
+  transferencia = 'transferencia',
+  efectivo = 'efectivo',
+  desconocido = 'desconocido',
+}
+
 export class CreateTransactionDto {
   @ApiProperty({ enum: TxKindDto })
   @IsEnum(TxKindDto)
@@ -50,6 +58,11 @@ export class CreateTransactionDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @ApiPropertyOptional({ enum: PaymentMethodDto, description: 'FIN-056: cómo se pagó (efectivo, tarjeta, transferencia).' })
+  @IsOptional()
+  @IsEnum(PaymentMethodDto)
+  paymentMethod?: PaymentMethodDto;
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()

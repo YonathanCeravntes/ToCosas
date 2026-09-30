@@ -98,6 +98,9 @@ export interface Debt {
   overdueDays?: number | null;
   /** FIN-031: cupo total de una tarjeta de crédito (null en otros tipos). */
   creditLimit?: string | number | null;
+  /** FIN-056: entidad (solo en el detalle), para editarla. */
+  entityId?: string | null;
+  entity?: { id: string; name: string } | null;
   projection?: DebtProjection;
   // FIN-032: el modelo/capacidades del tipo (del descriptor) — el detalle decide
   // qué secciones muestra por MODELO, no por tipo.
@@ -275,6 +278,8 @@ export interface TransactionsQuery {
 }
 
 export interface CategorySpend {
+  /** FIN-056: id de la categoría (null = sin categoría) para abrir sus movimientos. */
+  id?: string | null;
   name: string;
   icon: string;
   color: string;
@@ -365,6 +370,7 @@ export interface HomeDashboard {
     amount: number;
     occurredAt: string;
     note: string | null;
+    categoryId?: string | null;
     category: { name: string; icon: string; color: string } | null;
     debtName: string | null;
   }>;
@@ -829,6 +835,19 @@ export interface DocumentsSummary {
   counts: { facturas: number; extractos: number; certificados: number };
   filesEnabled: boolean;
 }
+
+/** FIN-056 · Respuesta al subir un documento desde la app. */
+export type DocumentIntake =
+  | { status: 'sin_permiso' | 'salud_sin_permiso' | 'ia_no_disponible' | 'formato_no_soportado' }
+  | { status: 'no_reconocido'; notes: string | null }
+  | {
+      status: 'guardado';
+      duplicate: boolean;
+      fileStored: boolean;
+      document: { id: string; kind: DocKind; issuer: string | null; total: number | null; docDate: string | null; paymentMethod: DocPayment; isHealth: boolean };
+      proposal: { amount: number; merchant: string | null; occurredAt: string; paymentMethod: DocPayment; alreadyRegistered: boolean } | null;
+      summary: string;
+    };
 
 export interface DocsConsent {
   accepted: boolean;

@@ -619,6 +619,8 @@ model Transaction {
   accountId       String?     @map("account_id") @db.Uuid
   /// FIN-047: gasto fijo al que corresponde (registrado solo el día que toca, o cruzado a mano).
   fixedItemId     String?     @map("fixed_item_id") @db.Uuid
+  /// FIN-056: cómo se pagó (Registrar lo pregunta; la deducción del 1 % de la renta lo necesita).
+  paymentMethod   PaymentMethod? @map("payment_method")
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
   deletedAt       DateTime?   @map("deleted_at")

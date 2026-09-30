@@ -269,13 +269,35 @@ function AssetsSection({ assets, onChange }: { assets: Asset[]; onChange: () => 
   const [type, setType] = useState<AssetType>('inmueble');
   const [value, setValue] = useState('');
   const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // FIN-056 (BT-034): el valor de un activo se actualiza en sitio (antes: borrar y crear).
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editVal, setEditVal] = useState('');
 
   const add = async () => {
     const v = parseAmount(value) || 0; // §39
-    if (!name.trim() || !v) return;
-    await accountsApi.createAsset({ name: name.trim(), type, currentValue: v });
-    setName(''); setValue(''); setAdding(false);
-    onChange();
+    setError(null);
+    if (!name.trim() || !v) return setError('Escribe el nombre y el valor.');
+    try {
+      await accountsApi.createAsset({ name: name.trim(), type, currentValue: v });
+      setName(''); setValue(''); setAdding(false);
+      onChange();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const saveValue = async (id: string) => {
+    const v = parseAmount(editVal) || 0;
+    setError(null);
+    if (!v) return setError('Escribe el valor de hoy.');
+    try {
+      await accountsApi.updateAsset(id, { currentValue: v });
+      setEditId(null); setEditVal('');
+      onChange();
+    } catch (e) {
+      setError((e as Error).message);
+    }
   };
 
   return (
@@ -284,21 +306,42 @@ function AssetsSection({ assets, onChange }: { assets: Asset[]; onChange: () => 
       {assets.length === 0 && !adding ? (
         <EmptyInvite icon="home-outline" title="Casa, carro, inversiones…" body="Lo que tienes y vale plata." onPress={() => setAdding(true)} />
       ) : null}
+      {error && !adding ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
       {assets.length > 0 ? (
         <Card style={{ paddingVertical: 0 }}>
           {assets.map((a, i) => (
-            <Row key={a.id} style={{ ...rowDivider(i === 0), gap: spacing.sm }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text, fontWeight: '700' }}>{a.name}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{ASSET_LABEL[a.type] ?? a.type}</Text>
-              </View>
-              <Text style={{ fontWeight: '800', color: colors.text }}>{formatMoney(toNumber(a.currentValue))}</Text>
-              <IconButton
-                icon="trash-outline"
-                label={`Eliminar ${a.name}`}
-                onPress={() => confirmRemove(a.name, 'Su valor dejará de contar en tu patrimonio.', () => accountsApi.removeAsset(a.id).then(onChange))}
-              />
-            </Row>
+            <View key={a.id} style={rowDivider(i === 0)}>
+              <Row style={{ gap: spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontWeight: '700' }}>{a.name}</Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>{ASSET_LABEL[a.type] ?? a.type}</Text>
+                </View>
+                {editId === a.id ? null : (
+                  <Pressable onPress={() => { setEditId(a.id); setEditVal(String(Math.round(toNumber(a.currentValue)))); }} accessibilityRole="button" accessibilityLabel={`Actualizar el valor de ${a.name}`}>
+                    <Text style={{ fontWeight: '800', color: colors.text }}>
+                      {formatMoney(toNumber(a.currentValue))} <Ico name="pencil-outline" color={colors.primary} />
+                    </Text>
+                  </Pressable>
+                )}
+                <IconButton
+                  icon="trash-outline"
+                  label={`Eliminar ${a.name}`}
+                  onPress={() => confirmRemove(a.name, 'Su valor dejará de contar en tu patrimonio.', () => accountsApi.removeAsset(a.id).then(onChange))}
+                />
+              </Row>
+              {editId === a.id ? (
+                <Row style={{ marginTop: 6, gap: spacing.sm }}>
+                  <TextInput
+                    value={editVal}
+                    onChangeText={setEditVal}
+                    keyboardType="numeric"
+                    accessibilityLabel={`Nuevo valor de ${a.name}`}
+                    style={{ flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: 8, color: colors.text }}
+                  />
+                  <Button title="Guardar" onPress={() => void saveValue(a.id)} />
+                </Row>
+              ) : null}
+            </View>
           ))}
         </Card>
       ) : null}
@@ -308,7 +351,8 @@ function AssetsSection({ assets, onChange }: { assets: Asset[]; onChange: () => 
           <TypeChips options={ASSET_TYPES} value={type} onChange={setType} />
           <Field label="Nombre" value={name} onChangeText={setName} placeholder="Apartamento" />
           <Field label="Valor" value={value} onChangeText={setValue} keyboardType="numeric" placeholder="250.000.000" />
-          <Button title="Agregar activo" onPress={add} />
+          {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
+          <Button title="Agregar activo" onPress={() => void add()} />
         </Card>
       ) : null}
     </>

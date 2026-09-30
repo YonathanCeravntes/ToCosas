@@ -11,6 +11,7 @@ import { LinkTelegramScreen } from '../screens/telegram/LinkTelegramScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
 import { IncomeProfileScreen } from '../screens/IncomeProfileScreen';
 import { DocumentsScreen } from '../screens/DocumentsScreen';
+import { CategoriesScreen } from '../screens/CategoriesScreen';
 import { SimulatorScreen } from '../screens/SimulatorScreen';
 import { CashflowPlanScreen } from '../screens/CashflowPlanScreen';
 import { AchievementsScreen } from '../screens/AchievementsScreen';
@@ -77,6 +78,7 @@ export function RootNavigator() {
             <Stack.Screen name="Main" component={MainTabs} options={{ contentStyle: { backgroundColor: colors.bg } }} />
             <Stack.Screen name="Budget" component={BudgetScreen} options={{ headerShown: true, title: 'Mi mes' }} />
             <Stack.Screen name="Documents" component={DocumentsScreen} options={{ headerShown: true, title: 'Mis documentos' }} />
+            <Stack.Screen name="Categories" component={CategoriesScreen} options={{ headerShown: true, title: 'En qué se te va' }} />
             <Stack.Screen name="Copilot" component={CopilotScreen} options={{ headerShown: true, title: 'Copiloto' }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: true, title: 'Ajustes' }} />
             <Stack.Screen

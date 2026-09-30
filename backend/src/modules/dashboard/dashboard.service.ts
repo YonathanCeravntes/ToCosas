@@ -13,6 +13,8 @@ import { totalLiabilities } from '../debts/debt-balance.util';
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export interface CategoryBucket {
+  /** FIN-056: id de la categoría (null = sin categoría), para abrir sus movimientos. */
+  id: string | null;
   name: string;
   icon: string;
   color: string;
@@ -180,6 +182,7 @@ export class DashboardService {
         amount: Number(t.amount),
         occurredAt: t.occurredAt.toISOString(),
         note: t.note,
+        categoryId: t.categoryId,
         category: t.category
           ? { name: t.category.name, icon: t.category.icon ?? '📦', color: t.category.color ?? '#B0B0B0' }
           : null,
@@ -293,6 +296,7 @@ function bucket(
 ) {
   const key = t.categoryId ?? 'sin';
   const cur = map.get(key) ?? {
+    id: t.categoryId,
     name: t.category?.name ?? 'Sin categoría',
     icon: t.category?.icon ?? '📦',
     color: t.category?.color ?? '#B0B0B0',

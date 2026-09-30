@@ -1,6 +1,7 @@
 import { api } from './client';
 import {
   AiConsentStatus,
+  DocumentIntake,
   BillingStatus,
   AmortizationEntry,
   Account,
@@ -95,6 +96,9 @@ export const debtsApi = {
   // Mis deudas (opción B): cuánto te prestaron, para la barra "pagado a capital".
   setOriginalAmount: (id: string, originalAmount: number) =>
     api.patch<Debt>(`/debts/${id}`, { originalAmount }),
+  // FIN-056: editar datos de la deuda (nombre, entidad, cupo, día de pago; tasa solo en tarjetas).
+  update: (id: string, input: Record<string, unknown>) => api.patch<Debt>(`/debts/${id}`, input),
+  remove: (id: string) => api.delete<{ deleted: boolean }>(`/debts/${id}`),
   simulateExtra: (id: string, extraMonthly: number) =>
     api.post<SimulateResult>(`/debts/${id}/simulate-extra`, { extraMonthly }),
   // FIN-044: renegociación (vista previa sin efectos, aplicar, historial).
@@ -239,6 +243,8 @@ export const accountsApi = {
   removeAccount: (id: string) => api.delete<{ deleted: boolean }>(`/accounts/${id}`),
   listAssets: () => api.get<Asset[]>('/assets'),
   createAsset: (input: CreateAssetInput) => api.post<Asset>('/assets', input),
+  // FIN-056: actualizar el valor de un activo sin borrarlo.
+  updateAsset: (id: string, input: Partial<CreateAssetInput>) => api.patch<Asset>(`/assets/${id}`, input),
   removeAsset: (id: string) => api.delete<{ deleted: boolean }>(`/assets/${id}`),
 };
 
@@ -368,7 +374,12 @@ export interface CreateTransactionInput {
   note?: string;
   // FIN-049: el gasto ES este gasto fijo (se eligió "Cada mes" al registrar).
   fixedItemId?: string;
+  /** FIN-056: cómo se pagó (Registrar rápido lo recuerda; la deducción del 1 % lo usa). */
+  paymentMethod?: PaymentMethod;
 }
+
+/** FIN-056: mismo enum que Mis documentos. */
+export type PaymentMethod = 'efectivo' | 'tarjeta' | 'transferencia' | 'desconocido';
 
 export interface CreateDebtInsuranceInput {
   kind?: string;
@@ -405,4 +416,7 @@ export const documentsApi = {
   download: (id: string) => api.get<{ url: string }>(`/documents/${id}/download`),
   remove: (id: string) => api.delete<{ deleted: boolean }>(`/documents/${id}`),
   exportLink: (year: number) => api.post<{ url: string }>(`/documents/export-link?year=${year}`, {}),
+  // FIN-056: subir una foto o PDF desde la app (misma lectura y bóveda que el bot).
+  upload: (form: FormData) => api.upload<DocumentIntake>('/documents/upload', form),
+  link: (documentId: string, transactionId: string) => api.post<{ linked: boolean }>(`/documents/${documentId}/link`, { transactionId }),
 };

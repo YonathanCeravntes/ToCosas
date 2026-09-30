@@ -155,6 +155,8 @@ export class DebtsService {
         amortization: { orderBy: { periodNo: 'asc' } },
         // FIN-013: seguros activos para el desglose de cuota real (solo display).
         insurances: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' } },
+        // FIN-056: la entidad, para editarla desde el detalle.
+        entity: { select: { id: true, name: true } },
       },
     });
     if (!debt) throw new NotFoundException('Deuda no encontrada');

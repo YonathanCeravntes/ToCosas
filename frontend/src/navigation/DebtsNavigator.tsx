@@ -4,6 +4,7 @@ import { DebtsListScreen } from '../screens/debts/DebtsListScreen';
 import { DebtDetailScreen } from '../screens/debts/DebtDetailScreen';
 import { AddDebtScreen } from '../screens/debts/AddDebtScreen';
 import { RenegotiateDebtScreen } from '../screens/debts/RenegotiateDebtScreen';
+import { EditDebtScreen } from '../screens/debts/EditDebtScreen';
 import { DebtsStackParamList } from './types';
 import { headerOptions } from './headerOptions';
 
@@ -20,6 +21,7 @@ export function DebtsNavigator() {
       />
       <Stack.Screen name="AddDebt" component={AddDebtScreen} options={{ title: 'Nueva deuda' }} />
       <Stack.Screen name="RenegotiateDebt" component={RenegotiateDebtScreen} options={{ title: 'Renegociar' }} />
+      <Stack.Screen name="EditDebt" component={EditDebtScreen} options={({ route }) => ({ title: `Editar ${route.params.name}` })} />
     </Stack.Navigator>
   );
 }

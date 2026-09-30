@@ -13,6 +13,8 @@ export type DebtsStackParamList = {
   DebtDetail: { debtId: string; name: string };
   AddDebt: undefined;
   RenegotiateDebt: { debtId: string; name: string };
+  // FIN-056: editar datos de la deuda (nombre, entidad, cupo, día de pago).
+  EditDebt: { debtId: string; name: string };
 };
 
 /**
@@ -35,6 +37,8 @@ export type RootStackParamList = {
   Budget: undefined;
   // FIN-054: facturas, extractos y certificados.
   Documents: undefined;
+  // FIN-056: gastos del ciclo por categoría ("En qué se te va" completo).
+  Categories: undefined;
   Copilot: undefined;
   Settings: undefined;
   // FIN-038: historial completo de movimientos con filtros.

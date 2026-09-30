@@ -9,6 +9,8 @@ import { debtsApi } from '../../api/endpoints';
 import { RenegotiateInput, RenegotiationPreview, toNumber } from '../../api/types';
 import { useApi } from '../../utils/useApi';
 import { DebtsStackParamList } from '../../navigation/types';
+import { RateInput } from '../../components/RateInput';
+import { RateUnit, toEA } from '../../utils/rates';
 
 type Props = NativeStackScreenProps<DebtsStackParamList, 'RenegotiateDebt'>;
 
@@ -28,6 +30,7 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
   const [installments, setInstallments] = useState('');
   const [rate, setRate] = useState('');
   const [rateKind, setRateKind] = useState<'fija' | 'variable' | null>(null);
+  const [rateUnit, setRateUnit] = useState<RateUnit>('mensual');
   const [payment, setPayment] = useState('');
   const [balance, setBalance] = useState('');
   const [keepCycle, setKeepCycle] = useState(true);
@@ -48,7 +51,8 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
     const n = parseAmount(installments);
     if (installments.trim() && n > 0) dto.remainingInstallments = Math.round(n);
     const r = parseDecimal(rate);
-    if (rate.trim() && !Number.isNaN(r)) dto.interestRate = r;
+    // FIN-056: si la deuda está en EA, la tasa se escribe mensual o anual y viaja en EA.
+    if (rate.trim() && !Number.isNaN(r)) dto.interestRate = d?.rateBasis === 'EA' ? toEA(r, rateUnit) : r;
     if (rateKind && rateKind !== currentKind) dto.rateKind = rateKind;
     const p = parseAmount(payment);
     if (payment.trim() && p > 0) dto.monthlyPayment = p;
@@ -61,7 +65,7 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
     }
     if (!fromNext) dto.effectiveFrom = isoDate(fromDate);
     return dto;
-  }, [installments, rate, rateKind, currentKind, payment, balance, keepCycle, newDay, fromNext, fromDate]);
+  }, [installments, rate, rateUnit, rateKind, currentKind, payment, balance, keepCycle, newDay, fromNext, fromDate, d?.rateBasis]);
 
   const invalidate = () => setPreview(null);
 
@@ -116,7 +120,11 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
         {!informal ? (
           <Field label="Cuotas que faltan" value={installments} onChangeText={(t) => { setInstallments(t); invalidate(); }} keyboardType="numeric" placeholder={d.termMonths ? String(d.termMonths) : '60'} />
         ) : null}
-        <Field label={`Tasa (% ${d.rateBasis})`} value={rate} onChangeText={(t) => { setRate(t); invalidate(); }} keyboardType="decimal-pad" placeholder={String(toNumber(d.interestRate))} />
+        {d.rateBasis === 'EA' ? (
+          <RateInput label="Tasa nueva (si cambió)" value={rate} unit={rateUnit} onChange={(t, u) => { setRate(t); setRateUnit(u); invalidate(); }} placeholder={String(toNumber(d.interestRate))} />
+        ) : (
+          <Field label={`Tasa (% ${d.rateBasis})`} value={rate} onChangeText={(t) => { setRate(t); invalidate(); }} keyboardType="decimal-pad" placeholder={String(toNumber(d.interestRate))} />
+        )}
         <Text style={{ color: colors.text, fontWeight: '600', marginBottom: spacing.xs }}>Tipo de tasa</Text>
         <Row style={{ gap: spacing.sm, marginBottom: spacing.md }}>
           <Chip label="Fija" active={(rateKind ?? currentKind) === 'fija'} onPress={() => { setRateKind('fija'); invalidate(); }} />

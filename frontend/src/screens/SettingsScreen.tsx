@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Field, FormScroll, IconButton, Row } from '../components/ui';
+import { Button, Card, Field, FormScroll, Row } from '../components/ui';
 import { colors, spacing, type } from '../theme/colors';
 import { useAuthStore } from '../store/auth.store';
 import { authApi, billingApi, budgetApi, copilotApi, insightsApi } from '../api/endpoints';
@@ -41,11 +41,10 @@ export function SettingsScreen() {
   // BP-03: datos frescos cada vez que la pantalla gana foco.
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
-  const changeCycleDay = async (delta: number) => {
-    const next = Math.min(28, Math.max(1, cycleDay + delta));
+  const setCycleDayTo = async (next: number) => {
     if (next === cycleDay) return;
     setCycleDay(next);
-    await budgetApi.setCycleDay(next).catch(() => undefined);
+    await budgetApi.setCycleDay(next).catch(() => setMsg('No pude guardar el día de corte. Inténtalo de nuevo.'));
   };
 
   const toggleProactive = async () => {
@@ -129,16 +128,7 @@ export function SettingsScreen() {
       {/* FIN-027: perfil de ingresos — se configura una vez, Millo lo reutiliza (§32). */}
       <SettingLink icon="briefcase-outline" title="Mi perfil de ingresos" sub="Perfil laboral, fuentes y deducciones" onPress={() => navigation.navigate('IncomeProfile')} />
 
-      <Card>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <View style={{ flex: 1, paddingRight: spacing.md }}>
-            <Text style={{ color: colors.text, ...type.body, fontWeight: '700' }}>WhatsApp</Text>
-            <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xxs }}>Registra movimientos por chat.</Text>
-          </View>
-          <Button title="Vincular" variant="secondary" onPress={() => navigation.navigate('LinkWhatsApp')} />
-        </Row>
-      </Card>
-
+      {/* FIN-056 (BT-030): WhatsApp se muestra solo cuando Millo tenga número (hoy no lo hay). */}
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>
           <View style={{ flex: 1, paddingRight: spacing.md }}>
@@ -149,23 +139,32 @@ export function SettingsScreen() {
         </Row>
       </Card>
 
+      {/* FIN-056 (boceto 7): el día de corte se elige en una cuadrícula, no de a un toque. */}
       <Card>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <View style={{ flex: 1, paddingRight: spacing.md }}>
-            <Text style={{ color: colors.text, ...type.body, fontWeight: '700' }}>Ciclo financiero</Text>
-            <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xxs }}>
-              {cycleDay === 1 ? 'Tu presupuesto sigue el mes calendario.' : `Tu ciclo empieza el día ${cycleDay} de cada mes (p. ej. tu fecha de pago).`}
-            </Text>
-            <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.xxs }}>
-              Aplica a Mi mes e Inicio; tu Score sigue el mes calendario.
-            </Text>
-          </View>
-          <Row style={{ gap: spacing.xs }}>
-            <IconButton icon="remove-circle-outline" label="Un día antes" onPress={() => void changeCycleDay(-1)} color={colors.text} size={26} />
-            <Text style={{ color: colors.text, ...type.bodyLg, fontWeight: '800', minWidth: 24, textAlign: 'center' }}>{cycleDay}</Text>
-            <IconButton icon="add-circle-outline" label="Un día después" onPress={() => void changeCycleDay(1)} color={colors.text} size={26} />
-          </Row>
-        </Row>
+        <Text style={{ color: colors.text, ...type.body, fontWeight: '700' }}>¿Qué día empieza tu mes?</Text>
+        <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xxs, marginBottom: spacing.sm }}>
+          Casi siempre es el día que te pagan. Mi mes e Inicio cuentan desde ahí; tu Score sigue el mes calendario.
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => {
+            const on = cycleDay === day;
+            return (
+              <Pressable
+                key={day}
+                onPress={() => void setCycleDayTo(day)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: on }}
+                accessibilityLabel={`Día ${day}`}
+                style={{ width: '12.3%', minHeight: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.primary : colors.surface, borderWidth: on ? 2 : 1, borderColor: on ? colors.primary : colors.border }}
+              >
+                <Text style={{ color: on ? colors.textInverse : colors.text, ...type.body, fontWeight: on ? '800' : '600' }}>{day}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={{ color: colors.primaryDark, ...type.small, fontWeight: '700', marginTop: spacing.sm }}>
+          {cycleDay === 1 ? 'Tu mes va del 1 al último día del mes.' : `Tu mes va del ${cycleDay} al ${cycleDay - 1} del mes siguiente.`}
+        </Text>
       </Card>
 
       <Card>
@@ -184,10 +183,10 @@ export function SettingsScreen() {
           {aiAccepted === null
             ? 'Estado no disponible.'
             : aiAccepted
-              ? 'Activa: tus datos minimizados se usan para respuestas con IA. Puedes revocarlo cuando quieras.'
+              ? 'Activa: tus datos viajan resumidos (sin nombre ni cuentas) a Google Gemini para responderte. Puedes quitar el permiso cuando quieras.'
               : 'Inactiva: el Copiloto responde en modo básico. Actívala desde el Copiloto.'}
         </Text>
-        {aiAccepted ? <Button title="Revocar consentimiento de IA" variant="secondary" onPress={() => void revokeAi()} /> : null}
+        {aiAccepted ? <Button title="Quitar el permiso de IA" variant="secondary" onPress={() => void revokeAi()} /> : null}
         <Button title="Borrar historial del Copiloto" variant="secondary" onPress={deleteHistory} />
       </Card>
 
@@ -205,7 +204,7 @@ export function SettingsScreen() {
         ) : (
           <Button title="Aceptar la política de datos" onPress={() => void acceptPolicy()} loading={busy} />
         )}
-        <Button title="Exportar mis datos (JSON)" variant="secondary" icon="download-outline" onPress={() => void exportData()} loading={busy} />
+        <Button title="Descargar mis datos" variant="secondary" icon="download-outline" onPress={() => void exportData()} loading={busy} />
         {!deleting ? (
           <Button title="Eliminar mi cuenta" variant="ghost" onPress={() => setDeleting(true)} />
         ) : (

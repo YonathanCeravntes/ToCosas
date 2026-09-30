@@ -171,6 +171,7 @@ export class TransactionsService {
           entityId: dto.entityId ?? null,
           debtId: dto.debtId ?? null,
           note: dto.note ?? null,
+          paymentMethod: dto.paymentMethod ?? null,
           tags: dto.tags ?? [],
           clientUuid: dto.clientUuid ?? null,
           source: meta?.source ?? 'app',

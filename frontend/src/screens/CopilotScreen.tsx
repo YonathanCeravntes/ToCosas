@@ -72,6 +72,27 @@ export function CopilotScreen() {
     }, []),
   );
 
+  // FIN-056 (BT-031): al volver, se retoma la conversación de las últimas 2 horas (el
+  // servidor ya la recordaba; la pantalla la mostraba vacía).
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const convs = await copilotApi.conversations();
+        const recent = convs.find((c) => Date.now() - new Date(c.updatedAt).getTime() < 2 * 3_600_000);
+        if (!recent || !alive) return;
+        const msgs = await copilotApi.messages(recent.id);
+        if (!alive || msgs.length === 0) return;
+        setConversationId(recent.id);
+        setItems(msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, source: m.source })));
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 50);
+      } catch {
+        /* sin historial no pasa nada */
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
   const dismissRecommendation = async (id: string) => {
     setRecommendations((prev) => prev.filter((r) => r.id !== id));
     await recommendationsApi.setStatus(id, 'dismissed').catch(() => undefined);
@@ -370,10 +391,8 @@ function Bubble({ item }: { item: ChatItem }) {
         }}
       >
         <Text style={{ color: isUser ? colors.textInverse : colors.text, lineHeight: 21, fontSize: 14 }}>{item.content}</Text>
-        {!isUser && item.source ? (
-          <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>
-            {item.source === 'llm' ? 'IA' : 'instantánea'}
-          </Text>
+        {!isUser && item.source === 'llm' ? (
+          <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>con IA</Text>
         ) : null}
       </View>
       {item.actions?.length ? (

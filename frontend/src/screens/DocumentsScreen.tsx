@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Card, ErrorState, FormScroll, GroupLabel, Ico, IconName, Row, SegmentBar, Skeleton } from '../components/ui';
+import { Button, Card, ErrorState, FormScroll, GroupLabel, Ico, IconName, Row, SegmentBar, Skeleton } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney } from '../utils/format';
-import { DocKind, DocumentItem, DocumentsSummary, DocsConsent } from '../api/types';
-import { documentsApi } from '../api/endpoints';
+import { DocKind, DocumentIntake, DocumentItem, DocumentsSummary, DocsConsent } from '../api/types';
+import { documentsApi, transactionsApi } from '../api/endpoints';
 import { confirmRemove } from '../utils/confirm';
 
 /**
@@ -102,6 +102,9 @@ export function DocumentsScreen() {
       {!consent.accepted ? <ConsentCard onDone={setConsent} /> : null}
 
       <YearCard summary={summary} />
+
+      {/* FIN-056 (boceto 6): subir una foto o PDF desde la app, sin pasar por Telegram. */}
+      {consent.accepted ? <UploadCard onSaved={load} /> : null}
 
       {/* Pestañas */}
       <Row style={{ gap: spacing.sm, marginTop: spacing.xs }}>
@@ -321,8 +324,8 @@ function ConsentCard({ onDone }: { onDone: (c: DocsConsent) => void }) {
         <View style={{ flex: 1 }}>
           <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>Millo va a guardar tus documentos</Text>
           <Text style={{ color: colors.textMuted, ...type.small, marginTop: 4, lineHeight: 19 }}>
-            Guardamos tus facturas, extractos y certificados cifrados para armar tus informes y el borrador de tu renta. Un servicio de
-            inteligencia artificial los lee para sacar los datos; no guardamos tu cédula ni tus números de cuenta.
+            Guardamos tus facturas, extractos y certificados cifrados para armar tus informes y el borrador de tu renta. La inteligencia
+            artificial de Millo (Google Gemini, EE. UU.) los lee para sacar los datos; no guardamos tu cédula ni tus números de cuenta.
           </Text>
           {more ? (
             <Text style={{ color: colors.textMuted, ...type.small, marginTop: 6, lineHeight: 19 }}>
@@ -387,6 +390,139 @@ function PrivacyFooter({ consent, onChanged }: { consent: DocsConsent; onChanged
         </Card>
       ) : null}
     </View>
+  );
+}
+
+/**
+ * FIN-056 (boceto 6) · Subir desde la app. En la web se usa el selector de archivos del
+ * navegador (en el celular abre la cámara o la galería). En la app instalada hace falta
+ * un módulo nativo que no viaja por OTA: hasta la próxima versión, se indica Telegram.
+ */
+function UploadCard({ onSaved }: { onSaved: () => Promise<unknown> }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<DocumentIntake | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [registering, setRegistering] = useState(false);
+  const [registered, setRegistered] = useState(false);
+  const cameraRef = React.useRef<HTMLInputElement | null>(null);
+  const fileRef = React.useRef<HTMLInputElement | null>(null);
+
+  const send = async (file: File) => {
+    setBusy(true);
+    setError(null);
+    setResult(null);
+    setRegistered(false);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const r = await documentsApi.upload(form);
+      setResult(r);
+      if (r.status === 'guardado') await onSaved();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onPick = (ev: { target: { files?: FileList | null; value?: string } }) => {
+    const f = ev.target.files?.[0];
+    if (f) void send(f);
+    if (ev.target) ev.target.value = '';
+  };
+
+  const registerProposal = async () => {
+    if (!result || result.status !== 'guardado' || !result.proposal) return;
+    setRegistering(true);
+    setError(null);
+    try {
+      const p = result.proposal;
+      const tx = await transactionsApi.create({
+        kind: 'gasto',
+        amount: p.amount,
+        occurredAt: `${p.occurredAt}T12:00:00.000Z`,
+        note: p.merchant ?? undefined,
+        paymentMethod: p.paymentMethod === 'desconocido' ? undefined : p.paymentMethod,
+      });
+      await documentsApi.link(result.document.id, tx.id).catch(() => undefined);
+      setRegistered(true);
+      await onSaved();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  const statusText = (r: DocumentIntake): string => {
+    switch (r.status) {
+      case 'guardado': return r.summary;
+      case 'no_reconocido': return `No reconocí una factura, extracto ni certificado con datos suficientes${r.notes ? ` (${r.notes})` : ''}. Prueba con una foto más nítida.`;
+      case 'ia_no_disponible': return 'La lectura con IA no está disponible en este momento. Inténtalo en unos minutos.';
+      case 'formato_no_soportado': return 'Solo puedo leer fotos (JPG, PNG) o PDF.';
+      case 'salud_sin_permiso': return 'Es una factura de salud y no autorizaste guardarlas. Puedes activarlo abajo, en Privacidad de mis documentos.';
+      default: return 'Primero acepta que Millo guarde tus documentos.';
+    }
+  };
+
+  const isWeb = Platform.OS === 'web';
+  return (
+    <Card style={{ borderColor: colors.primary, borderWidth: 2, borderStyle: 'dashed' }}>
+      <Row style={{ gap: spacing.sm, alignItems: 'center' }}>
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Ico name="cloud-upload-outline" color={colors.primaryDark} size={20} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>Subir una factura, extracto o certificado</Text>
+          <Text style={{ color: colors.textMuted, ...type.small }}>Millo lo lee, lo guarda y te propone el gasto: tú confirmas.</Text>
+        </View>
+      </Row>
+      {isWeb ? (
+        <>
+          {React.createElement('input', { ref: cameraRef, type: 'file', accept: 'image/*', capture: 'environment', style: { display: 'none' }, onChange: onPick })}
+          {React.createElement('input', { ref: fileRef, type: 'file', accept: 'image/*,application/pdf', style: { display: 'none' }, onChange: onPick })}
+          <Row style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <Button title="Tomar foto" icon="camera-outline" onPress={() => cameraRef.current?.click()} loading={busy} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button title="Elegir archivo" icon="document-outline" variant="secondary" onPress={() => fileRef.current?.click()} disabled={busy} />
+            </View>
+          </Row>
+        </>
+      ) : (
+        <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.sm, lineHeight: 18 }}>
+          En la app instalada, por ahora, mándasela a Millo por Telegram: la reconoce y la guarda aquí. Tomar la foto desde esta pantalla llega en la próxima versión de la app.
+        </Text>
+      )}
+      <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.xs }}>También puedes mandarlo por Telegram, como hasta ahora.</Text>
+
+      {error ? <Text style={{ color: colors.danger, ...type.small, marginTop: spacing.sm }}>{error}</Text> : null}
+      {result ? (
+        <View style={{ marginTop: spacing.sm, backgroundColor: result.status === 'guardado' ? colors.successSoft : colors.warningSoft, borderRadius: radius.sm, padding: spacing.sm }}>
+          <Text style={{ color: colors.text, ...type.small, lineHeight: 18 }}>{statusText(result)}</Text>
+          {result.status === 'guardado' && result.proposal && !result.proposal.alreadyRegistered ? (
+            registered ? (
+              <Text style={{ color: colors.primaryDark, ...type.small, fontWeight: '700', marginTop: 6 }}>✅ Gasto registrado y enlazado a la factura.</Text>
+            ) : (
+              <View style={{ marginTop: spacing.sm }}>
+                <Text style={{ color: colors.text, ...type.small, fontWeight: '700' }}>
+                  ¿Registro el gasto de {formatMoney(result.proposal.amount)}{result.proposal.merchant ? ` en ${result.proposal.merchant}` : ''} ({result.proposal.occurredAt})?
+                </Text>
+                <Row style={{ gap: spacing.sm, marginTop: 6 }}>
+                  <Pressable onPress={() => void registerProposal()} disabled={registering} accessibilityRole="button" style={{ backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 8, paddingHorizontal: 14 }}>
+                    <Text style={{ color: colors.textInverse, fontWeight: '800', ...type.small }}>{registering ? 'Registrando…' : 'Sí, registrarlo'}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setResult({ ...result, proposal: null })} accessibilityRole="button" style={{ paddingVertical: 8, paddingHorizontal: 8 }}>
+                    <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '700' }}>No, solo guardarla</Text>
+                  </Pressable>
+                </Row>
+              </View>
+            )
+          ) : null}
+        </View>
+      ) : null}
+    </Card>
   );
 }
 

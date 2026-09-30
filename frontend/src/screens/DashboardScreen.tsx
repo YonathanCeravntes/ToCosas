@@ -225,8 +225,8 @@ export function DashboardScreen() {
         <>
           <GroupLabel
             title="En qué se te va"
-            action={d.expense.byCategory.length > 3 ? 'Ver todo' : undefined}
-            onAction={() => navigation.navigate('Budget')}
+            action="Ver todo"
+            onAction={() => navigation.navigate('Categories')}
           />
           <Card>
             {d.expense.byCategory.slice(0, 3).map((c) => (
@@ -259,7 +259,7 @@ export function DashboardScreen() {
             return (
               <Pressable
                 key={t.id}
-                onPress={() => setEditing({ id: t.id, kind: t.kind, amount: t.amount, occurredAt: t.occurredAt, note: t.note })}
+                onPress={() => setEditing({ id: t.id, kind: t.kind, amount: t.amount, occurredAt: t.occurredAt, note: t.note, categoryId: t.categoryId })}
                 accessibilityRole="button"
                 accessibilityLabel={`Editar ${t.note || t.category?.name || t.debtName || t.kind}`}
               >
@@ -309,7 +309,7 @@ export function DashboardScreen() {
       ) : !loading ? (
         <Card>
           <Text style={{ color: colors.textMuted, ...type.body }}>
-            Aún no registras movimientos. Usa el botón central o WhatsApp/Telegram.
+            Aún no registras movimientos. Usa el botón central o escríbele a Millo por Telegram.
           </Text>
           <Button title="Registrar el primero" onPress={() => navigation.navigate('Main', { screen: 'Add' } as never)} />
         </Card>
@@ -380,7 +380,7 @@ function ProgressLine({ profile }: { profile: GamificationProfile }) {
           <Row style={{ gap: spacing.xs }}>
             <Ionicons name="flame" size={16} color={colors.accent} />
             <Text style={{ color: colors.text, ...type.small }}>
-              {profile.streak.current} sem · Nivel {profile.level.number} ({profile.level.name})
+              {profile.streak.current} semana{profile.streak.current === 1 ? '' : 's'} seguida{profile.streak.current === 1 ? '' : 's'} · Nivel {profile.level.number} ({profile.level.name})
             </Text>
           </Row>
           <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>{profile.xp} XP →</Text>
