@@ -798,3 +798,42 @@ export interface CashflowPlan {
   firstFrees: number;
   dueDates: Record<string, string | null>;
 }
+
+// --- FIN-054 · Mis documentos ---
+export type DocKind = 'extracto_tarjeta' | 'extracto_credito' | 'extracto_cuenta' | 'factura' | 'comprobante' | 'certificado';
+export type DocPayment = 'tarjeta' | 'transferencia' | 'efectivo' | 'desconocido';
+
+export interface DocumentItem {
+  id: string;
+  kind: DocKind;
+  issuer: string | null;
+  number: string | null;
+  electronic: boolean;
+  docDate: string | null;
+  total: number | null;
+  tax: number | null;
+  paymentMethod: DocPayment;
+  isHealth: boolean;
+  certificateType: string | null;
+  hasFile: boolean;
+  transactionId: string | null;
+  debtId: string | null;
+  source: string;
+  createdAt: string;
+}
+
+export interface DocumentsSummary {
+  year: number;
+  uvt: number;
+  invoices: { count: number; total: number; electronicPaid: number; cash: number; unknown: number; deduction: number; cap: number; electronicCount: number };
+  counts: { facturas: number; extractos: number; certificados: number };
+  filesEnabled: boolean;
+}
+
+export interface DocsConsent {
+  accepted: boolean;
+  acceptedAt: string | null;
+  health: boolean;
+  filesEnabled: boolean;
+  deleted?: number;
+}

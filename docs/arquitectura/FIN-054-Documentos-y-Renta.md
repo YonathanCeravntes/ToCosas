@@ -1,6 +1,6 @@
 # FIN-054 · Mis documentos: facturas, extractos, certificados y borrador de renta
 
-- **Fecha:** 2026-09-30 · **Estado:** diseño aprobado en lo esencial; bocetos en revisión; privacidad investigada (pendiente revisión de abogado)
+- **Fecha:** 2026-09-30 · **Estado:** Fase 1 implementada (clasificación, bóveda, pantalla opción 1, permiso). Pendiente: claves de R2 en Render, revisión de abogado; siguientes fases: informes y borrador de renta.
 - **Pedido del Fundador:** "Que la app vaya creando un backup de toda la información del usuario (extractos, facturas…) y que, cuando tenga que declarar renta, le presente la declaración; si no tiene que declarar, un informe. Informes trimestrales, semestrales y anuales. La factura queda guardada y se puede descargar."
 
 ## 1. Decisiones del Fundador (2026-09-30)
@@ -64,6 +64,15 @@ Responsable y contacto · datos que se tratan (identificación, financieros, doc
 3. **Manage R2 API Tokens** → token con permiso *Object Read & Write* solo para ese bucket.
 4. En Render (`milla-backend` → Environment): `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET=millo-documentos`.
 Sin estas variables, Millo guarda los **datos** de cada documento pero no el archivo, y lo dice.
+
+## 8. Implementado (2026-09-30) — Fase 1
+- **Bóveda** (`modules/documents/`): tabla `documents` (migración `20260930120000_fin054_documents`), permisos `docs_storage_consent_at` y `docs_health_consent` (opt-in). Un CUFE se guarda una sola vez por usuario.
+- **Archivos en R2** (`storage.service.ts`): bucket privado, descarga con enlace firmado de 5 min; sin las variables `R2_*` se guardan solo los datos (la app y el bot lo dicen). Borrar un documento, revocar con "borrar todo" o la purga de la cuenta borran también el archivo.
+- **API:** `GET/POST /documents/consent`, `POST /documents/consent/revoke`, `GET /documents/summary?year`, `GET /documents?year&kind`, `GET /documents/:id/download`, `DELETE /documents/:id`, `POST /documents/export-link` → `GET /documents/export/:token` (.zip con archivos + `resumen-AAAA.csv`, enlace firmado de 5 min).
+- **Bot:** la IA clasifica 7 tipos (`extracto_tarjeta`, `extracto_credito`, `extracto_cuenta`, `factura_electronica`, `comprobante`, `certificado`, `desconocido`) y lee NIT del vendedor, número, CUFE, IVA, medio de pago, salud, tipo y año de certificado. Extractos de tarjeta/crédito → deuda (como FIN-042); extracto de cuenta y certificado → solo se archivan y se explica para qué sirven; factura/comprobante → se archiva y se propone el gasto, o se **enlaza** si ya estaba registrado. Comandos: *guardar documentos* (aviso de privacidad), *acepto guardar* [*con salud*], *incluir salud*, *no guardar documentos*.
+- **App:** Más → **Mis documentos** (opción 1): año, permiso, tarjeta del año con la deducción del 1% (resta de la base), pestañas, lista por mes con etiqueta "Cuenta para tu renta / Efectivo: no cuenta / Sin factura electrónica", descargar y borrar, descargar todo (.zip), privacidad (salud, dejar de guardar, borrar todo).
+- **Portabilidad:** la exportación de datos (`/auth/me/export`) incluye los documentos.
+- **Verificación:** unit 446/446, e2e 124/124 (nuevo `fin054-documentos`; 5 casos nuevos del bot en `document-flow.spec`). Web revisada con Playwright. La subida real a R2 se verifica cuando estén las claves en Render.
 
 ## Fuentes
 - Topes 2026: https://www.portafolio.co/economia/impuestos/declaracion-de-renta-en-2026-asi-quedaron-los-topes-tras-el-aumento-de-la-uvt-que-anuncio-el-gobierno-484974

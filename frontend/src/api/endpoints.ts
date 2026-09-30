@@ -48,6 +48,9 @@ import {
   RenegotiateInput,
   RenegotiationPreview,
   RenegotiationRecord,
+  DocsConsent,
+  DocumentItem,
+  DocumentsSummary,
 } from './types';
 
 export const authApi = {
@@ -390,3 +393,16 @@ export interface StrategyComparison {
   recommended: string;
   interestDifference: number;
 }
+
+// FIN-054 · Mis documentos (facturas, extractos, certificados).
+export const documentsApi = {
+  consent: () => api.get<DocsConsent>('/documents/consent'),
+  grant: (health: boolean) => api.post<DocsConsent>('/documents/consent', { health }),
+  revoke: (deleteAll: boolean) => api.post<DocsConsent>('/documents/consent/revoke', { deleteAll }),
+  summary: (year: number) => api.get<DocumentsSummary>(`/documents/summary?year=${year}`),
+  list: (year: number, kind?: 'facturas' | 'extractos' | 'certificados') =>
+    api.get<DocumentItem[]>(`/documents?year=${year}${kind ? `&kind=${kind}` : ''}`),
+  download: (id: string) => api.get<{ url: string }>(`/documents/${id}/download`),
+  remove: (id: string) => api.delete<{ deleted: boolean }>(`/documents/${id}`),
+  exportLink: (year: number) => api.post<{ url: string }>(`/documents/export-link?year=${year}`, {}),
+};

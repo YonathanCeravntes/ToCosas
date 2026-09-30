@@ -18,6 +18,7 @@ const SECTIONS: Array<{ title: string; items: Item[] }> = [
       { icon: 'list-outline', title: 'Movimientos', sub: 'Historial completo con filtros y búsqueda', to: 'Transactions' },
       { icon: 'business-outline', title: 'Cuentas y patrimonio', sub: 'Saldos, activos y fondo de emergencia', to: 'Accounts' },
       { icon: 'briefcase-outline', title: 'Mi perfil de ingresos', sub: 'Fuentes, deducciones y neto mensual', to: 'IncomeProfile' },
+      { icon: 'folder-open-outline', title: 'Mis documentos', sub: 'Facturas, extractos y certificados para tu renta', to: 'Documents' },
     ],
   },
   {

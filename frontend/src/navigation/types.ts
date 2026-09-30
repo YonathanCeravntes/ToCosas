@@ -33,6 +33,8 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Main: NavigatorScreenParams<MainTabsParamList>;
   Budget: undefined;
+  // FIN-054: facturas, extractos y certificados.
+  Documents: undefined;
   Copilot: undefined;
   Settings: undefined;
   // FIN-038: historial completo de movimientos con filtros.
