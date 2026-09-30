@@ -1,8 +1,9 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type AuthStackParamList = {
-  Login: undefined;
-  Register: undefined;
+  // BT-025: el correo viaja entre Ingresar y Crear cuenta (no se vuelve a escribir).
+  Login: { email?: string } | undefined;
+  Register: { email?: string } | undefined;
   // FIN-039: recuperar contraseña (correo → código → nueva clave).
   ForgotPassword: { email?: string } | undefined;
 };

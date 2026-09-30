@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Field } from '../../components/ui';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { useAuthStore } from '../../store/auth.store';
+import { authApi } from '../../api/endpoints';
+import { ExistingAccountNotice } from '../../components/ExistingAccountNotice';
 import { AuthStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
@@ -16,9 +18,32 @@ const PILLARS: Array<[React.ComponentProps<typeof Ionicons>['name'], string]> = 
   ['chatbubble-ellipses-outline', 'Un copiloto que te explica'],
 ];
 
-export function LoginScreen({ navigation }: Props) {
+export function LoginScreen({ navigation, route }: Props) {
   const { login, loading, error } = useAuthStore();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(route.params?.email ?? '');
+  // BT-025: si el correo escrito ya tiene cuenta, "Crear cuenta" lo dice y ofrece ingresar.
+  const [existing, setExisting] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const passwordRef = React.useRef<TextInput>(null);
+
+  React.useEffect(() => {
+    if (route.params?.email) setEmail(route.params.email);
+  }, [route.params?.email]);
+
+  const goRegister = async () => {
+    const e = email.trim();
+    if (!/^\S+@\S+\.\S+$/.test(e)) return navigation.navigate('Register', e ? { email: e } : undefined);
+    setChecking(true);
+    try {
+      const { exists } = await authApi.emailStatus(e);
+      if (exists) return setExisting(e);
+    } catch {
+      /* sin conexión: el registro volverá a validarlo */
+    } finally {
+      setChecking(false);
+    }
+    navigation.navigate('Register', { email: e });
+  };
   const [password, setPassword] = useState('');
 
   const onSubmit = async () => {
@@ -52,13 +77,22 @@ export function LoginScreen({ navigation }: Props) {
           ))}
         </View>
 
-        <Field label="Correo" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="tucorreo@mail.com" />
-        <Field label="Contraseña" value={password} onChangeText={setPassword} secureTextEntry placeholder="••••••••" />
+        <Field label="Correo" value={email} onChangeText={(t) => { setEmail(t); setExisting(null); }} autoCapitalize="none" keyboardType="email-address" placeholder="tucorreo@mail.com" />
+        <Field ref={passwordRef} label="Contraseña" value={password} onChangeText={setPassword} secureTextEntry placeholder="••••••••" />
+
+        {existing ? (
+          <ExistingAccountNotice
+            email={existing}
+            loginLabel={password ? 'Ingresar ahora' : 'Escribir mi contraseña'}
+            onLogin={() => (password ? void onSubmit() : passwordRef.current?.focus())}
+            onForgot={() => navigation.navigate('ForgotPassword', { email: existing })}
+          />
+        ) : null}
 
         {error ? <Text style={{ color: colors.danger, ...type.body, marginBottom: spacing.sm }}>{error}</Text> : null}
 
         {/* FIN-018 L1-A: la sesión persiste, así que casi siempre entra un usuario NUEVO. */}
-        <Button title="Crear cuenta" onPress={() => navigation.navigate('Register')} />
+        <Button title="Crear cuenta" onPress={() => void goRegister()} loading={checking} />
         <Button title="Ingresar" variant="secondary" onPress={onSubmit} loading={loading} />
         <Pressable
           onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() || undefined })}

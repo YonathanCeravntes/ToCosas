@@ -53,6 +53,8 @@ import {
 export const authApi = {
   register: (email: string, password: string, fullName?: string, acceptsDataPolicy?: boolean) =>
     api.post<AuthResult>('/auth/register', { email, password, fullName, acceptsDataPolicy }),
+  // BT-025: ¿el correo ya tiene cuenta?
+  emailStatus: (email: string) => api.post<{ exists: boolean }>('/auth/email-status', { email }),
   login: (email: string, password: string) =>
     api.post<AuthResult>('/auth/login', { email, password }),
   me: () => api.get<User>('/auth/me'),

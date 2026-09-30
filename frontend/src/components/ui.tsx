@@ -125,11 +125,12 @@ export function IconButton({
   );
 }
 
-export function Field({ label, hint, ...rest }: TextInputProps & { label: string; hint?: string }) {
+export function Field({ label, hint, ref, ...rest }: TextInputProps & { label: string; hint?: string; ref?: React.Ref<TextInput> }) {
   return (
     <View style={{ marginBottom: spacing.md }}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
+        ref={ref}
         placeholderTextColor={colors.textFaint}
         accessibilityLabel={label}
         style={styles.input}

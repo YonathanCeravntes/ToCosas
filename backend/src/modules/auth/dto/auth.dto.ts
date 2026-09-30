@@ -63,6 +63,13 @@ export class ForgotPasswordDto {
   email!: string;
 }
 
+/** BT-025: ¿este correo ya tiene cuenta? (para no mandar a crearla de nuevo). */
+export class EmailStatusDto {
+  @ApiProperty({ example: 'juan@mail.com' })
+  @IsEmail()
+  email!: string;
+}
+
 export class ResetPasswordDto {
   @ApiProperty({ example: 'juan@mail.com' })
   @IsEmail()

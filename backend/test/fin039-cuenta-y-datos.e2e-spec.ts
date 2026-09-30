@@ -68,6 +68,16 @@ describe('FIN-039 · Cuenta y datos (Ley 1581) + FIN-038 historial', () => {
     expect(me2.data.onboardingDone).toBe(true);
   });
 
+  it('BT-025: email-status dice si el correo ya tiene cuenta (sin sesión, sin importar mayúsculas)', async () => {
+    const yes = await req('POST', '/v1/auth/email-status', { email: `  ${email.toUpperCase()} ` }, false);
+    expect(yes.status).toBe(400); // espacios alrededor: no es un correo válido para el validador
+    const ok = await req('POST', '/v1/auth/email-status', { email: email.toUpperCase() }, false);
+    expect(ok.status).toBe(200);
+    expect(ok.data).toEqual({ exists: true });
+    const no = await req('POST', '/v1/auth/email-status', { email: `nadie-${Date.now()}@millo.test` }, false);
+    expect(no.data).toEqual({ exists: false });
+  });
+
   it('historial: GET /transactions acepta q/limit/before e incluye categoría y deuda', async () => {
     const cats = await req('GET', '/v1/categories?kind=gasto');
     const cat = cats.data[0];
