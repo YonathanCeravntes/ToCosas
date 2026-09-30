@@ -1,0 +1,62 @@
+# FIN-041 · Millo web (PWA) en GitHub Pages.
+# Publica la versión web del frontend en https://yonathanceravntes.github.io/ToCosas/
+# cada vez que cambia `frontend/` en las ramas listadas. Requiere, UNA vez, en el repo:
+# Settings → Pages → Build and deployment → Source: "GitHub Actions".
+# No toca el APK ni el OTA: es otro artefacto del mismo código.
+name: Web (GitHub Pages)
+
+on:
+  push:
+    branches: [claude/finance-app-design-pr8qd5, chat, main]
+    paths: ['frontend/**', '.github/workflows/web.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Export web
+        run: npx expo export --platform web --output-dir dist
+        env:
+          CI: '1'
+          EXPO_PUBLIC_API_URL: https://milla-backend.onrender.com/v1
+          # La app vive bajo /ToCosas/ en GitHub Pages (ver app.config.js).
+          EXPO_WEB_BASE_URL: /ToCosas
+          # Ajustes muestra este código en la web: así se sabe qué versión tiene el teléfono.
+          EXPO_PUBLIC_BUILD_ID: ${{ github.sha }}
+      - name: SPA fallback
+        run: cp dist/index.html dist/404.html
+      - name: "Versión publicada (BT-022, la app avisa cuando hay una nueva)"
+        run: echo "{\"build\":\"${{ github.sha }}\"}" > dist/version.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

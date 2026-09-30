@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <!-- BT-022: la portada no se guarda en caché (así el iPhone toma la versión nueva). -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <!-- viewport-fit=cover: la app usa todo el alto en iPhone con notch (los insets los maneja safe-area-context). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+    <title>%WEB_TITLE%</title>
+
+    <!-- FIN-041 · Millo como web app instalable (PWA): "Añadir a pantalla de inicio" en iPhone/Android. -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0B6E4F" />
+    <meta name="application-name" content="Millo" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Millo" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+    <meta name="description" content="Millo: tu dinero, claro. Cuánto te queda, tus deudas y tu salud financiera." />
+
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        background: #f6f8f7;
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        overflow: hidden;
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overscroll-behavior: none;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+      /* Ancho de teléfono en pantallas grandes: Millo es una app de bolsillo. */
+      @media (min-width: 640px) {
+        #root {
+          max-width: 480px;
+          margin: 0 auto;
+          box-shadow: 0 0 0 1px #e2e8e5;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>Millo necesita JavaScript para funcionar.</noscript>
+    <div id="root"></div>
+    <!-- BT-023: si la app no llega a dibujarse (pantalla en blanco en el iPhone), en vez de
+         blanco se muestra qué pasó y un botón para recargar. Solo lectura: no toca datos. -->
+    <script>
+      (function () {
+        var errs = [];
+        window.addEventListener('error', function (e) {
+          errs.push((e.message || 'error') + ' @ ' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || ''));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          var r = e && e.reason;
+          errs.push('promesa: ' + ((r && r.message) || r));
+        });
+        setTimeout(function () {
+          var root = document.getElementById('root');
+          var empty = !root || (!root.innerText.trim() && !root.querySelector('[role="progressbar"]'));
+          if (!empty) return;
+          var d = document.createElement('div');
+          d.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;justify-content:center;padding:24px;font-family:-apple-system,system-ui,sans-serif;background:#F6F8F7;color:#12211C;z-index:9999';
+          d.innerHTML = '<h2 style="color:#0B6E4F;margin:0 0 8px">Millo no pudo abrir</h2>' +
+            '<p style="margin:0 0 12px;line-height:1.4">Toca Recargar. Si se repite, envía una captura de esta pantalla.</p>' +
+            '<button style="padding:14px;border-radius:12px;border:0;background:#0B6E4F;color:#fff;font-size:16px;font-weight:700">Recargar</button>' +
+            '<pre style="white-space:pre-wrap;font-size:11px;color:#5B6B64;margin-top:16px"></pre>';
+          d.querySelector('button').onclick = function () { location.reload(); };
+          d.querySelector('pre').textContent = (errs.join('\n') || 'La app no respondió.') + '\n' + navigator.userAgent + '\n' + location.href;
+          document.body.appendChild(d);
+        }, 9000);
+      })();
+    </script>
+  </body>
+</html>

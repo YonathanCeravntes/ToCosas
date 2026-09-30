@@ -1,0 +1,40 @@
+# FIN-046 Fase 3 · Despertador de Millo (gratis).
+# Render free se duerme y sus tareas programadas no corren si nadie usa la app.
+# Cada mañana (6:50 a. m. de Colombia) este flujo despierta el backend y le pide el
+# recorrido diario: avisos, recordatorios de cuotas, "te sobró plata" y, los domingos,
+# el resumen semanal por Telegram.
+#
+# Requiere UNA vez, en GitHub → Settings → Secrets and variables → Actions:
+#   CRON_SECRET = la misma clave configurada en Render (variable CRON_SECRET).
+# GitHub solo ejecuta los flujos programados desde la rama principal (`chat`).
+name: Despertador Millo
+
+on:
+  schedule:
+    - cron: '50 11 * * *' # 11:50 UTC = 6:50 a. m. Bogotá
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Despertar el backend y correr el recorrido diario
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BACKEND: https://milla-backend.onrender.com/v1
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "Falta el secreto CRON_SECRET en GitHub (Settings → Secrets → Actions)."; exit 1
+          fi
+          # El primer intento puede tardar ~1 min mientras Render se despierta.
+          curl -sS --fail-with-body --retry 5 --retry-delay 20 --retry-all-errors --max-time 280 \
+            -X POST "$BACKEND/internal/cron/daily?wait=1" \
+            -H "x-cron-secret: $CRON_SECRET" | tee resultado.json
+          echo
+          if grep -q '"ok":false' resultado.json; then
+            echo "Algún paso del recorrido falló (ver arriba)."; exit 1
+          fi
