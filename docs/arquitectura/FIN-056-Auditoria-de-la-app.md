@@ -25,6 +25,9 @@ Las 26 pantallas de la app (código, no capturas), la navegación y las partes d
 ### Carga de pantallas (BT-037, reportado por el Fundador con capturas)
 Esqueleto blanco (ya no el hero verde viejo), sin "$ 0" mientras carga, y caché de la última respuesta por pantalla (`offline/screenCache.ts` sobre `sync_meta`/localStorage; `useApi(fetcher, deps, { cacheKey })`): la app pinta al instante lo de la última vez y refresca en silencio. Se borra al cerrar sesión.
 
+### Aviso de versión nueva (pedido del Fundador, 2026-09-30)
+`components/UpdateBanner.tsx` (reemplaza a `WebUpdateBanner`): en la app instalada, `expo-updates` revisa al abrir, al volver del segundo plano y cada 10 minutos; si hay una versión nueva la descarga y muestra "Hay una versión nueva de Millo · Actualizar", que la aplica al instante (`reloadAsync`) sin cerrar la app. Antes solo se aplicaba en el siguiente arranque. En la web se mantiene la consulta a `version.json`. Esto llega con el OTA siguiente; a partir de ahí, cada OTA nuevo se ofrece solo.
+
 ## 3. Decisiones tomadas por el Arquitecto (pendientes de confirmar por el Fundador)
 | Decisión | Por qué | Alternativa si el Fundador no está de acuerdo |
 | --- | --- | --- |
