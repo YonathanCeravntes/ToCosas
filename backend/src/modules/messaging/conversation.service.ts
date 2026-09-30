@@ -421,21 +421,23 @@ export class ConversationService {
   private async handleStorageConsent(userId: string, text: string): Promise<string | null> {
     const docs = this.documents();
     if (!docs) return null;
-    if (/^guardar\s+(mis\s+)?documentos\b/i.test(text)) return STORAGE_CONSENT_TEXT;
-    if (/^acepto\s+guardar\b/i.test(text)) {
-      const health = /salud/i.test(text);
+    // BT-026: singular o plural, mayúsculas, tildes y frases cercanas ("guarda mis documentos").
+    const t = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    if (/^no\s+(guardar|guardes)\s+(mis\s+|los\s+|las\s+)?(documentos?|facturas?)\b/.test(t)) {
+      await docs.revokeConsent(userId, false);
+      return '✅ Listo, no guardaré más documentos. Lo que ya estaba sigue en Mis documentos; ahí puedes descargarlo o borrarlo.';
+    }
+    if (/^(quiero\s+)?(guardar|guarda|guardame)\s+(mis\s+|los\s+|las\s+|el\s+|la\s+|un\s+)?(documentos?|facturas?)\b/.test(t)) return STORAGE_CONSENT_TEXT;
+    if (/^acepto\s+guardar\b/.test(t)) {
+      const health = /salud/.test(t);
       await docs.grantConsent(userId, health);
       return `✅ Listo: desde ahora guardo tus documentos en *Mis documentos* (app → Más). ${health ? 'Incluye facturas de salud.' : 'Las facturas de salud no las guardo; si quieres incluirlas, escribe *incluir salud*.'}`;
     }
-    if (/^incluir\s+salud\b/i.test(text)) {
+    if (/^incluir\s+(las\s+de\s+)?salud\b/.test(t)) {
       const st = await docs.consentStatus(userId);
       if (!st.accepted) return STORAGE_CONSENT_TEXT;
       await docs.grantConsent(userId, true);
       return '✅ Listo: también guardaré tus facturas de salud (farmacia, EPS, medicina prepagada). Puedes quitarlo en la app, en Mis documentos.';
-    }
-    if (/^no\s+guardar\s+(mis\s+)?documentos\b/i.test(text)) {
-      await docs.revokeConsent(userId, false);
-      return '✅ Listo, no guardaré más documentos. Lo que ya estaba sigue en Mis documentos; ahí puedes descargarlo o borrarlo.';
     }
     return null;
   }

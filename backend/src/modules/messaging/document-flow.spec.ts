@@ -234,4 +234,12 @@ describe('ConversationService · documentos (FIN-042)', () => {
     expect(vault.grantConsent).toHaveBeenCalledWith('u1', false);
     expect(ok).toContain('incluir salud');
   });
+
+  it('BT-026: "Guardar documento" (singular, mayúscula) también muestra el aviso; "no guardes mis facturas" revoca', async () => {
+    const { svc, vault } = build();
+    expect(await svc.handle(input({ text: 'Guardar documento' }))).toContain('acepto guardar');
+    expect(await svc.handle(input({ text: 'guárdame las facturas' }))).toContain('acepto guardar');
+    await svc.handle(input({ text: 'No guardes mis facturas' }));
+    expect(vault.revokeConsent).toHaveBeenCalledWith('u1', false);
+  });
 });

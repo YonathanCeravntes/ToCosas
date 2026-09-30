@@ -156,9 +156,8 @@ export class AnthropicClient {
       | { type: 'tool_use'; id: string; name: string; input: unknown }
       | { type: 'tool_result'; tool_use_id: string; content: string };
 
-    const messages: Array<{ role: string; content: string | ContentBlock[] }> = [
-      ...history.map((m) => ({ role: m.role, content: m.content })),
-    ];
+    const messages: Array<{ role: string; content: string | ContentBlock[] }> = normalizeHistory(history);
+    if (messages.length === 0) throw new Error('empty_history');
     // El contexto minimizado viaja como primer bloque del último mensaje de usuario.
     const last = messages[messages.length - 1];
     last.content = `Contexto financiero del usuario (datos ya minimizados):\n${contextJson}\n\nMensaje del usuario: ${last.content as string}`;
@@ -280,6 +279,9 @@ export class AnthropicClient {
           await this.backoff();
           continue;
         }
+        // BT-026: el motivo exacto va al log (antes solo el código y era imposible diagnosticar).
+        const detail = typeof res.text === 'function' ? await res.text().then((t) => t.slice(0, 300)).catch(() => '') : '';
+        this.logger.warn(`Anthropic respondió ${res.status}: ${detail}`);
         throw new Error(`anthropic_http_${res.status}`);
       } catch (e) {
         const msg = (e as Error).message;
@@ -310,4 +312,25 @@ export class AnthropicClient {
   private backoff(): Promise<void> {
     return new Promise((r) => setTimeout(r, LLM_RETRY_BACKOFF_MS));
   }
+}
+
+/**
+ * BT-026 · La API exige que la conversación EMPIECE por el usuario y que los roles
+ * alternen. El historial se recorta a los últimos N mensajes, y el recorte podía
+ * empezar por una respuesta del Copiloto → 400 y "Ahora mismo no puedo usar la IA".
+ * Aquí se descartan las respuestas iniciales y se unen mensajes seguidos del mismo rol.
+ */
+export function normalizeHistory(history: ChatMessage[]): Array<{ role: 'user' | 'assistant'; content: string }> {
+  const out: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  for (const m of history) {
+    const content = (m.content ?? '').trim();
+    if (!content) continue;
+    if (out.length === 0 && m.role !== 'user') continue;
+    const prev = out[out.length - 1];
+    if (prev && prev.role === m.role) prev.content = `${prev.content}\n\n${content}`;
+    else out.push({ role: m.role, content });
+  }
+  // Debe terminar en el mensaje del usuario (el que se está respondiendo).
+  while (out.length && out[out.length - 1].role !== 'user') out.pop();
+  return out;
 }
