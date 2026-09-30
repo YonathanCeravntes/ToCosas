@@ -14,7 +14,10 @@ import { parseRenegotiation, RenegotiationCommand } from './renegotiation-comman
 import { RenegotiateDebtDto } from '../debts/dto/renegotiate.dto';
 import { DebtTypeDto, RateBasisDto, RateKindDto } from '../debts/dto/debt.dto';
 import { DocumentExtractionService, SUPPORTED_MEDIA } from './document-extraction.service';
+import { DocumentsService } from '../documents/documents.service';
+import { looksHealth } from '../documents/documents.util';
 import {
+  DocumentExtraction,
   DocumentProposal,
   PROPOSAL_TTL_MINUTES,
   applyFix,
@@ -120,6 +123,9 @@ export class ConversationService {
       await this.clearPending(input.userId, input.source);
       return '✅ Listo, retiré el permiso: no volveré a enviar tus documentos a la IA hasta que escribas "autorizo".';
     }
+    // FIN-054: permiso para GUARDAR documentos (aparte de leerlos con IA).
+    const storageCmd = await this.handleStorageConsent(input.userId, text);
+    if (storageCmd) return storageCmd;
     if (/^autorizo\b/i.test(text)) {
       await this.prisma.userSettings.upsert({
         where: { userId: input.userId },
@@ -284,7 +290,7 @@ export class ConversationService {
 
   private static readonly DOCS_CONSENT_TEXT =
     '📎 Para leer tu documento lo envío a la inteligencia artificial de Millo (proveedor Anthropic, EE. UU.). ' +
-    'Un extracto contiene datos personales; Millo NO los guarda: solo toma saldo, cupo, cuota, tasa y fechas, y descarta el archivo. ' +
+    'Leerlo no es guardarlo: solo tomo saldo, cupo, cuota, tasa, fechas o el total, y el archivo solo se guarda en *Mis documentos* si lo autorizas aparte. ' +
     'Si estás de acuerdo, responde *autorizo* y vuelve a enviarme el documento. Para retirar el permiso escribe "revocar documentos".';
 
   private async handleDocument(input: ConversationInput): Promise<string> {
@@ -317,13 +323,121 @@ export class ConversationService {
       return '📎 No logré leer el documento ahora mismo. Inténtalo de nuevo en unos minutos o regístralo con un mensaje.';
     }
 
-    const proposal = toProposal(extraction);
-    if (!proposal || extraction.kind === 'desconocido' || (extraction.confidence ?? 0) < 0.35) {
+    if (extraction.kind === 'desconocido' || (extraction.confidence ?? 0) < 0.35) {
       const why = extraction.notes ? ` (${extraction.notes})` : '';
-      return `🤔 No reconocí un extracto ni un comprobante con datos suficientes${why}. Prueba con una foto más nítida, o dime los datos: "Gasté $45.000 en mercado".`;
+      return `🤔 No reconocí un extracto, factura, comprobante ni certificado con datos suficientes${why}. Prueba con una foto más nítida, o dime los datos: "Gasté $45.000 en mercado".`;
+    }
+
+    // FIN-054: cada documento a su lugar. Primero se archiva (con permiso) en Mis documentos.
+    const archive = await this.archiveDocument(userId, input.source, extraction, file);
+    const note = archiveNote(archive);
+
+    if (extraction.kind === 'extracto_cuenta') {
+      const who = extraction.entityName ?? 'tu banco';
+      const bal = extraction.balance != null ? ` Saldo${extraction.statementDate ? ` al ${extraction.statementDate}` : ''}: ${fmt(extraction.balance)}.` : '';
+      return `🏦 Leí tu extracto de cuenta de ${who}.${bal} No es una deuda: sirve para tu patrimonio y tus consignaciones en la renta.${note}`;
+    }
+    if (extraction.kind === 'certificado') {
+      const label = CERT_LABEL[extraction.certificateType ?? 'otro'] ?? 'certificado';
+      const yr = extraction.taxYear ? ` del año ${extraction.taxYear}` : '';
+      const val = extraction.amount != null ? ` Valor principal: ${fmt(extraction.amount)}.` : '';
+      return `📄 Leí tu ${label}${extraction.entityName ? ` de ${extraction.entityName}` : ''}${yr}.${val} Lo usaré en el borrador de tu renta.${note}`;
+    }
+
+    const proposal = toProposal(extraction);
+    if (!proposal) {
+      const why = extraction.notes ? ` (${extraction.notes})` : '';
+      return `🤔 Reconocí el documento pero no los datos suficientes${why}. Prueba con una foto más nítida.${note}`;
+    }
+    if (proposal.kind === 'comprobante') {
+      // FIN-054: si ese gasto ya estaba registrado, la factura solo se enlaza (no se cuenta doble).
+      const docs = this.documents();
+      const match = docs ? await docs.findMatchingExpense(userId, proposal.amount, proposal.occurredAt, proposal.merchant).catch(() => null) : null;
+      if (match) {
+        if (archive.documentId && docs) await docs.linkTransaction(userId, archive.documentId, match.id);
+        return `🧾 Ya tenías registrado ese gasto de ${fmt(proposal.amount)}${proposal.merchant ? ` en ${proposal.merchant}` : ''} (${proposal.occurredAt}): no lo registro de nuevo.${note}`;
+      }
+      proposal.documentId = archive.documentId ?? null;
     }
     await this.savePending(userId, input.source, proposal);
-    return describeProposal(proposal);
+    return describeProposal(proposal) + note;
+  }
+
+  /** FIN-054 · Mis documentos, si está disponible (en pruebas unitarias puede no estarlo). */
+  private documents(): DocumentsService | null {
+    try {
+      return this.moduleRef.get(DocumentsService, { strict: false }) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Guarda el documento en la bóveda si hay permiso (y permiso de salud si aplica). */
+  private async archiveDocument(
+    userId: string,
+    source: ChannelSource,
+    x: DocumentExtraction,
+    file: { data: Buffer; mimeType: string },
+  ): Promise<ArchiveStatus> {
+    const docs = this.documents();
+    if (!docs) return { status: 'off' };
+    const kind =
+      x.kind === 'factura_electronica' ? (x.cufe ? 'factura' : 'comprobante')
+      : x.kind === 'desconocido' ? null
+      : x.kind;
+    if (!kind) return { status: 'off' };
+    const isHealth = x.isHealth ?? looksHealth(x.merchant ?? x.entityName);
+    const isInvoice = kind === 'factura' || kind === 'comprobante';
+    try {
+      const res = await docs.save(
+        userId,
+        {
+          kind,
+          issuer: isInvoice ? x.merchant ?? x.entityName : x.entityName ?? x.merchant,
+          issuerNit: x.issuerNit,
+          number: x.invoiceNumber,
+          cufe: x.cufe,
+          docDate: isInvoice ? x.occurredAt : x.statementDate ?? x.occurredAt,
+          subtotal: x.subtotal,
+          tax: x.tax,
+          total: isInvoice || kind === 'certificado' ? x.amount : x.balance,
+          paymentMethod: x.paymentMethod ?? 'desconocido',
+          isHealth,
+          certificateType: x.certificateType,
+          year: kind === 'certificado' ? x.taxYear : null,
+          source: source as never,
+        },
+        file,
+      );
+      if (!res.saved) return { status: res.reason };
+      return { status: res.duplicate ? 'duplicate' : 'saved', documentId: res.document.id, fileStored: res.fileStored };
+    } catch (e) {
+      this.logger.warn(`No se pudo archivar el documento: ${(e as Error).message}`);
+      return { status: 'off' };
+    }
+  }
+
+  /** "guardar documentos" / "acepto guardar" / "incluir salud" / "no guardar documentos". */
+  private async handleStorageConsent(userId: string, text: string): Promise<string | null> {
+    const docs = this.documents();
+    if (!docs) return null;
+    if (/^guardar\s+(mis\s+)?documentos\b/i.test(text)) return STORAGE_CONSENT_TEXT;
+    if (/^acepto\s+guardar\b/i.test(text)) {
+      const health = /salud/i.test(text);
+      await docs.grantConsent(userId, health);
+      return `✅ Listo: desde ahora guardo tus documentos en *Mis documentos* (app → Más). ${health ? 'Incluye facturas de salud.' : 'Las facturas de salud no las guardo; si quieres incluirlas, escribe *incluir salud*.'}`;
+    }
+    if (/^incluir\s+salud\b/i.test(text)) {
+      const st = await docs.consentStatus(userId);
+      if (!st.accepted) return STORAGE_CONSENT_TEXT;
+      await docs.grantConsent(userId, true);
+      return '✅ Listo: también guardaré tus facturas de salud (farmacia, EPS, medicina prepagada). Puedes quitarlo en la app, en Mis documentos.';
+    }
+    if (/^no\s+guardar\s+(mis\s+)?documentos\b/i.test(text)) {
+      await docs.revokeConsent(userId, false);
+      return '✅ Listo, no guardaré más documentos. Lo que ya estaba sigue en Mis documentos; ahí puedes descargarlo o borrarlo.';
+    }
+    return null;
   }
 
   /** Respuesta a una propuesta viva: sí / no / corrección. Null si no hay propuesta o el texto no le habla. */
@@ -366,7 +480,7 @@ export class ConversationService {
   private async applyProposal(userId: string, source: ChannelSource, p: DocumentProposal): Promise<string> {
     const today = new Date().toISOString().slice(0, 10);
     if (p.kind === 'comprobante') {
-      await this.transactions.create(
+      const tx = await this.transactions.create(
         userId,
         {
           kind: 'gasto' as unknown as TxKindDto,
@@ -376,6 +490,8 @@ export class ConversationService {
         },
         { source, rawMessage: 'comprobante', parseConfidence: 0.8 },
       );
+      // FIN-054: la factura guardada queda enlazada a su gasto.
+      if (p.documentId) await this.documents()?.linkTransaction(userId, p.documentId, tx.id).catch(() => undefined);
       return `✅ Registré tu gasto de ${fmt(p.amount)}${p.merchant ? ` en ${p.merchant}` : ''} (${p.occurredAt}).${SEEN_IN_APP}`;
     }
 
@@ -734,3 +850,46 @@ export function looksLikeQuestion(text: string): boolean {
   if (t.includes('?') || t.startsWith('¿')) return true;
   return /^(qu[eé]|cu[aá]nto|cu[aá]l|c[oó]mo|por\s*qu[eé]|me\s+alcanza|puedo|debo|deber[ií]a|conviene|me\s+conviene|ay[uú]dame|expl[ií]came|dime|quiero\s+saber|necesito\s+saber)(?=[\s,.!?]|$)/.test(t);
 }
+
+// ---------------------------------------------------------------------------
+// FIN-054 · Mis documentos
+// ---------------------------------------------------------------------------
+
+type ArchiveStatus =
+  | { status: 'saved' | 'duplicate'; documentId: string; fileStored: boolean }
+  | { status: 'sin_permiso' | 'salud_sin_permiso' | 'off'; documentId?: undefined; fileStored?: undefined };
+
+const CERT_LABEL: Record<string, string> = {
+  ingresos_retenciones: 'certificado de ingresos y retenciones',
+  bancario: 'certificado bancario',
+  intereses_vivienda: 'certificado de intereses de vivienda',
+  medicina_prepagada: 'certificado de medicina prepagada',
+  aportes_voluntarios: 'certificado de aportes voluntarios',
+  otro: 'certificado',
+};
+
+/** Una línea al final de la respuesta: qué pasó con el documento en la bóveda. */
+export function archiveNote(a: ArchiveStatus): string {
+  switch (a.status) {
+    case 'saved':
+      return a.fileStored ? '\n\n📁 Lo guardé en *Mis documentos*.' : '\n\n📁 Guardé sus datos en *Mis documentos*.';
+    case 'duplicate':
+      return '\n\n📁 Este documento ya estaba en *Mis documentos*.';
+    case 'sin_permiso':
+      return '\n\n📁 ¿Quieres que guarde tus documentos para tu renta y poder descargarlos? Escribe *guardar documentos*.';
+    case 'salud_sin_permiso':
+      return '\n\n📁 Es de salud (dato sensible): no la guardé. Si quieres guardar también las de salud, escribe *incluir salud*.';
+    default:
+      return '';
+  }
+}
+
+/** Ley 1581: autorización previa, expresa e informada para GUARDAR documentos. */
+export const STORAGE_CONSENT_TEXT =
+  '📁 *Millo va a guardar tus documentos*\n' +
+  'Guardo tus facturas, extractos y certificados *cifrados* para armar tus informes y el borrador de tu renta. ' +
+  'Un servicio de inteligencia artificial los lee para sacar los datos; no guardo tu cédula ni tus números de cuenta. ' +
+  'Se almacenan en servidores de Estados Unidos (país con protección adecuada según la SIC). ' +
+  'Los conservo 5 años o hasta que los borres. Las facturas de salud son datos sensibles: puedes no autorizarlas. ' +
+  'Puedes descargar o borrar todo cuando quieras en la app (Más → Mis documentos).\n\n' +
+  'Si estás de acuerdo responde *acepto guardar* (o *acepto guardar con salud* para incluir las de salud).';

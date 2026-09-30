@@ -17,7 +17,7 @@ describe('ConversationService · documentos (FIN-042)', () => {
     ...over,
   });
 
-  const build = (opts: { consented?: boolean; available?: boolean; extraction?: unknown; pending?: unknown } = {}) => {
+  const build = (opts: { consented?: boolean; available?: boolean; extraction?: unknown; pending?: unknown; vault?: Record<string, jest.Mock> } = {}) => {
     const store: { pending: unknown } = { pending: opts.pending ?? null };
     const prisma = {
       userSettings: {
@@ -41,7 +41,21 @@ describe('ConversationService · documentos (FIN-042)', () => {
     const transactions = { create: jest.fn().mockResolvedValue({ id: 't1' }), remove: jest.fn(), monthlyDashboard: jest.fn() };
     const debts = { create: jest.fn().mockResolvedValue({ debt: { id: 'd1', name: 'Davivienda · Tarjeta Visa' } }) };
     const cards = { registerPurchase: jest.fn().mockResolvedValue({}) };
-    const moduleRef = { get: jest.fn((token: { name: string }) => (token.name === 'DebtsService' ? debts : cards)) };
+    // FIN-054: sin permiso de guardar por defecto (la bóveda tiene sus propias pruebas).
+    const vault = {
+      save: jest.fn().mockResolvedValue({ saved: false, reason: 'sin_permiso' }),
+      findMatchingExpense: jest.fn().mockResolvedValue(null),
+      linkTransaction: jest.fn(),
+      consentStatus: jest.fn().mockResolvedValue({ accepted: false }),
+      grantConsent: jest.fn(),
+      revokeConsent: jest.fn(),
+      ...opts.vault,
+    };
+    const moduleRef = {
+      get: jest.fn((token: { name: string }) =>
+        token.name === 'DebtsService' ? debts : token.name === 'DocumentsService' ? vault : cards,
+      ),
+    };
     const docs = {
       isAvailable: jest.fn().mockReturnValue(opts.available ?? true),
       extract: jest.fn().mockResolvedValue(
@@ -69,7 +83,7 @@ describe('ConversationService · documentos (FIN-042)', () => {
       { create: jest.fn() } as never,
       { sendMessage: jest.fn() } as never,
     );
-    return { svc, prisma, transactions, debts, cards, docs, store };
+    return { svc, prisma, transactions, debts, cards, docs, store, vault };
   };
 
   it('sin consentimiento de documentos: pide "autorizo" y NO descarga ni envía nada', async () => {
@@ -152,5 +166,72 @@ describe('ConversationService · documentos (FIN-042)', () => {
     await svc.handle(input({ type: 'image', file }));
     const reply = await svc.handle(input({ text: 'ayuda' }));
     expect(reply).toContain('Puedo ayudarte');
+  });
+
+  // --- FIN-054 · Mis documentos ---
+
+  it('FIN-054: factura electrónica con permiso → se guarda y, al confirmar, queda enlazada a su gasto', async () => {
+    const { svc, vault, transactions } = build({
+      extraction: { kind: 'factura_electronica', merchant: 'Éxito', issuerNit: '890900608-9', cufe: 'ab'.repeat(48), amount: 186_400, occurredAt: '2026-09-28', paymentMethod: 'tarjeta', confidence: 0.9 },
+      vault: { save: jest.fn().mockResolvedValue({ saved: true, duplicate: false, fileStored: true, document: { id: 'doc1' } }) },
+    });
+    const p = await svc.handle(input({ type: 'image', file }));
+    expect(vault.save).toHaveBeenCalledWith('u1', expect.objectContaining({ kind: 'factura', issuer: 'Éxito', paymentMethod: 'tarjeta', total: 186_400 }), expect.anything());
+    expect(p).toContain('factura electrónica');
+    expect(p).toContain('Lo guardé en *Mis documentos*');
+    await svc.handle(input({ text: 'sí' }));
+    expect(transactions.create).toHaveBeenCalled();
+    expect(vault.linkTransaction).toHaveBeenCalledWith('u1', 'doc1', 't1');
+  });
+
+  it('FIN-054: si el gasto ya estaba registrado, la factura solo se enlaza (no propone otro gasto)', async () => {
+    const { svc, vault, store } = build({
+      extraction: { kind: 'factura_electronica', merchant: 'Claro', cufe: 'cd'.repeat(48), amount: 95_000, occurredAt: '2026-09-20', confidence: 0.9 },
+      vault: {
+        save: jest.fn().mockResolvedValue({ saved: true, duplicate: false, fileStored: true, document: { id: 'doc2' } }),
+        findMatchingExpense: jest.fn().mockResolvedValue({ id: 'tx9', note: 'Claro' }),
+      },
+    });
+    const reply = await svc.handle(input({ type: 'image', file }));
+    expect(reply).toContain('Ya tenías registrado ese gasto');
+    expect(vault.linkTransaction).toHaveBeenCalledWith('u1', 'doc2', 'tx9');
+    expect(store.pending).toBeNull();
+  });
+
+  it('FIN-054: extracto de cuenta y certificado NO son deudas ni gastos: se guardan y se explica para qué sirven', async () => {
+    const saved = jest.fn().mockResolvedValue({ saved: true, duplicate: false, fileStored: false, document: { id: 'd' } });
+    const a = build({ extraction: { kind: 'extracto_cuenta', entityName: 'Bancolombia', balance: 3_200_000, statementDate: '2026-08-31', confidence: 0.9 }, vault: { save: saved } });
+    const r1 = await a.svc.handle(input({ type: 'image', file }));
+    expect(r1).toContain('No es una deuda');
+    expect(a.debts.create).not.toHaveBeenCalled();
+    expect(a.store.pending).toBeNull();
+    const b = build({ extraction: { kind: 'certificado', entityName: 'Mi empresa', certificateType: 'ingresos_retenciones', taxYear: 2025, amount: 60_000_000, confidence: 0.9 }, vault: { save: saved } });
+    const r2 = await b.svc.handle(input({ type: 'image', file }));
+    expect(r2).toContain('certificado de ingresos y retenciones');
+    expect(r2).toContain('borrador de tu renta');
+    expect(saved).toHaveBeenLastCalledWith('u1', expect.objectContaining({ kind: 'certificado', year: 2025, certificateType: 'ingresos_retenciones' }), expect.anything());
+  });
+
+  it('FIN-054: sin permiso de guardar, invita a "guardar documentos"; factura de salud sin su permiso no se guarda', async () => {
+    const a = build({ extraction: { kind: 'comprobante', merchant: 'Éxito', amount: 45_000, occurredAt: '2026-09-27', confidence: 0.8 } });
+    expect(await a.svc.handle(input({ type: 'image', file }))).toContain('guardar documentos');
+    const b = build({
+      extraction: { kind: 'comprobante', merchant: 'Farmatodo', amount: 42_300, occurredAt: '2026-09-25', confidence: 0.8 },
+      vault: { save: jest.fn().mockResolvedValue({ saved: false, reason: 'salud_sin_permiso' }) },
+    });
+    const r = await b.svc.handle(input({ type: 'image', file }));
+    expect(b.vault.save).toHaveBeenCalledWith('u1', expect.objectContaining({ isHealth: true }), expect.anything());
+    expect(r).toContain('dato sensible');
+  });
+
+  it('FIN-054: "guardar documentos" muestra el aviso de privacidad y "acepto guardar" da el permiso (sin salud)', async () => {
+    const { svc, vault } = build();
+    const t = await svc.handle(input({ text: 'guardar documentos' }));
+    expect(t).toContain('Estados Unidos');
+    expect(t).toContain('5 años');
+    expect(t).toContain('acepto guardar');
+    const ok = await svc.handle(input({ text: 'acepto guardar' }));
+    expect(vault.grantConsent).toHaveBeenCalledWith('u1', false);
+    expect(ok).toContain('incluir salud');
   });
 });

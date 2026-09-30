@@ -95,7 +95,7 @@ describe('FIN-042 · document-proposal', () => {
 
   it('comprobante → gasto con fecha del documento', () => {
     const p = toProposal({ kind: 'comprobante', merchant: 'Éxito', amount: 45_000, occurredAt: '2026-09-27', confidence: 0.8 });
-    expect(p).toEqual({ kind: 'comprobante', amount: 45_000, merchant: 'Éxito', occurredAt: '2026-09-27' });
+    expect(p).toEqual({ kind: 'comprobante', amount: 45_000, merchant: 'Éxito', occurredAt: '2026-09-27', electronic: false });
     expect(describeProposal(p!)).toContain('¿Lo registro?');
   });
 

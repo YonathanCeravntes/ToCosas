@@ -5,7 +5,17 @@
  * Nada aquí toca la base de datos ni la IA: es la capa "explicable" (§42).
  */
 
-export type DocumentKind = 'extracto_tarjeta' | 'extracto_credito' | 'comprobante' | 'desconocido';
+// FIN-054: se separan extracto de cuenta, factura electrónica (con CUFE) y certificado.
+export type DocumentKind =
+  | 'extracto_tarjeta'
+  | 'extracto_credito'
+  | 'extracto_cuenta'
+  | 'factura_electronica'
+  | 'comprobante'
+  | 'certificado'
+  | 'desconocido';
+
+export type PaymentMethodRead = 'tarjeta' | 'transferencia' | 'efectivo' | 'desconocido';
 
 /** Lo que la IA extrae del documento (todo opcional: el modelo solo llena lo que ve). */
 export interface DocumentExtraction {
@@ -31,6 +41,16 @@ export interface DocumentExtraction {
   merchant?: string | null; // comprobante
   amount?: number | null; // comprobante
   occurredAt?: string | null; // comprobante, YYYY-MM-DD
+  // FIN-054 · factura electrónica y certificados
+  issuerNit?: string | null;
+  invoiceNumber?: string | null;
+  cufe?: string | null;
+  subtotal?: number | null;
+  tax?: number | null;
+  paymentMethod?: PaymentMethodRead | null;
+  isHealth?: boolean | null;
+  certificateType?: string | null;
+  taxYear?: number | null;
   confidence?: number | null; // 0..1
   notes?: string | null;
 }
@@ -70,6 +90,10 @@ export interface ReceiptProposal {
   amount: number;
   merchant: string | null;
   occurredAt: string; // YYYY-MM-DD
+  /** FIN-054: es factura electrónica (tiene CUFE). */
+  electronic?: boolean;
+  /** FIN-054: documento ya guardado en Mis documentos (se enlaza al gasto al confirmar). */
+  documentId?: string | null;
 }
 
 export type DocumentProposal = CardProposal | LoanProposal | ReceiptProposal;
@@ -175,12 +199,13 @@ export function toProposal(x: DocumentExtraction, today = new Date()): DocumentP
       warnings,
     };
   }
-  if (x.kind === 'comprobante' && x.amount != null && x.amount > 0) {
+  if ((x.kind === 'comprobante' || x.kind === 'factura_electronica') && x.amount != null && x.amount > 0) {
     return {
       kind: 'comprobante',
       amount: Math.round(x.amount),
       merchant: x.merchant?.trim() || null,
       occurredAt: x.occurredAt ?? today.toISOString().slice(0, 10),
+      electronic: x.kind === 'factura_electronica' && !!x.cufe,
     };
   }
   return null;
@@ -190,7 +215,7 @@ export function toProposal(x: DocumentExtraction, today = new Date()): DocumentP
 export function describeProposal(p: DocumentProposal): string {
   if (p.kind === 'comprobante') {
     return (
-      `🧾 Leí tu comprobante:\n` +
+      `🧾 Leí tu ${p.electronic ? 'factura electrónica' : 'comprobante'}:\n` +
       `• Gasto de ${fmt(p.amount)}${p.merchant ? ` en ${p.merchant}` : ''}\n` +
       `• Fecha: ${p.occurredAt}\n\n` +
       `¿Lo registro? Responde *sí* o *no*. Para corregir: "monto 45.000", "fecha 2026-09-27".`

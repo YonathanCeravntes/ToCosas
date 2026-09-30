@@ -1,4 +1,6 @@
 import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
+import { DocumentStorageService } from '../documents/storage.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PasswordService } from './password.service';
 
@@ -21,6 +23,7 @@ export class AccountService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   async me(userId: string) {
@@ -59,7 +62,7 @@ export class AccountService {
   }
 
   async exportData(userId: string) {
-    const [user, debts, transactions, accounts, assets, incomeSources, fixedItems, insurances, purchases] =
+    const [user, debts, transactions, accounts, assets, incomeSources, fixedItems, insurances, purchases, documents] =
       await Promise.all([
         this.prisma.user.findUnique({
           where: { id: userId },
@@ -77,6 +80,12 @@ export class AccountService {
         this.prisma.fixedItem.findMany({ where: { userId, deletedAt: null } }),
         this.prisma.debtInsurance.findMany({ where: { debt: { userId }, deletedAt: null } }),
         this.prisma.cardPurchase.findMany({ where: { debt: { userId }, deletedAt: null }, include: { installments: true } }),
+        // FIN-054: los datos de Mis documentos (los archivos se descargan desde la app en .zip).
+        this.prisma.document.findMany({
+          where: { userId, deletedAt: null },
+          omit: { storageKey: true },
+          orderBy: { docDate: 'desc' },
+        }),
       ]);
     return {
       exportedAt: new Date().toISOString(),
@@ -90,6 +99,7 @@ export class AccountService {
       assets,
       incomeSources,
       fixedItems,
+      documents,
     };
   }
 
@@ -139,6 +149,12 @@ export class AccountService {
     let failed = 0;
     for (const { id } of expired) {
       try {
+        // FIN-054: los archivos en R2 no se borran por cascada de la BD: se borran antes.
+        const files = await this.prisma.document.findMany({ where: { userId: id, storageKey: { not: null } }, select: { storageKey: true } });
+        if (files.length) {
+          const storage = this.moduleRef.get(DocumentStorageService, { strict: false });
+          for (const f of files) await storage.remove(f.storageKey as string);
+        }
         await this.prisma.user.delete({ where: { id } });
         purged++;
       } catch (e) {

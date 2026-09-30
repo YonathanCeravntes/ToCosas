@@ -73,6 +73,24 @@ enum AmortSystem {
   tarjeta_rotativo
 }
 
+/// FIN-054 · Tipo de documento guardado en "Mis documentos".
+enum DocumentKind {
+  extracto_tarjeta
+  extracto_credito
+  extracto_cuenta
+  factura
+  comprobante
+  certificado
+}
+
+/// FIN-054 · Cómo se pagó (solo lo pagado con medio electrónico cuenta para la deducción del 1%).
+enum PaymentMethod {
+  tarjeta
+  transferencia
+  efectivo
+  desconocido
+}
+
 enum TxSource {
   app
   whatsapp
@@ -316,6 +334,7 @@ model User {
   incomeProfile   IncomeProfile?
   incomeSources   IncomeSource[]
   categoryHints   CategoryHint[]
+  documents       Document[]
 
   @@map("users")
 }
@@ -850,26 +869,30 @@ model MetricReading {
 }
 
 model UserSettings {
-  userId             String    @id @map("user_id") @db.Uuid
-  plan               Plan      @default(free)
+  userId               String    @id @map("user_id") @db.Uuid
+  plan                 Plan      @default(free)
   // Consentimiento de IA (FIN-005, §4.2 del ARQ): opt-in versionado y revocable.
-  aiConsentAt        DateTime? @map("ai_consent_at")
-  aiConsentVersion   Int?      @map("ai_consent_version")
+  aiConsentAt          DateTime? @map("ai_consent_at")
+  aiConsentVersion     Int?      @map("ai_consent_version")
   // Avisos proactivos (FIN-006 §4.5).
-  proactiveEnabled   Boolean   @default(true) @map("proactive_enabled")
-  reminderDefaults   Int[]     @default([3, 1, 0]) @map("reminder_defaults")
-  notifPush          Boolean   @default(true) @map("notif_push")
-  notifWhatsapp      Boolean   @default(false) @map("notif_whatsapp")
-  quietHours         Json?     @map("quiet_hours")
-  suggestionStrategy String    @default("avalanche") @map("suggestion_strategy")
+  proactiveEnabled     Boolean   @default(true) @map("proactive_enabled")
+  reminderDefaults     Int[]     @default([3, 1, 0]) @map("reminder_defaults")
+  notifPush            Boolean   @default(true) @map("notif_push")
+  notifWhatsapp        Boolean   @default(false) @map("notif_whatsapp")
+  quietHours           Json?     @map("quiet_hours")
+  suggestionStrategy   String    @default("avalanche") @map("suggestion_strategy")
   // FIN-016: día de inicio del ciclo financiero (1–28). SOLO lo consumen
   // Presupuesto y Dashboard; Score/Motor/Gamificación siguen en mes calendario.
-  cycleStartDay      Int       @default(1) @map("cycle_start_day")
-  dataConsentAt      DateTime? @map("data_consent_at")
+  cycleStartDay        Int       @default(1) @map("cycle_start_day")
+  dataConsentAt        DateTime? @map("data_consent_at")
   // FIN-042: consentimiento específico para enviar FOTOS/PDF (extractos, comprobantes)
   // a la IA — contienen datos personales que el consentimiento de chat excluye.
-  docsAiConsentAt    DateTime? @map("docs_ai_consent_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  docsAiConsentAt      DateTime? @map("docs_ai_consent_at")
+  /// FIN-054: permiso para GUARDAR los documentos (bóveda). Distinto de leerlos con IA.
+  docsStorageConsentAt DateTime? @map("docs_storage_consent_at")
+  /// FIN-054: dato sensible (Ley 1581 art. 6): guardar también facturas de salud. Opt-in.
+  docsHealthConsent    Boolean   @default(false) @map("docs_health_consent")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1321,4 +1344,45 @@ model DebtRenegotiation {
 
   @@index([debtId, createdAt])
   @@map("debt_renegotiations")
+}
+
+/// FIN-054 · Mis documentos: facturas, extractos, comprobantes y certificados del usuario.
+/// Los datos viven aquí; el archivo (si hay almacenamiento configurado) en Cloudflare R2
+/// bajo `storageKey`. Nunca se guardan cédulas ni números de cuenta o tarjeta.
+model Document {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String        @map("user_id") @db.Uuid
+  kind            DocumentKind
+  /// Comercio, banco o emisor del certificado (nombre comercial).
+  issuer          String?
+  /// NIT del vendedor/emisor (dato de empresa, necesario para la renta).
+  issuerNit       String?       @map("issuer_nit")
+  number          String?
+  /// Código único de la factura electrónica (DIAN). Sin CUFE no es factura electrónica.
+  cufe            String?
+  /// Fecha del documento (factura/comprobante) o de corte (extracto).
+  docDate         DateTime?     @map("doc_date") @db.Date
+  subtotal        Decimal?      @db.Decimal(18, 2)
+  tax             Decimal?      @db.Decimal(18, 2)
+  total           Decimal?      @db.Decimal(18, 2)
+  paymentMethod   PaymentMethod @default(desconocido) @map("payment_method")
+  /// Factura de salud (farmacia, EPS, prepagada): dato sensible.
+  isHealth        Boolean       @default(false) @map("is_health")
+  /// Certificados: tipo ("ingresos_retenciones", "bancario", "intereses_vivienda", …).
+  certificateType String?       @map("certificate_type")
+  /// Año al que pertenece (año gravable en certificados).
+  year            Int
+  transactionId   String?       @map("transaction_id") @db.Uuid
+  debtId          String?       @map("debt_id") @db.Uuid
+  storageKey      String?       @map("storage_key")
+  mimeType        String?       @map("mime_type")
+  sizeBytes       Int?          @map("size_bytes")
+  source          TxSource      @default(app)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  deletedAt       DateTime?     @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, year, kind])
+  @@map("documents")
 }
