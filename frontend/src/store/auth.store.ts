@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { clearScreenCache } from '../offline/screenCache';
 import { setAuthHandlers } from '../api/client';
 import { authApi } from '../api/endpoints';
 import { AuthTokens, User } from '../api/types';
@@ -97,7 +98,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       SecureStore.deleteItemAsync(TOKENS_KEY),
       SecureStore.deleteItemAsync(USER_KEY),
     ]);
-    if (opts?.wipeLocal) await resetLocalDb().catch(() => undefined);
+    if (opts?.wipeLocal) {
+      await resetLocalDb().catch(() => undefined);
+      // BT-037: la caché de pantallas también (en web vive en localStorage).
+      await clearScreenCache();
+    }
     set({ tokens: null, user: null });
   },
 

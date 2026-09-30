@@ -46,6 +46,7 @@
 | BT-033 | En Salud, "Simularlo →" de cada indicador abría el simulador sin escenario (auditoría). | Navegación sin parámetro. | ✅ **Corregido** (2026-09-30) | Cada indicador abre el escenario que lo mueve (`SCENARIO_BY_INDICATOR`). |
 | BT-034 | El valor de un activo no se podía actualizar (había que borrarlo y crearlo) y, si el alta fallaba, no decía nada (auditoría). | Sin edición ni manejo de error. | ✅ **Corregido** (2026-09-30) | Lápiz sobre el valor (`PATCH /assets/:id`) y errores visibles. |
 | BT-035 | Detalle de tarjeta sin cupo: "Registra el cupo de tu tarjeta al editarla", pero no existía editar deuda; el plan de pago mostraba 12 cuotas y "y N más" sin forma de verlas; los seguros se borraban sin confirmar (auditoría). | Enlaces muertos y omisiones. | ✅ **Corregido** (2026-09-30) | Nueva pantalla Editar deuda (FIN-056 boceto 4) enlazada desde el detalle y desde el aviso del cupo; "Ver las N cuotas restantes"; confirmación al borrar seguros. |
+| BT-037 | Al abrir la app, Inicio mostraba un bloque **verde** de carga (el "hero" de la versión vieja) y "$ 0" en Gastos e Ingresos, y después aparecían las cifras reales (Fundador, capturas 2026-09-30). | **Causa:** el esqueleto de carga seguía pintado como el hero verde antiguo; los totales mostraban $0 mientras cargaban; y cada apertura arrancaba en blanco aunque la app ya conocía las cifras de la última vez. | ✅ **Corregido** (2026-09-30) | Esqueleto blanco como la tarjeta actual; sin "$ 0" mientras carga; y **caché de pantallas** (`offline/screenCache.ts`, `useApi({ cacheKey })`): Inicio, Mi mes, Salud, Deudas, Cuentas y En qué se te va pintan al instante lo de la última vez y se actualizan en silencio. Se borra al cerrar sesión. |
 | BT-036 | El onboarding pedía el ingreso **neto** ("lo que realmente te llega") y lo guardaba como fuente; Mi perfil de ingresos lo trataba como **bruto** y sugería descontarle salud y pensión otra vez (auditoría). | Dos pantallas con dos definiciones del mismo dato. | ✅ **Corregido** (2026-09-30) | El onboarding pide el salario **antes de descuentos** ("el de tu contrato") y explica que Millo descuenta salud y pensión. Decisión del Arquitecto, pendiente de confirmar por el Fundador (`FIN-056` §3). |
 
 ---
@@ -300,7 +301,7 @@ cubrir los compromisos del período. El ahorro *realizado* será un indicador ap
   validada en vivo tras el deploy.
 - **Despliegue (§41):** backend-only → Beta por auto-deploy de Render, sin OTA.
 
-## BT-027 … BT-036 · Auditoría de la app (2026-09-30)
+## BT-027 … BT-037 · Auditoría de la app (2026-09-30)
 Los diez salieron de la revisión completa de las 26 pantallas pedida por el Fundador ("Necesito soluciones") y se corrigieron en la misma entrega, junto con las 7 propuestas de la auditoría (`docs/arquitectura/FIN-056-Auditoria-de-la-app.md`). El más serio es **BT-027** (fecha nocturna): altera en qué día y en qué ciclo cae un movimiento. Regla nueva: **una fecha de "día" viaja siempre con `toApiDate` (`utils/dates.ts`)**, nunca con `toISOString()` de la hora local.
 
 ## Historial

@@ -30,9 +30,10 @@ const LEVEL_COLOR: Record<string, string> = { verde: colors.success, amarillo: c
 export function DashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = useAuthStore((s) => s.user);
-  const dashboard = useApi(() => dashboardApi.home(), []);
-  const summary = useApi(() => debtsApi.summary(), []);
-  const gamification = useApi(() => gamificationApi.profile(), []);
+  // BT-037: las tres fuentes se pintan con lo de la última vez y se refrescan en silencio.
+  const dashboard = useApi(() => dashboardApi.home(), [], { cacheKey: 'home' });
+  const summary = useApi(() => debtsApi.summary(), [], { cacheKey: 'debts-summary' });
+  const gamification = useApi(() => gamificationApi.profile(), [], { cacheKey: 'gamification' });
   const sync = useSync();
   const [recent, setRecent] = useState<LocalTransaction[]>([]);
   // FIN-028: movimiento en edición (toque en una fila de "Movimientos recientes").
@@ -64,13 +65,16 @@ export function DashboardScreen() {
     }, [reloadDashboard, reloadSummary, reloadGamification]),
   );
 
-  const loading = dashboard.loading || summary.loading;
-  const reload = () => {
-    void dashboard.reload();
-    void summary.reload();
-    void gamification.reload();
-    void sync.sync();
-    void loadRecent();
+  // El control de "refrescar" solo gira cuando la persona lo pide o no hay nada que mostrar.
+  const [pulling, setPulling] = useState(false);
+  const loading = (dashboard.loading || summary.loading) && !dashboard.data;
+  const reload = async () => {
+    setPulling(true);
+    try {
+      await Promise.all([dashboard.reload(), summary.reload(), gamification.reload(), sync.sync(), loadRecent()]);
+    } finally {
+      setPulling(false);
+    }
   };
 
   const d = dashboard.data;
@@ -81,7 +85,7 @@ export function DashboardScreen() {
     <ScrollView
       style={{ backgroundColor: colors.bg }}
       contentContainerStyle={{ padding: spacing.md }}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.primary} />}
+      refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void reload()} tintColor={colors.primary} />}
     >
       <Row style={{ justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text style={{ color: colors.text, ...type.heading }} accessibilityRole="header">
@@ -101,7 +105,7 @@ export function DashboardScreen() {
       {/* Hero ÚNICO (FIN-017/018/020, §32): la cifra viene del servicio único de
           Presupuesto. Tocarlo abre Presupuesto, la casa del detalle (FIN-038). */}
       {dashboard.error && !d ? (
-        <ErrorState message={friendlyError(dashboard.error)} onRetry={reload} />
+        <ErrorState message={friendlyError(dashboard.error)} onRetry={() => void reload()} />
       ) : !d && loading ? (
         <Skeleton hero lines={3} />
       ) : d ? (
@@ -252,7 +256,9 @@ export function DashboardScreen() {
       {/* Movimientos recientes (FIN-014/018/028) — el detalle completo vive en el
           historial (FIN-038), no en Registrar. */}
       <GroupLabel title="Movimientos recientes" action="Ver todos" onAction={() => navigation.navigate('Transactions')} />
-      {d?.recentTransactions.length ? (
+      {!d && loading ? (
+        <Skeleton lines={3} />
+      ) : d?.recentTransactions.length ? (
         <Card>
           {d.recentTransactions.slice(0, 4).map((t, i) => {
             const meta = KIND_META[t.kind] ?? KIND_META.transferencia;
@@ -324,7 +330,7 @@ export function DashboardScreen() {
         </Text>
       ) : null}
 
-      <EditTransactionModal movement={editing} onClose={() => setEditing(null)} onChanged={reload} />
+      <EditTransactionModal movement={editing} onClose={() => setEditing(null)} onChanged={() => void reload()} />
     </ScrollView>
   );
 }
@@ -359,7 +365,12 @@ function FlowStat({ label, flow, color, onPress }: { label: string; flow?: FlowS
     <Pressable style={{ flex: 1 }} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label} del ciclo: ${formatMoney(flow?.total ?? 0)}. Ver movimientos`}>
       <Card style={{ flex: 1 }}>
         <Text style={{ color: colors.textMuted, ...type.small }}>{label}</Text>
-        <Text style={{ color, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(flow?.total ?? 0)}</Text>
+        {flow ? (
+          <Text style={{ color, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(flow.total)}</Text>
+        ) : (
+          // BT-037: mientras carga no se muestra "$ 0" (no es cierto, es que no ha llegado).
+          <View style={{ height: 18, width: '55%', borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, marginVertical: 3 }} />
+        )}
         {flow && flow.total > 0 ? (
           <Text style={{ color: colors.textFaint, ...type.caption }}>
             {formatMoney(flow.fixed)} fijos del mes · {formatMoney(flow.variable)} del día a día

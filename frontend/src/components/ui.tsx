@@ -368,7 +368,9 @@ export function Skeleton({ lines = 3, hero }: { lines?: number; hero?: boolean }
     return () => loop.stop();
   }, [pulse]);
   return (
-    <Card style={hero ? { backgroundColor: colors.primary, borderColor: colors.primary } : undefined} accessibilityLabel="Cargando">
+    // BT-037: el esqueleto imita la tarjeta blanca actual (antes era el hero verde de la
+    // versión vieja y se veía como un "flash" de otro diseño al abrir la app).
+    <Card accessibilityLabel="Cargando">
       {Array.from({ length: lines }).map((_, i) => (
         <Animated.View
           key={i}
@@ -377,7 +379,7 @@ export function Skeleton({ lines = 3, hero }: { lines?: number; hero?: boolean }
             width: i === 0 ? '60%' : i % 2 ? '85%' : '45%',
             borderRadius: radius.sm,
             marginBottom: spacing.sm,
-            backgroundColor: hero ? colors.onPrimaryTrack : colors.surfaceAlt,
+            backgroundColor: colors.surfaceAlt,
             opacity: pulse,
           }}
         />

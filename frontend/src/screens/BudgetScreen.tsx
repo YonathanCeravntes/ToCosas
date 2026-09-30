@@ -24,8 +24,8 @@ import { fixedOrder } from '../utils/fixedTypes';
  * Esta pantalla no calcula nada: todo viene del backend.
  */
 export function BudgetScreen() {
-  const { data, loading, error, reload } = useApi(() => budgetApi.monthly(), []);
-  const plan = useApi(() => debtsApi.cashflowPlan(), []);
+  const { data, loading, error, reload } = useApi(() => budgetApi.monthly(), [], { cacheKey: 'budget-monthly' });
+  const plan = useApi(() => debtsApi.cashflowPlan(), [], { cacheKey: 'cashflow-plan' });
   // FIN-046 Fase 4: propuestas de gasto fijo / ingreso aparecen también aquí, donde aplican.
   const proposals = useApi(() => insightsApi.list().then((l) => l.filter(isProposal)), []);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();

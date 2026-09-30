@@ -25,7 +25,7 @@ const ASSET_TYPES: Array<{ key: AssetType; label: string }> = [
 ];
 
 export function AccountsScreen() {
-  const { data: nw, loading, error, reload } = useApi(() => accountsApi.netWorth(), []);
+  const { data: nw, loading, error, reload } = useApi(() => accountsApi.netWorth(), [], { cacheKey: 'net-worth' });
   const { data: accounts, reload: reloadAcc } = useApi(() => accountsApi.listAccounts(), []);
   const { data: assets, reload: reloadAss } = useApi(() => accountsApi.listAssets(), []);
   const { data: debts, reload: reloadDebts } = useApi(() => debtsApi.summary(), []);

@@ -85,10 +85,10 @@ function humanValue(display: string): string {
 }
 
 export function HealthScreen() {
-  const { data, loading, error, reload } = useApi(() => healthApi.score(), []);
+  const { data, loading, error, reload } = useApi(() => healthApi.score(), [], { cacheKey: 'health-score' });
   const recs = useApi(() => recommendationsApi.list(), []);
-  const home = useApi(() => dashboardApi.home(), []); // DEC-0040 §7: patrimonio y ahorro viven aquí
-  const plan = useApi(() => debtsApi.cashflowPlan(), []); // FIN-045: la jugada con deudas es el plan de flujo
+  const home = useApi(() => dashboardApi.home(), [], { cacheKey: 'home' }); // DEC-0040 §7: patrimonio y ahorro viven aquí
+  const plan = useApi(() => debtsApi.cashflowPlan(), [], { cacheKey: 'cashflow-plan' }); // FIN-045: la jugada con deudas es el plan de flujo
   const reloadRecs = recs.reload;
   const reloadHome = home.reload;
   const reloadPlan = plan.reload;

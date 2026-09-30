@@ -44,8 +44,8 @@ function groupByUrgency(all: Debt[]): DebtSection[] {
 }
 
 export function DebtsListScreen({ navigation }: Props) {
-  const { data, loading, error, reload } = useApi(() => debtsApi.list(), []);
-  const summary = useApi(() => debtsApi.summary(), []);
+  const { data, loading, error, reload } = useApi(() => debtsApi.list(), [], { cacheKey: 'debts-list' });
+  const summary = useApi(() => debtsApi.summary(), [], { cacheKey: 'debts-summary' });
   const reloadSummary = summary.reload;
 
   useFocusEffect(
@@ -64,7 +64,7 @@ export function DebtsListScreen({ navigation }: Props) {
         sections={sections}
         keyExtractor={(d) => d.id}
         stickySectionHeadersEnabled={false}
-        refreshing={loading}
+        refreshing={loading && !data}
         onRefresh={() => {
           void reload();
           void reloadSummary();

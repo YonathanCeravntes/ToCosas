@@ -18,7 +18,7 @@ import { useApi } from '../utils/useApi';
  */
 export function CategoriesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { data, loading, error, reload } = useApi(() => dashboardApi.home(), []);
+  const { data, loading, error, reload } = useApi(() => dashboardApi.home(), [], { cacheKey: 'home' });
   useFocusEffect(React.useCallback(() => { void reload(); }, [reload]));
 
   if (error && !data) return <FormScroll><ErrorState message={error} onRetry={() => void reload()} /></FormScroll>;

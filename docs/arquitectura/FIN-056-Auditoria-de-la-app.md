@@ -22,6 +22,9 @@ Las 26 pantallas de la app (código, no capturas), la navegación y las partes d
 6. **Subir documento desde la app** (`POST /v1/documents/upload`, multipart, 8 MB; `DocumentIntakeService`): misma lectura con IA y misma bóveda que el bot; devuelve lo entendido y **propone el gasto**; la app lo registra con `paymentMethod` y lo enlaza (`POST /v1/documents/:id/link`). Si el gasto ya existía, solo se enlaza. En la **web** se usa el selector del navegador (cámara o archivo). En la **app instalada** hace falta `expo-image-picker`, que no viaja por OTA: se muestra el aviso y se agrega en la próxima APK.
 7. **Ajustes:** día de corte en cuadrícula (1–28), WhatsApp oculto, "Quitar el permiso de IA", "Descargar mis datos". Además: "Estable" en verde, "3 semanas seguidas", el permiso de documentos nombra a Google Gemini (app y bot), Mi mes invita a armar el mes cuando está vacío y ya no tiene el botón de patrimonio.
 
+### Carga de pantallas (BT-037, reportado por el Fundador con capturas)
+Esqueleto blanco (ya no el hero verde viejo), sin "$ 0" mientras carga, y caché de la última respuesta por pantalla (`offline/screenCache.ts` sobre `sync_meta`/localStorage; `useApi(fetcher, deps, { cacheKey })`): la app pinta al instante lo de la última vez y refresca en silencio. Se borra al cerrar sesión.
+
 ## 3. Decisiones tomadas por el Arquitecto (pendientes de confirmar por el Fundador)
 | Decisión | Por qué | Alternativa si el Fundador no está de acuerdo |
 | --- | --- | --- |
