@@ -39,7 +39,7 @@ export const CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60_000;
 export const LLM_HISTORY_LIMIT = 10;
 
 /** Modelo por defecto (se cambia con GEMINI_MODEL sin tocar código). */
-export const LLM_MODEL_DEFAULT = 'gemini-2.5-flash';
+export const LLM_MODEL_DEFAULT = 'gemini-3.5-flash';
 
 /**
  * DEC-0005 §14.2 — restricción de "recomendación genérica": el Copiloto nunca

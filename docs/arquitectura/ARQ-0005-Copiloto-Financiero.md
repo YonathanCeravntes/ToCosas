@@ -1,4 +1,4 @@
-> **2026-09-30 · `DEC-0043`:** el proveedor pasó de Anthropic a **Google Gemini** (`gemini-2.5-flash`, `copilot/gemini.client.ts`, variable `GEMINI_API_KEY`). Donde este documento dice Anthropic/`anthropic.client`, léase el cliente de Gemini; el resto del diseño sigue vigente.
+> **2026-09-30 · `DEC-0043`:** el proveedor pasó de Anthropic a **Google Gemini** (`gemini-3.5-flash`, `copilot/gemini.client.ts`, variable `GEMINI_API_KEY`). Donde este documento dice Anthropic/`anthropic.client`, léase el cliente de Gemini; el resto del diseño sigue vigente.
 
 # ARQ-0005 · Copiloto Financiero (evolución de "Consejos") — **versión 2**
 

@@ -91,7 +91,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.5-flash
       # FIN-046 Fase 3: clave del despertador (GitHub Actions → POST /v1/internal/cron/daily).
       # Mismo valor que el secreto CRON_SECRET del repositorio en GitHub. Sin ella, el endpoint queda apagado.
       - key: CRON_SECRET

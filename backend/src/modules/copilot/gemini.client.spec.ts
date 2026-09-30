@@ -24,9 +24,9 @@ describe('GeminiClient (§4.8, migración 2026-09-30)', () => {
     const fetchMock = jest.fn().mockResolvedValue(textResponse());
     global.fetch = fetchMock as never;
     const r = await buildClient().chat('{"ctx":1}', [{ role: 'user', content: 'hola' }], async () => view);
-    expect(r).toMatchObject({ text: 'Respuesta de prueba', inputTokens: 100, outputTokens: 50, model: 'gemini-2.5-flash' });
+    expect(r).toMatchObject({ text: 'Respuesta de prueba', inputTokens: 100, outputTokens: 50, model: 'gemini-3.5-flash' });
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent');
+    expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent');
     expect(init.headers['x-goog-api-key']).toBe('g-test');
     const body = JSON.parse(init.body);
     expect(body.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 });
@@ -47,7 +47,7 @@ describe('GeminiClient (§4.8, migración 2026-09-30)', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          candidates: [{ content: { role: 'model', parts: [{ functionCall: { name: 'get_debts', args: {} }, thoughtSignature: 'sig-1' }] } }],
+          candidates: [{ content: { role: 'model', parts: [{ functionCall: { id: 'call_1', name: 'get_debts', args: {} }, thoughtSignature: 'sig-1' }] } }],
           usageMetadata: { promptTokenCount: 80, candidatesTokenCount: 20 },
         }),
       })
@@ -58,9 +58,10 @@ describe('GeminiClient (§4.8, migración 2026-09-30)', () => {
     expect(executor).toHaveBeenCalledWith('get_debts', {});
     expect(r).toMatchObject({ text: 'Con tus deudas…', inputTokens: 180, outputTokens: 70 });
     const second = JSON.parse(fetchMock.mock.calls[1][1].body);
-    expect(second.contents[1]).toEqual({ role: 'model', parts: [{ functionCall: { name: 'get_debts', args: {} }, thoughtSignature: 'sig-1' }] });
+    expect(second.contents[1]).toEqual({ role: 'model', parts: [{ functionCall: { id: 'call_1', name: 'get_debts', args: {} }, thoughtSignature: 'sig-1' }] });
     expect(second.contents[2].role).toBe('user');
     expect(second.contents[2].parts[0].functionResponse.name).toBe('get_debts');
+    expect(second.contents[2].parts[0].functionResponse.id).toBe('call_1');
   });
 
   it('una vista sin marca de minimizada se rechaza (nunca sale un dato crudo)', async () => {

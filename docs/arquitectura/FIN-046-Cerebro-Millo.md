@@ -6,7 +6,7 @@
 ## 1. Qué hay hoy (inventario honesto)
 | Pieza | Existe | Qué le falta |
 |---|---|---|
-| Copiloto (`copilot/`) | Plantillas + IA (Claude Haiku; desde 2026-09-30 Google Gemini 2.5 Flash, `DEC-0043`) con 5 tools de solo lectura (snapshot, deudas, score, memoria, simulación). Contexto minimizado (§4.3). | La IA exige que cada persona la active; no conoce el plan de flujo (FIN-045), el presupuesto ni los próximos pagos; no puede proponer acciones. |
+| Copiloto (`copilot/`) | Plantillas + IA (Claude Haiku; desde 2026-09-30 Google Gemini 3.5 Flash, `DEC-0043`) con 5 tools de solo lectura (snapshot, deudas, score, memoria, simulación). Contexto minimizado (§4.3). | La IA exige que cada persona la active; no conoce el plan de flujo (FIN-045), el presupuesto ni los próximos pagos; no puede proponer acciones. |
 | Motor + Insights (`financial-engine/`, `insights/`) | Métricas diarias, insights (riesgo, logro, cambio de tendencia) y `ProactivityJob` 7 AM con tope anti-fatiga (1/día) por push/Telegram/WhatsApp. | Pocos tipos de aviso (no hay "vence en 3 días", "te sobró plata", resumen semanal). **Render free se duerme**: los cron no corren si nadie usa la app. |
 | Memoria (`memory/`) | Detecta gastos/ingresos recurrentes (6 meses) y fechas clave. | No lo convierte en acción ("¿lo vuelvo gasto fijo?"); no aprende categorías por comercio. |
 | Bot Telegram (`messaging/`) | Registra gastos por texto, lee extractos por foto/PDF, gastos fijos, renegociación. | No conversa (no usa el Copiloto), no entiende notas de voz ni recibos. |

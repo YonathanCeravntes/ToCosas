@@ -25,8 +25,8 @@ const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 type Part = {
   text?: string;
-  functionCall?: { name: string; args?: Record<string, unknown> };
-  functionResponse?: { name: string; response: Record<string, unknown> };
+  functionCall?: { id?: string; name: string; args?: Record<string, unknown> };
+  functionResponse?: { id?: string; name: string; response: Record<string, unknown> };
   inlineData?: { mimeType: string; data: string };
   thoughtSignature?: string;
 };
@@ -141,9 +141,11 @@ export class GeminiClient extends LlmClient {
       contents.push({ role: 'model', parts });
       const results: Part[] = [];
       for (const p of calls) {
-        const { name, args } = p.functionCall!;
+        const { id, name, args } = p.functionCall!;
         const view = assertMinimized(await executor(name, (args ?? {}) as Record<string, unknown>));
-        results.push({ functionResponse: { name, response: { result: view as unknown as Record<string, unknown> } } });
+        // Los modelos 3.x numeran cada llamada: la respuesta debe llevar el mismo id.
+        const response = { result: view as unknown as Record<string, unknown> };
+        results.push({ functionResponse: id ? { id, name, response } : { name, response } });
       }
       contents.push({ role: 'user', parts: results });
     }
