@@ -57,6 +57,9 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   deuda: ['cuota', 'credito', 'crédito', 'tarjeta', 'abono', 'prestamo', 'préstamo', 'hipoteca'],
 };
 
+/** Categorías que por sí solas indican un gasto ("mercado 86.000"). */
+const EXPENSE_CATEGORIES = new Set(['comida', 'transporte', 'servicios', 'entretenimiento', 'salud', 'arriendo']);
+
 // Nota: se evita el \b de cierre porque las vocales acentuadas (é, í, ó) no son
 // "word chars" en JS y romperían el límite de palabra tras un verbo tildado.
 const INCOME_KW = /\b(me lleg|ingreso|me pagaron|me pag|cobr[eé]|recib[ií]|salario|sueldo|nomina|nómina|quincena|entr[oó])/;
@@ -132,9 +135,11 @@ export function ruleParse(
 
   const amount = parseAmount(raw);
   const intent = detectIntent(lower, amount);
-  const kind = intent === 'registrar_transaccion' ? detectKind(lower) : null;
-  const entityGuess = detectEntity(lower, opts.userEntities);
   const categoryGuess = intent === 'registrar_transaccion' ? detectCategory(lower) : null;
+  // FIN-055: "almuerzo 18.500" (concepto de gasto + monto, sin verbo) es un gasto.
+  const kind =
+    intent === 'registrar_transaccion' ? detectKind(lower) ?? (categoryGuess && EXPENSE_CATEGORIES.has(categoryGuess) ? 'gasto' : null) : null;
+  const entityGuess = detectEntity(lower, opts.userEntities);
   const dateISO = parseDate(raw, opts.today);
 
   const missing: string[] = [];

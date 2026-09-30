@@ -14,6 +14,13 @@ describe('ruleParse — ejemplos del diseño (doc 04 §5)', () => {
     expect(r.confidence).toBeGreaterThanOrEqual(0.8);
   });
 
+  it('FIN-055 · "almuerzo 18.500" y "mercado 86.000 ayer" (sin verbo) → gasto', () => {
+    expect(ruleParse('almuerzo 18.500')).toMatchObject({ intent: 'registrar_transaccion', kind: 'gasto', amount: 18_500, categoryGuess: 'comida' });
+    expect(ruleParse('mercado 86.000 ayer')).toMatchObject({ kind: 'gasto', amount: 86_000 });
+    // Un concepto desconocido sigue preguntando el tipo (no se adivina).
+    expect(ruleParse('asdf 20.000').kind).toBeNull();
+  });
+
   it('"Gasté $45.000 en almuerzo" → gasto/comida', () => {
     const r = ruleParse('Gasté $45.000 en almuerzo', { today });
     expect(r.kind).toBe('gasto');

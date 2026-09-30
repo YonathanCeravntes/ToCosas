@@ -6,6 +6,8 @@ import { CopilotService } from '../copilot/copilot.service';
 import { AI_CONSENT_TEXT } from '../copilot/copilot.constants';
 import type { ProposedAction } from '../copilot/brain-views.service';
 import { BudgetService } from '../budget/budget.service';
+import { SpendableService } from '../budget/spendable.service';
+import { BotReply, MenuAction, parseCallback, parseMenuCommand, txButtons } from './bot-menu';
 import { FixedKindDto } from '../budget/dto/fixed-item.dto';
 import { DebtsService } from '../debts/debts.service';
 import { CardService } from '../debts/card.service';
@@ -95,7 +97,18 @@ export class ConversationService {
 
   private readonly logger = new Logger(ConversationService.name);
 
+  /** Respuesta en texto (WhatsApp y pruebas). */
   async handle(input: ConversationInput): Promise<string> {
+    return (await this.handleRich(input)).text;
+  }
+
+  /** FIN-055 · Respuesta con botones (Telegram). */
+  async handleRich(input: ConversationInput): Promise<BotReply> {
+    const r = await this.route(input);
+    return typeof r === 'string' ? { text: r } : r;
+  }
+
+  private async route(input: ConversationInput): Promise<string | BotReply> {
     const text = (input.text ?? '').trim();
 
     // 1) Sin vincular → intentar OTP o dar instrucciones.
@@ -114,6 +127,9 @@ export class ConversationService {
     if (input.type === 'image' || input.type === 'document') {
       return this.handleDocument(input);
     }
+    // FIN-055: menú "/" y botones fijos del teclado.
+    const menu = parseMenuCommand(text);
+    if (menu) return this.runMenu(input.userId, menu);
     if (/^revocar\s+documentos\b/i.test(text)) {
       await this.prisma.userSettings.upsert({
         where: { userId: input.userId },
@@ -201,6 +217,171 @@ export class ConversationService {
         if (await this.consent.hasValidConsent(input.userId)) return this.askCopilot(input.userId, input.source, text);
         return '🤔 No te entendí. Puedes decir algo como "Gasté $45.000 en mercado", "Pagué $200.000 al crédito" o "resumen". Si era una pregunta sobre tu plata, activa la IA escribiendo "activar ia". Escribe "ayuda" para ejemplos.';
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // FIN-055 · Menú, botones fijos y botones bajo cada gasto
+  // ---------------------------------------------------------------------------
+
+  /** SpendableService por contenedor (misma fuente de "Te queda", §32); null en pruebas sin él. */
+  private spendable(): SpendableService | null {
+    try {
+      return this.moduleRef.get(SpendableService, { strict: false }) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** "Te queda este mes: $X ($Y por día · faltan N días)" — o null si no se puede calcular. */
+  private async teQuedaLine(userId: string): Promise<string | null> {
+    const svc = this.spendable();
+    if (!svc) return null;
+    try {
+      const q = await svc.compute(userId);
+      const days = `faltan ${q.daysLeft} día${q.daysLeft === 1 ? '' : 's'}`;
+      if (q.amount <= 0) return `⚠️ Este mes ya no te queda plata libre (${fmt(q.amount)}) · ${days}.`;
+      return `💚 Te queda este mes: ${fmt(q.amount)}${q.perDay ? ` (${fmt(q.perDay)} por día · ${days})` : ''}.`;
+    } catch (e) {
+      this.logger.warn(`Te queda por chat falló: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  private async runMenu(userId: string, action: MenuAction): Promise<string | BotReply> {
+    switch (action) {
+      case 'start': {
+        const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+        const first = user?.fullName?.trim().split(/\s+/)[0];
+        return {
+          text:
+            `👋 ¡Hola${first ? `, ${first}` : ''}! Soy Millo.\n` +
+            'Estoy aquí para que tu plata se vea clara. Puedes escribirme como hablas:\n\n' +
+            '"mercado 86.000"\n"me pagaron 2.400.000"\n"¿cuánto me queda?"\n\n' +
+            'O toca un botón de abajo. En "Menú" tienes más atajos.',
+          mainKeyboard: true,
+        };
+      }
+      case 'gasto':
+        return '✍️ Escríbeme el gasto como lo dirías: "almuerzo 18.500" o "mercado 86.000 ayer". Para un ingreso: "me pagaron 2.400.000".';
+      case 'queda': {
+        const line = await this.teQuedaLine(userId);
+        if (!line) return this.buildSummary(userId);
+        return `${line}\n\nTu mes completo: app → Más → Mi mes.`;
+      }
+      case 'pagos':
+        return this.upcomingPayments(userId);
+      case 'deudas':
+        return this.debtsList(userId);
+      case 'documentos': {
+        const docs = this.documents();
+        if (docs && (await docs.consentStatus(userId)).accepted) {
+          return '📎 Envíame la foto o el PDF de la factura o el extracto y lo guardo en Mis documentos.';
+        }
+        return (await this.handleStorageConsent(userId, 'guardar documentos')) ?? '📎 Envíame la foto o el PDF de la factura o el extracto.';
+      }
+      case 'app':
+        return `📱 Abre Millo aquí: ${process.env.APP_WEB_URL || 'https://yonathanceravntes.github.io/ToCosas/'}`;
+      case 'ayuda':
+        return this.helpText();
+    }
+  }
+
+  /** Pagos de los próximos 31 días: cuotas de deudas y gastos fijos con día. */
+  private async upcomingPayments(userId: string, now = new Date()): Promise<string> {
+    const DAY = 86_400_000;
+    const [debts, outlays, fixed] = await Promise.all([
+      this.prisma.debt.findMany({ where: { userId, deletedAt: null, status: 'activa', nextDueDate: { not: null } } }),
+      this.debtOutlay.outlaysByUser(userId),
+      this.prisma.fixedItem.findMany({ where: { userId, kind: 'gasto', isActive: true, dayOfMonth: { not: null } } }),
+    ]);
+    const items: Array<{ name: string; amount: number; date: Date }> = [];
+    for (const d of debts) {
+      if (d.nextDueDate!.getTime() > now.getTime() + 31 * DAY) continue;
+      items.push({ name: d.name, amount: outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0), date: d.nextDueDate! });
+    }
+    for (const f of fixed) {
+      const next = new Date(now.getFullYear(), now.getMonth(), f.dayOfMonth!);
+      if (next.getTime() < now.getTime() - DAY) next.setMonth(next.getMonth() + 1);
+      items.push({ name: f.name, amount: Number(f.amount), date: next });
+    }
+    if (items.length === 0) return '📅 No tienes pagos con fecha en los próximos 30 días. Puedes agregarlos en la app: Deudas o Mi mes → Gastos fijos.';
+    items.sort((a, b) => a.date.getTime() - b.date.getTime());
+    const lines = items.slice(0, 10).map((i) => {
+      const days = Math.ceil((i.date.getTime() - now.getTime()) / DAY);
+      const when = days <= 0 ? 'hoy' : days === 1 ? 'mañana' : `en ${days} días`;
+      return `• ${i.name}: ${fmt(i.amount)} · ${when} (${i.date.getUTCDate()}/${i.date.getUTCMonth() + 1})`;
+    });
+    const total = items.reduce((a, i) => a + i.amount, 0);
+    return ['📅 Tus próximos pagos:', ...lines, '', `Total: ${fmt(total)}`].join('\n');
+  }
+
+  private async debtsList(userId: string): Promise<string> {
+    const [debts, outlays] = await Promise.all([
+      this.prisma.debt.findMany({ where: { userId, deletedAt: null, status: 'activa' }, orderBy: { currentBalance: 'desc' } }),
+      this.debtOutlay.outlaysByUser(userId),
+    ]);
+    if (debts.length === 0) return '🎉 No tienes deudas activas registradas. Si tienes una, agrégala en la app → Deudas, o mándame la foto del extracto.';
+    const lines = debts.map((d) => `• ${d.name}: debes ${fmt(Number(d.currentBalance))} · cuota ${fmt(outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0))}`);
+    const total = debts.reduce((a, d) => a + Number(d.currentBalance), 0);
+    return [
+      `💳 Tus deudas (${debts.length}):`,
+      ...lines,
+      '',
+      `Total: ${fmt(total)} · al mes: ${fmt(outlays.totalOutlay)}`,
+      'Cuál pagar primero: app → Salud → Ver mi plan.',
+    ].join('\n');
+  }
+
+  /** FIN-055 · Toque en un botón bajo un mensaje. */
+  async handleCallback(userId: string | null, data: string): Promise<BotReply> {
+    if (!userId) return { text: 'Primero vincula tu cuenta: app → Ajustes → Telegram.' };
+    const cb = parseCallback(data);
+    if (!cb) return { text: 'Ese botón ya no está disponible. Escríbeme lo que necesitas.' };
+    const tx = await this.prisma.transaction.findFirst({ where: { id: cb.txId, userId, deletedAt: null } });
+    if (!tx) return { text: 'Ese movimiento ya no está (quizá lo anulaste). Lo ves todo en tus movimientos en la app.' };
+
+    if (cb.kind === 'undo') {
+      await this.transactions.remove(userId, tx.id);
+      return { text: `🗑️ Listo, anulé el movimiento de ${fmt(Number(tx.amount))}.${SEEN_IN_APP}` };
+    }
+    if (cb.kind === 'other_category') {
+      return { text: 'Para elegir otra categoría: app → Movimientos → toca el movimiento → Categoría. Millo lo aprende igual.' };
+    }
+    const options = await this.categoryOptions(userId, tx.kind, tx.categoryId);
+    if (cb.kind === 'categories') {
+      const rows: BotReply['buttons'] = [];
+      for (let i = 0; i < options.length; i += 2) {
+        rows.push(options.slice(i, i + 2).map((c) => ({ text: c.name, data: `sc:${tx.id}:${c.id.replace(/-/g, '').slice(0, 8)}` })));
+      }
+      rows.push([{ text: 'Otra', data: `co:${tx.id}` }]);
+      return { text: `¿En qué categoría va este ${tx.kind === 'ingreso' ? 'ingreso' : 'gasto'} de ${fmt(Number(tx.amount))}?`, buttons: rows };
+    }
+    const chosen = options.find((c) => c.id.replace(/-/g, '').startsWith(cb.prefix));
+    if (!chosen) return { text: 'No encontré esa categoría. Cámbiala en la app: Movimientos → toca el movimiento.' };
+    // Mismo servicio que la app: si hay nota, Millo aprende el comercio (FIN-046 Fase 4).
+    await this.transactions.update(userId, tx.id, { categoryId: chosen.id } as never);
+    const learn = tx.note ? ` La próxima vez que escribas "${tx.note}" lo anoto ahí.` : '';
+    return { text: `✅ Listo, lo pasé a ${chosen.name}.${learn}` };
+  }
+
+  /** Hasta 6 categorías del mismo tipo, las más usadas por la persona primero (sin la actual). */
+  private async categoryOptions(userId: string, kind: string, currentId: string | null) {
+    const cats = await this.prisma.category.findMany({
+      where: { kind: kind as never, deletedAt: null, isFixed: false, OR: [{ userId }, { isGlobal: true }] },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    const since = new Date(Date.now() - 120 * 86_400_000);
+    const used = await this.prisma.transaction.groupBy({
+      by: ['categoryId'],
+      where: { userId, deletedAt: null, occurredAt: { gte: since }, categoryId: { not: null } },
+      _count: { _all: true },
+    });
+    const count = new Map(used.map((u) => [u.categoryId, u._count._all]));
+    return cats
+      .filter((c) => c.id !== currentId)
+      .sort((a, b) => (count.get(b.id) ?? 0) - (count.get(a.id) ?? 0))
+      .slice(0, 6);
   }
 
   // ---------------------------------------------------------------------------
@@ -631,7 +812,7 @@ export class ConversationService {
     userId: string,
     source: ChannelSource,
     parsed: ReturnType<typeof ruleParse>,
-  ): Promise<string> {
+  ): Promise<string | BotReply> {
     if (parsed.amount === null) {
       return '🤔 Entendí que quieres registrar algo, pero no vi el monto. ¿Cuánto fue? (ej: "$45.000)';
     }
@@ -714,7 +895,12 @@ export class ConversationService {
       const fixed = await this.prisma.fixedItem.findUnique({ where: { id: tx.fixedItemId } });
       return `✅ Registré tu ${label} de ${fmt(parsed.amount)}${cat} ${when}. Ya lo tenía como gasto fijo (${fixed?.name ?? 'fijo'}): quedó cruzado y no se cuenta doble.${SEEN_IN_APP}`;
     }
-    return `✅ Registré tu ${label} de ${fmt(parsed.amount)}${cat} ${when}.${SEEN_IN_APP}`;
+    // FIN-055: el acuse dice cuánto queda y ofrece corregir la categoría o deshacer.
+    const left = await this.teQuedaLine(userId);
+    return {
+      text: `✅ Registré tu ${label} de ${fmt(parsed.amount)}${cat} ${when}.${SEEN_IN_APP}${left ? `\n\n${left}` : ''}`,
+      buttons: txButtons(tx.id),
+    };
   }
 
   /**

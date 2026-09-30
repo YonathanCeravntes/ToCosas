@@ -15,6 +15,7 @@ import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 import { ConversationService } from '../messaging/conversation.service';
 import { looksLikeOtp } from '../whatsapp/otp.util';
 import { TelegramProvider } from './telegram.provider';
+import { BotReply } from '../messaging/bot-menu';
 import { TelegramLinkService } from './telegram-link.service';
 
 @ApiTags('telegram')
@@ -71,8 +72,12 @@ export class TelegramController {
       });
 
       try {
-        const reply = await this.handleMessage(msg);
-        await this.provider.sendText(msg.chatId, reply);
+        if (msg.callbackId) await this.provider.answerCallback(msg.callbackId);
+        const reply =
+          msg.type === 'callback'
+            ? await this.conversation.handleCallback(await this.links.resolveUserId(msg.chatId), msg.text ?? '')
+            : await this.handleMessage(msg);
+        await this.provider.sendReply(msg.chatId, reply);
         await this.prisma.webhookEvent.update({
           where: { externalId },
           data: { status: 'processed', processedAt: new Date() },
@@ -90,10 +95,10 @@ export class TelegramController {
   private async handleMessage(msg: {
     chatId: string;
     username?: string;
-    type: 'text' | 'image' | 'document' | 'other';
+    type: 'text' | 'image' | 'document' | 'other' | 'callback';
     text?: string;
     file?: { fileId: string; mimeType: string };
-  }): Promise<string> {
+  }): Promise<BotReply> {
     const userId = await this.links.resolveUserId(msg.chatId);
     const text = (msg.text ?? '').trim();
 
@@ -103,8 +108,11 @@ export class TelegramController {
       if (code) {
         const ok = await this.links.tryVerify(msg.chatId, msg.username, code);
         return ok
-          ? '✅ ¡Listo! Tu Telegram quedó vinculado. Ya puedes registrar gastos, ingresos y pagos escribiéndome. Escribe "ayuda" para ver ejemplos.'
-          : '❌ Ese código no es válido o expiró. Genera uno nuevo en la app (Ajustes → Telegram).';
+          ? {
+              text: '✅ ¡Listo! Tu Telegram quedó vinculado. Ya puedes registrar gastos, ingresos y pagos escribiéndome, o tocar un botón de abajo. Escribe "ayuda" para ver ejemplos.',
+              mainKeyboard: true,
+            }
+          : { text: '❌ Ese código no es válido o expiró. Genera uno nuevo en la app (Ajustes → Telegram).' };
       }
     }
 
@@ -115,10 +123,10 @@ export class TelegramController {
           return { data: f.data, mimeType: f.mimeType ?? msg.file!.mimeType };
         }
       : undefined;
-    return this.conversation.handle({
+    return this.conversation.handleRich({
       userId,
       text,
-      type: msg.type,
+      type: msg.type === 'callback' ? 'other' : msg.type,
       file,
       channelLabel: 'Telegram',
       source: 'telegram',
