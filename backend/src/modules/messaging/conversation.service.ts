@@ -289,7 +289,7 @@ export class ConversationService {
   // ---------------------------------------------------------------------------
 
   private static readonly DOCS_CONSENT_TEXT =
-    '📎 Para leer tu documento lo envío a la inteligencia artificial de Millo (proveedor Anthropic, EE. UU.). ' +
+    '📎 Para leer tu documento lo envío a la inteligencia artificial de Millo (proveedor Google Gemini, EE. UU.). ' +
     'Leerlo no es guardarlo: solo tomo saldo, cupo, cuota, tasa, fechas o el total, y el archivo solo se guarda en *Mis documentos* si lo autorizas aparte. ' +
     'Si estás de acuerdo, responde *autorizo* y vuelve a enviarme el documento. Para retirar el permiso escribe "revocar documentos".';
 
@@ -299,7 +299,8 @@ export class ConversationService {
       return '📎 Recibí tu documento, pero la lectura con IA no está disponible en este momento. Regístralo con un mensaje, ej: "Gasté $45.000 en mercado".';
     }
     const settings = await this.prisma.userSettings.findUnique({ where: { userId } });
-    if (!settings?.docsAiConsentAt) return ConversationService.DOCS_CONSENT_TEXT;
+    // 2026-09-30: cambió el proveedor de IA (Anthropic → Google): el permiso anterior no vale.
+    if (!settings?.docsAiConsentAt || settings.docsAiConsentAt < DOCS_AI_CONSENT_SINCE) return ConversationService.DOCS_CONSENT_TEXT;
     if (!input.file) return '📎 No pude recibir el archivo. Envíalo de nuevo como foto o PDF.';
 
     let file: { data: Buffer; mimeType: string };
@@ -895,3 +896,6 @@ export const STORAGE_CONSENT_TEXT =
   'Los conservo 5 años o hasta que los borres. Las facturas de salud son datos sensibles: puedes no autorizarlas. ' +
   'Puedes descargar o borrar todo cuando quieras en la app (Más → Mis documentos).\n\n' +
   'Si estás de acuerdo responde *acepto guardar* (o *acepto guardar con salud* para incluir las de salud).';
+
+/** Permisos para leer documentos anteriores a esta fecha nombraban a otro proveedor (Anthropic). */
+export const DOCS_AI_CONSENT_SINCE = new Date('2026-09-30T15:00:00Z');

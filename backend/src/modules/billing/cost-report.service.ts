@@ -5,7 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
  * Telemetría de costo variable por usuario/mes (DEC-0009 §10.5): insumo del
  * fundador para fijar el precio de Millo+ con datos reales antes de activar
  * cobros de producción.
- *  (a) Llamadas reales a Anthropic: AiInteractionLog purpose='chat',
+ *  (a) Llamadas reales al proveedor de IA (Gemini): AiInteractionLog purpose='chat',
  *      direction='response' con model no nulo (las plantillas no cuentan).
  *  (b) Mensajes WhatsApp salientes: NotificationLog channel='whatsapp'
  *      (recordatorios/proactivos) + respuestas del bot (webhook_events

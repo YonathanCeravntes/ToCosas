@@ -1,8 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ConfigService } from '@nestjs/config';
-import { AnthropicClient } from '../copilot/anthropic.client';
-import { LLM_MODEL_DEFAULT } from '../copilot/copilot.constants';
+import { LlmClient } from '../copilot/llm.client';
 import { DocumentExtraction, DocumentKind } from './document-proposal';
 
 /** Tipos que la IA puede leer (imágenes de foto/captura y PDF). */
@@ -10,8 +8,6 @@ export const SUPPORTED_MEDIA = new Set(['image/jpeg', 'image/png', 'image/webp',
 
 const TOOL = 'emitir_extraccion';
 
-/** Modelo para leer documentos: la visión de Sonnet lee extractos densos con mucha más precisión. */
-export const LLM_EXTRACT_MODEL_DEFAULT = 'claude-sonnet-5';
 
 /** Esquema de la tool: la IA solo puede responder con este objeto. */
 const SCHEMA = {
@@ -93,18 +89,15 @@ Reglas:
 7. "confidence" baja (< 0.5) si la imagen es borrosa o faltan los campos principales.`;
 
 /**
- * FIN-042 · Extracción de datos de un documento con la IA (Claude, visión/PDF).
+ * FIN-042 · Extracción de datos de un documento con la IA (Gemini, visión/PDF).
  * El archivo va en memoria a la API y no se conserva; el log de auditoría registra
  * tokens y propósito, NUNCA el contenido (misma política que el Copiloto, §4.4).
  */
 @Injectable()
 export class DocumentExtractionService {
-  private readonly logger = new Logger(DocumentExtractionService.name);
-
   constructor(
     private readonly prisma: PrismaService,
-    private readonly llm: AnthropicClient,
-    private readonly config: ConfigService,
+    private readonly llm: LlmClient,
   ) {}
 
   isAvailable(): boolean {
@@ -116,27 +109,13 @@ export class DocumentExtractionService {
     await this.prisma.aiInteractionLog.create({
       data: { userId, direction: 'request', purpose: 'extract_document', contextFieldGroups: ['document'] },
     });
-    const primary = this.config.get<string>('LLM_EXTRACT_MODEL', LLM_EXTRACT_MODEL_DEFAULT);
-    const fallback = this.config.get<string>('LLM_MODEL', LLM_MODEL_DEFAULT);
-    const call = (model: string) =>
-      this.llm.extractStructured({
-        document: { mediaType: file.mimeType, base64: file.data.toString('base64') },
-        instructions: INSTRUCTIONS,
-        toolName: TOOL,
-        schema: SCHEMA,
-        model,
-      });
-    let res;
-    try {
-      res = await call(primary);
-    } catch (e) {
-      // Modelo no disponible para esta cuenta/región (400/404) → el de chat, que sí existe.
-      const msg = (e as Error).message;
-      if (primary !== fallback && /anthropic_http_(400|404)/.test(msg)) {
-        this.logger.warn(`Modelo de extracción ${primary} no disponible (${msg}); uso ${fallback}`);
-        res = await call(fallback);
-      } else throw e;
-    }
+    // El modelo lo decide el cliente (GEMINI_EXTRACT_MODEL, por defecto el mismo del Copiloto).
+    const res = await this.llm.extractStructured({
+      document: { mediaType: file.mimeType, base64: file.data.toString('base64') },
+      instructions: INSTRUCTIONS,
+      toolName: TOOL,
+      schema: SCHEMA,
+    });
     await this.prisma.aiInteractionLog.create({
       data: {
         userId,

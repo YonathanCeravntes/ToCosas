@@ -1,4 +1,4 @@
-import { normalizeHistory } from './anthropic.client';
+import { normalizeHistory } from './llm.client';
 
 describe('BT-026 · historial que acepta la API de la IA', () => {
   it('descarta respuestas del Copiloto al inicio (el recorte a 10 mensajes podía empezar así)', () => {
