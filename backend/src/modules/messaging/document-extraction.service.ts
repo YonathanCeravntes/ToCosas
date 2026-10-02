@@ -26,6 +26,7 @@ const SCHEMA = {
     creditLimit: { type: ['number', 'null'], description: 'Cupo total (solo tarjetas).' },
     availableCredit: { type: ['number', 'null'], description: 'Cupo disponible (solo tarjetas).' },
     minimumPayment: { type: ['number', 'null'], description: 'Pago mínimo del periodo (tarjetas).' },
+    handlingFee: { type: ['number', 'null'], description: 'Cuota de manejo del periodo ("Cuota de manejo", "Cuota de administración", "Fee de manejo"), solo tarjetas. Null si no aparece o es 0.' },
     totalPayment: { type: ['number', 'null'], description: 'Lo que hay que pagar este mes: "Valor cuota mes", "Total valor a pagar", "Cuota", "Pago total". En un crédito es la CUOTA del mes.' },
     monthlyRate: { type: ['number', 'null'], description: 'Tasa mensual en porcentaje ("2,1% M.V." → 2.1).' },
     annualEffectiveRate: { type: ['number', 'null'], description: 'Tasa efectiva anual en porcentaje ("15,39% E.A." → 15.39).' },
@@ -62,6 +63,7 @@ Glosario de extractos colombianos (Davivienda, Bancolombia, BBVA, Serfinanza, Nu
 - "Total abonado", "Total aplicado en el periodo", "Valor pagado por anticipado", "Movimientos del periodo" → periodPaid / periodPrincipal / periodInterest. NUNCA son el balance ni la cuota.
 - "Valor cuota mes", "Total valor a pagar", "Cuota", "Pago total", "Valor a pagar" → totalPayment (la cuota del mes en créditos).
 - "Pago mínimo" → minimumPayment (tarjetas).
+- "Cuota de manejo", "Cuota de administración", "Fee de manejo" → handlingFee (tarjetas; el cargo del periodo, no el acumulado).
 - "Páguese antes del", "Pagar hasta", "Fecha límite de pago", "Fecha de pago" → dueDate.
 - "No. cuotas pendientes", "Cuotas Pdtes", "Cuotas restantes", "Cuotas por pagar" → remainingInstallments.
 - "No. cuotas que se cancela", "Cuotas pagadas", "Cuotas canceladas" → paidInstallments.
@@ -161,6 +163,7 @@ export function normalize(raw: Record<string, unknown>): DocumentExtraction {
     creditLimit: num(raw.creditLimit),
     availableCredit: num(raw.availableCredit),
     minimumPayment: num(raw.minimumPayment),
+    handlingFee: num(raw.handlingFee),
     totalPayment: num(raw.totalPayment),
     monthlyRate: num(raw.monthlyRate),
     annualEffectiveRate: num(raw.annualEffectiveRate),

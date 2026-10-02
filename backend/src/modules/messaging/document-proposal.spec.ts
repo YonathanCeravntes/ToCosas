@@ -43,6 +43,26 @@ describe('FIN-042 · document-proposal', () => {
     expect(q.installments).toBe(16);
   });
 
+  it('cuota de manejo (Fundador 2026-10-02): se lee, se propone como cargo aparte y se corrige con "manejo"', () => {
+    const x = normalize({ kind: 'extracto_tarjeta', balance: '3.983.020', minimumPayment: 250000, handlingFee: '32.900', confidence: 0.9 });
+    expect(x.handlingFee).toBe(32_900);
+    const p = toProposal(x);
+    if (p?.kind !== 'extracto_tarjeta') throw new Error('kind');
+    expect(p.handlingFee).toBe(32_900);
+    expect(describeProposal(p)).toContain('Cuota de manejo: $32.900 al mes');
+    // Corrección: un valor nuevo, o 0 para quitarla.
+    const r1 = applyFix(p, 'manejo', 29_900);
+    expect('proposal' in r1 && r1.proposal.kind === 'extracto_tarjeta' ? r1.proposal.handlingFee : null).toBe(29_900);
+    expect(parseReply('cuota de manejo 29.900')).toEqual({ type: 'fix', field: 'manejo', value: 29_900 });
+    const r0 = applyFix(p, 'manejo', 0);
+    expect('proposal' in r0 && r0.proposal.kind === 'extracto_tarjeta' ? r0.proposal.handlingFee : 'x').toBeNull();
+    // Una "cuota de manejo" de 900.000 no es plausible: lectura errada, se ignora.
+    const q = toProposal({ kind: 'extracto_tarjeta', balance: 1_000_000, handlingFee: 900_000, confidence: 0.9 });
+    if (q?.kind !== 'extracto_tarjeta') throw new Error('kind');
+    expect(q.handlingFee).toBeNull();
+    expect(describeProposal(q)).not.toContain('Cuota de manejo');
+  });
+
   it('sin pago conocido reparte en 12; cuotas acotadas a [1, 36]', () => {
     expect(installmentsFor(1_000_000, null)).toBe(12);
     expect(installmentsFor(1_000_000, 10)).toBe(36);

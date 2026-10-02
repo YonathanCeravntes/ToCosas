@@ -111,6 +111,15 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
         <>
           <GroupLabel title="Tu tarjeta" />
           <CardSection debtId={debtId} tick={tick} onChanged={() => void reload()} onEdit={() => stackNav.navigate('EditDebt', { debtId, name: data.name })} />
+          {/* BT-040: la cuota de manejo y el seguro de la tarjeta no tenían dónde registrarse
+              (la sección solo salía en créditos); el servidor ya los contaba en "Te queda". */}
+          <InsuranceSection
+            debtId={debtId}
+            insurances={data.insurances ?? []}
+            breakdown={data.paymentBreakdown}
+            onChanged={() => void reload()}
+            variant="card"
+          />
         </>
       ) : null}
 
@@ -921,16 +930,20 @@ function InsuranceSection({
   insurances,
   breakdown,
   onChanged,
+  variant = 'credit',
 }: {
   debtId: string;
   insurances: DebtInsurance[];
   breakdown?: PaymentBreakdown;
   onChanged: () => void;
+  /** BT-040: en una tarjeta el cargo típico es la cuota de manejo (sale preseleccionada). */
+  variant?: 'credit' | 'card';
 }) {
+  const isCard = variant === 'card';
   const [showForm, setShowForm] = useState(false);
   // FIN-023: el alta distingue seguro vs cuota de manejo (cargo del banco).
-  const [isCargo, setIsCargo] = useState(false);
-  const [name, setName] = useState('');
+  const [isCargo, setIsCargo] = useState(isCard);
+  const [name, setName] = useState(isCard ? 'Cuota de manejo' : '');
   const [premium, setPremium] = useState('');
   const [financed, setFinanced] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -967,13 +980,13 @@ function InsuranceSection({
   return (
     <Card>
       <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
-        <Ico name="shield-checkmark-outline" size={15} /> Seguros y cargos del crédito
+        <Ico name="shield-checkmark-outline" size={15} /> {isCard ? 'Cargos de la tarjeta' : 'Seguros y cargos del crédito'}
       </Text>
 
       {breakdown && breakdown.insuranceMonthlyTotal > 0 ? (
         <View style={{ marginBottom: spacing.sm }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ color: colors.textMuted }}>Cuota del crédito</Text>
+            <Text style={{ color: colors.textMuted }}>{isCard ? 'Cuotas del mes' : 'Cuota del crédito'}</Text>
             <Text style={{ color: colors.text }}>{formatMoney(breakdown.basePayment)}</Text>
           </Row>
           {breakdown.insuranceFinanced > 0 ? (
@@ -1026,8 +1039,9 @@ function InsuranceSection({
 
       {insurances.length === 0 && !showForm ? (
         <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm }}>
-          Registra los seguros del crédito (vida, incendio…) para ver tu cuota real. Si aportas tu
-          propia póliza (endoso), aquí ves cuánto te ahorras.
+          {isCard
+            ? 'Registra la cuota de manejo (o el seguro de la tarjeta) para que cuente en la cuota del mes y en "Te queda". Si envías el extracto por Telegram, Millo la lee sola.'
+            : 'Registra los seguros del crédito (vida, incendio…) para ver tu cuota real. Si aportas tu propia póliza (endoso), aquí ves cuánto te ahorras.'}
         </Text>
       ) : null}
 
@@ -1100,7 +1114,7 @@ function InsuranceSection({
           <Button title={isCargo ? 'Guardar cargo' : 'Guardar seguro'} onPress={() => void add()} loading={saving} />
         </View>
       ) : (
-        <Button icon="add-circle-outline" title="Agregar seguro o cargo" variant="secondary" onPress={() => setShowForm(true)} />
+        <Button icon="add-circle-outline" title={isCard ? 'Agregar cuota de manejo o seguro' : 'Agregar seguro o cargo'} variant="secondary" onPress={() => setShowForm(true)} />
       )}
     </Card>
   );

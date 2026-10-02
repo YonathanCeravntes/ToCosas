@@ -28,6 +28,7 @@ import {
   toProposal,
 } from './document-proposal';
 import { DebtOutlayService } from '../debts/debt-outlay.service';
+import { DebtInsuranceService } from '../debts/debt-insurance.service';
 import { SimulationsService } from '../simulations/simulations.service';
 import { TransactionsService } from '../transactions/transactions.service';
 import { TxKindDto } from '../transactions/dto/transaction.dto';
@@ -729,10 +730,28 @@ export class ConversationService {
           note: 'Saldo del extracto',
         });
       }
+      // FIN-054 (Fundador 2026-10-02): la cuota de manejo leída se registra como cargo del
+      // banco aparte (FIN-023) — así cuenta en la cuota del mes y en "Te queda".
+      let feeNote = '';
+      if (p.handlingFee != null && p.handlingFee > 0) {
+        try {
+          const insurance = this.moduleRef.get(DebtInsuranceService, { strict: false });
+          await insurance.create(userId, debt.id, {
+            kind: 'cuota_manejo' as never,
+            name: 'Cuota de manejo',
+            monthlyPremium: p.handlingFee,
+            financed: false,
+          } as never);
+          feeNote = ` Anoté la cuota de manejo de ${fmt(p.handlingFee)} al mes como cargo aparte.`;
+        } catch (e) {
+          this.logger.warn(`Cuota de manejo no registrada: ${(e as Error).message}`);
+          feeNote = ` No pude anotar la cuota de manejo; agrégala en Deudas → ${p.name} → Cargos de la tarjeta.`;
+        }
+      }
       return (
         `✅ Creé la tarjeta *${p.name}* con saldo ${fmt(p.balance)}` +
         (p.creditLimit != null ? ` y cupo ${fmt(p.creditLimit)}` : '') +
-        `. Repartí el saldo en ${p.installments} cuota${p.installments === 1 ? '' : 's'} de ≈ ${fmt(p.balance / p.installments)}. ` +
+        `. Repartí el saldo en ${p.installments} cuota${p.installments === 1 ? '' : 's'} de ≈ ${fmt(p.balance / p.installments)}.${feeNote} ` +
         `Puedes ajustar cuotas, tasa y día de pago en Deudas → ${p.name}.`
       );
     }

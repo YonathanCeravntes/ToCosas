@@ -23,5 +23,9 @@
 - App: `tsc` limpio. Sin pruebas automáticas de pantallas; revisión visual pendiente por OTA (Android) y web (iPhone).
 - Sin cambios de servidor ni de datos.
 
-## 4. Pendiente
+## 4. Cargos de la tarjeta (BT-040, Fundador 2026-10-02, "Aprobado")
+- **App:** en una tarjeta, debajo de "Tu tarjeta", la sección **"Cargos de la tarjeta"** (misma `InsuranceSection` con `variant="card"`: cuota de manejo preseleccionada, texto propio). El servidor ya aceptaba el cargo y lo sumaba al desembolso del mes y a "Te queda"; solo faltaba la puerta en la app.
+- **Bot:** el lector de extractos pide `handlingFee` ("Cuota de manejo", "Cuota de administración"); la propuesta de tarjeta lo muestra como "Cuota de manejo: $X al mes → la registro como cargo aparte"; se corrige con `manejo 29.900` (0 para quitarla); al confirmar, `applyProposal` crea el cargo `cuota_manejo` aparte (FIN-023). Un valor implausible (≥ 500.000) se descarta como lectura errada. Pruebas en `document-proposal.spec.ts`.
+
+## 5. Pendiente
 - OTA desde el PC del Fundador (junto con FIN-056, FIN-057, BT-038 y BT-039).
