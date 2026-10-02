@@ -181,7 +181,7 @@ function DebtRows({ debt, first, navigation }: { debt: HomeDebt; first: boolean;
             return (
               <Pressable
                 key={d.debtId}
-                onPress={() => go({ screen: 'DebtDetail', params: { debtId: d.debtId, name: d.name } })}
+                onPress={() => go({ screen: 'DebtDetail', initial: false, params: { debtId: d.debtId, name: d.name } })}
                 accessibilityRole="button"
                 accessibilityLabel={`${d.name}: cuota de ${formatMoney(monthly)}, ${detail}`}
               >

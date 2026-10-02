@@ -56,7 +56,7 @@ export function CashflowPlanScreen() {
   );
 
   const openDebt = (s: CashflowPlanStep) =>
-    navigation.navigate('Main', { screen: 'Debts', params: { screen: 'DebtDetail', params: { debtId: s.debtId, name: s.name } } });
+    navigation.navigate('Main', { screen: 'Debts', params: { screen: 'DebtDetail', initial: false, params: { debtId: s.debtId, name: s.name } } });
 
   if (error && !plan) return <FormScroll><ErrorState message={error} onRetry={() => void load(override)} /></FormScroll>;
   if (!plan) return <FormScroll><Skeleton hero lines={3} /><Skeleton lines={4} /></FormScroll>;

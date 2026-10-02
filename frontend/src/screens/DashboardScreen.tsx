@@ -207,8 +207,10 @@ export function DashboardScreen() {
               {d?.interpretation.cashflow?.level === 'verde' && summary.data.upcoming?.[0] ? (
                 <Pressable
                   onPress={() =>
+                    // BT-039: `initial: false` deja Mis deudas debajo, así "atrás" funciona.
                     (navigation as unknown as { navigate: (name: string, params: unknown) => void }).navigate('Debts', {
                       screen: 'DebtDetail',
+                      initial: false,
                       params: { debtId: summary.data!.upcoming[0].debtId, name: summary.data!.upcoming[0].name },
                     })
                   }

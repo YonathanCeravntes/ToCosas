@@ -674,7 +674,7 @@ function NextStep({
     return () =>
       navigation.navigate('Main', {
         screen: 'Debts',
-        params: { screen: 'DebtDetail', params: { debtId: debt.id, name: debt.name } },
+        params: { screen: 'DebtDetail', initial: false, params: { debtId: debt.id, name: debt.name } },
       });
   };
   const cta = (() => {

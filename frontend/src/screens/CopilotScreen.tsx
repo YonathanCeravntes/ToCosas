@@ -430,7 +430,7 @@ function ActionButton({ action }: { action: CopilotAction }) {
         }
         return;
       case 'abonar_deuda':
-        navigation.navigate('Main', { screen: 'Debts', params: { screen: 'DebtDetail', params: { debtId: action.debtId, name: action.debtName } } });
+        navigation.navigate('Main', { screen: 'Debts', params: { screen: 'DebtDetail', initial: false, params: { debtId: action.debtId, name: action.debtName } } });
         return;
       case 'ver_plan':
         navigation.navigate('CashflowPlan');
