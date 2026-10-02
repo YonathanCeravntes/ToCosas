@@ -107,15 +107,16 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     // Ingresos: fijo declarado vs variable. Gastos (FIN-047): fijo = lo YA registrado de
     // los gastos fijos (solo o cruzado); variable = el resto de gastos del ciclo.
     expect(home.income).toMatchObject({ fixed: 4_000_000, variable: 500_000, total: 4_500_000 });
-    expect(home.expense).toMatchObject({ fixed: 1_500_000, variable: 300_000, total: 1_800_000, totalWithDebt: 2_250_000 });
-    // FIN-057 (decisión 2): el porcentaje es sobre gastos + pagos de deudas (2.25M).
-    expect(home.expense.byCategory[0]).toMatchObject({ name: 'Hogar', amount: 1_500_000, percent: 67 });
+    expect(home.expense).toMatchObject({ fixed: 1_500_000, variable: 300_000, total: 1_800_000, totalWithDebt: 2_400_000 });
+    // FIN-057 (decisión 2): el porcentaje es sobre gastos + cuotas del mes (1.8M + 600k).
+    expect(home.expense.byCategory[0]).toMatchObject({ name: 'Hogar', amount: 1_500_000, percent: 63 });
     expect(home.expense.byCategory[1]).toMatchObject({ name: 'Comida', amount: 300_000, percent: 13 });
     expect(home.income.byCategory[0]).toMatchObject({ name: 'Freelance', amount: 500_000 });
 
-    // FIN-057 (boceto A): la fila de deudas — pagado en el ciclo, cuota del mes, lo que falta.
-    expect(home.debt).toMatchObject({ paid: 450_000, committed: 600_000, remaining: 150_000, percent: 20, nextDueDate: '2026-07-15T00:00:00.000Z' });
-    expect(home.debt.byDebt).toEqual([{ debtId: 'd1', name: 'Tarjeta', paid: 450_000, committed: 600_000 }]);
+    // FIN-057 (boceto A, ajuste del Fundador): la fila lleva la cuota COMPROMETIDA del mes
+    // (600k) aunque solo se hayan pagado 450k; pagado y lo que falta van aparte.
+    expect(home.debt).toMatchObject({ amount: 600_000, paid: 450_000, committed: 600_000, remaining: 150_000, percent: 25, nextDueDate: '2026-07-15T00:00:00.000Z' });
+    expect(home.debt.byDebt).toEqual([{ debtId: 'd1', name: 'Tarjeta', paid: 450_000, committed: 600_000, amount: 600_000 }]);
 
     // FIN-057 (boceto B): fuentes — salario (parte fija de "Te queda") + Freelance, con
     // conteo y ciclo anterior; porcentaje sobre la suma de las filas.
@@ -203,7 +204,7 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     expect(home.interpretation.savings).toBeNull(); // sin lectura del Motor → sin línea
     expect(home.interpretation.debt).toBeNull(); // sin pagos en el ciclo → sin línea
     // FIN-057: sin deudas ni ingresos, las secciones nuevas quedan vacías (la app las omite).
-    expect(home.debt).toMatchObject({ paid: 0, committed: 0, remaining: 0, percent: 0, nextDueDate: null, byDebt: [] });
+    expect(home.debt).toMatchObject({ amount: 0, paid: 0, committed: 0, remaining: 0, percent: 0, nextDueDate: null, byDebt: [] });
     expect(home.income.sources).toEqual([]);
   });
 });

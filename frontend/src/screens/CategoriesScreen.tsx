@@ -72,18 +72,20 @@ function ExpensesTab({ data, loading, navigation }: { data: Home; loading: boole
   const cats = data.expense.byCategory;
   const debt = data.debt;
   const showDebt = !!debt && (debt.paid > 0 || debt.committed > 0);
-  // FIN-057 (decisión 2): la base del porcentaje es gastos + pagos de deudas.
-  const total = data.expense.totalWithDebt ?? data.expense.total + (debt?.paid ?? 0);
+  // FIN-057 (decisión 2, ajuste del Fundador): la base del porcentaje es gastos + cuotas del
+  // mes (la comprometida aunque no haya llegado su fecha, o lo pagado si fue más).
+  const debtMonth = debt ? debt.amount ?? Math.max(debt.committed, debt.paid) : 0;
+  const total = data.expense.totalWithDebt ?? data.expense.total + debtMonth;
   const uncategorized = cats.find((c) => c.id == null || c.name === 'Sin categoría');
 
   return (
     <>
       <Card>
-        <Text style={{ color: colors.textMuted, ...type.small }}>Salió de tu bolsillo este ciclo · {data.period.label}</Text>
+        <Text style={{ color: colors.textMuted, ...type.small }}>Sale de tu bolsillo este ciclo · {data.period.label}</Text>
         <Text style={{ color: colors.text, fontSize: 30, fontWeight: '800', marginTop: 2 }}>{loading && !total ? '…' : formatMoney(total)}</Text>
         <Text style={{ color: colors.textFaint, ...type.small }}>
           {formatMoney(data.expense.fixed)} fijos del mes · {formatMoney(data.expense.variable)} del día a día
-          {showDebt && debt ? ` · ${formatMoney(debt.paid)} a deudas` : ''}
+          {showDebt ? ` · ${formatMoney(debtMonth)} en cuotas` : ''}
         </Text>
         {cats.length + (showDebt ? 1 : 0) > 1 ? (
           <View style={{ marginTop: spacing.sm }}>
@@ -91,7 +93,7 @@ function ExpensesTab({ data, loading, navigation }: { data: Home; loading: boole
               height={12}
               parts={[
                 ...cats.map((c, i) => ({ key: `${c.id ?? 'sin'}-${i}`, label: c.name, value: c.amount, color: c.color })),
-                ...(showDebt && debt ? [{ key: 'deudas', label: 'Cuotas de deudas', value: debt.paid, color: colors.debt }] : []),
+                ...(showDebt ? [{ key: 'deudas', label: 'Cuotas de deudas', value: debtMonth, color: colors.debt }] : []),
               ]}
             />
           </View>
@@ -120,7 +122,7 @@ function ExpensesTab({ data, loading, navigation }: { data: Home; loading: boole
                   </Row>
                   <ProgressBar value={c.percent / 100} color={c.color} height={6} label={`${c.name} ${c.percent}%`} />
                   <Text style={{ color: c.id == null ? colors.warningDeep : colors.textMuted, ...type.small, fontWeight: c.id == null ? '700' : '400' }}>
-                    {c.percent} % de lo que salió{c.id == null ? ' · toca para organizarlos' : ''}
+                    {c.percent} % de lo que sale{c.id == null ? ' · toca para organizarlos' : ''}
                   </Text>
                 </View>
                 <Ico name="chevron-forward" size={16} color={colors.textFaint} />
@@ -137,13 +139,23 @@ function ExpensesTab({ data, loading, navigation }: { data: Home; loading: boole
   );
 }
 
-/** FIN-057 · La fila de deudas abierta por deuda: "Tarjeta $420.000 · Crédito del carro $200.000". */
+/**
+ * FIN-057 · La fila de deudas abierta por deuda: "Tarjeta $420.000 · Crédito del carro $200.000".
+ * Lleva la cuota del mes aunque no haya llegado su fecha (ajuste del Fundador); pagado aparte.
+ */
 function DebtRows({ debt, first, navigation }: { debt: HomeDebt; first: boolean; navigation: Nav }) {
   const go = (params?: unknown) => (navigation as unknown as { navigate: (name: string, params?: unknown) => void }).navigate('Debts', params ?? { screen: 'DebtsList' });
+  const amount = debt.amount ?? Math.max(debt.committed, debt.paid);
   const shown = debt.byDebt.filter((d) => d.paid > 0 || d.committed > 0);
+  const status =
+    debt.remaining <= 0
+      ? 'al día este mes'
+      : debt.paid > 0
+        ? `pagado ${formatMoney(debt.paid)} · faltan ${formatMoney(debt.remaining)}`
+        : `aún sin pagar · vence${debt.nextDueDate ? ` el ${new Date(debt.nextDueDate).getUTCDate()}` : ' este mes'}`;
   return (
     <View style={{ paddingVertical: 12, borderTopWidth: first ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
-      <Pressable onPress={() => go()} accessibilityRole="button" accessibilityLabel={`Cuotas de deudas: ${formatMoney(debt.paid)}, ${debt.percent} por ciento. Ver mis deudas`}>
+      <Pressable onPress={() => go()} accessibilityRole="button" accessibilityLabel={`Cuotas de deudas: ${formatMoney(amount)} este mes, ${debt.percent} por ciento, ${status}. Ver mis deudas`}>
         <Row style={{ gap: spacing.sm, alignItems: 'center' }}>
           <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.debtSoft, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="card-outline" size={18} color={colors.debt} />
@@ -151,11 +163,11 @@ function DebtRows({ debt, first, navigation }: { debt: HomeDebt; first: boolean;
           <View style={{ flex: 1, gap: 4 }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <Text style={{ color: colors.text, fontWeight: '700' }}>Cuotas de deudas</Text>
-              <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(debt.paid)}</Text>
+              <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(amount)}</Text>
             </Row>
             <ProgressBar value={debt.percent / 100} color={colors.debt} height={6} label={`Cuotas de deudas ${debt.percent}%`} />
             <Text style={{ color: colors.debt, ...type.small, fontWeight: '700' }}>
-              {debt.percent} % de lo que salió{debt.remaining > 0 ? ` · faltan ${formatMoney(debt.remaining)} este mes` : debt.committed > 0 ? ' · las cuotas del mes están pagas' : ''}
+              {debt.percent} % de lo que sale · {status}
             </Text>
           </View>
           <Ico name="chevron-forward" size={16} color={colors.textFaint} />
@@ -163,21 +175,25 @@ function DebtRows({ debt, first, navigation }: { debt: HomeDebt; first: boolean;
       </Pressable>
       {shown.length > 0 ? (
         <View style={{ marginLeft: 44, marginTop: spacing.xs, gap: 6 }}>
-          {shown.map((d) => (
-            <Pressable
-              key={d.debtId}
-              onPress={() => go({ screen: 'DebtDetail', params: { debtId: d.debtId, name: d.name } })}
-              accessibilityRole="button"
-              accessibilityLabel={`${d.name}: ${formatMoney(d.paid)} pagados de ${formatMoney(d.committed)}`}
-            >
-              <Row style={{ justifyContent: 'space-between', gap: spacing.sm }}>
-                <Text style={{ color: colors.textMuted, ...type.small, flex: 1 }} numberOfLines={1}>{d.name}</Text>
-                <Text style={{ color: colors.textMuted, ...type.small }}>
-                  {formatMoney(d.paid)}{d.committed > d.paid ? ` de ${formatMoney(d.committed)}` : ''}
-                </Text>
-              </Row>
-            </Pressable>
-          ))}
+          {shown.map((d) => {
+            const monthly = d.amount ?? Math.max(d.committed, d.paid);
+            const detail = d.paid <= 0 ? 'sin pagar' : d.paid >= d.committed ? 'pagada' : `pagado ${formatMoney(d.paid)}`;
+            return (
+              <Pressable
+                key={d.debtId}
+                onPress={() => go({ screen: 'DebtDetail', params: { debtId: d.debtId, name: d.name } })}
+                accessibilityRole="button"
+                accessibilityLabel={`${d.name}: cuota de ${formatMoney(monthly)}, ${detail}`}
+              >
+                <Row style={{ justifyContent: 'space-between', gap: spacing.sm }}>
+                  <Text style={{ color: colors.textMuted, ...type.small, flex: 1 }} numberOfLines={1}>{d.name}</Text>
+                  <Text style={{ color: colors.textMuted, ...type.small }}>
+                    {formatMoney(monthly)} · {detail}
+                  </Text>
+                </Row>
+              </Pressable>
+            );
+          })}
         </View>
       ) : null}
     </View>

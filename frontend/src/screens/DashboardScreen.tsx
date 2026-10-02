@@ -247,8 +247,8 @@ export function DashboardScreen() {
                     onPress={() => (navigation as unknown as { navigate: (name: string, params?: unknown) => void }).navigate('Debts', { screen: 'DebtsList' })}
                   />
                 );
-                // La fila entra en su lugar por monto, pero nunca sale de la lista.
-                const idx = cats.findIndex((c) => c.amount < d.debt!.paid);
+                // La fila entra en su lugar por monto (la cuota del mes), pero nunca sale de la lista.
+                const idx = cats.findIndex((c) => c.amount < debtAmount(d.debt!));
                 rows.splice(idx === -1 ? rows.length : idx, 0, debtRow);
               }
               return rows;
@@ -449,13 +449,30 @@ function ProgressLine({ profile }: { profile: GamificationProfile }) {
   );
 }
 
-/** FIN-057 · La fila morada de deudas en "En qué se te va": pagado, y en pequeño lo que falta. */
+/** La cuota comprometida del mes, o lo pagado si fue más (respuestas viejas en caché no traen `amount`). */
+function debtAmount(debt: HomeDebt): number {
+  return debt.amount ?? Math.max(debt.committed, debt.paid);
+}
+
+/**
+ * FIN-057 · La fila morada de deudas en "En qué se te va": la cuota del mes aunque su fecha no
+ * haya llegado (Fundador: "al tener pago mes a mes, debe reflejarse ahí"); abajo, pagado y falta.
+ */
 function DebtRow({ debt, onPress }: { debt: HomeDebt; onPress: () => void }) {
+  const amount = debtAmount(debt);
+  const status =
+    debt.remaining <= 0
+      ? debt.paid > debt.committed
+        ? `Pagaste ${formatMoney(debt.paid)} · las cuotas de este mes están al día`
+        : 'Las cuotas de este mes están al día'
+      : debt.paid > 0
+        ? `Pagado ${formatMoney(debt.paid)} · faltan ${formatMoney(debt.remaining)}${debt.nextDueDate ? ` · vence el ${shortDate(debt.nextDueDate)}` : ''}`
+        : `Aún sin pagar este mes${debt.nextDueDate ? ` · vence el ${shortDate(debt.nextDueDate)}` : ''}`;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Cuotas de deudas: ${formatMoney(debt.paid)} pagados, ${debt.percent} por ciento. Faltan ${formatMoney(debt.remaining)}. Ver mis deudas`}
+      accessibilityLabel={`Cuotas de deudas: ${formatMoney(amount)} este mes, ${debt.percent} por ciento. ${status}. Ver mis deudas`}
       style={{ marginBottom: spacing.sm }}
     >
       <Row style={{ justifyContent: 'space-between', marginBottom: spacing.xs }}>
@@ -466,17 +483,11 @@ function DebtRow({ debt, onPress }: { debt: HomeDebt; onPress: () => void }) {
           <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>Cuotas de deudas</Text>
         </Row>
         <Text style={{ color: colors.textMuted, ...type.small }}>
-          {formatMoney(debt.paid)} · {debt.percent}%
+          {formatMoney(amount)} · {debt.percent}%
         </Text>
       </Row>
       <ProgressBar value={debt.percent / 100} color={colors.debt} height={6} label={`Cuotas de deudas ${debt.percent}%`} />
-      <Text style={{ color: colors.debt, ...type.caption, marginTop: 4 }}>
-        {debt.remaining > 0
-          ? `Faltan ${formatMoney(debt.remaining)} de las cuotas de este mes${debt.nextDueDate ? ` · vence el ${shortDate(debt.nextDueDate)}` : ''}`
-          : debt.committed > 0
-            ? 'Las cuotas de este mes ya están pagas'
-            : 'Pagos a deudas este ciclo'}
-      </Text>
+      <Text style={{ color: colors.debt, ...type.caption, marginTop: 4 }}>{status}</Text>
     </Pressable>
   );
 }

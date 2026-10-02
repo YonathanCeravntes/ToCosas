@@ -171,34 +171,38 @@ export class DashboardService {
     const variableIncome = teQueda.incomeVariableBase ?? receivedIncome;
     const incomeTotal = teQueda.incomeBase ?? fixedIncome + variableIncome;
     const expenseTotal = fixedExpense + variableExpense;
-    // FIN-057 (decisión 2 del Fundador): el porcentaje de "En qué se te va" se calcula sobre
-    // gastos + pagos de deudas — lo que de verdad salió del bolsillo en el ciclo.
-    const outflowTotal = round2(expenseTotal + debtPayments);
     const estimatedCashflow = round2(incomeTotal - expenseTotal - debtPayments);
 
-    // FIN-057 (boceto A): la fila "Cuotas de deudas" de Inicio — lo pagado en el ciclo y, en
-    // pequeño, lo que falta de la cuota comprometida del mes (misma autoridad que "Te queda").
+    // FIN-057 (boceto A, ajuste del Fundador 2026-10-02 al ver la pantalla): la fila "Cuotas
+    // de deudas" muestra la cuota COMPROMETIDA del mes aunque su fecha no haya llegado ("al
+    // tener pago mes a mes, debe reflejarse ahí"); si se pagó más (abono extra), lo pagado.
+    // `committed` es el desembolso real por deuda (misma autoridad que "Te queda").
     const committed = round2(
       debts.reduce((acc, d) => acc + (outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0)), 0),
     );
+    const debtMonth = round2(Math.max(committed, debtPayments));
+    // FIN-057 (decisión 2 del Fundador): el porcentaje de "En qué se te va" se calcula sobre
+    // gastos + cuotas del mes — todo lo que sale (o va a salir) del bolsillo en el ciclo.
+    const outflowTotal = round2(expenseTotal + debtMonth);
     const nextDue = debts
       .map((d) => d.nextDueDate)
       .filter((d): d is Date => !!d)
       .sort((a, b) => a.getTime() - b.getTime())[0];
     const byDebt = debts
-      .map((d) => ({
-        debtId: d.id,
-        name: d.name,
-        paid: round2(paidByDebt.get(d.id) ?? 0),
-        committed: round2(outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0)),
-      }))
-      .sort((a, b) => b.paid - a.paid || b.committed - a.committed);
+      .map((d) => {
+        const paid = round2(paidByDebt.get(d.id) ?? 0);
+        const monthly = round2(outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0));
+        return { debtId: d.id, name: d.name, paid, committed: monthly, amount: round2(Math.max(monthly, paid)) };
+      })
+      .sort((a, b) => b.amount - a.amount);
     // Pagos del ciclo a deudas ya cerradas o borradas siguen contando (van en "paid").
     const debtSection = {
+      /** Lo que lleva la fila: la cuota del mes, o lo pagado si fue más. */
+      amount: debtMonth,
       paid: round2(debtPayments),
       committed,
       remaining: round2(Math.max(0, committed - debtPayments)),
-      percent: outflowTotal > 0 ? Math.round((debtPayments / outflowTotal) * 100) : 0,
+      percent: outflowTotal > 0 ? Math.round((debtMonth / outflowTotal) * 100) : 0,
       nextDueDate: nextDue ? nextDue.toISOString() : null,
       byDebt,
     };
@@ -249,7 +253,7 @@ export class DashboardService {
         fixed: round2(fixedExpense),
         variable: round2(variableExpense),
         total: round2(expenseTotal),
-        /** FIN-057: gastos + pagos de deudas, la base del porcentaje de "En qué se te va". */
+        /** FIN-057: gastos + cuotas del mes, la base del porcentaje de "En qué se te va". */
         totalWithDebt: outflowTotal,
         byCategory: toSorted(expenseByCat, outflowTotal),
       },

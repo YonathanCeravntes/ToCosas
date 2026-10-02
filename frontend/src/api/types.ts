@@ -316,15 +316,17 @@ export interface HomeIncomeSource {
 
 /** FIN-057 · La fila "Cuotas de deudas" de "En qué se te va". */
 export interface HomeDebt {
+  /** Lo que lleva la fila: la cuota comprometida del mes, o lo pagado si fue más. */
+  amount?: number;
   /** Pagado a deudas en el ciclo. */
   paid: number;
   /** Cuotas comprometidas del mes (desembolso real, misma fuente que "Te queda"). */
   committed: number;
   remaining: number;
-  /** Sobre gastos + pagos de deudas. */
+  /** Sobre gastos + cuotas del mes. */
   percent: number;
   nextDueDate: string | null;
-  byDebt: Array<{ debtId: string; name: string; paid: number; committed: number }>;
+  byDebt: Array<{ debtId: string; name: string; paid: number; committed: number; amount?: number }>;
 }
 
 export interface FlowSection {

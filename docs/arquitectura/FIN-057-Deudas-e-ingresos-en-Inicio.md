@@ -6,8 +6,8 @@
 ## 1. Decisiones del Fundador (2026-10-02)
 | Decisión | Elegida |
 | --- | --- |
-| Qué cifra lleva la fila de deudas | Lo pagado en el ciclo; en pequeño, lo que falta de la cuota del mes y la fecha de vencimiento. |
-| Base del porcentaje de "En qué se te va" | Gastos **más** pagos de deudas (lo que de verdad salió del bolsillo). |
+| Qué cifra lleva la fila de deudas | **La cuota comprometida del mes, aunque su fecha no haya llegado** ("al tener pago mes a mes, debe reflejarse ahí"; ajuste del Fundador al ver la pantalla, que cambia la recomendación inicial "lo pagado"). Si se pagó más, lo pagado. Debajo: pagado, lo que falta y el vencimiento. |
+| Base del porcentaje de "En qué se te va" | Gastos **más** cuotas del mes (lo que sale o va a salir del bolsillo en el ciclo). |
 | Dónde vive "Cómo te llega la plata" | Bloque propio en Inicio, **solo cuando hay más de una fuente**. Para quien vive de un salario, Inicio no cambia. |
 | Base de "Te queda" (punto ciego 1) | Por partes: salario con salario, extra con extra. Actualiza BT-004. |
 | Categoría del rebusque | Una sola, **Plataformas** (Didi, Uber, InDriver, Rappi, Picap…). |
@@ -18,7 +18,7 @@
 - **`budget/income-split.util.ts`** (nuevo, fuente única §32): `splitIncomeBase` = parte fija `max(salario neto declarado + deducciones auto-pagadas, salario recibido)` + parte variable `max(variable estimado, extra recibido)`. "Salario recibido" son los ingresos del ciclo en la categoría de salario **o sin categoría** (un ingreso sin categoría es ambiguo y se compara con el salario, como antes, para no contarlo doble); "extra" son los ingresos con otra categoría. Pruebas en `income-split.util.spec.ts`.
 - **`SpendableService`** ("Te queda"): usa el util; expone `incomeFixedBase`, `incomeVariableBase`, `receivedSalary`, `receivedExtra`. Caso del Fundador probado: salario declarado 3.200.000 sin registrar + 224.000 de Didi → base 3.424.000 (antes 3.200.000 y Didi no aportaba nada).
 - **`DashboardService.home`**:
-  - `debt`: `{ paid, committed, remaining, percent, nextDueDate, byDebt[] }`. `committed` es el desembolso real del mes por deuda (`DebtOutlayService`, misma autoridad que "Te queda" y Endeudamiento). `percent` sobre `expense.totalWithDebt` = gastos + pagos de deudas; `expense.byCategory[].percent` usa la misma base.
+  - `debt`: `{ amount, paid, committed, remaining, percent, nextDueDate, byDebt[] }`. `committed` es el desembolso real del mes por deuda (`DebtOutlayService`, misma autoridad que "Te queda" y Endeudamiento); `amount = max(committed, paid)` es lo que lleva la fila. `percent` sobre `expense.totalWithDebt` = gastos + `amount`; `expense.byCategory[].percent` usa la misma base.
   - `income.sources`: una fila por fuente — la parte fija de "Te queda" como "Salario" (si lo recibido manda y hubo ingresos sin categoría, estos salen como fila "Sin categoría" para que se organicen) y lo extra por categoría, con `count` (14 carreras) y `previous` (ciclo anterior). `income.fixed/variable/total` ahora son las partes de la base (antes "variable" era todo lo registrado y un salario registrado se contaba doble).
 - **Categoría global `Plataformas`** (ingreso, 🚗) con palabras clave; se siembra sola al arrancar.
 - **Bot** (`rule.parser.ts`, `conversation.service.ts`):
@@ -26,7 +26,7 @@
   - La pregunta genérica del tipo ("¿gasto, ingreso o pago de deuda?") ya tiene respuesta: antes era un callejón sin salida porque "ingreso" solo no se entendía. Ahora el movimiento queda pendiente (`bot_pending_actions`, tipo `tipo_movimiento`, 30 min) y la palabra lo completa. Si lo que la persona ya le enseñó a Millo sobre ese comercio trae el tipo, tampoco pregunta (`suggestCategoryAny`).
 
 ### App
-- **Inicio:** fila morada "Cuotas de deudas" dentro de "En qué se te va" (siempre visible con deudas; pagado, % sobre lo que salió, "Faltan $X de las cuotas de este mes · vence el 15"); las otras dos filas son las categorías más altas. Bloque nuevo **"Cómo te llega la plata"** (barra por fuente + hasta tres filas: "Salario · fijo", "Didi · 14 veces · unos $16.000 cada una · el ciclo pasado $190.000"), solo con más de una fuente. Tocar el salario abre Mi mes; tocar una fuente abre sus movimientos.
+- **Inicio:** fila morada "Cuotas de deudas" dentro de "En qué se te va" (siempre visible con deudas; la cuota del mes, % sobre lo que sale, y debajo "Pagado $X · faltan $Y · vence el 7 de oct." o "Aún sin pagar este mes · vence el…"); las otras dos filas son las categorías más altas. Bloque nuevo **"Cómo te llega la plata"** (barra por fuente + hasta tres filas: "Salario · fijo", "Didi · 14 veces · unos $16.000 cada una · el ciclo pasado $190.000"), solo con más de una fuente. Tocar el salario abre Mi mes; tocar una fuente abre sus movimientos.
 - **Pantalla "Ver todo"** (`CategoriesScreen`): pestañas **Gastos** (con la fila de deudas abierta por deuda → detalle de la deuda) e **Ingresos** (las fuentes completas). El título cambia con la pestaña.
 - **Mi mes:** bajo "Te entra", "$3.200.000 de salario + $224.000 extra" cuando hay plata extra.
 - Token de color `colors.debt` / `debtSoft` (morado, distinto de cualquier categoría).
