@@ -13,7 +13,7 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     { id: 'a3', name: 'Bolsillo', type: 'billetera', currentBalance: 300_000, isLiquid: true, includeInNetWorth: true, isEmergencyFund: false },
   ];
   const assets = [{ currentValue: 50_000_000, includeInNetWorth: true }];
-  const debts = [{ currentBalance: 20_000_000 }];
+  const debts = [{ id: 'd1', name: 'Tarjeta', currentBalance: 20_000_000, monthlyPayment: 600_000, nextDueDate: new Date('2026-07-15T00:00:00.000Z') }];
   const fixedItems = [
     { kind: 'ingreso', amount: 4_000_000 },
     { kind: 'gasto', amount: 1_200_000 },
@@ -24,7 +24,7 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     { kind: 'ingreso', amount: 500_000, categoryId: 'c1', category: cat('Freelance') },
     { kind: 'gasto', amount: 200_000, categoryId: 'c2', category: cat('Comida') },
     { kind: 'gasto', amount: 100_000, categoryId: 'c2', category: cat('Comida') },
-    { kind: 'pago_deuda', amount: 450_000, categoryId: null, category: null },
+    { kind: 'pago_deuda', amount: 450_000, categoryId: null, category: null, debtId: 'd1' },
     // FIN-047: el arriendo (gasto fijo) ya se registró solo este ciclo.
     { kind: 'gasto', amount: 1_500_000, categoryId: 'c3', category: cat('Hogar'), fixedItemId: 'f-arriendo' },
   ];
@@ -35,6 +35,7 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     asset: { findMany: jest.fn().mockResolvedValue(assets) },
     debt: { findMany: jest.fn().mockResolvedValue(debts) },
     fixedItem: { findMany: jest.fn().mockResolvedValue(fixedItems) },
+    category: { findMany: jest.fn().mockResolvedValue([]) },
     transaction: {
       findMany: jest
         .fn()
@@ -42,6 +43,8 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
         .mockResolvedValueOnce([
           { id: 't1', kind: 'gasto', amount: 200_000, occurredAt: new Date(), note: null, categoryId: 'c2', category: cat('Comida'), debt: null },
         ]),
+      // FIN-057: ingresos del ciclo anterior por categoría (Freelance trajo 300k).
+      groupBy: jest.fn().mockResolvedValue([{ categoryId: 'c1', _sum: { amount: 300_000 } }]),
     },
     // FIN-021: la cobertura del fondo llega como lectura persistida del Motor
     // (la MISMA que consume Salud) — el dashboard no la calcula.
@@ -50,9 +53,9 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     },
   } as never;
 
-  // FIN-020: SpendableService se stubbea COHERENTE con el escenario bajo Alt A —
-  // ingresos reales 500k (el fijo de 4M aún no se recibe), salidas reales 750k,
-  // fijos de gasto comprometidos 1.5M ⇒ teQueda = −1.75M. El cálculo en sí se
+  // FIN-020: SpendableService se stubbea COHERENTE con el escenario —
+  // salario declarado 4M (parte fija), 500k de Freelance recibidos (parte variable,
+  // FIN-057), salidas reales 750k, fijos comprometidos 1.5M. El cálculo en sí se
   // prueba en spendable.service.spec.ts; aquí se prueba el CONSUMO (§32).
   const teQuedaStub = {
     amount: -1_750_000,
@@ -62,9 +65,15 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     protectedTotal: 1_500_000,
     pendingCommitments: [],
     receivedIncome: 500_000,
-    incomeBase: 500_000,
+    incomeBase: 4_500_000,
+    incomeFixedBase: 4_000_000,
+    incomeVariableBase: 500_000,
+    receivedSalary: 0,
+    receivedExtra: 500_000,
   };
   const spendable = { compute: jest.fn().mockResolvedValue(teQuedaStub) } as never;
+  // FIN-057: la cuota comprometida de la tarjeta (desembolso real) es 600k.
+  const debtOutlay = { outlaysByUser: jest.fn().mockResolvedValue({ byDebt: new Map([['d1', { basePayment: 600_000, separate: 0, outlay: 600_000 }]]), totalOutlay: 600_000 }) } as never;
   // FIN-027: el ingreso fijo del home ahora viene de la fuente única del
   // ingreso neto (4M, coherente con el FixedItem-ingreso legado del mock).
   const netIncome = {
@@ -80,7 +89,7 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
   } as never;
 
   it('compone patrimonio, ahorro, fijo+variable y flujo de forma consistente con las fuentes', async () => {
-    const svc = new DashboardService(prisma, spendable, netIncome);
+    const svc = new DashboardService(prisma, spendable, netIncome, debtOutlay);
     const home = await svc.home('u1');
 
     // Patrimonio idéntico al util auditado de FIN-002 (misma entrada, misma salida).
@@ -98,10 +107,22 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
     // Ingresos: fijo declarado vs variable. Gastos (FIN-047): fijo = lo YA registrado de
     // los gastos fijos (solo o cruzado); variable = el resto de gastos del ciclo.
     expect(home.income).toMatchObject({ fixed: 4_000_000, variable: 500_000, total: 4_500_000 });
-    expect(home.expense).toMatchObject({ fixed: 1_500_000, variable: 300_000, total: 1_800_000 });
-    expect(home.expense.byCategory[0]).toMatchObject({ name: 'Hogar', amount: 1_500_000 });
-    expect(home.expense.byCategory[1]).toMatchObject({ name: 'Comida', amount: 300_000 });
+    expect(home.expense).toMatchObject({ fixed: 1_500_000, variable: 300_000, total: 1_800_000, totalWithDebt: 2_250_000 });
+    // FIN-057 (decisión 2): el porcentaje es sobre gastos + pagos de deudas (2.25M).
+    expect(home.expense.byCategory[0]).toMatchObject({ name: 'Hogar', amount: 1_500_000, percent: 67 });
+    expect(home.expense.byCategory[1]).toMatchObject({ name: 'Comida', amount: 300_000, percent: 13 });
     expect(home.income.byCategory[0]).toMatchObject({ name: 'Freelance', amount: 500_000 });
+
+    // FIN-057 (boceto A): la fila de deudas — pagado en el ciclo, cuota del mes, lo que falta.
+    expect(home.debt).toMatchObject({ paid: 450_000, committed: 600_000, remaining: 150_000, percent: 20, nextDueDate: '2026-07-15T00:00:00.000Z' });
+    expect(home.debt.byDebt).toEqual([{ debtId: 'd1', name: 'Tarjeta', paid: 450_000, committed: 600_000 }]);
+
+    // FIN-057 (boceto B): fuentes — salario (parte fija de "Te queda") + Freelance, con
+    // conteo y ciclo anterior; porcentaje sobre la suma de las filas.
+    expect(home.income.sources).toEqual([
+      { id: 'salario', name: 'Salario', icon: '💰', color: '#219653', kind: 'fijo', amount: 4_000_000, percent: 89, count: 0, previous: 4_000_000 },
+      { id: 'c1', name: 'Freelance', icon: '📦', color: '#ccc', kind: 'variable', amount: 500_000, percent: 11, count: 1, previous: 300_000 },
+    ]);
 
     // Flujo estimado = ingresos totales − gastos totales − pagos de deuda.
     expect(home.debtPayments).toBe(450_000);
@@ -145,7 +166,8 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
       asset: { findMany: jest.fn().mockResolvedValue([]) },
       debt: { findMany: jest.fn().mockResolvedValue([]) },
       fixedItem: { findMany: jest.fn().mockResolvedValue([]) },
-      transaction: { findMany: jest.fn().mockResolvedValue([]) },
+      category: { findMany: jest.fn().mockResolvedValue([]) },
+      transaction: { findMany: jest.fn().mockResolvedValue([]), groupBy: jest.fn().mockResolvedValue([]) },
       metricReading: { findFirst: jest.fn().mockResolvedValue(null) },
     } as never;
     const emptySpendable = {
@@ -158,8 +180,13 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
         pendingCommitments: [],
         receivedIncome: 0,
         incomeBase: 0,
+        incomeFixedBase: 0,
+        incomeVariableBase: 0,
+        receivedSalary: 0,
+        receivedExtra: 0,
       }),
     } as never;
+    const emptyOutlay = { outlaysByUser: jest.fn().mockResolvedValue({ byDebt: new Map(), totalOutlay: 0 }) } as never;
     const emptyIncome = {
       compute: jest.fn().mockResolvedValue({
         netFixedTotal: 0,
@@ -171,9 +198,12 @@ describe('DashboardService.home (FIN-014, DEC-0011 §4.3)', () => {
         hasDeductions: false,
       }),
     } as never;
-    const home = await new DashboardService(empty, emptySpendable, emptyIncome).home('u2');
+    const home = await new DashboardService(empty, emptySpendable, emptyIncome, emptyOutlay).home('u2');
     expect(home.interpretation.cashflow).toBeNull(); // sin ingreso recibido → sin línea
     expect(home.interpretation.savings).toBeNull(); // sin lectura del Motor → sin línea
     expect(home.interpretation.debt).toBeNull(); // sin pagos en el ciclo → sin línea
+    // FIN-057: sin deudas ni ingresos, las secciones nuevas quedan vacías (la app las omite).
+    expect(home.debt).toMatchObject({ paid: 0, committed: 0, remaining: 0, percent: 0, nextDueDate: null, byDebt: [] });
+    expect(home.income.sources).toEqual([]);
   });
 });

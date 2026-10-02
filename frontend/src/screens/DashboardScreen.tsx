@@ -4,14 +4,14 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, ErrorState, GroupLabel, Ico, ProgressBar, Row, Skeleton } from '../components/ui';
+import { Button, Card, ErrorState, GroupLabel, Ico, ProgressBar, Row, SegmentBar, Skeleton } from '../components/ui';
 import { IncomeSplit } from '../components/IncomeSplit';
 import { CategoryGlyph } from '../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatLocalDate, formatMoney } from '../utils/format';
 import { useApi } from '../utils/useApi';
 import { dashboardApi, debtsApi, gamificationApi } from '../api/endpoints';
-import { FlowSection, GamificationProfile } from '../api/types';
+import { FlowSection, GamificationProfile, HomeDebt, HomeIncomeSource } from '../api/types';
 import { useAuthStore } from '../store/auth.store';
 import { useSync } from '../offline/useSync';
 import { LocalTransaction, transactionsRepo } from '../offline/transactionsRepo';
@@ -225,17 +225,65 @@ export function DashboardScreen() {
         </>
       ) : null}
 
-      {d && d.expense.byCategory.length > 0 ? (
+      {/* FIN-057 (boceto A): las cuotas de deudas entran a la foto, siempre visibles mientras
+          haya deudas; el porcentaje es sobre gastos + pagos de deudas (decisión del Fundador). */}
+      {d && (d.expense.byCategory.length > 0 || (d.debt && (d.debt.paid > 0 || d.debt.committed > 0))) ? (
         <>
           <GroupLabel
             title="En qué se te va"
             action="Ver todo"
-            onAction={() => navigation.navigate('Categories')}
+            onAction={() => navigation.navigate('Categories', { tab: 'gastos' })}
           />
           <Card>
-            {d.expense.byCategory.slice(0, 3).map((c) => (
-              <CategoryBar key={c.name} c={c} />
-            ))}
+            {(() => {
+              const showDebt = !!d.debt && (d.debt.paid > 0 || d.debt.committed > 0);
+              const cats = d.expense.byCategory.slice(0, showDebt ? 2 : 3);
+              const rows: React.ReactNode[] = cats.map((c) => <CategoryBar key={c.id ?? c.name} c={c} />);
+              if (showDebt && d.debt) {
+                const debtRow = (
+                  <DebtRow
+                    key="deudas"
+                    debt={d.debt}
+                    onPress={() => (navigation as unknown as { navigate: (name: string, params?: unknown) => void }).navigate('Debts', { screen: 'DebtsList' })}
+                  />
+                );
+                // La fila entra en su lugar por monto, pero nunca sale de la lista.
+                const idx = cats.findIndex((c) => c.amount < d.debt!.paid);
+                rows.splice(idx === -1 ? rows.length : idx, 0, debtRow);
+              }
+              return rows;
+            })()}
+          </Card>
+        </>
+      ) : null}
+
+      {/* FIN-057 (boceto B): "Cómo te llega la plata" — solo cuando hay más de una fuente;
+          para quien vive de un salario, Inicio no cambia. */}
+      {d && d.income.sources && d.income.sources.length > 1 ? (
+        <>
+          <GroupLabel
+            title="Cómo te llega la plata"
+            action="Ver todo"
+            onAction={() => navigation.navigate('Categories', { tab: 'ingresos' })}
+          />
+          <Card>
+            <SegmentBar
+              height={10}
+              parts={d.income.sources.map((s) => ({ key: s.id, label: s.name, value: s.amount, color: s.kind === 'fijo' ? colors.primary : s.color }))}
+            />
+            <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
+              {d.income.sources.slice(0, 3).map((s) => (
+                <SourceRow
+                  key={s.id}
+                  s={s}
+                  onPress={() =>
+                    s.kind === 'fijo'
+                      ? navigation.navigate('Budget')
+                      : navigation.navigate('Transactions', { kind: 'ingreso', ...(s.id !== 'sin' ? { categoryId: s.id } : {}) })
+                  }
+                />
+              ))}
+            </View>
           </Card>
         </>
       ) : null}
@@ -397,6 +445,63 @@ function ProgressLine({ profile }: { profile: GamificationProfile }) {
           <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>{profile.xp} XP →</Text>
         </Row>
       </Card>
+    </Pressable>
+  );
+}
+
+/** FIN-057 · La fila morada de deudas en "En qué se te va": pagado, y en pequeño lo que falta. */
+function DebtRow({ debt, onPress }: { debt: HomeDebt; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Cuotas de deudas: ${formatMoney(debt.paid)} pagados, ${debt.percent} por ciento. Faltan ${formatMoney(debt.remaining)}. Ver mis deudas`}
+      style={{ marginBottom: spacing.sm }}
+    >
+      <Row style={{ justifyContent: 'space-between', marginBottom: spacing.xs }}>
+        <Row style={{ gap: 6 }}>
+          <View style={{ width: 24, height: 24, borderRadius: 7, backgroundColor: colors.debtSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="card-outline" size={14} color={colors.debt} />
+          </View>
+          <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>Cuotas de deudas</Text>
+        </Row>
+        <Text style={{ color: colors.textMuted, ...type.small }}>
+          {formatMoney(debt.paid)} · {debt.percent}%
+        </Text>
+      </Row>
+      <ProgressBar value={debt.percent / 100} color={colors.debt} height={6} label={`Cuotas de deudas ${debt.percent}%`} />
+      <Text style={{ color: colors.debt, ...type.caption, marginTop: 4 }}>
+        {debt.remaining > 0
+          ? `Faltan ${formatMoney(debt.remaining)} de las cuotas de este mes${debt.nextDueDate ? ` · vence el ${shortDate(debt.nextDueDate)}` : ''}`
+          : debt.committed > 0
+            ? 'Las cuotas de este mes ya están pagas'
+            : 'Pagos a deudas este ciclo'}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** FIN-057 · Una fuente de "Cómo te llega la plata" (con carreras y ciclo anterior). */
+function SourceRow({ s, onPress }: { s: HomeIncomeSource; onPress: () => void }) {
+  const detail: string[] = [];
+  if (s.kind === 'fijo') detail.push('fijo');
+  else if (s.count > 0) detail.push(`${s.count} ${s.count === 1 ? 'vez' : 'veces'}${s.count > 1 ? ` · unos ${formatMoney(s.amount / s.count)} cada una` : ''}`);
+  if (s.previous > 0 && s.kind !== 'fijo') detail.push(`el ciclo pasado ${formatMoney(s.previous)}`);
+  if (s.id === 'sin') detail.push('toca para organizarlos');
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${s.name}: ${formatMoney(s.amount)}, ${s.percent} por ciento`}>
+      <Row style={{ justifyContent: 'space-between', gap: spacing.sm }}>
+        <Row style={{ gap: 6, flex: 1 }}>
+          <CategoryGlyph size="sm" emoji={s.icon} kind="ingreso" color={s.kind === 'fijo' ? colors.primary : s.color} />
+          <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }} numberOfLines={1}>{s.name}</Text>
+        </Row>
+        <Text style={{ color: colors.text, ...type.small, fontWeight: '700' }}>
+          {formatMoney(s.amount)} · {s.percent}%
+        </Text>
+      </Row>
+      {detail.length ? (
+        <Text style={{ color: s.id === 'sin' ? colors.warningDeep : colors.textFaint, ...type.caption, marginLeft: 30 }}>{detail.join(' · ')}</Text>
+      ) : null}
     </Pressable>
   );
 }

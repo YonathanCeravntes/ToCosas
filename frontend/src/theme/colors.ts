@@ -29,6 +29,9 @@ export const colors = {
   bandFragil: '#E06A00',
   info: '#2563EB',
   infoSoft: '#EAF0FD',
+  /** FIN-057: la fila "Cuotas de deudas" en "En qué se te va" (morado, distinto de cualquier categoría). */
+  debt: '#6B4BB8',
+  debtSoft: '#EFEAFB',
 
   bg: '#F6F8F7',
   surface: '#FFFFFF',

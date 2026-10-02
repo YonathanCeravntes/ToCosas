@@ -228,6 +228,22 @@ export class TransactionsService {
     return c;
   }
 
+  /**
+   * FIN-057 · Como `suggestCategory`, pero sin saber aún el sentido del movimiento: la
+   * categoría aprendida trae su `kind` y el bot deduce de ella si fue gasto o ingreso.
+   */
+  async suggestCategoryAny(userId: string, note: string) {
+    const key = merchantKey(note);
+    if (!key) return null;
+    const hint = await this.prisma.categoryHint.findUnique({
+      where: { userId_key: { userId, key } },
+      include: { category: true },
+    });
+    const c = hint?.category;
+    if (!c || c.deletedAt || (c.kind !== 'gasto' && c.kind !== 'ingreso') || (c.userId && c.userId !== userId)) return null;
+    return c;
+  }
+
   /** Recuerda (o corrige) la categoría de un comercio. La última elección manda. */
   async learnCategory(userId: string, note: string, categoryId: string): Promise<void> {
     const key = merchantKey(note);

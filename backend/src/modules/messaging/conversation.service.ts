@@ -31,12 +31,29 @@ import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { SimulationsService } from '../simulations/simulations.service';
 import { TransactionsService } from '../transactions/transactions.service';
 import { TxKindDto } from '../transactions/dto/transaction.dto';
-import { ruleParse } from '../whatsapp/nlp/rule.parser';
+import { platformMention, ruleParse, TxKind } from '../whatsapp/nlp/rule.parser';
 import { looksLikeOtp } from '../whatsapp/otp.util';
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO');
 /** FIN-029 (DEC-0029 §5.1): todo acuse dice DÓNDE queda el movimiento. */
 const SEEN_IN_APP = ' Lo ves en tus movimientos en la app.';
+
+/** FIN-057 · Movimiento a la espera de saber si fue gasto, ingreso o pago de deuda. */
+interface PendingKind {
+  parsed: ReturnType<typeof ruleParse>;
+  /** Plataforma mencionada ("didi"), para recordar la respuesta. */
+  platform: string | null;
+}
+
+/** FIN-057 · "ingreso" / "me lo gané" / "gasto" / "lo pagué" / "deuda". Null si no responde. */
+export function parseKindReply(text: string): 'ingreso' | 'gasto' | 'pago_deuda' | null {
+  const t = ` ${text.trim().toLowerCase()} `;
+  if (t.trim().split(/\s+/).length > 6) return null; // una frase larga es otro mensaje, no la respuesta
+  if (/\b(deuda|cuota|abono|abon[eé]|cr[eé]dito|tarjeta)\b/.test(t)) return 'pago_deuda';
+  if (/\b(ingreso|entrada|gan[eé]|gané|me lo gan|me los gan|me la gan|me las gan|me pagaron|cobr[eé]|cobré|entr[oó]|entró|recib[ií]|recibí)/.test(t)) return 'ingreso';
+  if (/\b(gasto|gast[eé]|gasté|pagu[eé]|pagué|lo pag|los pag|la pag|las pag|compr[eé]|compré|salida)/.test(t)) return 'gasto';
+  return null;
+}
 
 /** Canal de origen del mensaje (para `source` de la transacción). */
 export type ChannelSource = 'whatsapp' | 'telegram';
@@ -625,7 +642,7 @@ export class ConversationService {
   }
 
   /** Respuesta a una propuesta viva: sí / no / corrección. Null si no hay propuesta o el texto no le habla. */
-  private async handlePendingReply(input: ConversationInput, text: string): Promise<string | null> {
+  private async handlePendingReply(input: ConversationInput, text: string): Promise<string | BotReply | null> {
     const userId = input.userId as string;
     const pending = await this.prisma.botPendingAction.findUnique({ where: { userId_source: { userId, source: input.source } } });
     if (!pending) return null;
@@ -633,6 +650,7 @@ export class ConversationService {
       await this.clearPending(userId, input.source);
       return null;
     }
+    if (pending.kind === 'tipo_movimiento') return this.handleKindReply(userId, input.source, pending.payload as unknown as PendingKind, text);
     if (pending.kind === 'accion_copiloto') return this.handleCopilotActionReply(userId, input.source, pending.payload as unknown as ProposedAction, text);
     if (pending.kind === 'renegociacion') return this.handleRenegotiationReply(userId, input.source, pending.payload as unknown as { debtId: string; dto: RenegotiationCommand['dto'] }, text);
     const proposal = pending.payload as unknown as DocumentProposal;
@@ -808,24 +826,98 @@ export class ConversationService {
     await this.prisma.botPendingAction.deleteMany({ where: { userId, source } });
   }
 
+  // ---------------------------------------------------------------------------
+  // FIN-057 · "¿Lo pagaste o te lo ganaste?" — el tipo del movimiento se pregunta UNA vez
+  // y se recuerda; antes la pregunta era un callejón sin salida (la respuesta "ingreso"
+  // sola no se entendía) y "didi 16.000" se anotaba como transporte pagado.
+  // ---------------------------------------------------------------------------
+
+  private async savePendingKind(userId: string, source: ChannelSource, parsed: ReturnType<typeof ruleParse>, platform: string | null): Promise<void> {
+    const expiresAt = new Date(Date.now() + PROPOSAL_TTL_MINUTES * 60_000);
+    const payload = { parsed, platform } as unknown as object;
+    await this.prisma.botPendingAction.upsert({
+      where: { userId_source: { userId, source } },
+      create: { userId, source, kind: 'tipo_movimiento', payload, expiresAt },
+      update: { kind: 'tipo_movimiento', payload, expiresAt },
+    });
+  }
+
+  /** La respuesta a la pregunta del tipo. Null si el texto no responde (es otro mensaje). */
+  private async handleKindReply(userId: string, source: ChannelSource, payload: PendingKind, text: string): Promise<string | BotReply | null> {
+    const kind = parseKindReply(text);
+    await this.clearPending(userId, source);
+    if (!kind) return null;
+    const platformCategory = payload.platform ? (kind === 'ingreso' ? 'plataformas' : kind === 'gasto' ? 'transporte' : null) : null;
+    const parsed = {
+      ...payload.parsed,
+      kind,
+      categoryGuess: platformCategory ?? payload.parsed.categoryGuess,
+      missing: payload.parsed.missing.filter((m) => m !== 'kind'),
+    };
+    const reply = await this.registerTransaction(userId, source, parsed);
+    if (payload.platform && (kind === 'ingreso' || kind === 'gasto')) {
+      await this.rememberPlatform(userId, payload.platform, kind).catch(() => undefined);
+      const learn = `👍 Anotado. La próxima vez que me escribas "${payload.platform}" lo tomo como ${kind === 'ingreso' ? 'plata que te entra' : 'transporte que pagas'}; si cambia, dime.`;
+      return typeof reply === 'string' ? `${learn}\n\n${reply}` : { ...reply, text: `${learn}\n\n${reply.text}` };
+    }
+    return reply;
+  }
+
+  /** Guarda "didi → Plataformas (ingreso)" o "didi → Transporte (gasto)" para esa persona. */
+  private async rememberPlatform(userId: string, platform: string, kind: 'ingreso' | 'gasto'): Promise<void> {
+    const category = await this.prisma.category.findFirst({
+      where: { kind, name: { equals: kind === 'ingreso' ? 'Plataformas' : 'Transporte', mode: 'insensitive' }, OR: [{ userId }, { isGlobal: true }], deletedAt: null },
+    });
+    if (!category) return;
+    const key = `plataforma:${platform}`;
+    const prev = await this.prisma.categoryHint.findUnique({ where: { userId_key: { userId, key } } });
+    if (!prev) await this.prisma.categoryHint.create({ data: { userId, key, categoryId: category.id } });
+    else await this.prisma.categoryHint.update({ where: { id: prev.id }, data: prev.categoryId === category.id ? { hits: { increment: 1 } } : { categoryId: category.id, hits: 1 } });
+  }
+
+  private async recallPlatform(userId: string, platform: string): Promise<{ id: string; name: string; kind: TxKind } | null> {
+    try {
+      const hint = await this.prisma.categoryHint.findUnique({ where: { userId_key: { userId, key: `plataforma:${platform}` } }, include: { category: true } });
+      const c = hint?.category;
+      if (!c || c.deletedAt || (c.kind !== 'ingreso' && c.kind !== 'gasto')) return null;
+      return { id: c.id, name: c.name, kind: c.kind };
+    } catch {
+      return null;
+    }
+  }
+
   private async registerTransaction(
     userId: string,
     source: ChannelSource,
     parsed: ReturnType<typeof ruleParse>,
+    forcedCategory?: { id: string; name: string },
   ): Promise<string | BotReply> {
     if (parsed.amount === null) {
       return '🤔 Entendí que quieres registrar algo, pero no vi el monto. ¿Cuánto fue? (ej: "$45.000)';
     }
     if (!parsed.kind) {
-      return '🤔 ¿Ese movimiento fue un *gasto*, un *ingreso* o un *pago de deuda*?';
+      // FIN-057: lo que la persona ya me dijo de esa plataforma o ese comercio manda.
+      const platform = platformMention(parsed.note);
+      const remembered = platform ? await this.recallPlatform(userId, platform) : null;
+      const learnedAny = !remembered && parsed.note ? await this.transactions.suggestCategoryAny(userId, parsed.note).catch(() => null) : null;
+      const known = remembered ?? (learnedAny ? { id: learnedAny.id, name: learnedAny.name, kind: learnedAny.kind as TxKind } : null);
+      if (known) {
+        return this.registerTransaction(userId, source, { ...parsed, kind: known.kind, categoryGuess: known.name, missing: parsed.missing.filter((m) => m !== 'kind') }, known);
+      }
+      await this.savePendingKind(userId, source, parsed, platform);
+      if (platform) {
+        return `🤔 Esos ${fmt(parsed.amount)} de ${platform.charAt(0).toUpperCase()}${platform.slice(1)}, ¿los *pagaste* o te los *ganaste*? Responde "gasto" o "ingreso" y lo recuerdo para la próxima.`;
+      }
+      return '🤔 ¿Ese movimiento fue un *gasto*, un *ingreso* o un *pago de deuda*? Respóndeme con esa palabra y lo anoto.';
     }
 
     // FIN-046 Fase 4: lo aprendido de la persona ("netflix" → Suscripciones) gana sobre
     // las palabras clave genéricas; si no hay nada aprendido, se usan ellas.
     const learned =
-      parsed.note && (parsed.kind === 'gasto' || parsed.kind === 'ingreso')
+      forcedCategory ??
+      (parsed.note && (parsed.kind === 'gasto' || parsed.kind === 'ingreso')
         ? await this.transactions.suggestCategory(userId, parsed.note, parsed.kind).catch(() => null)
-        : null;
+        : null);
     const categoryName = learned?.name ?? parsed.categoryGuess;
     const categoryId = learned
       ? learned.id

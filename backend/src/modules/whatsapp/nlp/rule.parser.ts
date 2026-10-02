@@ -47,7 +47,9 @@ const KNOWN_ENTITIES = [
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   comida: ['almuerzo', 'comida', 'cena', 'desayuno', 'restaurante', 'mercado', 'super', 'domicilio'],
-  transporte: ['uber', 'taxi', 'bus', 'gasolina', 'transporte', 'didi', 'peaje', 'transmilenio'],
+  // FIN-057: "uber" y "didi" ya no viven aquí — son plataformas (ver PLATFORM_KW): para quien
+  // conduce son plata que ENTRA; para quien viaja, transporte. Sin verbo, se pregunta una vez.
+  transporte: ['taxi', 'bus', 'gasolina', 'transporte', 'peaje', 'transmilenio', 'metro'],
   servicios: ['luz', 'agua', 'internet', 'telefono', 'teléfono', 'servicios', 'gas', 'energia'],
   entretenimiento: ['cine', 'netflix', 'salida', 'fiesta', 'bar', 'trago', 'juego', 'spotify'],
   salud: ['farmacia', 'medico', 'médico', 'eps', 'droga', 'medicina', 'odontologo'],
@@ -62,7 +64,21 @@ const EXPENSE_CATEGORIES = new Set(['comida', 'transporte', 'servicios', 'entret
 
 // Nota: se evita el \b de cierre porque las vocales acentuadas (é, í, ó) no son
 // "word chars" en JS y romperían el límite de palabra tras un verbo tildado.
-const INCOME_KW = /\b(me lleg|ingreso|me pagaron|me pag|cobr[eé]|recib[ií]|salario|sueldo|nomina|nómina|quincena|entr[oó])/;
+// FIN-057: verbos del rebusque ("me gané", "me hice", "me entraron").
+const INCOME_KW = /\b(me lleg|ingreso|me pagaron|me pag|cobr[eé]|recib[ií]|salario|sueldo|nomina|nómina|quincena|entr[oó]|me entr|me gan|gan[eé]\b|gané|me hice)/;
+/**
+ * FIN-057 · Plataformas de transporte y domicilios. Sin verbo, la palabra sola no dice si
+ * la persona pagó el viaje o se ganó la carrera: el bot pregunta una vez y aprende.
+ */
+const PLATFORM_KW = /\b(didi|uber|indriver|in driver|picap|cabify|rappi|beat)\b/;
+/** Una "carrera" sin verbo de pago es una carrera hecha (plata que entra). */
+const RIDE_KW = /\bcarrer(a|as|ita|itas)\b/;
+
+/** Palabra de plataforma mencionada en el texto (en minúsculas), o null. */
+export function platformMention(text: string): string | null {
+  const m = PLATFORM_KW.exec(` ${text.toLowerCase()} `);
+  return m ? m[1].replace(/\s+/g, '') : null;
+}
 const DEBT_KW = /\b(cuota|cr[eé]dito|tarjeta|abon[eé]|abono|pr[eé]stamo|deuda|hipoteca)/;
 const EXPENSE_KW = /\b(gast[eé]|compr[eé]|pagu[eé]|me cost|gasto|pago)/;
 const TRANSFER_KW = /\b(transfer[ií]|env[ií]e)/;
@@ -96,6 +112,8 @@ function detectKind(lower: string): TxKind | null {
   if (DEBT_KW.test(lower)) return 'pago_deuda';
   if (TRANSFER_KW.test(lower)) return 'transferencia';
   if (EXPENSE_KW.test(lower)) return 'gasto';
+  // "carrera 16.000" (sin "pagué") es una carrera hecha; "pagué la carrera" ya salió arriba.
+  if (RIDE_KW.test(lower)) return 'ingreso';
   return null;
 }
 
@@ -107,7 +125,15 @@ function detectEntity(lower: string, extra: string[] = []): string | null {
   return null;
 }
 
-function detectCategory(lower: string): string | null {
+function detectCategory(lower: string, kind: TxKind | null): string | null {
+  // FIN-057: la plataforma depende del sentido del movimiento; sin sentido, sin categoría.
+  if (PLATFORM_KW.test(lower)) {
+    if (kind === 'ingreso') return 'plataformas';
+    if (kind === 'gasto') return 'transporte';
+    if (kind === null) return null;
+  }
+  // Una carrera que entra es de plataforma; "pagué la carrera" se clasifica por sus otras palabras.
+  if (RIDE_KW.test(lower) && kind === 'ingreso') return 'plataformas';
   for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS)) {
     if (kws.some((k) => lower.includes(k))) return cat;
   }
@@ -135,10 +161,11 @@ export function ruleParse(
 
   const amount = parseAmount(raw);
   const intent = detectIntent(lower, amount);
-  const categoryGuess = intent === 'registrar_transaccion' ? detectCategory(lower) : null;
+  const verbKind = intent === 'registrar_transaccion' ? detectKind(lower) : null;
+  const categoryGuess = intent === 'registrar_transaccion' ? detectCategory(lower, verbKind) : null;
   // FIN-055: "almuerzo 18.500" (concepto de gasto + monto, sin verbo) es un gasto.
   const kind =
-    intent === 'registrar_transaccion' ? detectKind(lower) ?? (categoryGuess && EXPENSE_CATEGORIES.has(categoryGuess) ? 'gasto' : null) : null;
+    intent === 'registrar_transaccion' ? verbKind ?? (categoryGuess && EXPENSE_CATEGORIES.has(categoryGuess) ? 'gasto' : null) : null;
   const entityGuess = detectEntity(lower, opts.userEntities);
   const dateISO = parseDate(raw, opts.today);
 

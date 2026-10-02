@@ -165,6 +165,14 @@ registrarse como **movimiento** de ingreso (eso funciona — `fin020` e2e verde)
 Cualquiera de A/B es maintenance/UX; C sería un cambio de la definición §32 (requiere DEC y
 visto del CPSAO). Pendiente de la decisión del Fundador/CPSAO.
 
+**Actualización FIN-057 (Fundador, 2026-10-02):** la base de "Te queda" pasa a armarse **por
+partes**: `max(salario declarado, salario recibido) + max(variable estimado, extra recibido)`.
+La regla de BT-004 (`max(declarado total, recibido total)`) tenía un efecto no deseado: con el
+salario declarado y sin registrar, lo recibido (solo el rebusque: Didi, ventas…) nunca superaba
+lo declarado y esa plata no contaba. Un ingreso **sin categoría** se sigue comparando con el
+salario (no se asume que es extra). Definición única en `budget/income-split.util.ts`; detalle
+en `docs/arquitectura/FIN-057-Deudas-e-ingresos-en-Inicio.md`.
+
 **Resolución (decisión del Fundador, 2026-07-14 — supersede la propuesta del CTO):** el
 Fundador decidió, como autoridad de producto y sin re-escalar, que **el ingreso fijo
 recurrente declarado forma parte del cálculo principal ("Te queda")**, porque es un flujo

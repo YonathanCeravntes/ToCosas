@@ -38,7 +38,8 @@ export type RootStackParamList = {
   // FIN-054: facturas, extractos y certificados.
   Documents: undefined;
   // FIN-056: gastos del ciclo por categoría ("En qué se te va" completo).
-  Categories: undefined;
+  /** FIN-057: pestaña inicial — gastos ("En qué se te va") o ingresos ("Cómo te llega la plata"). */
+  Categories: { tab?: 'gastos' | 'ingresos' } | undefined;
   Copilot: undefined;
   Settings: undefined;
   // FIN-038: historial completo de movimientos con filtros.

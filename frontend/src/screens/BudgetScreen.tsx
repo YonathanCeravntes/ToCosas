@@ -128,6 +128,12 @@ function MonthCard({ teQueda, label, loading }: { teQueda: TeQueda; label: strin
       />
       <View style={{ marginTop: spacing.md, gap: 8 }}>
         <EqLine label="Te entra" value={formatMoney(income)} bold />
+        {/* FIN-057: la base se arma por partes; si hay plata extra (Didi, ventas…) se dice. */}
+        {(teQueda.incomeVariableBase ?? 0) > 0 && (teQueda.incomeFixedBase ?? 0) > 0 ? (
+          <Text style={{ color: colors.textFaint, ...type.small, marginTop: -4 }}>
+            {formatMoney(teQueda.incomeFixedBase ?? 0)} de salario + {formatMoney(teQueda.incomeVariableBase ?? 0)} extra
+          </Text>
+        ) : null}
         <EqLine label="− Comprometido (fijos y deudas)" value={formatMoney(committed)} dot={colors.textMuted} />
         <EqLine label="− Día a día (ya gastado)" value={formatMoney(daily)} dot={colors.warning} />
         <View style={{ height: 1, backgroundColor: colors.border }} />

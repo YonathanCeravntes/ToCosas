@@ -42,6 +42,9 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
   { name: 'Freelance', kind: 'ingreso', icon: '💻', color: '#2F80ED', keywords: ['freelance', 'proyecto', 'independiente'] },
   { name: 'Ventas', kind: 'ingreso', icon: '🏷️', color: '#F2994A', keywords: ['venta', 'negocio', 'vendí'] },
   { name: 'Regalo', kind: 'ingreso', icon: '🎁', color: '#EB5757', keywords: ['regalo', 'obsequio'] },
+  // FIN-057 (Fundador 2026-10-02): el rebusque en plataformas (Didi, Uber, InDriver, Rappi…)
+  // es una fuente propia; antes caía en "Otros ingresos" y el bot lo tomaba por transporte pagado.
+  { name: 'Plataformas', kind: 'ingreso', icon: '🚗', color: '#E08A00', keywords: ['didi', 'uber', 'indriver', 'picap', 'cabify', 'rappi', 'carrera', 'plataforma'] },
   { name: 'Otros ingresos', kind: 'ingreso', icon: '➕', color: '#27AE60', keywords: ['otros', 'extra'] },
 
   // --- Pago de deuda ---

@@ -30,6 +30,9 @@ describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
     fixedItems: unknown[];
     debts: unknown[];
     paidByDebt?: Record<string, number>;
+    /** FIN-057: ingresos del ciclo por categoría (null = sin categoría). */
+    incomeByCategory?: Array<{ categoryId: string | null; amount: number }>;
+    categories?: Array<{ id: string; name: string }>;
   }) => ({
     userSettings: {
       findUnique: jest.fn().mockResolvedValue({ cycleStartDay: opts.cycleStartDay ?? 1 }),
@@ -37,14 +40,19 @@ describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
     transaction: {
       // DEC-0042: la 2ª agrupación (por debtId) devuelve los pagos del ciclo por deuda.
       // FIN-047: la 3ª (por fixedItemId) devuelve lo ya registrado de cada gasto fijo.
+      // FIN-057: la 4ª (por categoryId) devuelve los ingresos del ciclo por categoría; si el
+      // escenario no la define, todo el ingreso recibido va sin categoría (regresión).
       groupBy: jest.fn().mockImplementation(async (args: { by: string[] }) =>
         args.by.includes('debtId')
           ? Object.entries(opts.paidByDebt ?? {}).map(([debtId, amount]) => ({ debtId, _sum: { amount } }))
           : args.by.includes('fixedItemId')
             ? []
-            : groupBy(opts.sums),
+            : args.by.includes('categoryId')
+              ? (opts.incomeByCategory ?? [{ categoryId: null, amount: opts.sums.ingreso ?? 0 }]).map((g) => ({ categoryId: g.categoryId, _sum: { amount: g.amount } }))
+              : groupBy(opts.sums),
       ),
     },
+    category: { findMany: jest.fn().mockResolvedValue(opts.categories ?? []) },
     fixedItem: { findMany: jest.fn().mockResolvedValue(opts.fixedItems) },
     debt: { findMany: jest.fn().mockResolvedValue(opts.debts) },
   });
@@ -163,5 +171,61 @@ describe('SpendableService (FIN-020, GOBERNANZA §32)', () => {
     expect(r.pendingCommitments[0]).toMatchObject({ name: 'Pensión (independiente)', amount: 160_000, kind: 'fijo' });
     expect(r.protectedTotal).toBe(160_000);
     expect(r.amount).toBe(5_000_000 - 160_000);
+    // El ingreso recibido va SIN categoría → se compara con el salario (no se cuenta doble).
+    expect(r.incomeBase).toBe(5_000_000);
+  });
+
+  describe('FIN-057 · la base se arma por partes (Fundador 2026-10-02)', () => {
+    const salaryDeclared = {
+      compute: jest.fn().mockResolvedValue({ deductions: [], netFixedTotal: 3_200_000, grossFixedTotal: 3_200_000, grossVariableEstimate: 0, netMonthlyEstimate: 3_200_000, selfPaidDeductionsTotal: 0, hasDeductions: false }),
+    } as never;
+
+    it('caso del Fundador: salario declarado sin registrar + 14 carreras de Didi → las carreras cuentan', async () => {
+      const prisma = prismaWith({
+        sums: { ingreso: 224_000 },
+        fixedItems: [],
+        debts: [],
+        incomeByCategory: [{ categoryId: 'c-plat', amount: 224_000 }],
+        categories: [{ id: 'c-plat', name: 'Plataformas' }],
+      });
+      const r = await new SpendableService(prisma as never, noCharges, salaryDeclared).compute('u1', NOW);
+      expect(r.receivedSalary).toBe(0);
+      expect(r.receivedExtra).toBe(224_000);
+      expect(r.incomeFixedBase).toBe(3_200_000);
+      expect(r.incomeVariableBase).toBe(224_000);
+      expect(r.incomeBase).toBe(3_424_000); // antes: max(3.2M, 224k) = 3.2M y Didi no aportaba nada
+      expect(r.amount).toBe(3_424_000);
+    });
+
+    it('salario declarado Y registrado en Salario + Didi: salario con salario, extra con extra', async () => {
+      const prisma = prismaWith({
+        sums: { ingreso: 3_424_000 },
+        fixedItems: [],
+        debts: [],
+        incomeByCategory: [
+          { categoryId: 'c-sal', amount: 3_200_000 },
+          { categoryId: 'c-plat', amount: 224_000 },
+        ],
+        categories: [
+          { id: 'c-sal', name: 'Salario' },
+          { id: 'c-plat', name: 'Plataformas' },
+        ],
+      });
+      const r = await new SpendableService(prisma as never, noCharges, salaryDeclared).compute('u1', NOW);
+      expect(r.receivedSalary).toBe(3_200_000);
+      expect(r.incomeBase).toBe(3_424_000);
+    });
+
+    it('un ingreso SIN categoría se compara con el salario (no se asume que es extra)', async () => {
+      const prisma = prismaWith({
+        sums: { ingreso: 3_200_000 },
+        fixedItems: [],
+        debts: [],
+        incomeByCategory: [{ categoryId: null, amount: 3_200_000 }],
+      });
+      const r = await new SpendableService(prisma as never, noCharges, salaryDeclared).compute('u1', NOW);
+      expect(r.receivedSalary).toBe(3_200_000);
+      expect(r.incomeBase).toBe(3_200_000);
+    });
   });
 });

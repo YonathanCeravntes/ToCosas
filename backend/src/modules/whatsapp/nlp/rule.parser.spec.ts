@@ -21,6 +21,20 @@ describe('ruleParse — ejemplos del diseño (doc 04 §5)', () => {
     expect(ruleParse('asdf 20.000').kind).toBeNull();
   });
 
+  it('FIN-057 · plataformas: con verbo se resuelve; sin verbo se pregunta (no se adivina)', () => {
+    expect(ruleParse('me gané 16.000 en didi')).toMatchObject({ kind: 'ingreso', amount: 16_000, categoryGuess: 'plataformas' });
+    expect(ruleParse('carrera 16.000 de Envigado a Medellín')).toMatchObject({ kind: 'ingreso', categoryGuess: 'plataformas' });
+    expect(ruleParse('me hice 32 mil en uber hoy')).toMatchObject({ kind: 'ingreso', categoryGuess: 'plataformas' });
+    expect(ruleParse('pagué 12.000 de uber al trabajo')).toMatchObject({ kind: 'gasto', categoryGuess: 'transporte' });
+    expect(ruleParse('pagué la carrera de la universidad 3.000.000')).toMatchObject({ kind: 'gasto' });
+    const ambiguous = ruleParse('didi 16.000');
+    expect(ambiguous.kind).toBeNull();
+    expect(ambiguous.categoryGuess).toBeNull();
+    expect(ambiguous.missing).toContain('kind');
+    // Lo que sí es transporte pagado sin duda sigue siendo gasto directo.
+    expect(ruleParse('taxi 15.000')).toMatchObject({ kind: 'gasto', categoryGuess: 'transporte' });
+  });
+
   it('"Gasté $45.000 en almuerzo" → gasto/comida', () => {
     const r = ruleParse('Gasté $45.000 en almuerzo', { today });
     expect(r.kind).toBe('gasto');

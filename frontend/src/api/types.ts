@@ -298,11 +298,44 @@ export interface Dashboard {
 
 // --- FIN-014: Dashboard de Inicio v2 ---
 
+/** FIN-057 · Una fuente de "Cómo te llega la plata". */
+export interface HomeIncomeSource {
+  /** 'salario' (parte fija), el id de la categoría (extra) o 'sin' (sin categoría). */
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  kind: 'fijo' | 'variable';
+  amount: number;
+  percent: number;
+  /** Movimientos del ciclo en esta fuente ("14 carreras"). */
+  count: number;
+  /** Lo mismo en el ciclo anterior. */
+  previous: number;
+}
+
+/** FIN-057 · La fila "Cuotas de deudas" de "En qué se te va". */
+export interface HomeDebt {
+  /** Pagado a deudas en el ciclo. */
+  paid: number;
+  /** Cuotas comprometidas del mes (desembolso real, misma fuente que "Te queda"). */
+  committed: number;
+  remaining: number;
+  /** Sobre gastos + pagos de deudas. */
+  percent: number;
+  nextDueDate: string | null;
+  byDebt: Array<{ debtId: string; name: string; paid: number; committed: number }>;
+}
+
 export interface FlowSection {
   fixed: number;
   variable: number;
   total: number;
   byCategory: CategorySpend[];
+  /** FIN-057 (solo en `expense`): gastos + pagos de deudas, base del porcentaje. */
+  totalWithDebt?: number;
+  /** FIN-057 (solo en `income`): fuentes de "Cómo te llega la plata". */
+  sources?: HomeIncomeSource[];
 }
 
 // FIN-017: interpretación server-side ("¿qué significa esto para mí?").
@@ -330,8 +363,14 @@ export interface TeQueda {
   protectedTotal: number;
   pendingCommitments: PendingCommitment[];
   receivedIncome: number;
-  /** BT-004: base de ingreso del ciclo (declarado vs recibido, el mayor). */
+  /** BT-004 + FIN-057: base de ingreso del ciclo = parte fija + parte variable. */
   incomeBase?: number;
+  /** FIN-057 · max(salario declarado, salario recibido). */
+  incomeFixedBase?: number;
+  /** FIN-057 · max(variable estimado, extra recibido). */
+  incomeVariableBase?: number;
+  receivedSalary?: number;
+  receivedExtra?: number;
   /** FIN-050 · "Mi mes": comprometido ya pagado, día a día y lo pagado uno por uno. */
   committedPaid?: number;
   dailySpent?: number;
@@ -361,6 +400,8 @@ export interface HomeDashboard {
   };
   income: FlowSection;
   expense: FlowSection;
+  /** FIN-057: la fila de deudas de "En qué se te va" (ausente en respuestas en caché viejas). */
+  debt?: HomeDebt;
   debtPayments: number;
   estimatedCashflow: number;
   teQueda: TeQueda;
