@@ -42,6 +42,17 @@
         height: 100%;
         flex: 1;
       }
+      /* BT-038: Millo es una app de bolsillo; las listas se desplazan con el dedo y Safari
+         (iPhone, pantalla de inicio) dibujaba la barra de desplazamiento de cada lista pegada
+         a las tarjetas, no al borde. Sin barras en la web, como en la app instalada. */
+      * {
+        scrollbar-width: none;
+      }
+      *::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+      }
       /* Ancho de teléfono en pantallas grandes: Millo es una app de bolsillo. */
       @media (min-width: 640px) {
         #root {
