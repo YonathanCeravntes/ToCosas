@@ -1,12 +1,11 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, ErrorState, Field, FormScroll, HeroCard, Ico, ProgressBar, Row, Skeleton } from '../../components/ui';
+import { Button, Card, Chip, ErrorState, Field, FormScroll, GroupLabel, Ico, ProgressBar, Row, SegmentBar, Skeleton } from '../../components/ui';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { formatDate, formatMoney, parseAmount, parseDecimal } from '../../utils/format';
-import { AmortizationEntry, CardSummary, Debt, DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, toNumber } from '../../api/types';
+import { AmortizationEntry, Debt, DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, ScheduleModel, toNumber } from '../../api/types';
 import { debtsApi, simulationsApi, SimulateResult } from '../../api/endpoints';
 import { useApi } from '../../utils/useApi';
 import { DebtsStackParamList } from '../../navigation/types';
@@ -14,6 +13,13 @@ import { confirmRemove } from '../../utils/confirm';
 
 type Props = NativeStackScreenProps<DebtsStackParamList, 'DebtDetail'>;
 
+/**
+ * FIN-058 (Fundador, 2026-10-02: "la pantalla se ve vetusta, no se alinea al diseño actual").
+ * El detalle habla el idioma de Inicio: cabecera blanca con la cifra protagonista, chips con
+ * lo que antes había que buscar, tres secciones con etiqueta ("Este crédito", "Adelanta
+ * plata", "Plan de pago") y una sola tarjeta para abonar o simular. Ninguna cifra ni cálculo
+ * cambia: todo sale de los mismos datos y endpoints de antes (§32).
+ */
 export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
   const { debtId } = route.params;
   const { data, loading, error, reload } = useApi(() => debtsApi.get(debtId), [debtId]);
@@ -32,28 +38,6 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
     setTick((t) => t + 1);
     await reload();
   }, [reload]);
-  const [showPlan, setShowPlan] = useState(false);
-  const [showAllPlan, setShowAllPlan] = useState(false);
-  const [extra, setExtra] = useState('');
-  const [sim, setSim] = useState<SimulateResult | null>(null);
-  const [scoreDelta, setScoreDelta] = useState<number | null>(null);
-  const [simLoading, setSimLoading] = useState(false);
-
-  const runSim = async () => {
-    const value = parseAmount(extra); // §39
-    if (!value) return;
-    setSimLoading(true);
-    try {
-      setSim(await debtsApi.simulateExtra(debtId, value));
-      // FIN-007: impacto en el Score vía el simulador unificado.
-      const impact = await simulationsApi
-        .run({ type: 'abono_extra', debtId, extraMonthly: value })
-        .catch(() => null);
-      setScoreDelta(impact ? impact.delta.score : null);
-    } finally {
-      setSimLoading(false);
-    }
-  };
 
   // P3 (punto 12): error VISIBLE con reintento — nunca un "Cargando…" eterno.
   if (error && !data) {
@@ -76,43 +60,18 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
   const amort = data.amortization ?? [];
   // FIN-032: el detalle decide sus secciones por MODELO de cronograma (del
   // descriptor), NUNCA por el tipo. Un solo despacho por `scheduleModel`:
-  //  - `cuotas_por_compra` (tarjeta/fintech): oculta el hero de saldo fijo y muestra
-  //    la sección de cupo/compras (la espina, FIN-031);
-  //  - `amortizado`: hero + toda la UI de amortización (plan, abono, simulador…);
-  //  - `saldo_y_cuota_pactada` (informal): hero de saldo + cuota pactada, SIN plan de
+  //  - `cuotas_por_compra` (tarjeta/fintech): cabecera de cupo y la sección de compras;
+  //  - `amortizado`: cabecera + toda la UI de amortización (plan, abono, simulador…);
+  //  - `saldo_y_cuota_pactada` (informal): cabecera de saldo + cuota pactada, SIN plan de
   //    pago ni fecha de libertad falsa (§29.2).
-  const model = data.scheduleModel ?? 'amortizado';
+  const model: ScheduleModel = data.scheduleModel ?? 'amortizado';
   const hasCard = !!data.capabilities?.installmentPurchases;
   const isAmortized = model === 'amortizado';
+  const isActive = data.status === 'activa';
 
   return (
     <FormScroll onRefresh={refreshAll}>
-      {model !== 'cuotas_por_compra' ? (
-        <HeroCard>
-          <Text style={{ color: colors.onPrimaryMuted, ...type.body }}>Saldo pendiente</Text>
-          <Text style={{ color: colors.textInverse, ...type.hero }}>
-            {formatMoney(toNumber(data.currentBalance))}
-          </Text>
-          <Text style={{ color: colors.onPrimaryMuted, ...type.body, marginTop: spacing.xs }}>
-            Cuota mensual {formatMoney(toNumber(data.monthlyPayment))}
-          </Text>
-          {/* Informal (§29.2): se dice la verdad — sin cronograma, no hay fecha falsa. */}
-          {model === 'saldo_y_cuota_pactada' ? (
-            <Text style={{ color: colors.onPrimaryFaint, ...type.small, marginTop: spacing.xs }}>
-              Sin cronograma formal — registras el saldo y tu cuota pactada.
-            </Text>
-          ) : null}
-        </HeroCard>
-      ) : null}
-
-      {/* SPRINT-PULIDO-001 P3 (punto 10): de un vistazo — próximo vencimiento, días
-          restantes y último pago. Datos que YA viajan en el payload; solo se pintan. */}
-      {/* Mis deudas (opción B): cuánto llevas pagado a capital (y cuánto te prestaron). */}
-      {model !== 'cuotas_por_compra' ? (
-        <CapitalProgress debt={data} onChanged={() => void reload()} />
-      ) : null}
-
-      <AtAGlance debt={data} amort={amort} />
+      <DebtHeader debt={data} amort={amort} model={model} onChanged={() => void reload()} />
 
       {/* FIN-056 (boceto 4): editar datos; FIN-044: renegociar condiciones. */}
       <Row style={{ gap: spacing.sm }}>
@@ -125,9 +84,6 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
           </View>
         ) : null}
       </Row>
-
-      {/* FIN-031/032: productos con cupo (tarjeta/fintech) — compras a cuotas. */}
-      {hasCard ? <CardSection debtId={debtId} tick={tick} onChanged={() => void reload()} onEdit={() => stackNav.navigate('EditDebt', { debtId, name: data.name })} /> : null}
 
       {/* FIN-036: confirmación de actualización por corte (nivel 2, §42). */}
       <ReviewSection debtId={debtId} tick={tick} onChanged={() => void reload()} />
@@ -150,139 +106,141 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
           Afirma lo OBSERVABLE ("no está registrada"), nunca el impago (§29.2). */}
       {data.overdueDays ? <OverdueBlock days={data.overdueDays} /> : null}
 
-      {/* Resumen del crédito: cuándo termina, intereses y total a pagar */}
-      {isAmortized && data.projection ? (
-        <Card>
-          <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
-            <Ico name="calendar-outline" size={15} /> Resumen del crédito
-          </Text>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ color: colors.textMuted }}>Terminas de pagar</Text>
-            <Text style={{ fontWeight: '800', color: colors.text }}>
-              {data.projection.payoffDate ? formatDate(data.projection.payoffDate) : '—'}
-            </Text>
-          </Row>
-          <Row style={{ justifyContent: 'space-between', marginTop: 6 }}>
-            <Text style={{ color: colors.textMuted }}>Cuotas restantes</Text>
-            <Text style={{ fontWeight: '700', color: colors.text }}>
-              {data.projection.numberOfPayments}
-            </Text>
-          </Row>
-          <Row style={{ justifyContent: 'space-between', marginTop: 6 }}>
-            <Text style={{ color: colors.textMuted }}>Total en intereses</Text>
-            <Text style={{ fontWeight: '800', color: colors.danger }}>
-              {formatMoney(data.projection.totalInterest)}
-            </Text>
-          </Row>
-          <Row style={{ justifyContent: 'space-between', marginTop: 6 }}>
-            <Text style={{ color: colors.textMuted }}>Total a pagar</Text>
-            <Text style={{ fontWeight: '800', color: colors.text }}>
-              {formatMoney(data.projection.totalPaid)}
-            </Text>
-          </Row>
-        </Card>
-      ) : null}
-
-      {/* FIN-012: abono a capital y pago total anticipado (REALES) */}
-      {isAmortized && data.status === 'activa' ? (
-        <PrepaySection debtId={debtId} balance={toNumber(data.currentBalance)} onChanged={() => void reload()} />
-      ) : null}
-
-      {/* FIN-013: seguros del crédito y desglose de cuota real */}
-      {isAmortized ? (
-        <InsuranceSection
-          debtId={debtId}
-          insurances={data.insurances ?? []}
-          breakdown={data.paymentBreakdown}
-          onChanged={() => void reload()}
-        />
-      ) : null}
-
-      {/* Simulador de abono extra */}
-      {isAmortized ? (
-      <Card>
-        <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
-          <Ico name="bulb-outline" size={15} color={colors.primary} /> Simulador de abono extra
-        </Text>
-        <Field
-          label="¿Cuánto extra al mes?"
-          value={extra}
-          onChangeText={setExtra}
-          keyboardType="numeric"
-          placeholder="100000"
-        />
-        <Button title="Calcular ahorro" onPress={runSim} loading={simLoading} />
-        {sim ? (
-          <View style={{ marginTop: spacing.md }}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ color: colors.textMuted }}>Ahorro en intereses</Text>
-              <Text style={{ fontWeight: '800', color: colors.success }}>
-                {formatMoney(sim.interestSaved)}
-              </Text>
-            </Row>
-            <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-              <Text style={{ color: colors.textMuted }}>Meses que te ahorras</Text>
-              <Text style={{ fontWeight: '800', color: colors.primary }}>{sim.monthsSaved}</Text>
-            </Row>
-            <Text style={{ color: colors.textMuted, marginTop: 4 }}>
-              Nueva liquidación: {formatDate(sim.withExtra.payoffDate)}
-            </Text>
-            {scoreDelta !== null ? (
-              <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-                <Text style={{ color: colors.textMuted }}>Impacto en tu Score</Text>
-                <Text style={{ fontWeight: '800', color: scoreDelta >= 0 ? colors.success : colors.danger }}>
-                  {scoreDelta >= 0 ? '+' : ''}{scoreDelta} pts
-                </Text>
-              </Row>
-            ) : null}
-          </View>
-        ) : null}
-      </Card>
-      ) : null}
-
-      {/* Tabla de amortización — colapsada por defecto (jerarquía, BP-16). */}
-      {isAmortized && amort.length > 0 ? (
+      {/* FIN-031/032: productos con cupo (tarjeta/fintech) — compras a cuotas. */}
+      {hasCard ? (
         <>
-          <Pressable
-            onPress={() => setShowPlan((v) => !v)}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: showPlan }}
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: spacing.sm, minHeight: 44 }}
-          >
-            <Text style={{ color: colors.text, ...type.title }}>Plan de pago · {amort.length} cuotas</Text>
-            <Ionicons name={showPlan ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textMuted} />
-          </Pressable>
-          {showPlan ? (showAllPlan ? amort : amort.slice(0, 12)).map((e) => (
-            <Card key={e.periodNo} style={{ paddingVertical: spacing.sm }}>
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: '600' }}>#{e.periodNo} · {formatDate(e.dueDate)}</Text>
-                <Text style={{ fontWeight: '700' }}>{formatMoney(toNumber(e.payment))}</Text>
-              </Row>
-              <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                  Capital {formatMoney(toNumber(e.principalPart))}
-                </Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                  Interés {formatMoney(toNumber(e.interestPart))}
-                </Text>
-              </Row>
-            </Card>
-          )) : null}
-          {showPlan && amort.length > 12 && !showAllPlan ? (
-            <Pressable onPress={() => setShowAllPlan(true)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.lg }}>
-              <Text style={{ color: colors.primary, fontWeight: '700' }}>Ver las {amort.length - 12} cuotas restantes</Text>
-            </Pressable>
-          ) : null}
+          <GroupLabel title="Tu tarjeta" />
+          <CardSection debtId={debtId} tick={tick} onChanged={() => void reload()} onEdit={() => stackNav.navigate('EditDebt', { debtId, name: data.name })} />
         </>
       ) : null}
+
+      {/* Este crédito: cuándo termina, cuotas, intereses, total; seguros y cargos. */}
+      {isAmortized ? (
+        <>
+          <GroupLabel title="Este crédito" />
+          {data.projection ? <CreditTiles debt={data} amort={amort} /> : null}
+          <InsuranceSection
+            debtId={debtId}
+            insurances={data.insurances ?? []}
+            breakdown={data.paymentBreakdown}
+            onChanged={() => void reload()}
+          />
+        </>
+      ) : null}
+
+      {/* FIN-012 + simulador (FIN-007) en una sola tarjeta (FIN-058, decisión 1). */}
+      {isAmortized && isActive ? (
+        <>
+          <GroupLabel title="Adelanta plata" />
+          <AdvanceSection debtId={debtId} balance={toNumber(data.currentBalance)} monthlyPayment={toNumber(data.monthlyPayment)} onChanged={() => void reload()} />
+        </>
+      ) : null}
+
+      {/* Plan de pago plegado con la próxima cuota a la vista (FIN-058, decisión 4). */}
+      {isAmortized && amort.length > 0 ? <PaymentPlan amort={amort} /> : null}
     </FormScroll>
   );
 }
 
-/** Resumen de un vistazo (P3 punto 10). Solo pinta lo que el payload ya trae. */
+// ---------------------------------------------------------------------------
+// FIN-058 · Cabecera
+// ---------------------------------------------------------------------------
+
+/** "28,3 % EA" / "2,1 % mensual". */
+function rateLabel(debt: Debt): string | null {
+  const r = toNumber(debt.interestRate);
+  if (!(r > 0)) return null;
+  const basis = debt.rateBasis === 'EA' ? 'EA' : debt.rateBasis === 'MV' ? 'mensual' : debt.rateBasis;
+  return `${r.toLocaleString('es-CO', { maximumFractionDigits: 1 })} % ${basis}`;
+}
+
+function daysUntil(iso: string): number {
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
+}
+
+function InfoChip({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'ok' | 'warn' }) {
+  const bg = tone === 'ok' ? colors.primarySoft : tone === 'warn' ? colors.warningSoft : colors.surfaceAlt;
+  const fg = tone === 'ok' ? colors.primaryDark : tone === 'warn' ? colors.warningDeep : colors.text;
+  return (
+    <View style={{ backgroundColor: bg, borderRadius: radius.full, paddingVertical: 4, paddingHorizontal: 10 }}>
+      <Text style={{ color: fg, ...type.small, fontWeight: '700' }}>{label}</Text>
+    </View>
+  );
+}
+
+function DebtHeader({ debt, amort, model, onChanged }: { debt: Debt; amort: AmortizationEntry[]; model: ScheduleModel; onChanged: () => void }) {
+  const balance = toNumber(debt.currentBalance);
+  const monthly = toNumber(debt.monthlyPayment);
+  const isCard = model === 'cuotas_por_compra';
+  const limit = debt.creditLimit != null ? toNumber(debt.creditLimit) : null;
+  const rate = rateLabel(debt);
+  const overdue = debt.overdueDays ?? 0;
+  const days = debt.nextDueDate ? daysUntil(debt.nextDueDate) : null;
+
+  const dueChip = overdue > 0
+    ? { label: `Venció hace ${overdue} día${overdue === 1 ? '' : 's'}`, tone: 'warn' as const }
+    : days !== null && debt.nextDueDate
+      ? { label: `${isCard ? 'Corte' : 'Vence'} ${days <= 0 ? 'hoy' : `en ${days} día${days === 1 ? '' : 's'}`} · ${formatDate(debt.nextDueDate)}`, tone: days <= 7 ? ('warn' as const) : ('neutral' as const) }
+      : null;
+
+  const lastPaid = amort.filter((e) => e.paidAt).sort((a, b) => String(b.paidAt).localeCompare(String(a.paidAt)))[0];
+  const chips: Array<{ label: string; tone?: 'neutral' | 'ok' | 'warn' }> = [];
+  if (model === 'amortizado' && debt.projection) {
+    chips.push({ label: `${debt.projection.numberOfPayments} cuotas restantes` });
+    if (debt.projection.payoffDate) chips.push({ label: `Libre el ${formatDate(debt.projection.payoffDate)}` });
+  }
+  if (model === 'saldo_y_cuota_pactada') chips.push({ label: 'Sin cronograma formal' });
+  if (lastPaid?.paidAt) chips.push({ label: `Último pago ${formatDate(lastPaid.paidAt)}` });
+  if (debt.nextDueDate && overdue === 0) chips.push({ label: 'Al día', tone: 'ok' });
+  if (debt.status !== 'activa') chips.push({ label: debt.status === 'pagada' ? 'Pagada' : debt.status, tone: 'ok' });
+
+  const caption = isCard
+    ? `${monthly > 0 ? `Cuota del mes ${formatMoney(monthly)}` : 'Sin cuota este mes'}${rate ? ` · ${rate}` : ''}`
+    : `${monthly > 0 ? `${model === 'saldo_y_cuota_pactada' ? 'Cuota pactada' : 'Cuota'} de ${formatMoney(monthly)} al mes` : 'Sin cuota definida'}${rate ? ` · ${rate}` : ''}`;
+
+  return (
+    <Card>
+      <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm }}>
+        <Text style={{ color: colors.textMuted, ...type.small }}>{isCard ? 'Usas del cupo' : 'Debes'}</Text>
+        {dueChip ? <InfoChip label={dueChip.label} tone={dueChip.tone} /> : null}
+      </Row>
+      <Text style={{ color: colors.text, ...type.hero, marginTop: 2 }}>{formatMoney(balance)}</Text>
+      <Text style={{ color: colors.textMuted, ...type.small }}>{caption}</Text>
+
+      {isCard ? <CardUsage used={balance} limit={limit} /> : <CapitalProgress debt={debt} onChanged={onChanged} />}
+
+      {chips.length ? (
+        <Row style={{ flexWrap: 'wrap', gap: 6, marginTop: spacing.sm }}>
+          {chips.map((c) => (
+            <InfoChip key={c.label} label={c.label} tone={c.tone} />
+          ))}
+        </Row>
+      ) : null}
+    </Card>
+  );
+}
+
+/** Tarjeta: barra de uso del cupo (roja en sobrecupo — FIN-037, §29.2). */
+function CardUsage({ used, limit }: { used: number; limit: number | null }) {
+  if (!limit || limit <= 0) {
+    return <Text style={{ color: colors.textFaint, ...type.small, marginTop: spacing.sm }}>Sin cupo registrado: agrégalo en Editar datos para ver cuánto te queda.</Text>;
+  }
+  const ratio = used / limit;
+  const over = ratio > 1;
+  return (
+    <View style={{ marginTop: spacing.sm }}>
+      <ProgressBar value={Math.min(1, ratio)} color={over ? colors.danger : ratio > 0.8 ? colors.warning : colors.primary} height={8} label={`Usas ${Math.round(ratio * 100)} % del cupo`} />
+      <Text style={{ color: over ? colors.dangerDeep : colors.textMuted, ...type.small, marginTop: 6 }}>
+        Usas {Math.round(ratio * 100)} % del cupo de {formatMoney(limit)}{over ? ` · ${formatMoney(used - limit)} por encima` : ` · disponible ${formatMoney(limit - used)}`}
+      </Text>
+    </View>
+  );
+}
+
 /**
- * Barra "pagado a capital" = (monto inicial − saldo) / monto inicial. Al registrar
- * sin el monto inicial se guarda el saldo de ese día: aquí se puede corregir.
+ * Barra "pagado a capital" = (monto inicial − saldo) / monto inicial. Al registrar sin el
+ * monto inicial se guarda el saldo de ese día: aquí se puede corregir. FIN-058: ya no ocupa
+ * una tarjeta vacía; sin monto inicial es una línea discreta dentro de la cabecera.
  */
 function CapitalProgress({ debt, onChanged }: { debt: Debt; onChanged: () => void }) {
   const balance = toNumber(debt.currentBalance);
@@ -292,7 +250,7 @@ function CapitalProgress({ debt, onChanged }: { debt: Debt; onChanged: () => voi
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const known = original > balance;
-  const paid = known ? Math.min(1, (original - balance) / original) : 0;
+  const paid = known ? original - balance : 0;
 
   const save = async () => {
     const n = parseAmount(value);
@@ -318,28 +276,19 @@ function CapitalProgress({ debt, onChanged }: { debt: Debt; onChanged: () => voi
   };
 
   return (
-    <Card>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Text style={{ fontWeight: '700', color: colors.text }}>Pagado a capital</Text>
-        <Text style={{ fontWeight: '800', color: colors.primary }}>{known ? `${Math.round(paid * 100)}%` : '—'}</Text>
-      </Row>
-      <View style={{ marginTop: spacing.sm }}>
-        <ProgressBar value={paid} color={colors.primary} height={10} label="Pagado a capital" />
-      </View>
-      <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 6 }}>
-        {known
-          ? `Te prestaron ${formatMoney(original)} · has pagado ${formatMoney(original - balance)} · faltan ${formatMoney(balance)}`
-          : 'Agrega cuánto te prestaron al inicio para ver cuánto llevas pagado.'}
-      </Text>
+    <View style={{ marginTop: spacing.sm }}>
+      {known ? (
+        <SegmentBar
+          height={10}
+          parts={[
+            { key: 'pagado', label: 'Pagado', value: paid, color: colors.primary },
+            { key: 'falta', label: 'Faltan', value: balance, color: colors.border },
+          ]}
+        />
+      ) : null}
       {editing ? (
         <View style={{ marginTop: spacing.sm }}>
-          <Field
-            label="¿Cuánto te prestaron al inicio?"
-            value={value}
-            onChangeText={setValue}
-            keyboardType="numeric"
-            placeholder="Ej: 80.000.000"
-          />
+          <Field label="¿Cuánto te prestaron al inicio?" value={value} onChangeText={setValue} keyboardType="numeric" placeholder="Ej: 80.000.000" />
           {err ? <Text style={{ color: colors.danger, marginBottom: 6 }}>{err}</Text> : null}
           <Row style={{ gap: spacing.sm }}>
             <View style={{ flex: 1 }}>
@@ -358,48 +307,90 @@ function CapitalProgress({ debt, onChanged }: { debt: Debt; onChanged: () => voi
             setEditing(true);
           }}
           accessibilityRole="button"
-          style={{ marginTop: spacing.sm, minHeight: 32, justifyContent: 'center' }}
+          style={{ marginTop: 6, minHeight: 28, justifyContent: 'center' }}
         >
-          <Text style={{ color: colors.primary, fontWeight: '700' }}>
-            {known ? 'Cambiar monto inicial' : 'Agregar monto inicial'}
+          <Text style={{ color: known ? colors.textFaint : colors.primary, ...type.small, fontWeight: known ? '400' : '700' }}>
+            {known
+              ? `Te prestaron ${formatMoney(original)} · has pagado ${formatMoney(paid)} · cambiar`
+              : '¿Cuánto te prestaron al inicio? Agrégalo y verás cuánto llevas pagado'}
           </Text>
         </Pressable>
       )}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// FIN-058 · "Este crédito": cuatro mosaicos
+// ---------------------------------------------------------------------------
+
+function CreditTiles({ debt, amort }: { debt: Debt; amort: AmortizationEntry[] }) {
+  const p = debt.projection!;
+  const total = amort.length > 0 ? amort.length : debt.termMonths ?? null;
+  const tiles: Array<{ label: string; value: string; tone?: string }> = [
+    { label: 'Terminas de pagar', value: p.payoffDate ? formatDate(p.payoffDate) : '—' },
+    { label: 'Cuotas restantes', value: total && total >= p.numberOfPayments ? `${p.numberOfPayments} de ${total}` : String(p.numberOfPayments) },
+    { label: 'Intereses por pagar', value: formatMoney(p.totalInterest), tone: colors.danger },
+    { label: 'Total que pagarás', value: formatMoney(p.totalPaid) },
+  ];
+  return (
+    <Card>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+        {tiles.map((t) => (
+          <View key={t.label} style={{ flexBasis: '47%', flexGrow: 1, backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, paddingVertical: 8, paddingHorizontal: 10, minWidth: 0 }}>
+            <Text style={{ color: colors.textMuted, ...type.caption }}>{t.label}</Text>
+            <Text style={{ color: t.tone ?? colors.text, ...type.body, fontWeight: '800', fontVariant: ['tabular-nums'] }} numberOfLines={1}>{t.value}</Text>
+          </View>
+        ))}
+      </View>
     </Card>
   );
 }
 
-function AtAGlance({ debt, amort }: { debt: Debt; amort: AmortizationEntry[] }) {
-  const items: Array<{ icon: React.ComponentProps<typeof Ionicons>['name']; label: string; value: string; tone?: string }> = [];
-  if (debt.nextDueDate) {
-    const days = Math.ceil((new Date(debt.nextDueDate).getTime() - Date.now()) / 86_400_000);
-    items.push({
-      icon: 'calendar-outline',
-      label: 'Próximo vencimiento',
-      value: `${formatDate(debt.nextDueDate)}${days >= 0 ? ` · en ${days} día${days === 1 ? '' : 's'}` : ''}`,
-      tone: days < 0 ? colors.warning : undefined,
-    });
-  }
-  const paid = amort.filter((e) => e.paidAt).sort((a, b) => String(b.paidAt).localeCompare(String(a.paidAt)))[0];
-  if (paid?.paidAt) {
-    items.push({ icon: 'checkmark-circle-outline', label: 'Último pago', value: `${formatDate(paid.paidAt)} · ${formatMoney(toNumber(paid.payment))}` });
-  }
-  if (debt.projection?.payoffDate) {
-    items.push({ icon: 'flag-outline', label: 'Libre de esta deuda', value: formatDate(debt.projection.payoffDate) });
-  }
-  if (items.length === 0) return null;
+// ---------------------------------------------------------------------------
+// FIN-058 · Plan de pago plegado
+// ---------------------------------------------------------------------------
+
+function PaymentPlan({ amort }: { amort: AmortizationEntry[] }) {
+  const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const next = amort.find((e) => !e.paidAt) ?? amort[0];
+  const rows = open ? (showAll ? amort : amort.slice(0, 12)) : [];
   return (
-    <Card>
-      {items.map((it, i) => (
-        <Row key={it.label} style={{ justifyContent: 'space-between', marginTop: i === 0 ? 0 : spacing.sm }}>
-          <Row style={{ gap: spacing.sm, flex: 1 }}>
-            <Ionicons name={it.icon} size={18} color={it.tone ?? colors.primary} />
-            <Text style={{ color: colors.textMuted, ...type.body }}>{it.label}</Text>
-          </Row>
-          <Text style={{ color: it.tone ?? colors.text, ...type.body, fontWeight: '700' }}>{it.value}</Text>
-        </Row>
-      ))}
-    </Card>
+    <>
+      <GroupLabel title="Plan de pago" action={open ? 'Ocultar' : `Ver las ${amort.length} cuotas`} onAction={() => setOpen((v) => !v)} />
+      <Card>
+        {!open && next ? (
+          <>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Text style={{ color: colors.text, fontWeight: '700' }}>Próxima · {formatDate(next.dueDate)}</Text>
+              <Text style={{ color: colors.text, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{formatMoney(toNumber(next.payment))}</Text>
+            </Row>
+            <Text style={{ color: colors.textMuted, ...type.small, marginTop: 2 }}>
+              Capital {formatMoney(toNumber(next.principalPart))} · Interés {formatMoney(toNumber(next.interestPart))} · cuota #{next.periodNo}
+            </Text>
+          </>
+        ) : null}
+        {rows.map((e, i) => (
+          <View key={e.periodNo} style={{ paddingVertical: 8, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt, opacity: e.paidAt ? 0.55 : 1 }}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Text style={{ color: colors.text, fontWeight: '600' }}>
+                #{e.periodNo} · {formatDate(e.dueDate)}{e.paidAt ? ' · pagada' : ''}
+              </Text>
+              <Text style={{ color: colors.text, fontWeight: '700', fontVariant: ['tabular-nums'] }}>{formatMoney(toNumber(e.payment))}</Text>
+            </Row>
+            <Text style={{ color: colors.textMuted, ...type.small }}>
+              Capital {formatMoney(toNumber(e.principalPart))} · Interés {formatMoney(toNumber(e.interestPart))}
+            </Text>
+          </View>
+        ))}
+        {open && amort.length > 12 && !showAll ? (
+          <Pressable onPress={() => setShowAll(true)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: colors.primary, fontWeight: '700' }}>Ver las {amort.length - 12} cuotas restantes</Text>
+          </Pressable>
+        ) : null}
+      </Card>
+    </>
   );
 }
 
@@ -714,47 +705,95 @@ function OverdueBlock({ days }: { days: number }) {
   );
 }
 
-/** FIN-012: abono a capital con preview=recibo (misma función pura en backend). */
-function PrepaySection({
+/**
+ * FIN-058 · "Adelanta plata": una sola tarjeta para el abono real (FIN-012, con el recibo del
+ * backend como preview) y la simulación de un extra mensual (FIN-007). Montos rápidos en el
+ * idioma de la persona (media cuota, una cuota, dos cuotas); el efecto se calcula al elegir el
+ * monto, sin botón intermedio. Mismos endpoints y cálculos de siempre (§32).
+ */
+function AdvanceSection({
   debtId,
   balance,
+  monthlyPayment,
   onChanged,
 }: {
   debtId: string;
   balance: number;
+  monthlyPayment: number;
   onChanged: () => void;
 }) {
-  const [amount, setAmount] = useState('');
+  const [mode, setMode] = useState<'una_vez' | 'cada_mes'>('una_vez');
   const [effect, setEffect] = useState<PrepayEffect>('reducir_plazo');
+  const [pick, setPick] = useState<number | 'otro' | null>(null);
+  const [custom, setCustom] = useState('');
   const [receipt, setReceipt] = useState<PrepayReceipt | null>(null);
+  const [sim, setSim] = useState<SimulateResult | null>(null);
+  const [scoreDelta, setScoreDelta] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const parsed = () => parseAmount(amount); // §39
+  const roundTo = (n: number, step: number) => Math.max(step, Math.round(n / step) * step);
+  // Decisión 2 del Fundador: los montos rápidos salen de la cuota (½, 1 y 2 cuotas).
+  const quick: Array<{ label: string; value: number }> =
+    monthlyPayment > 0
+      ? [
+          { label: 'Media cuota', value: roundTo(monthlyPayment / 2, 1000) },
+          { label: 'Una cuota', value: roundTo(monthlyPayment, 1000) },
+          { label: 'Dos cuotas', value: roundTo(monthlyPayment * 2, 1000) },
+        ]
+      : [
+          { label: '$ 200.000', value: 200_000 },
+          { label: '$ 500.000', value: 500_000 },
+          { label: '$ 1.000.000', value: 1_000_000 },
+        ];
+  const amount = pick === 'otro' ? parseAmount(custom) : (pick ?? 0); // §39
 
-  const preview = async () => {
-    const value = parsed();
-    if (!value) return;
-    setBusy(true);
+  // El efecto se calcula solo, con una pequeña espera mientras la persona escribe.
+  useEffect(() => {
+    setReceipt(null);
+    setSim(null);
+    setScoreDelta(null);
     setError(null);
-    try {
-      setReceipt(await debtsApi.prepayPreview(debtId, value, effect));
-    } catch (e) {
-      setError((e as Error).message);
-      setReceipt(null);
-    } finally {
-      setBusy(false);
+    if (!(amount > 0)) return;
+    if (mode === 'una_vez' && amount > balance) {
+      setError(`No puede superar el saldo de hoy (${formatMoney(balance)}).`);
+      return;
     }
-  };
+    let alive = true;
+    const id = setTimeout(async () => {
+      setBusy(true);
+      try {
+        if (mode === 'una_vez') {
+          const r = await debtsApi.prepayPreview(debtId, amount, effect);
+          if (alive) setReceipt(r);
+        } else {
+          const s = await debtsApi.simulateExtra(debtId, amount);
+          if (!alive) return;
+          setSim(s);
+          // FIN-007: impacto en el Score vía el simulador unificado.
+          const impact = await simulationsApi.run({ type: 'abono_extra', debtId, extraMonthly: amount }).catch(() => null);
+          if (alive) setScoreDelta(impact ? impact.delta.score : null);
+        }
+      } catch (e) {
+        if (alive) setError((e as Error).message);
+      } finally {
+        if (alive) setBusy(false);
+      }
+    }, pick === 'otro' ? 500 : 0);
+    return () => {
+      alive = false;
+      clearTimeout(id);
+    };
+  }, [amount, mode, effect, debtId, balance, pick]);
 
   const confirm = async () => {
-    const value = parsed();
-    if (!value) return;
+    if (!(amount > 0)) return;
     setBusy(true);
     setError(null);
     try {
-      await debtsApi.prepay(debtId, value, effect);
-      setAmount('');
+      await debtsApi.prepay(debtId, amount, effect);
+      setPick(null);
+      setCustom('');
       setReceipt(null);
       onChanged();
     } catch (e) {
@@ -765,112 +804,104 @@ function PrepaySection({
   };
 
   const payoff = () => {
-    Alert.alert(
-      'Pagar totalmente',
-      `Se registrará un pago por ${formatMoney(balance)} y la deuda quedará saldada. ¿Continuar?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Pagar todo',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              try {
-                await debtsApi.payoff(debtId);
-                onChanged();
-              } catch (e) {
-                setError((e as Error).message);
-              }
-            })();
-          },
+    Alert.alert('Pagar todo', `Se registrará un pago por ${formatMoney(balance)} y la deuda quedará saldada. ¿Continuar?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Pagar todo',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            try {
+              await debtsApi.payoff(debtId);
+              onChanged();
+            } catch (e) {
+              setError((e as Error).message);
+            }
+          })();
         },
-      ],
-    );
+      },
+    ]);
   };
+
+  const months = (n: number) => `${n} mes${n === 1 ? '' : 'es'}`;
+  const effectText = (() => {
+    if (busy) return 'Calculando…';
+    if (!(amount > 0)) return mode === 'una_vez' ? 'Elige cuánto adelantas hoy y verás qué cambia.' : 'Elige cuánto extra pondrías cada mes y verás qué cambia.';
+    if (mode === 'una_vez' && receipt) {
+      const base = `Con ${formatMoney(amount)} hoy te ahorras ${formatMoney(receipt.interestSaved)} en intereses`;
+      return receipt.effect === 'reducir_plazo'
+        ? `${base} y terminas ${months(receipt.monthsSaved)} antes (${formatDate(receipt.after.payoffDate)}). El saldo quedaría en ${formatMoney(receipt.newBalance)}.`
+        : `${base} y tu cuota baja a ${formatMoney(receipt.newMonthlyPayment)} (−${formatMoney(receipt.paymentSaved)}). El saldo quedaría en ${formatMoney(receipt.newBalance)}.`;
+    }
+    if (mode === 'cada_mes' && sim) {
+      return `Con ${formatMoney(amount)} extra cada mes te ahorras ${formatMoney(sim.interestSaved)} en intereses y terminas ${months(sim.monthsSaved)} antes (${formatDate(sim.withExtra.payoffDate)}).${scoreDelta !== null ? ` Tu Score ${scoreDelta >= 0 ? 'sube' : 'baja'} ~${Math.abs(scoreDelta)} pts.` : ''}`;
+    }
+    return null;
+  })();
+
+  const tab = (key: 'una_vez' | 'cada_mes', label: string) => (
+    <Pressable
+      key={key}
+      onPress={() => setMode(key)}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: mode === key }}
+      style={{ flex: 1, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: mode === key ? colors.surface : 'transparent', alignItems: 'center' }}
+    >
+      <Text style={{ color: mode === key ? colors.text : colors.textMuted, fontWeight: '700', ...type.body }}>{label}</Text>
+    </Pressable>
+  );
 
   return (
     <Card>
-      <Text style={{ fontWeight: '700', fontSize: 16 }}><Ico name="cash-outline" size={16} /> Abonar a capital</Text>
-      {/* FIN-018 4ª iteración (CPSAO): el término se mantiene por precisión,
-          acompañado del beneficio en lenguaje llano. */}
-      <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 2, marginBottom: spacing.sm }}>
-        Adelanta plata a tu deuda: pagas menos intereses y terminas antes (o bajas tu cuota).
+      <View style={{ flexDirection: 'row', backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: 3 }} accessibilityRole="tablist">
+        {tab('una_vez', 'Una vez')}
+        {tab('cada_mes', 'Cada mes')}
+      </View>
+      <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.sm }}>
+        {mode === 'una_vez' ? 'Un abono a capital hoy: pagas menos intereses y terminas antes, o bajas la cuota.' : '¿Y si pusieras un poco más cada mes? Mira cuánto te ahorrarías.'}
       </Text>
-      <Field
-        label="¿Cuánto quieres abonar?"
-        value={amount}
-        onChangeText={(t) => {
-          setAmount(t);
-          setReceipt(null);
-        }}
-        keyboardType="numeric"
-        placeholder="2000000"
-      />
-      <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
-        {(
-          [
-            { v: 'reducir_plazo', label: 'Terminar antes' },
-            { v: 'reducir_cuota', label: 'Bajar la cuota' },
-          ] as Array<{ v: PrepayEffect; label: string }>
-        ).map((opt) => (
-          <Pressable
-            key={opt.v}
-            onPress={() => {
-              setEffect(opt.v);
-              setReceipt(null);
-            }}
-            style={{
-              flex: 1,
-              padding: spacing.sm,
-              borderRadius: radius.md,
-              alignItems: 'center',
-              backgroundColor: effect === opt.v ? colors.primary : colors.surface,
-              borderWidth: 1,
-              borderColor: effect === opt.v ? colors.primary : colors.border,
-            }}
-          >
-            <Text style={{ color: effect === opt.v ? colors.textInverse : colors.text, fontSize: 13 }}>
-              {opt.label}
-            </Text>
-          </Pressable>
+      <Row style={{ flexWrap: 'wrap', gap: 6, marginTop: spacing.sm }}>
+        {quick.map((q) => (
+          <Chip key={q.label} label={q.label} active={pick === q.value} onPress={() => setPick(pick === q.value ? null : q.value)} />
         ))}
+        <Chip label="Otro" active={pick === 'otro'} onPress={() => setPick('otro')} />
       </Row>
-
-      {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
-
-      {receipt ? (
-        <View style={{ marginBottom: spacing.sm }}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ color: colors.textMuted }}>Intereses que te ahorras</Text>
-            <Text style={{ fontWeight: '800', color: colors.success }}>
-              {formatMoney(receipt.interestSaved)}
-            </Text>
-          </Row>
-          {receipt.effect === 'reducir_plazo' ? (
-            <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-              <Text style={{ color: colors.textMuted }}>Cuotas restantes</Text>
-              <Text style={{ fontWeight: '700', color: colors.text }}>
-                {receipt.before.months} → {receipt.after.months}
-              </Text>
-            </Row>
-          ) : (
-            <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-              <Text style={{ color: colors.textMuted }}>Nueva cuota</Text>
-              <Text style={{ fontWeight: '700', color: colors.text }}>
-                {formatMoney(receipt.newMonthlyPayment)} (−{formatMoney(receipt.paymentSaved)})
-              </Text>
-            </Row>
-          )}
-          <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
-            Nueva liquidación: {formatDate(receipt.after.payoffDate)} · saldo {formatMoney(receipt.newBalance)}
-          </Text>
-          <Button icon="checkmark-circle-outline" title="Confirmar abono" onPress={() => void confirm()} loading={busy} />
+      {pick === 'otro' ? (
+        <View style={{ marginTop: spacing.sm }}>
+          <Field label={mode === 'una_vez' ? '¿Cuánto abonas hoy?' : '¿Cuánto extra cada mes?'} value={custom} onChangeText={setCustom} keyboardType="numeric" placeholder={monthlyPayment > 0 ? String(Math.round(monthlyPayment)) : '500000'} />
         </View>
-      ) : (
-        <Button title="Ver efecto del abono" variant="secondary" onPress={() => void preview()} loading={busy} />
-      )}
+      ) : pick !== null ? (
+        <Text style={{ color: colors.textFaint, ...type.caption, marginTop: 6 }}>{formatMoney(amount)}</Text>
+      ) : null}
+      {mode === 'una_vez' ? (
+        <Row style={{ gap: 6, marginTop: spacing.sm }}>
+          <Chip label="Terminar antes" active={effect === 'reducir_plazo'} onPress={() => setEffect('reducir_plazo')} />
+          <Chip label="Bajar la cuota" active={effect === 'reducir_cuota'} onPress={() => setEffect('reducir_cuota')} />
+        </Row>
+      ) : null}
 
-      <Button title={`Pagar totalmente (${formatMoney(balance)})`} variant="secondary" onPress={payoff} />
+      {error ? <Text style={{ color: colors.danger, ...type.small, marginTop: spacing.sm }}>{error}</Text> : null}
+      {effectText ? (
+        <View style={{ backgroundColor: colors.primarySoft, borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.sm }} accessibilityLiveRegion="polite">
+          <Text style={{ color: colors.primaryDark, ...type.body }}>{effectText}</Text>
+        </View>
+      ) : null}
+
+      {mode === 'una_vez' && receipt && !busy ? (
+        <View style={{ marginTop: spacing.sm }}>
+          <Button icon="checkmark-circle-outline" title={`Registrar abono de ${formatMoney(amount)}`} onPress={() => void confirm()} loading={busy} />
+        </View>
+      ) : null}
+      {mode === 'cada_mes' && sim ? (
+        <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.sm }}>
+          Es una simulación. Para hacerlo de verdad, registra el abono cada mes o renegocia la cuota.
+        </Text>
+      ) : null}
+      {mode === 'una_vez' ? (
+        <Pressable onPress={payoff} accessibilityRole="button" style={{ marginTop: spacing.sm, minHeight: 32, justifyContent: 'center' }}>
+          <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '700' }}>Pagar todo ({formatMoney(balance)})</Text>
+        </Pressable>
+      ) : null}
     </Card>
   );
 }
