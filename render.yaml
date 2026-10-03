@@ -37,6 +37,9 @@ services:
         generateValue: true
       - key: JWT_ACCESS_TTL
         value: "3600"
+      # INFRA-001: orígenes de navegador permitidos (coma). Vacío = web de Millo + desarrollo local.
+      - key: CORS_ORIGINS
+        sync: false
 
       # Gates de producción (docs/PRODUCCION.md §2).
       # HEALTH_SCORE: ENCENDIDO por decisión ejecutiva del Fundador (2026-07-14,
