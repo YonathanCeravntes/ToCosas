@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '../components/AppText';
 import { useFocusEffect } from '@react-navigation/native';
 import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButton, IconName, Row, SegmentBar } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/colors';

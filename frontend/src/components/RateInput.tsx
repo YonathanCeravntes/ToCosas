@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text, TextInput } from './AppText';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { parseDecimal } from '../utils/format';
 import { rateHint, RateUnit } from '../utils/rates';
@@ -29,34 +30,32 @@ export function RateInput({
   return (
     <View style={{ marginBottom: spacing.md }}>
       <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600', marginBottom: 6 }}>{label}</Text>
-      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-        <TextInput
-          value={value}
-          onChangeText={(t) => onChange(t, unit)}
-          keyboardType="decimal-pad"
-          placeholder={placeholder ?? (unit === 'mensual' ? '1,8' : '24')}
-          placeholderTextColor={colors.textFaint}
-          accessibilityLabel={label}
-          style={{ flex: 1, minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: spacing.md, backgroundColor: colors.surface, color: colors.text, fontSize: 16, fontWeight: '700' }}
-        />
-        <View style={{ flexDirection: 'row', backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, padding: 3, gap: 2 }} accessibilityRole="radiogroup">
-          {(['mensual', 'anual'] as RateUnit[]).map((u) => {
-            const on = unit === u;
-            return (
-              <Pressable
-                key={u}
-                onPress={() => onChange(value, u)}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: on }}
-                style={{ minHeight: 38, paddingHorizontal: 10, borderRadius: radius.sm - 2, justifyContent: 'center', backgroundColor: on ? colors.surface : 'transparent' }}
-              >
-                <Text style={{ color: on ? colors.primaryDark : colors.textMuted, ...type.small, fontWeight: on ? '800' : '600' }}>{u === 'mensual' ? '% mensual' : '% anual (EA)'}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+      <TextInput
+        value={value}
+        onChangeText={(t) => onChange(t, unit)}
+        keyboardType="decimal-pad"
+        placeholder={placeholder ?? (unit === 'mensual' ? '1,8' : '24')}
+        placeholderTextColor={colors.textFaint}
+        accessibilityLabel={label}
+        style={{ minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: 12, backgroundColor: colors.surface, color: colors.text, ...type.bodyLg }}
+      />
+      <View style={{ flexDirection: 'row', backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: 3, marginTop: 6 }} accessibilityRole="radiogroup">
+        {(['mensual', 'anual'] as RateUnit[]).map((u) => {
+          const on = unit === u;
+          return (
+            <Pressable
+              key={u}
+              onPress={() => onChange(value, u)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on }}
+              style={{ flex: 1, minHeight: 36, paddingHorizontal: 10, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.surface : 'transparent', borderWidth: on ? 1 : 0, borderColor: colors.border }}
+            >
+              <Text style={{ color: on ? colors.text : colors.textMuted, ...type.small, fontWeight: on ? '600' : '500' }}>{u === 'mensual' ? '% mensual' : '% anual (EA)'}</Text>
+            </Pressable>
+          );
+        })}
       </View>
-      {conversion ? <Text style={{ color: colors.primaryDark, ...type.small, fontWeight: '700', marginTop: 6 }}>= {conversion.split(' = ')[1]}</Text> : null}
+      {conversion ? <Text style={{ color: colors.primary, ...type.small, fontWeight: '600', marginTop: 6 }}>= {conversion.split(' = ')[1]}</Text> : null}
       <Text style={{ color: colors.textFaint, ...type.caption, marginTop: 4 }}>
         {hint ?? 'La anual (EA) es la que aparece en tu extracto o en el pagaré; la mensual, la que te dijeron en el banco.'}
       </Text>

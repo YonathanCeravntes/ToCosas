@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { BackHandler, Keyboard, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Text, TextInput } from '../../components/AppText';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { DatePicker } from '../../components/DatePicker';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Field, Ico, IconButton, Row, Toast, ToastSpec } from '../../components/ui';
+import { Button, Card, Field, Ico, IconButton, Money, Row, Toast, ToastSpec, useKeyboardInset } from '../../components/ui';
+import { useRegisterForm } from '../../store/registerForm.store';
 import { CategoryGlyph } from '../../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { Category, Debt, TxKind } from '../../api/types';
@@ -201,7 +203,7 @@ export function AddTransactionScreen() {
       const profile = await gamificationApi.profile();
       const fresh = profile.achievements.find((a) => a.unlockedAt && !a.seenAt);
       if (fresh) {
-        setCelebration(`🏆 Logro: ${fresh.title} · +${fresh.xp} XP`);
+        setCelebration(`Logro: ${fresh.title} · +${fresh.xp} XP`);
         await gamificationApi.markSeen().catch(() => undefined);
       }
     } catch {
@@ -227,7 +229,7 @@ export function AddTransactionScreen() {
         household: kind === 'gasto' && house ? true : undefined,
       });
       // P1: el acuse ENUMERA la cascada (§42) con consecuencias en lenguaje humano.
-      const lines: string[] = [`✅ Registré tu ${label} de ${formatMoney(value)}${selectedCat ? ` en ${selectedCat.name}` : ''}.`];
+      const lines: string[] = [`Registré tu ${label} de ${formatMoney(value)}${selectedCat ? ` en ${selectedCat.name}` : ''}.`];
       if (tx.fixedItemId) lines.push('Ya lo tenías como gasto fijo: quedó cruzado y no se cuenta doble.');
       if (kind === 'gasto' && house) lines.push('Es de la casa: ya suma en Nuestro mes y en el aporte de cada uno.');
       if (kind === 'gasto' || kind === 'ingreso') {
@@ -238,7 +240,7 @@ export function AddTransactionScreen() {
         const d = await debtsApi.get(debtId).catch(() => null);
         if (d) {
           lines.push(`Actualicé tu deuda: nuevo saldo de ${d.name} ${formatMoney(Number(d.currentBalance))}${d.nextDueDate ? ` · próxima cuota ${shortDate(d.nextDueDate)}` : ''}.`);
-          if (d.status === 'pagada') lines.push('🎉 Esta deuda quedó saldada.');
+          if (d.status === 'pagada') lines.push('Esta deuda quedó saldada.');
         }
         lines.push('También descontó de "Te queda" y de tu deuda total en Inicio.');
       }
@@ -260,7 +262,7 @@ export function AddTransactionScreen() {
       });
       await runSync().catch(() => {});
       setAcuse([
-        `✅ Guardé tu ${label} de ${formatMoney(value)}${selectedCat ? ` en ${selectedCat.name}` : ''} en este teléfono.`,
+        `Guardé tu ${label} de ${formatMoney(value)}${selectedCat ? ` en ${selectedCat.name}` : ''} en este teléfono.`,
         'No hay conexión ahora: se enviará solo al reconectar y ahí se actualizarán "Te queda", tus deudas y tu Score.',
       ]);
       setUndo(null);
@@ -286,7 +288,7 @@ export function AddTransactionScreen() {
         undoFixed = () => budgetApi.removeFixed(fixed.id);
         const tx = await transactionsApi.create({ kind: 'gasto', amount: value, occurredAt: toApiDate(occurredAt), categoryId: selectedCat!.id, note: name, fixedItemId: fixed.id, paymentMethod: toPaymentMethod(pay), household: house || undefined });
         const lines = [
-          `✅ Registré tu gasto de ${formatMoney(value)} en ${name}.`,
+          `Registré tu gasto de ${formatMoney(value)} en ${name}.`,
           `Quedó como gasto fijo: desde el próximo mes se registra solo el día ${day}. No tienes que volver a anotarlo.`,
         ];
         const b = await budgetApi.monthly().catch(() => null);
@@ -300,7 +302,7 @@ export function AddTransactionScreen() {
         undoFixed = () => incomeApi.removeSource(source.id);
         const tx = await transactionsApi.create({ kind: 'ingreso', amount: value, occurredAt: toApiDate(occurredAt), categoryId: selectedCat?.id, note: name });
         const lines = [
-          `✅ Registré tu ingreso de ${formatMoney(value)}${selectedCat ? ` en ${selectedCat.name}` : ''}.`,
+          `Registré tu ingreso de ${formatMoney(value)}${selectedCat ? ` en ${selectedCat.name}` : ''}.`,
           `Quedó como ingreso fijo (${name}, día ${day}): tu presupuesto ya cuenta con él cada mes.`,
         ];
         const b = await budgetApi.monthly().catch(() => null);
@@ -327,7 +329,7 @@ export function AddTransactionScreen() {
     try {
       const n = Math.max(1, parseInt(installments, 10) || 1);
       const res = await debtsApi.registerPurchase(selectedCard.id, { amount: value, installments: n, withInterest, note: note || selectedCat?.name || undefined });
-      const lines = ['✅ ' + res.acknowledgment];
+      const lines = [res.acknowledgment];
       if (res.summary.availableCredit != null) lines.push(`Cupo disponible de ${selectedCard.name}: ${formatMoney(res.summary.availableCredit)}.`);
       lines.push(n > 1 ? `Las ${n} cuotas ya cuentan en "lo comprometido" de cada mes.` : 'La cuota ya cuenta en "lo comprometido" del mes.');
       setAcuse(lines);

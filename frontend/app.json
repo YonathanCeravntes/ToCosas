@@ -32,7 +32,9 @@
       "package": "co.tocosas.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0B6E4F"
+        "backgroundColor": "#0B6E4F",
+        "backgroundImage": "./assets/adaptive-background.png",
+        "monochromeImage": "./assets/adaptive-monochrome.png"
       }
     },
     "extra": {

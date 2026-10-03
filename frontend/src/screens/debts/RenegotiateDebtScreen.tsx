@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '../../components/AppText';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Card, Chip, ErrorState, Field, FormScroll, Ico, Row, SectionHeader, Skeleton } from '../../components/ui';
 import { DatePicker } from '../../components/DatePicker';

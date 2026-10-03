@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
+import { Text } from '../../components/AppText';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Card, Chip, ErrorState, Field, FormScroll, GroupLabel, Ico, ProgressBar, Row, SegmentBar, Skeleton } from '../../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, Money, ProgressBar, Row, SegmentBar, Skeleton } from '../../components/ui';
+import { Segmented, SoftChip } from '../../components/DebtControls';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { formatDate, formatMoney, parseAmount, parseDecimal } from '../../utils/format';
 import { AmortizationEntry, Debt, DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, ScheduleModel, toNumber } from '../../api/types';
@@ -93,12 +95,12 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
       {(data.depthReadings ?? []).map((r) => (
         <Card
           key={r.kind}
-          style={r.severity === 'warning' ? { borderColor: colors.warning, borderWidth: 2 } : undefined}
+          style={r.severity === 'warning' ? { borderColor: colors.warningDeep, borderWidth: 1.5 } : undefined}
         >
-          <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-            <Ico name={r.severity === 'warning' ? 'warning-outline' : 'bulb-outline'} color={r.severity === 'warning' ? colors.warning : colors.primary} /> {r.title}
+          <Text style={{ ...type.title, fontSize: 15, color: colors.text }}>
+            <Ico name={r.severity === 'warning' ? 'warning-outline' : 'bulb-outline'} size={15} color={r.severity === 'warning' ? colors.warningDeep : colors.textFaint} /> {r.title}
           </Text>
-          <Text style={{ color: colors.text, marginTop: 6, fontSize: 13, lineHeight: 19 }}>{r.body}</Text>
+          <Text style={{ color: colors.textMuted, marginTop: 6, ...type.small }}>{r.body}</Text>
         </Card>
       ))}
 
@@ -167,12 +169,14 @@ function daysUntil(iso: string): number {
   return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
 }
 
-function InfoChip({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'ok' | 'warn' }) {
-  const bg = tone === 'ok' ? colors.primarySoft : tone === 'warn' ? colors.warningSoft : colors.surfaceAlt;
-  const fg = tone === 'ok' ? colors.primaryDark : tone === 'warn' ? colors.warningDeep : colors.text;
+type ChipTone = 'neutral' | 'ok' | 'warn' | 'gold';
+
+function InfoChip({ label, tone = 'neutral' }: { label: string; tone?: ChipTone }) {
+  const bg = tone === 'ok' ? colors.primarySoft : tone === 'warn' ? colors.warningSoft : tone === 'gold' ? colors.goldSoft : colors.surfaceAlt;
+  const fg = tone === 'ok' ? colors.primaryDark : tone === 'warn' ? colors.warningDeep : tone === 'gold' ? colors.goldText : colors.textMuted;
   return (
-    <View style={{ backgroundColor: bg, borderRadius: radius.full, paddingVertical: 4, paddingHorizontal: 10 }}>
-      <Text style={{ color: fg, ...type.small, fontWeight: '700' }}>{label}</Text>
+    <View style={{ backgroundColor: bg, borderRadius: radius.full, paddingVertical: 3, paddingHorizontal: 10 }}>
+      <Text style={{ color: fg, ...type.small, fontWeight: '600' }}>{label}</Text>
     </View>
   );
 }
@@ -193,10 +197,10 @@ function DebtHeader({ debt, amort, model, onChanged }: { debt: Debt; amort: Amor
       : null;
 
   const lastPaid = amort.filter((e) => e.paidAt).sort((a, b) => String(b.paidAt).localeCompare(String(a.paidAt)))[0];
-  const chips: Array<{ label: string; tone?: 'neutral' | 'ok' | 'warn' }> = [];
+  const chips: Array<{ label: string; tone?: ChipTone }> = [];
   if (model === 'amortizado' && debt.projection) {
     chips.push({ label: `${debt.projection.numberOfPayments} cuotas restantes` });
-    if (debt.projection.payoffDate) chips.push({ label: `Libre el ${formatDate(debt.projection.payoffDate)}` });
+    if (debt.projection.payoffDate) chips.push({ label: `Libre el ${formatDate(debt.projection.payoffDate)}`, tone: 'gold' });
   }
   if (model === 'saldo_y_cuota_pactada') chips.push({ label: 'Sin cronograma formal' });
   if (lastPaid?.paidAt) chips.push({ label: `Último pago ${formatDate(lastPaid.paidAt)}` });
@@ -213,7 +217,7 @@ function DebtHeader({ debt, amort, model, onChanged }: { debt: Debt; amort: Amor
         <Text style={{ color: colors.textMuted, ...type.small }}>{isCard ? 'Usas del cupo' : 'Debes'}</Text>
         {dueChip ? <InfoChip label={dueChip.label} tone={dueChip.tone} /> : null}
       </Row>
-      <Text style={{ color: colors.text, ...type.hero, marginTop: 2 }}>{formatMoney(balance)}</Text>
+      <Money value={formatMoney(balance)} size={34} style={{ marginTop: 2 }} />
       <Text style={{ color: colors.textMuted, ...type.small }}>{caption}</Text>
 
       {isCard ? <CardUsage used={balance} limit={limit} /> : <CapitalProgress debt={debt} onChanged={onChanged} />}
@@ -318,7 +322,7 @@ function CapitalProgress({ debt, onChanged }: { debt: Debt; onChanged: () => voi
           accessibilityRole="button"
           style={{ marginTop: 6, minHeight: 28, justifyContent: 'center' }}
         >
-          <Text style={{ color: known ? colors.textFaint : colors.primary, ...type.small, fontWeight: known ? '400' : '700' }}>
+          <Text style={{ color: known ? colors.textFaint : colors.primary, ...type.small, fontWeight: known ? '400' : '600' }}>
             {known
               ? `Te prestaron ${formatMoney(original)} · has pagado ${formatMoney(paid)} · cambiar`
               : '¿Cuánto te prestaron al inicio? Agrégalo y verás cuánto llevas pagado'}
@@ -336,19 +340,19 @@ function CapitalProgress({ debt, onChanged }: { debt: Debt; onChanged: () => voi
 function CreditTiles({ debt, amort }: { debt: Debt; amort: AmortizationEntry[] }) {
   const p = debt.projection!;
   const total = amort.length > 0 ? amort.length : debt.termMonths ?? null;
-  const tiles: Array<{ label: string; value: string; tone?: string }> = [
+  const tiles: Array<{ label: string; value: string }> = [
     { label: 'Terminas de pagar', value: p.payoffDate ? formatDate(p.payoffDate) : '—' },
     { label: 'Cuotas restantes', value: total && total >= p.numberOfPayments ? `${p.numberOfPayments} de ${total}` : String(p.numberOfPayments) },
-    { label: 'Intereses por pagar', value: formatMoney(p.totalInterest), tone: colors.danger },
+    { label: 'Intereses por pagar', value: formatMoney(p.totalInterest) },
     { label: 'Total que pagarás', value: formatMoney(p.totalPaid) },
   ];
   return (
     <Card>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
         {tiles.map((t) => (
-          <View key={t.label} style={{ flexBasis: '47%', flexGrow: 1, backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, paddingVertical: 8, paddingHorizontal: 10, minWidth: 0 }}>
-            <Text style={{ color: colors.textMuted, ...type.caption }}>{t.label}</Text>
-            <Text style={{ color: t.tone ?? colors.text, ...type.body, fontWeight: '800', fontVariant: ['tabular-nums'] }} numberOfLines={1}>{t.value}</Text>
+          <View key={t.label} style={{ flexBasis: '47%', flexGrow: 1, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.surfaceAlt, borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 12, minWidth: 0 }}>
+            <Text style={{ color: colors.textFaint, ...type.caption }}>{t.label}</Text>
+            <Text style={{ color: colors.text, ...type.body, fontWeight: '600', marginTop: 2 }} numberOfLines={1}>{t.value}</Text>
           </View>
         ))}
       </View>
@@ -372,8 +376,8 @@ function PaymentPlan({ amort }: { amort: AmortizationEntry[] }) {
         {!open && next ? (
           <>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>Próxima · {formatDate(next.dueDate)}</Text>
-              <Text style={{ color: colors.text, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{formatMoney(toNumber(next.payment))}</Text>
+              <Text style={{ color: colors.text, fontWeight: '600', ...type.body }}>Próxima · {formatDate(next.dueDate)}</Text>
+              <Text style={{ color: colors.text, fontWeight: '600', ...type.body }}>{formatMoney(toNumber(next.payment))}</Text>
             </Row>
             <Text style={{ color: colors.textMuted, ...type.small, marginTop: 2 }}>
               Capital {formatMoney(toNumber(next.principalPart))} · Interés {formatMoney(toNumber(next.interestPart))} · cuota #{next.periodNo}
@@ -383,10 +387,10 @@ function PaymentPlan({ amort }: { amort: AmortizationEntry[] }) {
         {rows.map((e, i) => (
           <View key={e.periodNo} style={{ paddingVertical: 8, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt, opacity: e.paidAt ? 0.55 : 1 }}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ color: colors.text, fontWeight: '600' }}>
+              <Text style={{ color: colors.text, fontWeight: '600', ...type.body }}>
                 #{e.periodNo} · {formatDate(e.dueDate)}{e.paidAt ? ' · pagada' : ''}
               </Text>
-              <Text style={{ color: colors.text, fontWeight: '700', fontVariant: ['tabular-nums'] }}>{formatMoney(toNumber(e.payment))}</Text>
+              <Text style={{ color: colors.text, fontWeight: '600', ...type.body }}>{formatMoney(toNumber(e.payment))}</Text>
             </Row>
             <Text style={{ color: colors.textMuted, ...type.small }}>
               Capital {formatMoney(toNumber(e.principalPart))} · Interés {formatMoney(toNumber(e.interestPart))}
@@ -395,7 +399,7 @@ function PaymentPlan({ amort }: { amort: AmortizationEntry[] }) {
         ))}
         {open && amort.length > 12 && !showAll ? (
           <Pressable onPress={() => setShowAll(true)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>Ver las {amort.length - 12} cuotas restantes</Text>
+            <Text style={{ color: colors.primary, fontWeight: '600', ...type.body }}>Ver las {amort.length - 12} cuotas restantes</Text>
           </Pressable>
         ) : null}
       </Card>
@@ -433,7 +437,7 @@ function CardSection({ debtId, tick, onChanged, onEdit }: { debtId: string; tick
       setInstallments('1');
       setWithInterest(false);
       setOpen(false);
-      setAck(`✅ ${res.acknowledgment}${res.summary.availableCredit != null ? ` Cupo disponible: ${formatMoney(res.summary.availableCredit)}.` : ''}`);
+      setAck(`${res.acknowledgment}${res.summary.availableCredit != null ? ` Cupo disponible: ${formatMoney(res.summary.availableCredit)}.` : ''}`);
       refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -492,55 +496,55 @@ function CardSection({ debtId, tick, onChanged, onEdit }: { debtId: string; tick
 
   return (
     <Card>
-      <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}><Ico name="card-outline" size={16} /> Tu tarjeta</Text>
+      <Text style={{ ...type.title, fontSize: 15, color: colors.text, marginBottom: spacing.sm }}><Ico name="card-outline" size={15} color={colors.textFaint} /> Tu tarjeta</Text>
       {ack ? (
         <View style={{ backgroundColor: colors.successSoft, borderRadius: radius.sm, padding: spacing.sm, marginBottom: spacing.sm }}>
-          <Text style={{ color: colors.primaryDark, ...type.body }}>{ack}</Text>
+          <Text style={{ color: colors.primaryDark, ...type.body }}><Ico name="checkmark-circle-outline" color={colors.primaryDark} /> {ack}</Text>
         </View>
       ) : null}
       {data.creditLimit != null ? (
         <>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ color: colors.textMuted }}>Cupo disponible</Text>
+            <Text style={{ color: colors.textMuted, ...type.body }}>Cupo disponible</Text>
             {/* FIN-037: en sobrecupo el disponible es negativo — verde mentiría (§29.2). */}
-            <Text style={{ fontWeight: '800', color: (data.availableCredit ?? 0) < 0 ? colors.warning : colors.success }}>
+            <Text style={{ fontWeight: '600', ...type.body, color: (data.availableCredit ?? 0) < 0 ? colors.warningDeep : colors.primary }}>
               {formatMoney(data.availableCredit ?? 0)}
             </Text>
           </Row>
           <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-            <Text style={{ color: colors.textMuted }}>Utilizado</Text>
-            <Text style={{ color: colors.text }}>
+            <Text style={{ color: colors.textMuted, ...type.body }}>Utilizado</Text>
+            <Text style={{ color: colors.text, ...type.body }}>
               {formatMoney(data.usedAmount)} de {formatMoney(data.creditLimit)}
             </Text>
           </Row>
         </>
       ) : (
         <Pressable onPress={onEdit} accessibilityRole="link">
-          <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-            Aún no tiene cupo registrado. <Text style={{ color: colors.primary, fontWeight: '700' }}>Agrégalo en Editar datos →</Text> para ver cuánto te queda.
+          <Text style={{ color: colors.textMuted, ...type.small }}>
+            Aún no tiene cupo registrado. <Text style={{ color: colors.primary, fontWeight: '600' }}>Agrégalo en Editar datos</Text> para ver cuánto te queda.
           </Text>
         </Pressable>
       )}
 
       {data.purchases.length > 0 ? (
         <View style={{ marginTop: spacing.md }}>
-          <Text style={{ fontWeight: '600', color: colors.text, marginBottom: 6 }}>Tus compras a cuotas</Text>
+          <Text style={{ fontWeight: '600', color: colors.text, ...type.body, marginBottom: 2 }}>Tus compras a cuotas</Text>
           {data.purchases.map((p, idx) => (
-            <View key={p.id}>
+            <View key={p.id} style={{ borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
             <Pressable onPress={() => onPurchase(p.id)} accessibilityRole="button" accessibilityLabel={`${p.note || 'Compra'} de ${formatMoney(p.amount)}, toca para cambiar cuotas o anular`}>
-              <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
+              <Row style={{ justifyContent: 'space-between', paddingVertical: 10, gap: spacing.sm }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.text }} numberOfLines={1}>
-                    {idx === 0 ? <Text style={{ color: colors.primary, fontWeight: '700' }}>Última · </Text> : null}
+                  <Text style={{ color: colors.text, ...type.body }} numberOfLines={1}>
+                    {idx === 0 ? <Text style={{ color: colors.primary, fontWeight: '600' }}>Última · </Text> : null}
                     {p.note || `Compra de ${formatMoney(p.amount)}`}
                   </Text>
-                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                  <Text style={{ color: colors.textFaint, ...type.caption }}>
                     {/* Trazabilidad (G): de dónde salió cada cuota. */}
                     {p.installmentsCount} cuota{p.installmentsCount === 1 ? '' : 's'} · {formatDate(p.occurredAt)} ·{' '}
                     {p.paidInstallments} pagada{p.paidInstallments === 1 ? '' : 's'}
                   </Text>
                 </View>
-                <Text style={{ fontWeight: '700', color: colors.text }}>{formatMoney(p.pendingBalance)}</Text>
+                <Text style={{ fontWeight: '600', color: colors.text, ...type.body }}>{formatMoney(p.pendingBalance)}</Text>
               </Row>
             </Pressable>
             {actionsId === p.id && resplitId !== p.id ? (
@@ -554,7 +558,7 @@ function CardSection({ debtId, tick, onChanged, onEdit }: { debtId: string; tick
               </Row>
             ) : null}
             {resplitId === p.id ? (
-              <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, padding: spacing.sm, marginBottom: spacing.sm }}>
+              <View style={{ backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.surfaceAlt, borderRadius: radius.md, padding: spacing.sm, marginBottom: spacing.sm }}>
                 <Field label={`¿En cuántas cuotas repartes ${formatMoney(p.pendingBalance)}?`} value={resplitN} onChangeText={setResplitN} keyboardType="numeric" placeholder="16" />
                 {parseAmount(resplitN) >= 1 ? (
                   <Text style={{ color: colors.textMuted, ...type.small, marginBottom: spacing.sm }}>
@@ -574,30 +578,15 @@ function CardSection({ debtId, tick, onChanged, onEdit }: { debtId: string; tick
         <View style={{ marginTop: spacing.sm }}>
           <Field label="Monto de la compra" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="600000" />
           <Field label="¿En cuántas cuotas?" value={installments} onChangeText={setInstallments} keyboardType="numeric" placeholder="3" />
-          <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
-            {[
-              { v: false, label: 'Sin interés' },
-              { v: true, label: 'Con interés' },
-            ].map((opt) => (
-              <Pressable
-                key={String(opt.v)}
-                onPress={() => setWithInterest(opt.v)}
-                style={{
-                  flex: 1,
-                  padding: spacing.sm,
-                  borderRadius: radius.md,
-                  alignItems: 'center',
-                  backgroundColor: withInterest === opt.v ? colors.primary : colors.surface,
-                  borderWidth: 1,
-                  borderColor: withInterest === opt.v ? colors.primary : colors.border,
-                }}
-              >
-                <Text style={{ color: withInterest === opt.v ? colors.textInverse : colors.text, fontSize: 12 }}>
-                  {opt.label}
-                </Text>
-              </Pressable>
-            ))}
-          </Row>
+          <Segmented
+            style={{ marginBottom: spacing.sm }}
+            value={withInterest}
+            onChange={setWithInterest}
+            options={[
+              { value: false, label: 'Sin interés' },
+              { value: true, label: 'Con interés' },
+            ]}
+          />
           {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
           <Button title="Registrar compra" onPress={() => void add()} loading={saving} />
         </View>
@@ -646,14 +635,14 @@ function ReviewSection({ debtId, tick, onChanged }: { debtId: string; tick: numb
   };
 
   return (
-    <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
-      <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}><Ico name="search-outline" size={15} /> Una confirmación rápida</Text>
+    <Card style={{ borderColor: colors.primary, borderWidth: 1.5 }}>
+      <Text style={{ ...type.title, fontSize: 15, color: colors.text }}><Ico name="search-outline" size={15} color={colors.textFaint} /> Una confirmación rápida</Text>
       {ack ? (
-        <Text style={{ color: colors.textMuted, marginTop: 6, fontSize: 13 }}>{ack}</Text>
+        <Text style={{ color: colors.textMuted, marginTop: 6, ...type.small }}>{ack}</Text>
       ) : null}
       {mine.map((r) => (
         <View key={r.field} style={{ marginTop: spacing.sm }}>
-          <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>
+          <Text style={{ color: colors.text, ...type.body }}>
             ¿Cambió {r.label}?
             {r.currentValue != null ? ` Estaba en ${formatMoney(r.currentValue)}.` : ''}
           </Text>
@@ -673,16 +662,16 @@ function ReviewSection({ debtId, tick, onChanged }: { debtId: string; tick: numb
               <Pressable
                 onPress={() => void answer(r.field, false)}
                 disabled={busy}
-                style={{ flex: 1, padding: spacing.sm, borderRadius: radius.md, alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                style={{ flex: 1, minHeight: 44, justifyContent: 'center', padding: spacing.sm, borderRadius: radius.md, alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
               >
-                <Text style={{ color: colors.text, fontSize: 13 }}>No cambió</Text>
+                <Text style={{ color: colors.text, fontWeight: '600', ...type.body }}>No cambió</Text>
               </Pressable>
               <Pressable
                 onPress={() => setEditing(r.field)}
                 disabled={busy}
-                style={{ flex: 1, padding: spacing.sm, borderRadius: radius.md, alignItems: 'center', backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primary }}
+                style={{ flex: 1, minHeight: 44, justifyContent: 'center', padding: spacing.sm, borderRadius: radius.md, alignItems: 'center', backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primary }}
               >
-                <Text style={{ color: colors.textInverse, fontSize: 13 }}>Sí, cambió</Text>
+                <Text style={{ color: colors.textInverse, fontWeight: '600', ...type.body }}>Sí, cambió</Text>
               </Pressable>
             </Row>
           )}
@@ -698,17 +687,19 @@ function OverdueBlock({ days }: { days: number }) {
   // Salto de tab (Registrar = ruta 'Add'): bubbling al navegador padre.
   const navigation = useNavigation<{ navigate: (r: string) => void }>();
   return (
-    <Card style={{ borderColor: colors.warning, borderWidth: 2 }}>
-      <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>
-        <Ico name="alarm-outline" color={colors.warning} /> Esta cuota venció hace {days} día{days === 1 ? '' : 's'}
+    <Card style={{ borderColor: colors.warningDeep, borderWidth: 1.5 }}>
+      <Text style={{ ...type.title, fontSize: 15, color: colors.text }}>
+        <Ico name="alarm-outline" size={15} color={colors.warningDeep} /> Esta cuota venció hace {days} día{days === 1 ? '' : 's'}
       </Text>
-      <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
+      <Text style={{ color: colors.textMuted, marginTop: 4, ...type.small }}>
         No hay un pago registrado para esta cuota. Si ya la pagaste por otro medio, regístrala
         para que tus números digan la verdad; si no, cada día suma intereses — abajo puedes
         abonar directamente.
       </Text>
       <Pressable onPress={() => navigation.navigate('Add')} style={{ marginTop: spacing.sm }}>
-        <Text style={{ color: colors.primary, fontWeight: '700' }}><Ico name="checkmark-circle-outline" color={colors.primary} /> Registrar el pago →</Text>
+        <Text style={{ color: colors.primary, fontWeight: '600', ...type.body }}>
+          Registrar el pago <Ico name="arrow-forward" size={13} color={colors.primary} />
+        </Text>
       </Pressable>
     </Card>
   );
@@ -848,32 +839,24 @@ function AdvanceSection({
     return null;
   })();
 
-  const tab = (key: 'una_vez' | 'cada_mes', label: string) => (
-    <Pressable
-      key={key}
-      onPress={() => setMode(key)}
-      accessibilityRole="tab"
-      accessibilityState={{ selected: mode === key }}
-      style={{ flex: 1, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: mode === key ? colors.surface : 'transparent', alignItems: 'center' }}
-    >
-      <Text style={{ color: mode === key ? colors.text : colors.textMuted, fontWeight: '700', ...type.body }}>{label}</Text>
-    </Pressable>
-  );
-
   return (
     <Card>
-      <View style={{ flexDirection: 'row', backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: 3 }} accessibilityRole="tablist">
-        {tab('una_vez', 'Una vez')}
-        {tab('cada_mes', 'Cada mes')}
-      </View>
+      <Segmented
+        value={mode}
+        onChange={setMode}
+        options={[
+          { value: 'una_vez', label: 'Una vez' },
+          { value: 'cada_mes', label: 'Cada mes' },
+        ]}
+      />
       <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.sm }}>
         {mode === 'una_vez' ? 'Un abono a capital hoy: pagas menos intereses y terminas antes, o bajas la cuota.' : '¿Y si pusieras un poco más cada mes? Mira cuánto te ahorrarías.'}
       </Text>
       <Row style={{ flexWrap: 'wrap', gap: 6, marginTop: spacing.sm }}>
         {quick.map((q) => (
-          <Chip key={q.label} label={q.label} active={pick === q.value} onPress={() => setPick(pick === q.value ? null : q.value)} />
+          <SoftChip key={q.label} label={q.label} active={pick === q.value} onPress={() => setPick(pick === q.value ? null : q.value)} />
         ))}
-        <Chip label="Otro" active={pick === 'otro'} onPress={() => setPick('otro')} />
+        <SoftChip label="Otro" active={pick === 'otro'} onPress={() => setPick('otro')} />
       </Row>
       {pick === 'otro' ? (
         <View style={{ marginTop: spacing.sm }}>
@@ -884,8 +867,8 @@ function AdvanceSection({
       ) : null}
       {mode === 'una_vez' ? (
         <Row style={{ gap: 6, marginTop: spacing.sm }}>
-          <Chip label="Terminar antes" active={effect === 'reducir_plazo'} onPress={() => setEffect('reducir_plazo')} />
-          <Chip label="Bajar la cuota" active={effect === 'reducir_cuota'} onPress={() => setEffect('reducir_cuota')} />
+          <SoftChip label="Terminar antes" active={effect === 'reducir_plazo'} onPress={() => setEffect('reducir_plazo')} />
+          <SoftChip label="Bajar la cuota" active={effect === 'reducir_cuota'} onPress={() => setEffect('reducir_cuota')} />
         </Row>
       ) : null}
 
@@ -908,7 +891,7 @@ function AdvanceSection({
       ) : null}
       {mode === 'una_vez' ? (
         <Pressable onPress={payoff} accessibilityRole="button" style={{ marginTop: spacing.sm, minHeight: 32, justifyContent: 'center' }}>
-          <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '700' }}>Pagar todo ({formatMoney(balance)})</Text>
+          <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600' }}>Pagar todo ({formatMoney(balance)})</Text>
         </Pressable>
       ) : null}
     </Card>
@@ -979,48 +962,48 @@ function InsuranceSection({
 
   return (
     <Card>
-      <Text style={{ fontWeight: '700', fontSize: 16, marginBottom: spacing.sm }}>
-        <Ico name="shield-checkmark-outline" size={15} /> {isCard ? 'Cargos de la tarjeta' : 'Seguros y cargos del crédito'}
+      <Text style={{ ...type.title, fontSize: 15, color: colors.text, marginBottom: spacing.sm }}>
+        <Ico name="shield-checkmark-outline" size={15} color={colors.textFaint} /> {isCard ? 'Cargos de la tarjeta' : 'Seguros y cargos del crédito'}
       </Text>
 
       {breakdown && breakdown.insuranceMonthlyTotal > 0 ? (
         <View style={{ marginBottom: spacing.sm }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ color: colors.textMuted }}>{isCard ? 'Cuotas del mes' : 'Cuota del crédito'}</Text>
-            <Text style={{ color: colors.text }}>{formatMoney(breakdown.basePayment)}</Text>
+            <Text style={{ color: colors.textMuted, ...type.small }}>{isCard ? 'Cuotas del mes' : 'Cuota del crédito'}</Text>
+            <Text style={{ color: colors.text, ...type.small }}>{formatMoney(breakdown.basePayment)}</Text>
           </Row>
           {breakdown.insuranceFinanced > 0 ? (
             <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-              <Text style={{ color: colors.textMuted }}>Seguros y cargos en la cuota</Text>
-              <Text style={{ color: colors.textMuted }}>{formatMoney(breakdown.insuranceFinanced)}</Text>
+              <Text style={{ color: colors.textMuted, ...type.small }}>Seguros y cargos en la cuota</Text>
+              <Text style={{ color: colors.textMuted, ...type.small }}>{formatMoney(breakdown.insuranceFinanced)}</Text>
             </Row>
           ) : null}
           {breakdown.insuranceSeparate > 0 ? (
             <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-              <Text style={{ color: colors.textMuted }}>+ Seguros y cargos aparte</Text>
-              <Text style={{ color: colors.text }}>{formatMoney(breakdown.insuranceSeparate)}</Text>
+              <Text style={{ color: colors.textMuted, ...type.small }}>+ Seguros y cargos aparte</Text>
+              <Text style={{ color: colors.text, ...type.small }}>{formatMoney(breakdown.insuranceSeparate)}</Text>
             </Row>
           ) : null}
           <Row style={{ justifyContent: 'space-between', marginTop: 6 }}>
-            <Text style={{ fontWeight: '700', color: colors.text }}>Desembolso mensual real</Text>
-            <Text style={{ fontWeight: '800', color: colors.text }}>
+            <Text style={{ fontWeight: '600', color: colors.text, ...type.body }}>Desembolso mensual real</Text>
+            <Text style={{ fontWeight: '600', color: colors.text, ...type.body }}>
               {formatMoney(breakdown.totalMonthlyOutlay)}
             </Text>
           </Row>
         </View>
       ) : null}
 
-      {insurances.map((ins) => (
-        <Row key={ins.id} style={{ justifyContent: 'space-between', marginBottom: 6, opacity: ins.active ? 1 : 0.45 }}>
+      {insurances.map((ins, idx) => (
+        <Row key={ins.id} style={{ justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt, opacity: ins.active ? 1 : 0.45 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.text, fontWeight: '600' }}>{ins.name}</Text>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+            <Text style={{ color: colors.text, fontWeight: '600', ...type.body }}>{ins.name}</Text>
+            <Text style={{ color: colors.textFaint, ...type.caption }}>
               {INSURANCE_KIND_LABEL[ins.kind] ?? ins.kind} · {ins.financed ? 'en la cuota' : 'aparte'}
               {ins.endorsed ? ' · endosado' : ''}
               {!ins.active ? ' · inactivo' : ''}
             </Text>
           </View>
-          <Text style={{ fontWeight: '700', color: colors.text, marginRight: spacing.sm }}>
+          <Text style={{ fontWeight: '600', color: colors.text, ...type.body, marginRight: spacing.sm }}>
             {formatMoney(toNumber(ins.monthlyPremium))}
           </Text>
           <Pressable
@@ -1029,16 +1012,16 @@ function InsuranceSection({
             accessibilityRole="button"
             accessibilityLabel={ins.active ? 'Pausar seguro' : 'Activar seguro'}
           >
-            <Ico name={ins.active ? 'pause-circle-outline' : 'play-circle-outline'} size={20} color={colors.textMuted} />
+            <Ico name={ins.active ? 'pause-circle-outline' : 'play-circle-outline'} size={20} color={colors.textFaint} />
           </Pressable>
           <Pressable onPress={() => remove(ins)} accessibilityRole="button" accessibilityLabel={`Eliminar ${ins.name}`}>
-            <Ico name="trash-outline" size={18} color={colors.textMuted} />
+            <Ico name="trash-outline" size={18} color={colors.textFaint} />
           </Pressable>
         </Row>
       ))}
 
       {insurances.length === 0 && !showForm ? (
-        <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm }}>
+        <Text style={{ color: colors.textMuted, ...type.small, marginBottom: spacing.sm }}>
           {isCard
             ? 'Registra la cuota de manejo (o el seguro de la tarjeta) para que cuente en la cuota del mes y en "Te queda". Si envías el extracto por Telegram, Millo la lee sola.'
             : 'Registra los seguros del crédito (vida, incendio…) para ver tu cuota real. Si aportas tu propia póliza (endoso), aquí ves cuánto te ahorras.'}
@@ -1047,33 +1030,18 @@ function InsuranceSection({
 
       {showForm ? (
         <View style={{ marginTop: spacing.sm }}>
-          <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
-            {[
-              { v: false, label: 'Seguro' },
-              { v: true, label: 'Cuota de manejo' },
-            ].map((opt) => (
-              <Pressable
-                key={String(opt.v)}
-                onPress={() => {
-                  setIsCargo(opt.v);
-                  if (opt.v && !name) setName('Cuota de manejo');
-                }}
-                style={{
-                  flex: 1,
-                  padding: spacing.sm,
-                  borderRadius: radius.md,
-                  alignItems: 'center',
-                  backgroundColor: isCargo === opt.v ? colors.primary : colors.surface,
-                  borderWidth: 1,
-                  borderColor: isCargo === opt.v ? colors.primary : colors.border,
-                }}
-              >
-                <Text style={{ color: isCargo === opt.v ? colors.textInverse : colors.text, fontSize: 12 }}>
-                  {opt.label}
-                </Text>
-              </Pressable>
-            ))}
-          </Row>
+          <Segmented
+            style={{ marginBottom: spacing.sm }}
+            value={isCargo}
+            onChange={(v) => {
+              setIsCargo(v);
+              if (v && !name) setName('Cuota de manejo');
+            }}
+            options={[
+              { value: false, label: 'Seguro' },
+              { value: true, label: 'Cuota de manejo' },
+            ]}
+          />
           <Field
             label={isCargo ? 'Nombre del cargo' : 'Nombre del seguro'}
             value={name}
@@ -1087,30 +1055,15 @@ function InsuranceSection({
             keyboardType="numeric"
             placeholder={isCargo ? '30000' : '45000'}
           />
-          <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
-            {[
-              { v: true, label: 'Va dentro de la cuota' },
-              { v: false, label: 'Se paga aparte' },
-            ].map((opt) => (
-              <Pressable
-                key={String(opt.v)}
-                onPress={() => setFinanced(opt.v)}
-                style={{
-                  flex: 1,
-                  padding: spacing.sm,
-                  borderRadius: radius.md,
-                  alignItems: 'center',
-                  backgroundColor: financed === opt.v ? colors.primary : colors.surface,
-                  borderWidth: 1,
-                  borderColor: financed === opt.v ? colors.primary : colors.border,
-                }}
-              >
-                <Text style={{ color: financed === opt.v ? colors.textInverse : colors.text, fontSize: 12 }}>
-                  {opt.label}
-                </Text>
-              </Pressable>
-            ))}
-          </Row>
+          <Segmented
+            style={{ marginBottom: spacing.sm }}
+            value={financed}
+            onChange={setFinanced}
+            options={[
+              { value: true, label: 'Va dentro de la cuota' },
+              { value: false, label: 'Se paga aparte' },
+            ]}
+          />
           <Button title={isCargo ? 'Guardar cargo' : 'Guardar seguro'} onPress={() => void add()} loading={saving} />
         </View>
       ) : (

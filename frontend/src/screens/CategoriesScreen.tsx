@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '../components/AppText';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/types';
-import { Card, EmptyState, ErrorState, FormScroll, Ico, ProgressBar, Row, SegmentBar, Skeleton } from '../components/ui';
-import { CategoryGlyph } from '../components/CategoryGlyph';
+import { Card, EmptyState, ErrorState, FormScroll, Ico, Money, ProgressBar, Row, SegmentBar, Skeleton } from '../components/ui';
+import { CategoryGlyph, categoryShade, incomeSourceColors } from '../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney } from '../utils/format';
 import { dashboardApi } from '../api/endpoints';
@@ -49,7 +50,7 @@ export function CategoriesScreen() {
             accessibilityState={{ selected: tab === t }}
             style={{ flex: 1, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: tab === t ? colors.surface : 'transparent', alignItems: 'center' }}
           >
-            <Text style={{ color: tab === t ? colors.text : colors.textMuted, fontWeight: '700', ...type.body }}>{t === 'gastos' ? 'Gastos' : 'Ingresos'}</Text>
+            <Text style={{ color: tab === t ? colors.text : colors.textMuted, fontWeight: '600', ...type.body }}>{t === 'gastos' ? 'Gastos' : 'Ingresos'}</Text>
           </Pressable>
         ))}
       </View>
@@ -82,7 +83,11 @@ function ExpensesTab({ data, loading, navigation }: { data: Home; loading: boole
     <>
       <Card>
         <Text style={{ color: colors.textMuted, ...type.small }}>Sale de tu bolsillo este ciclo · {data.period.label}</Text>
-        <Text style={{ color: colors.text, fontSize: 30, fontWeight: '800', marginTop: 2 }}>{loading && !total ? '…' : formatMoney(total)}</Text>
+        {loading && !total ? (
+          <Text style={{ color: colors.text, fontSize: 34, fontWeight: '600', marginTop: 2 }}>…</Text>
+        ) : (
+          <Money value={total} size={34} style={{ marginTop: 2 }} />
+        )}
         <Text style={{ color: colors.textFaint, ...type.small }}>
           {formatMoney(data.expense.fixed)} fijos del mes · {formatMoney(data.expense.variable)} del día a día
           {showDebt ? ` · ${formatMoney(debtMonth)} en cuotas` : ''}
@@ -92,7 +97,7 @@ function ExpensesTab({ data, loading, navigation }: { data: Home; loading: boole
             <SegmentBar
               height={12}
               parts={[
-                ...cats.map((c, i) => ({ key: `${c.id ?? 'sin'}-${i}`, label: c.name, value: c.amount, color: c.color })),
+                ...cats.map((c, i) => ({ key: `${c.id ?? 'sin'}-${i}`, label: c.name, value: c.amount, color: categoryShade(i, c.id == null) })),
                 ...(showDebt ? [{ key: 'deudas', label: 'Cuotas de deudas', value: debtMonth, color: colors.debt }] : []),
               ]}
             />
@@ -114,14 +119,14 @@ function ExpensesTab({ data, loading, navigation }: { data: Home; loading: boole
               style={{ paddingVertical: 12, borderTopWidth: i === 0 && !showDebt ? 0 : 1, borderTopColor: colors.surfaceAlt }}
             >
               <Row style={{ gap: spacing.sm, alignItems: 'center' }}>
-                <CategoryGlyph emoji={c.icon} kind="gasto" color={c.color} />
+                <CategoryGlyph emoji={c.icon} kind="gasto" />
                 <View style={{ flex: 1, gap: 4 }}>
                   <Row style={{ justifyContent: 'space-between' }}>
-                    <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{c.name}</Text>
-                    <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(c.amount)}</Text>
+                    <Text style={{ color: colors.text, fontWeight: '600', flex: 1, marginRight: spacing.sm }} numberOfLines={1}>{c.name}</Text>
+                    <Text style={{ color: colors.text, fontWeight: '600' }}>{formatMoney(c.amount)}</Text>
                   </Row>
-                  <ProgressBar value={c.percent / 100} color={c.color} height={6} label={`${c.name} ${c.percent}%`} />
-                  <Text style={{ color: c.id == null ? colors.warningDeep : colors.textMuted, ...type.small, fontWeight: c.id == null ? '700' : '400' }}>
+                  <ProgressBar value={c.percent / 100} color={categoryShade(i, c.id == null)} track={colors.surfaceAlt} height={6} label={`${c.name} ${c.percent}%`} />
+                  <Text style={{ color: c.id == null ? colors.warningDeep : colors.textMuted, ...type.small, fontWeight: c.id == null ? '600' : '400' }}>
                     {c.percent} % de lo que sale{c.id == null ? ' · toca para organizarlos' : ''}
                   </Text>
                 </View>
@@ -157,16 +162,16 @@ function DebtRows({ debt, first, navigation }: { debt: HomeDebt; first: boolean;
     <View style={{ paddingVertical: 12, borderTopWidth: first ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
       <Pressable onPress={() => go()} accessibilityRole="button" accessibilityLabel={`Cuotas de deudas: ${formatMoney(amount)} este mes, ${debt.percent} por ciento, ${status}. Ver mis deudas`}>
         <Row style={{ gap: spacing.sm, alignItems: 'center' }}>
-          <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.debtSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.debtSoft, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="card-outline" size={18} color={colors.debt} />
           </View>
           <View style={{ flex: 1, gap: 4 }}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>Cuotas de deudas</Text>
-              <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(amount)}</Text>
+              <Text style={{ color: colors.text, fontWeight: '600' }}>Cuotas de deudas</Text>
+              <Text style={{ color: colors.text, fontWeight: '600' }}>{formatMoney(amount)}</Text>
             </Row>
-            <ProgressBar value={debt.percent / 100} color={colors.debt} height={6} label={`Cuotas de deudas ${debt.percent}%`} />
-            <Text style={{ color: colors.debt, ...type.small, fontWeight: '700' }}>
+            <ProgressBar value={debt.percent / 100} color={colors.debt} track={colors.surfaceAlt} height={6} label={`Cuotas de deudas ${debt.percent}%`} />
+            <Text style={{ color: colors.debt, ...type.small, fontWeight: '600' }}>
               {debt.percent} % de lo que sale · {status}
             </Text>
           </View>
@@ -174,7 +179,7 @@ function DebtRows({ debt, first, navigation }: { debt: HomeDebt; first: boolean;
         </Row>
       </Pressable>
       {shown.length > 0 ? (
-        <View style={{ marginLeft: 44, marginTop: spacing.xs, gap: 6 }}>
+        <View style={{ marginLeft: 42, marginTop: spacing.xs, gap: 6 }}>
           {shown.map((d) => {
             const monthly = d.amount ?? Math.max(d.committed, d.paid);
             const detail = d.paid <= 0 ? 'sin pagar' : d.paid >= d.committed ? 'pagada' : `pagado ${formatMoney(d.paid)}`;
@@ -205,18 +210,23 @@ function IncomeTab({ data, loading, navigation }: { data: Home; loading: boolean
   const total = sources.reduce((a, s) => a + s.amount, 0) || data.income.total;
   const extra = sources.filter((s) => s.kind !== 'fijo').reduce((a, s) => a + s.amount, 0);
   const fixed = sources.find((s) => s.kind === 'fijo')?.amount ?? 0;
+  const tints = incomeSourceColors(sources);
 
   return (
     <>
       <Card>
         <Text style={{ color: colors.textMuted, ...type.small }}>Te entró este ciclo · {data.period.label}</Text>
-        <Text style={{ color: colors.primary, fontSize: 30, fontWeight: '800', marginTop: 2 }}>{loading && !total ? '…' : formatMoney(total)}</Text>
+        {loading && !total ? (
+          <Text style={{ color: colors.primary, fontSize: 34, fontWeight: '600', marginTop: 2 }}>…</Text>
+        ) : (
+          <Money value={total} size={34} color={colors.primary} style={{ marginTop: 2 }} />
+        )}
         <Text style={{ color: colors.textFaint, ...type.small }}>
           {fixed > 0 ? `${formatMoney(fixed)} de salario` : ''}{fixed > 0 && extra > 0 ? ' · ' : ''}{extra > 0 ? `${formatMoney(extra)} extra` : ''}
         </Text>
         {sources.length > 1 ? (
           <View style={{ marginTop: spacing.sm }}>
-            <SegmentBar height={12} parts={sources.map((s) => ({ key: s.id, label: s.name, value: s.amount, color: s.kind === 'fijo' ? colors.primary : s.color }))} />
+            <SegmentBar height={12} parts={sources.map((s, i) => ({ key: s.id, label: s.name, value: s.amount, color: tints[i] }))} />
           </View>
         ) : null}
       </Card>
@@ -244,14 +254,14 @@ function IncomeTab({ data, loading, navigation }: { data: Home; loading: boolean
                 style={{ paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}
               >
                 <Row style={{ gap: spacing.sm, alignItems: 'center' }}>
-                  <CategoryGlyph emoji={s.icon} kind="ingreso" color={s.kind === 'fijo' ? colors.primary : s.color} />
+                  <CategoryGlyph emoji={s.icon} kind="ingreso" />
                   <View style={{ flex: 1, gap: 4 }}>
                     <Row style={{ justifyContent: 'space-between' }}>
-                      <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{s.name}</Text>
-                      <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(s.amount)}</Text>
+                      <Text style={{ color: colors.text, fontWeight: '600', flex: 1, marginRight: spacing.sm }} numberOfLines={1}>{s.name}</Text>
+                      <Text style={{ color: colors.text, fontWeight: '600' }}>{formatMoney(s.amount)}</Text>
                     </Row>
-                    <ProgressBar value={s.percent / 100} color={s.kind === 'fijo' ? colors.primary : s.color} height={6} label={`${s.name} ${s.percent}%`} />
-                    <Text style={{ color: s.id === 'sin' ? colors.warningDeep : colors.textMuted, ...type.small, fontWeight: s.id === 'sin' ? '700' : '400' }}>
+                    <ProgressBar value={s.percent / 100} color={tints[i]} track={colors.surfaceAlt} height={6} label={`${s.name} ${s.percent}%`} />
+                    <Text style={{ color: s.id === 'sin' ? colors.warningDeep : colors.textMuted, ...type.small, fontWeight: s.id === 'sin' ? '600' : '400' }}>
                       {s.percent} % de lo que te entró{detail.length ? ` · ${detail.join(' · ')}` : ''}
                     </Text>
                   </View>

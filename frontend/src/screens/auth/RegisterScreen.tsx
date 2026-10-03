@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Text } from '../../components/AppText';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Field } from '../../components/ui';
@@ -95,17 +96,17 @@ export function RegisterScreen({ navigation, route }: Props) {
           accessibilityLabel="Acepto la política de tratamiento de datos"
           style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.sm, minHeight: 44 }}
         >
-          <Ionicons name={accepted ? 'checkbox' : 'square-outline'} size={24} color={accepted ? colors.primary : colors.textMuted} />
+          <Ionicons name={accepted ? 'checkbox' : 'square-outline'} size={22} color={accepted ? colors.primary : colors.textMuted} />
           <Text style={{ color: colors.text, ...type.body, flex: 1 }}>
             Acepto que Millo trate mis datos para prestarme el servicio.{' '}
-            <Text onPress={() => setShowPolicy((v) => !v)} style={{ color: colors.primary, fontWeight: '700' }}>
+            <Text onPress={() => setShowPolicy((v) => !v)} style={{ color: colors.primary, fontWeight: '600' }}>
               {showPolicy ? 'Ocultar' : 'Leer la política'}
             </Text>
           </Text>
         </Pressable>
         {showPolicy ? (
-          <Card style={{ backgroundColor: colors.surfaceAlt }}>
-            <Text style={{ color: colors.text, ...type.small }}>{DATA_POLICY_SHORT}</Text>
+          <Card style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.surfaceAlt }}>
+            <Text style={{ color: colors.textMuted, ...type.small }}>{DATA_POLICY_SHORT}</Text>
           </Card>
         ) : null}
 

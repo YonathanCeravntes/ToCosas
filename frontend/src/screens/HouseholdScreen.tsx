@@ -1,16 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, Share, Switch, Text, View } from 'react-native';
+import { Platform, Pressable, Share, Switch, View } from 'react-native';
+import { Text } from '../components/AppText';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Chip, ErrorState, Field, FormScroll, GroupLabel, ProgressBar, Row, SegmentBar, Skeleton } from '../components/ui';
-import { colors, radius, spacing, type } from '../theme/colors';
+import { Button, Card, Chip, ErrorState, Field, FormScroll, GroupLabel, Money, Pill, ProgressBar, Row, SegmentBar, Skeleton } from '../components/ui';
+import { chartColors, colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney, parseAmount } from '../utils/format';
 import { debtsApi, budgetApi, householdApi } from '../api/endpoints';
 import { Debt, FixedItem, HouseholdMonth, HouseholdState, toNumber } from '../api/types';
 
-/** Colores de persona en el hogar (boceto FIN-059): azul = tú, rosado = tu pareja, verde = nuestro. */
-const YOU = colors.info;
-const PARTNER = '#C2185B';
+/* Colores de persona en el hogar (FIN-060): colors.primary = tú, colors.partner = tu pareja. Lo de la casa va en neutros. */
+/** Tarjeta plana (vacíos y cuadre): no compite con los datos. */
+const FLAT = { backgroundColor: colors.surfaceAlt, borderColor: colors.surfaceAlt } as const;
 
 const shortDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '';
@@ -83,7 +84,7 @@ function Welcome({ onDone }: { onDone: (s: HouseholdState) => void }) {
       <Card>
         <Row style={{ gap: spacing.sm, alignItems: 'center' }}>
           <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="heart-outline" size={20} color={colors.primaryDark} />
+            <Ionicons name="heart-outline" size={20} color={colors.primary} />
           </View>
           <Text style={{ color: colors.text, ...type.title, flex: 1 }}>La plata de la casa, en pareja</Text>
         </Row>
@@ -103,8 +104,8 @@ function Welcome({ onDone }: { onDone: (s: HouseholdState) => void }) {
           <Row key={x.t} style={{ gap: spacing.sm, alignItems: 'flex-start', marginTop: i === 0 ? 0 : spacing.sm }}>
             <Ionicons name={x.icon as never} size={18} color={colors.primary} />
             <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, ...type.body, fontWeight: '700' }}>{x.t}</Text>
-              <Text style={{ color: colors.textMuted, ...type.small }}>{x.d}</Text>
+              <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>{x.t}</Text>
+              <Text style={{ color: colors.textFaint, ...type.small }}>{x.d}</Text>
             </View>
           </Row>
         ))}
@@ -112,7 +113,7 @@ function Welcome({ onDone }: { onDone: (s: HouseholdState) => void }) {
           onPress={() => setAccepted(!accepted)}
           accessibilityRole="checkbox"
           accessibilityState={{ checked: accepted }}
-          style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center', marginTop: spacing.md, minHeight: 44 }}
+          style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center', marginTop: spacing.md, paddingTop: spacing.sm, minHeight: 44, borderTopWidth: 1, borderTopColor: colors.surfaceAlt }}
         >
           <Ionicons name={accepted ? 'checkbox' : 'square-outline'} size={22} color={accepted ? colors.primary : colors.textMuted} />
           <Text style={{ color: colors.text, ...type.small, flex: 1 }}>
@@ -155,11 +156,11 @@ function WaitingPartner({ household, onChanged }: { household: NonNullable<House
   return (
     <>
       <Card>
-        <Text style={{ color: colors.textMuted, ...type.small }}>Esperando a tu pareja</Text>
+        <Text style={{ color: colors.textFaint, ...type.small }}>Esperando a tu pareja</Text>
         <Text style={{ color: colors.text, ...type.title, marginTop: 2 }}>Pásale este código</Text>
         {code ? (
           <>
-            <Text selectable style={{ color: colors.primaryDark, fontSize: 40, fontWeight: '800', letterSpacing: 6, textAlign: 'center', marginVertical: spacing.md, fontVariant: ['tabular-nums'] }}>{code}</Text>
+            <Text selectable style={{ color: colors.primary, fontSize: 36, fontWeight: '600', letterSpacing: 6, textAlign: 'center', marginVertical: spacing.md, fontVariant: ['tabular-nums'] }}>{code}</Text>
             <Text style={{ color: colors.textFaint, ...type.small, textAlign: 'center' }}>Vence el {shortDate(household.invite!.expiresAt)}. Tu pareja lo escribe en Más → Millo en pareja → Unirme.</Text>
             <Button title="Compartir el código" icon="share-social-outline" onPress={() => void share()} />
           </>
@@ -190,18 +191,21 @@ function OurMonth({ month, household, onChanged }: { month: HouseholdMonth; hous
       <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
         <Text style={{ color: colors.text, ...type.heading }} accessibilityRole="header">Nuestro mes</Text>
         <Row>
-          <Avatar letter="T" color={YOU} />
-          <Avatar letter={partner.charAt(0)} color={PARTNER} overlap />
+          <Avatar letter="T" color={colors.primary} />
+          <Avatar letter={partner.charAt(0)} color={colors.partner} overlap />
         </Row>
       </Row>
 
       <Card>
-        <Text style={{ color: colors.textMuted, ...type.small }}>
+        <Text style={{ color: colors.textFaint, ...type.small }}>
           {leftKnown ? `Nos queda para la casa · ${month.period.label}` : `Van de la casa · ${month.period.label}`}
         </Text>
-        <Text style={{ color: leftKnown && (month.left ?? 0) < 0 ? colors.dangerDeep : colors.text, ...type.hero }}>
-          {formatMoney(leftKnown ? Math.abs(month.left!) : month.spent)}
-        </Text>
+        <Money
+          value={leftKnown ? Math.abs(month.left!) : month.spent}
+          size={36}
+          color={leftKnown && (month.left ?? 0) < 0 ? colors.dangerDeep : colors.text}
+          style={{ marginVertical: 2 }}
+        />
         <Text style={{ color: colors.textMuted, ...type.small }}>
           {leftKnown
             ? `${(month.left ?? 0) < 0 ? 'Nos pasamos ' : ''}de ${formatMoney(month.budget!)} para la casa · ${formatMoney(month.spent)} ya salió · ${formatMoney(month.committedPending)} por pagar`
@@ -214,9 +218,9 @@ function OurMonth({ month, household, onChanged }: { month: HouseholdMonth; hous
             <SegmentBar
               height={10}
               parts={[
-                { key: 'salio', label: 'Ya salió', value: month.spent, color: colors.warning },
+                { key: 'salio', label: 'Ya salió', value: month.spent, color: colors.textMuted },
                 { key: 'fijos', label: 'Fijos por pagar', value: pendingFixed, color: colors.primary },
-                { key: 'cuotas', label: 'Cuotas por pagar', value: pendingDebts, color: colors.debt },
+                { key: 'cuotas', label: 'Cuotas por pagar', value: pendingDebts, color: chartColors[4] },
                 ...(leftKnown && (month.left ?? 0) > 0 ? [{ key: 'libre', label: 'Libre', value: month.left!, color: colors.border }] : []),
               ]}
             />
@@ -263,21 +267,24 @@ function OurMonth({ month, household, onChanged }: { month: HouseholdMonth; hous
             {month.recent.slice(0, 8).map((t, i) => (
               <Row key={t.id} style={{ justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt, gap: spacing.sm }}>
                 <Row style={{ gap: spacing.sm, flex: 1 }}>
-                  <Avatar letter={t.isMe ? 'T' : t.who.charAt(0)} color={t.isMe ? YOU : PARTNER} small />
+                  <Avatar letter={t.isMe ? 'T' : t.who.charAt(0)} color={t.isMe ? colors.primary : colors.partner} small />
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: colors.text, ...type.body }} numberOfLines={1}>{t.label}</Text>
                     <Text style={{ color: colors.textFaint, ...type.caption }}>{t.who} · {shortDate(t.occurredAt)}</Text>
                   </View>
                 </Row>
-                <Text style={{ color: colors.text, ...type.body, fontWeight: '700' }}>{formatMoney(t.amount)}</Text>
+                <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>{formatMoney(t.amount)}</Text>
               </Row>
             ))}
           </Card>
         </>
       ) : (
-        <Text style={{ color: colors.textFaint, ...type.small, marginTop: spacing.md }}>
-          Aún no hay gastos de la casa este mes. Al registrar, elige "De la casa", o escríbele al bot "mercado 186.000 casa".
-        </Text>
+        <Card style={[FLAT, { marginTop: spacing.md }]}>
+          <Text style={{ color: colors.textFaint, ...type.label, marginBottom: 4 }}>Mes sin gastos de la casa</Text>
+          <Text style={{ color: colors.textFaint, ...type.small }}>
+            Aún no hay gastos de la casa este mes. Al registrar, elige "De la casa", o escríbele al bot "mercado 186.000 casa".
+          </Text>
+        </Card>
       )}
     </>
   );
@@ -298,15 +305,17 @@ function FairShareCard({ month, household, onChanged }: { month: HouseholdMonth;
           <Chip label="Mitad y mitad" active={household.splitMode === 'mitad'} onPress={() => void setMode('mitad')} />
         </Row>
         {f.rows.length > 1 ? (
-          <SegmentBar height={10} parts={f.rows.map((r) => ({ key: r.who, label: `${r.who} ${r.percent} %`, value: Math.max(r.percent, 0.01), color: r.isMe ? YOU : PARTNER }))} />
+          <SegmentBar height={10} parts={f.rows.map((r) => ({ key: r.who, label: `${r.who} ${r.percent} %`, value: Math.max(r.percent, 0.01), color: r.isMe ? colors.primary : colors.partner }))} />
         ) : null}
         {f.rows.map((r) => (
           <View key={r.who} style={{ marginTop: spacing.sm }}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ color: r.isMe ? YOU : PARTNER, ...type.body, fontWeight: '800' }}>{r.who} · {r.percent} %</Text>
-              <Text style={{ color: colors.text, ...type.body, fontWeight: '700' }}>{formatMoney(r.paid)} de {formatMoney(r.due)}</Text>
+            <Row style={{ justifyContent: 'space-between', marginBottom: 5 }}>
+              <Text style={{ color: r.isMe ? colors.primary : colors.partner, ...type.body, fontWeight: '600' }}>{r.who} · {r.percent} %</Text>
+              <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>
+                {formatMoney(r.paid)} <Text style={{ color: colors.textFaint, ...type.small, fontWeight: '400' }}>de {formatMoney(r.due)}</Text>
+              </Text>
             </Row>
-            <ProgressBar value={r.due > 0 ? Math.min(1, r.paid / r.due) : 0} color={r.isMe ? YOU : PARTNER} height={6} label={`${r.who} puso ${formatMoney(r.paid)} de ${formatMoney(r.due)}`} />
+            <ProgressBar value={r.due > 0 ? Math.min(1, r.paid / r.due) : 0} color={r.isMe ? colors.primary : colors.partner} height={6} label={`${r.who} puso ${formatMoney(r.paid)} de ${formatMoney(r.due)}`} />
           </View>
         ))}
         {f.fallbackReason === 'sin_ingreso_compartido' ? (
@@ -315,14 +324,14 @@ function FairShareCard({ month, household, onChanged }: { month: HouseholdMonth;
           </Text>
         ) : null}
         {f.settlement ? (
-          <View style={{ backgroundColor: colors.primarySoft, borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.sm }}>
-            <Text style={{ color: colors.primaryDark, ...type.body, fontWeight: '700' }}>
+          <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 12, marginTop: spacing.md }}>
+            <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>
               {f.settlement.fromIsMe ? `Le pasas ${formatMoney(f.settlement.amount)} a ${f.settlement.to}` : `${f.settlement.from} te pasa ${formatMoney(f.settlement.amount)}`} para quedar parejos
             </Text>
-            <Text style={{ color: colors.primaryDark, ...type.small }}>Es el cuadre de lo que va del mes; al cierre queda el definitivo.</Text>
+            <Text style={{ color: colors.textFaint, ...type.caption, marginTop: 2 }}>Es el cuadre de lo que va del mes; al cierre queda el definitivo.</Text>
           </View>
         ) : f.total > 0 ? (
-          <Text style={{ color: colors.primaryDark, ...type.small, marginTop: spacing.sm, fontWeight: '700' }}>Van parejos este mes.</Text>
+          <Text style={{ color: colors.primary, ...type.small, marginTop: spacing.sm, fontWeight: '600' }}>Van parejos este mes.</Text>
         ) : null}
       </Card>
     </>
@@ -368,18 +377,27 @@ function Goals({ month, onChanged }: { month: HouseholdMonth; onChanged: () => v
         </Card>
       ) : null}
       {month.goals.length === 0 && !adding ? (
-        <Card><Text style={{ color: colors.textMuted, ...type.body }}>El viaje, la cuota inicial, el colchón de la casa: créenla y cada uno va sumando.</Text></Card>
+        <Card style={FLAT}>
+          <Text style={{ color: colors.textFaint, ...type.label, marginBottom: 4 }}>Sin metas todavía</Text>
+          <Text style={{ color: colors.textMuted, ...type.body }}>El viaje, la cuota inicial, el colchón de la casa: créenla y cada uno va sumando.</Text>
+        </Card>
       ) : null}
       {month.goals.map((g) => (
         <Card key={g.id}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ color: colors.text, ...type.body, fontWeight: '800', flex: 1 }}>{g.name}</Text>
-            <Text style={{ color: colors.primaryDark, ...type.small, fontWeight: '800' }}>{g.percent} %</Text>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm }}>
+            <Text style={{ color: colors.text, ...type.body, fontWeight: '600', flex: 1 }}>{g.name}</Text>
+            <Pill label={`${g.percent} %`} tone="gold" />
           </Row>
           <Text style={{ color: colors.textMuted, ...type.small }}>{formatMoney(g.saved)} de {formatMoney(g.target)}</Text>
-          <View style={{ marginTop: 6 }}><ProgressBar value={g.percent / 100} color={colors.primary} height={8} label={`${g.name} ${g.percent}%`} /></View>
-          <Text style={{ color: colors.textFaint, ...type.caption, marginTop: 4 }}>
-            {g.byMember.map((b) => `${b.who}: ${formatMoney(b.amount)}`).join(' · ')}
+          <View style={{ marginTop: 6 }}><ProgressBar value={g.percent / 100} color={colors.gold} height={8} label={`${g.name} ${g.percent}%`} /></View>
+          <Text style={{ color: colors.textFaint, ...type.caption, marginTop: 5 }}>
+            {g.byMember.map((b, i) => (
+              <Text key={b.who}>
+                {i > 0 ? ' · ' : ''}
+                <Text style={{ color: month.members.find((m) => m.who === b.who)?.isMe ? colors.primary : colors.partner }}>{'\u25CF'} </Text>
+                {`${b.who}: ${formatMoney(b.amount)}`}
+              </Text>
+            ))}
             {g.percent >= 100 ? ' · ¡Lo lograron!' : g.eta ? ` · a este ritmo llegan en ${new Date(g.eta).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })}` : ''}
           </Text>
           {give?.id === g.id ? (
@@ -392,7 +410,7 @@ function Goals({ month, onChanged }: { month: HouseholdMonth; onChanged: () => v
             </View>
           ) : g.percent < 100 ? (
             <Pressable onPress={() => setGive({ id: g.id, amount: '' })} accessibilityRole="button" style={{ marginTop: spacing.sm, minHeight: 32, justifyContent: 'center' }}>
-              <Text style={{ color: colors.primary, ...type.body, fontWeight: '700' }}>+ Sumar lo que puse</Text>
+              <Text style={{ color: colors.primary, ...type.body, fontWeight: '600' }}>+ Sumar lo que puse</Text>
             </Pressable>
           ) : null}
         </Card>
@@ -494,18 +512,18 @@ function Privacy({ household, onChanged, onLeft }: { household: NonNullable<Hous
 
       {confirming ? (
         <Card style={{ borderColor: colors.danger, borderWidth: 1 }}>
-          <Text style={{ color: colors.text, ...type.body, fontWeight: '700' }}>¿Salir de Millo en pareja?</Text>
+          <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>¿Salir de Millo en pareja?</Text>
           <Text style={{ color: colors.textMuted, ...type.small, marginTop: 4 }}>
             Dejas de compartir al instante. Tus gastos fijos y deudas vuelven a ser solo tuyos. No necesitas el permiso de {partner}.
           </Text>
           <Row style={{ gap: spacing.sm, marginTop: spacing.sm }}>
             <View style={{ flex: 1 }}><Button title="Cancelar" variant="secondary" onPress={() => setConfirming(false)} /></View>
-            <View style={{ flex: 1 }}><Button title="Salir" onPress={() => void leave()} loading={busy} /></View>
+            <View style={{ flex: 1 }}><Button title="Salir" variant="danger" onPress={() => void leave()} loading={busy} /></View>
           </Row>
         </Card>
       ) : (
         <Pressable onPress={() => setConfirming(true)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', alignItems: 'center', marginTop: spacing.sm }}>
-          <Text style={{ color: colors.danger, ...type.body, fontWeight: '700' }}>Salir de Millo en pareja</Text>
+          <Text style={{ color: colors.danger, ...type.body, fontWeight: '600' }}>Salir de Millo en pareja</Text>
         </Pressable>
       )}
       <Text style={{ color: colors.textFaint, ...type.caption, textAlign: 'center', marginTop: spacing.xs, marginBottom: spacing.lg }}>
@@ -519,7 +537,7 @@ function Privacy({ household, onChanged, onLeft }: { household: NonNullable<Hous
 
 function ToggleRow({ label, sub, value, onChange, disabled }: { label: string; sub: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <Row style={{ justifyContent: 'space-between', gap: spacing.sm, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt }}>
+    <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt, opacity: disabled ? 0.55 : 1 }}>
       <View style={{ flex: 1 }}>
         <Text style={{ color: disabled ? colors.textMuted : colors.text, ...type.body, fontWeight: '600' }}>{label}</Text>
         <Text style={{ color: colors.textFaint, ...type.caption }}>{sub}</Text>
@@ -543,7 +561,7 @@ function Line({ label, sub, value, tone }: { label: string; sub: string; value: 
         <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }} numberOfLines={1}>{label}</Text>
         <Text style={{ color: colors.textFaint, ...type.caption }}>{sub}</Text>
       </View>
-      <Text style={{ color: tone ?? colors.text, ...type.body, fontWeight: '700' }}>{value}</Text>
+      <Text style={{ color: tone ?? colors.text, ...type.body, fontWeight: '600' }}>{value}</Text>
     </Row>
   );
 }
@@ -552,7 +570,7 @@ function Avatar({ letter, color, overlap, small }: { letter: string; color: stri
   const size = small ? 24 : 30;
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.bg, marginLeft: overlap ? -8 : 0 }}>
-      <Text style={{ color: colors.textInverse, fontSize: small ? 11 : 13, fontWeight: '800' }}>{letter.toUpperCase()}</Text>
+      <Text style={{ color: colors.textInverse, fontSize: small ? 11 : 13, fontWeight: '600' }}>{letter.toUpperCase()}</Text>
     </View>
   );
 }

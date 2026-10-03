@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Text } from '../components/AppText';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, ErrorState, GroupLabel, Ico, ProgressBar, Row, SegmentBar, Skeleton } from '../components/ui';
-import { IncomeSplit } from '../components/IncomeSplit';
-import { CategoryGlyph } from '../components/CategoryGlyph';
+import { Button, Card, ErrorState, GroupLabel, Ico, Money, Pill, ProgressBar, Row, SegmentBar, Skeleton } from '../components/ui';
+import { CyclePace, IncomeSplit } from '../components/IncomeSplit';
+import { CategoryGlyph, incomeSourceColors } from '../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatLocalDate, formatMoney } from '../utils/format';
 import { useApi } from '../utils/useApi';
@@ -17,10 +18,12 @@ import { useSync } from '../offline/useSync';
 import { LocalTransaction, transactionsRepo } from '../offline/transactionsRepo';
 import { EditTransactionModal, EditableMovement } from './transactions/EditTransactionModal';
 
+// FIN-060: lo que sale va en texto oscuro (nunca rojo); lo que entra en verde; las
+// cuotas en el azul de deudas. Signo menos real (−).
 const KIND_META: Record<string, { sign: string; color: string }> = {
-  ingreso: { sign: '+', color: colors.success },
-  gasto: { sign: '-', color: colors.danger },
-  pago_deuda: { sign: '-', color: colors.primary },
+  ingreso: { sign: '+', color: colors.primary },
+  gasto: { sign: '−', color: colors.text },
+  pago_deuda: { sign: '−', color: colors.debt },
   transferencia: { sign: '', color: colors.textMuted },
 };
 
@@ -102,6 +105,8 @@ export function DashboardScreen() {
         </Pressable>
       </Row>
 
+      {/* Espacio reservado: aquí va la tarjeta "Primeros pasos" (otro agente, FIN-060). */}
+
       {/* Hero ÚNICO (FIN-017/018/020, §32): la cifra viene del servicio único de
           Presupuesto. Tocarlo abre Presupuesto, la casa del detalle (FIN-038). */}
       {dashboard.error && !d ? (
@@ -120,15 +125,14 @@ export function DashboardScreen() {
                 <Ionicons name="chevron-forward" size={14} color={colors.textFaint} />
               </Row>
             </Row>
-            <Text style={{ color: d.teQueda.amount < 0 ? colors.danger : colors.text, fontSize: 32, fontWeight: '800', marginTop: 2 }}>
-              {formatMoney(d.teQueda.amount)}
-            </Text>
+            <Money value={d.teQueda.amount} size={36} color={d.teQueda.amount < 0 ? colors.danger : colors.text} style={{ marginTop: 2 }} />
             {d.teQueda.perDay !== null && d.teQueda.amount > 0 ? (
               <Text style={{ color: colors.textMuted, ...type.small }}>
                 ≈ {formatMoney(d.teQueda.perDay)} por día · {d.teQueda.daysLeft} día{d.teQueda.daysLeft === 1 ? '' : 's'}
               </Text>
             ) : null}
             <IncomeSplit teQueda={d.teQueda} />
+            <CyclePace teQueda={d.teQueda} ideal={cycle?.ratio ?? null} />
             {d.interpretation.cashflow ? (
               <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.sm }}>
                 <Ico name="ellipse" size={10} color={LEVEL_COLOR[d.interpretation.cashflow.level] ?? colors.textMuted} /> {d.interpretation.cashflow.text}
@@ -147,10 +151,10 @@ export function DashboardScreen() {
 
       {sync.pending > 0 ? (
         <Pressable onPress={() => void sync.sync()} accessibilityRole="button" accessibilityLabel="Reintentar sincronización">
-          <View style={{ backgroundColor: colors.warningSoft, borderColor: colors.warning, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md }}>
+          <View style={{ backgroundColor: colors.warningSoft, borderColor: colors.warningDeep, borderWidth: 1, borderRadius: 14, padding: spacing.md, marginBottom: spacing.md }}>
             <Row style={{ gap: spacing.sm }}>
-              <Ionicons name={sync.syncing ? 'sync-outline' : 'cloud-upload-outline'} size={18} color={colors.warning} />
-              <Text style={{ color: colors.warning, ...type.body, fontWeight: '600', flex: 1 }}>
+              <Ionicons name={sync.syncing ? 'sync-outline' : 'cloud-upload-outline'} size={18} color={colors.warningDeep} />
+              <Text style={{ color: colors.warningDeep, ...type.body, fontWeight: '600', flex: 1 }}>
                 {sync.syncing ? 'Sincronizando…' : `${sync.pending} cambio(s) sin sincronizar · toca para reintentar`}
               </Text>
             </Row>
@@ -181,18 +185,18 @@ export function DashboardScreen() {
             <Card>
               {summary.data.upcoming?.[0] ? (
                 <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 }} numberOfLines={1}>
+                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600', flex: 1, marginRight: 8 }} numberOfLines={1}>
                     {summary.data.upcoming[0].name}
                   </Text>
-                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>{formatMoney(summary.data.upcoming[0].amount)}</Text>
+                  <Money value={summary.data.upcoming[0].amount} size={16} />
                 </Row>
               ) : null}
-              <Row style={{ justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
+              <Row style={{ justifyContent: 'space-between', marginTop: 6, gap: 8 }}>
                 <Text style={{ color: colors.textMuted, ...type.small, flex: 1 }}>
                   Debes {formatMoney(summary.data.totalDebt)} en {summary.data.debtsCount} deuda{summary.data.debtsCount === 1 ? '' : 's'}
                 </Text>
                 {summary.data.upcoming?.[0] ? (
-                  <Text style={{ color: colors.textMuted, ...type.small }}>vence {shortDate(summary.data.upcoming[0].dueDate)}</Text>
+                  <Pill tone="warn" label={`vence ${shortDate(summary.data.upcoming[0].dueDate)}`} />
                 ) : null}
               </Row>
               <Text style={{ color: colors.textFaint, ...type.caption, marginTop: 2 }}>
@@ -217,7 +221,7 @@ export function DashboardScreen() {
                   accessibilityRole="link"
                   style={{ marginTop: spacing.sm }}
                 >
-                  <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>
+                  <Text style={{ color: colors.primary, ...type.small, fontWeight: '600' }}>
                     Tienes margen: adelanta un pago y ahorra intereses →
                   </Text>
                 </Pressable>
@@ -271,13 +275,14 @@ export function DashboardScreen() {
           <Card>
             <SegmentBar
               height={10}
-              parts={d.income.sources.map((s) => ({ key: s.id, label: s.name, value: s.amount, color: s.kind === 'fijo' ? colors.primary : s.color }))}
+              parts={d.income.sources.map((s, i) => ({ key: s.id, label: s.name, value: s.amount, color: incomeSourceColors(d.income.sources!)[i] }))}
             />
             <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
-              {d.income.sources.slice(0, 3).map((s) => (
+              {d.income.sources.slice(0, 3).map((s, i) => (
                 <SourceRow
                   key={s.id}
                   s={s}
+                  color={incomeSourceColors(d.income.sources!)[i]}
                   onPress={() =>
                     s.kind === 'fijo'
                       ? navigation.navigate('Budget')
@@ -327,7 +332,7 @@ export function DashboardScreen() {
                       <Text style={{ color: colors.textMuted }}> · {shortDate(t.occurredAt)}</Text>
                     </Text>
                   </Row>
-                  <Text style={{ fontWeight: '700', color: meta.color, ...type.small }}>
+                  <Text style={{ fontWeight: '600', color: meta.color, ...type.small }}>
                     {meta.sign}
                     {formatMoney(t.amount)}
                   </Text>
@@ -354,7 +359,7 @@ export function DashboardScreen() {
                     </Text>
                   </View>
                 </Row>
-                <Text style={{ fontWeight: '700', color: meta.color, ...type.body }}>
+                <Text style={{ fontWeight: '600', color: meta.color, ...type.body }}>
                   {meta.sign}
                   {formatMoney(t.amount)}
                 </Text>
@@ -416,7 +421,7 @@ function FlowStat({ label, flow, color, onPress }: { label: string; flow?: FlowS
       <Card style={{ flex: 1 }}>
         <Text style={{ color: colors.textMuted, ...type.small }}>{label}</Text>
         {flow ? (
-          <Text style={{ color, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(flow.total)}</Text>
+          <Money value={flow.total} size={18} color={color} style={{ marginTop: 2 }} />
         ) : (
           // BT-037: mientras carga no se muestra "$ 0" (no es cierto, es que no ha llegado).
           <View style={{ height: 18, width: '55%', borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, marginVertical: 3 }} />
@@ -439,12 +444,12 @@ function ProgressLine({ profile }: { profile: GamificationProfile }) {
       <Card style={{ paddingVertical: spacing.sm }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Row style={{ gap: spacing.xs }}>
-            <Ionicons name="flame" size={16} color={colors.accent} />
+            <Ionicons name="flame-outline" size={16} color={colors.gold} />
             <Text style={{ color: colors.text, ...type.small }}>
               {profile.streak.current} semana{profile.streak.current === 1 ? '' : 's'} seguida{profile.streak.current === 1 ? '' : 's'} · Nivel {profile.level.number} ({profile.level.name})
             </Text>
           </Row>
-          <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>{profile.xp} XP →</Text>
+          <Text style={{ color: colors.primary, ...type.small, fontWeight: '600' }}>{profile.xp.toLocaleString('es-CO')} XP →</Text>
         </Row>
       </Card>
     </Pressable>
@@ -495,7 +500,7 @@ function DebtRow({ debt, onPress }: { debt: HomeDebt; onPress: () => void }) {
 }
 
 /** FIN-057 · Una fuente de "Cómo te llega la plata" (con carreras y ciclo anterior). */
-function SourceRow({ s, onPress }: { s: HomeIncomeSource; onPress: () => void }) {
+function SourceRow({ s, color, onPress }: { s: HomeIncomeSource; color: string; onPress: () => void }) {
   const detail: string[] = [];
   if (s.kind === 'fijo') detail.push('fijo');
   else if (s.count > 0) detail.push(`${s.count} ${s.count === 1 ? 'vez' : 'veces'}${s.count > 1 ? ` · unos ${formatMoney(s.amount / s.count)} cada una` : ''}`);
@@ -505,15 +510,15 @@ function SourceRow({ s, onPress }: { s: HomeIncomeSource; onPress: () => void })
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${s.name}: ${formatMoney(s.amount)}, ${s.percent} por ciento`}>
       <Row style={{ justifyContent: 'space-between', gap: spacing.sm }}>
         <Row style={{ gap: 6, flex: 1 }}>
-          <CategoryGlyph size="sm" emoji={s.icon} kind="ingreso" color={s.kind === 'fijo' ? colors.primary : s.color} />
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />
           <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }} numberOfLines={1}>{s.name}</Text>
         </Row>
-        <Text style={{ color: colors.text, ...type.small, fontWeight: '700' }}>
+        <Text style={{ color: colors.text, ...type.small, fontWeight: '600' }}>
           {formatMoney(s.amount)} · {s.percent}%
         </Text>
       </Row>
       {detail.length ? (
-        <Text style={{ color: s.id === 'sin' ? colors.warningDeep : colors.textFaint, ...type.caption, marginLeft: 30 }}>{detail.join(' · ')}</Text>
+        <Text style={{ color: s.id === 'sin' ? colors.warningDeep : colors.textFaint, ...type.caption, marginLeft: 14 }}>{detail.join(' · ')}</Text>
       ) : null}
     </Pressable>
   );
@@ -551,11 +556,12 @@ function CelebrationModal({ profile, onClosed }: { profile: GamificationProfile;
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => void close()}>
       <View style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: 'center', padding: spacing.lg }}>
         <View style={{ backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, alignItems: 'center' }}>
-          <Ionicons name="trophy" size={40} color={colors.accent} />
+          <Ionicons name="trophy-outline" size={40} color={colors.gold} />
           <Text style={{ color: colors.text, ...type.title, marginTop: spacing.sm, textAlign: 'center' }}>{first.title}</Text>
-          <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: 6, ...type.body }}>
-            {first.condition} · +{first.xp} XP
-          </Text>
+          <Row style={{ flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 6 }}>
+            <Text style={{ color: colors.textMuted, textAlign: 'center', ...type.body }}>{first.condition}</Text>
+            <Pill tone="gold" label={`+${first.xp} XP`} />
+          </Row>
           {fresh.length > 1 ? (
             <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xs }}>
               y {fresh.length - 1} logro(s) más en tu perfil

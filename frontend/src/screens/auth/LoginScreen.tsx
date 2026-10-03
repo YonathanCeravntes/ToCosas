@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Text, TextInput } from '../../components/AppText';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Field } from '../../components/ui';
-import { colors, radius, spacing, type } from '../../theme/colors';
+import { colors, spacing, type } from '../../theme/colors';
 import { useAuthStore } from '../../store/auth.store';
 import { authApi } from '../../api/endpoints';
 import { ExistingAccountNotice } from '../../components/ExistingAccountNotice';
@@ -17,6 +18,20 @@ const PILLARS: Array<[React.ComponentProps<typeof Ionicons>['name'], string]> = 
   ['pulse-outline', 'Tu salud financiera en un número'],
   ['chatbubble-ellipses-outline', 'Un copiloto que te explica'],
 ];
+
+/** FIN-060 · Marca Millo hecha con Views (OTA-safe): cuadrado verde, "M" blanca y punto dorado debajo. */
+function MilloMark() {
+  return (
+    <View
+      accessibilityRole="image"
+      accessibilityLabel="Millo"
+      style={{ width: 60, height: 60, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}
+    >
+      <Text style={{ color: colors.textInverse, fontSize: 32, lineHeight: 34, fontWeight: '700', letterSpacing: -1 }}>M</Text>
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.gold, marginTop: 2 }} />
+    </View>
+  );
+}
 
 export function LoginScreen({ navigation, route }: Props) {
   const { login, loading, error } = useAuthStore();
@@ -59,11 +74,9 @@ export function LoginScreen({ navigation, route }: Props) {
       <ScrollView contentContainerStyle={{ padding: spacing.md, paddingTop: spacing.xxl, flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled">
         {/* FIN-017 P1: propuesta de valor compacta, entendible en ≤5 segundos. */}
         <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
-          <View style={{ width: 64, height: 64, borderRadius: radius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}>
-            <Ionicons name="leaf" size={34} color={colors.textInverse} />
-          </View>
-          <Text style={{ color: colors.primary, ...type.display }}>Millo</Text>
-          <Text style={{ color: colors.text, marginTop: spacing.xs, fontWeight: '600', textAlign: 'center', ...type.bodyLg }}>
+          <MilloMark />
+          <Text style={{ color: colors.primary, ...type.display, fontWeight: '700' }}>Millo</Text>
+          <Text style={{ color: colors.text, marginTop: spacing.xs, fontWeight: '600', textAlign: 'center', ...type.body }}>
             Tus deudas, tu plata y tu mes — claros en un solo lugar.
           </Text>
         </View>
@@ -71,8 +84,8 @@ export function LoginScreen({ navigation, route }: Props) {
         <View style={{ marginBottom: spacing.lg, gap: spacing.sm, alignSelf: 'center' }}>
           {PILLARS.map(([icon, label]) => (
             <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Ionicons name={icon} size={18} color={colors.primary} />
-              <Text style={{ color: colors.textMuted, ...type.body }}>{label}</Text>
+              <Ionicons name={icon} size={16} color={colors.textFaint} />
+              <Text style={{ color: colors.textMuted, ...type.small }}>{label}</Text>
             </View>
           ))}
         </View>
@@ -99,10 +112,10 @@ export function LoginScreen({ navigation, route }: Props) {
           accessibilityRole="link"
           style={{ alignSelf: 'center', paddingVertical: spacing.sm, minHeight: 44, justifyContent: 'center' }}
         >
-          <Text style={{ color: colors.primary, ...type.body, fontWeight: '700' }}>Olvidé mi contraseña</Text>
+          <Text style={{ color: colors.primary, ...type.body, fontWeight: '600' }}>Olvidé mi contraseña</Text>
         </Pressable>
 
-        <Text style={{ color: colors.textFaint, ...type.small, textAlign: 'center', marginTop: spacing.md }}>
+        <Text style={{ color: colors.textFaint, ...type.caption, fontStyle: 'italic', textAlign: 'center', marginTop: spacing.md }}>
           "Cuida tus millos, sal de deudas con calma."
         </Text>
       </ScrollView>

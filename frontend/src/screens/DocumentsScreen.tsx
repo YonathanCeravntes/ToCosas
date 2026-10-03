@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, View } from 'react-native';
+import { Text } from '../components/AppText';
 import { useFocusEffect } from '@react-navigation/native';
 import { Button, Card, ErrorState, FormScroll, GroupLabel, Ico, IconName, Row, SegmentBar, Skeleton } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/colors';

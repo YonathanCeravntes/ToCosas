@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AppState, Platform, Pressable, Text, View } from 'react-native';
+import { AppState, Platform, Pressable, View } from 'react-native';
+import { Text } from './AppText';
 import * as Updates from 'expo-updates';
-import { colors, radius, spacing } from '../theme/colors';
+import { colors, radius, spacing, type } from '../theme/colors';
 
 const CURRENT = process.env.EXPO_PUBLIC_BUILD_ID ?? '';
 const CHECK_EVERY_MS = 10 * 60_000;
@@ -88,8 +89,8 @@ export function UpdateBanner() {
           opacity: busy ? 0.7 : 1,
         }}
       >
-        <Text style={{ color: colors.textInverse, fontWeight: '700', flex: 1 }}>Hay una versión nueva de Millo</Text>
-        <Text style={{ color: colors.textInverse, fontWeight: '800', textDecorationLine: 'underline' }}>{busy ? 'Actualizando…' : 'Actualizar'}</Text>
+        <Text style={{ color: colors.textInverse, ...type.body, fontWeight: '600', flex: 1 }}>Hay una versión nueva de Millo</Text>
+        <Text style={{ color: colors.textInverse, ...type.body, fontWeight: '700', textDecorationLine: 'underline' }}>{busy ? 'Actualizando…' : 'Actualizar'}</Text>
       </Pressable>
     </View>
   );

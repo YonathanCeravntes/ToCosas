@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
+import { Text } from '../../components/AppText';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Card, ErrorState, Field, FormScroll, Ico, Row, Skeleton } from '../../components/ui';
 import { RateInput } from '../../components/RateInput';
@@ -121,12 +122,12 @@ export function EditDebtScreen({ route, navigation }: Props) {
         <Text style={{ color: colors.text, ...type.title, marginBottom: spacing.sm }}>¿Con qué entidad?</Text>
         <Field label="Busca tu banco o entidad" value={query} onChangeText={setQuery} placeholder="Bancolombia, Nequi, Davivienda…" autoFocus />
         <Pressable onPress={() => { setEntity(null); setEntityTouched(true); setPickingEntity(false); }} accessibilityRole="button" style={{ minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.textFaint, justifyContent: 'center', paddingHorizontal: spacing.md, marginBottom: spacing.sm }}>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>Sin entidad</Text>
+          <Text style={{ color: colors.text, fontWeight: '600', ...type.body }}>Sin entidad</Text>
         </Pressable>
         <Card style={{ paddingVertical: 0 }}>
           {entities.slice(0, 12).map((e, i) => (
             <Pressable key={e.id} onPress={() => { setEntity(e); setEntityTouched(true); setPickingEntity(false); }} accessibilityRole="button" style={{ minHeight: 52, justifyContent: 'center', borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
-              <Text style={{ color: colors.text, fontWeight: '600' }}>{e.name}</Text>
+              <Text style={{ color: colors.text, fontWeight: '600', ...type.body }}>{e.name}</Text>
             </Pressable>
           ))}
         </Card>
@@ -140,9 +141,9 @@ export function EditDebtScreen({ route, navigation }: Props) {
       <Card>
         <Field label="Nombre" value={name} onChangeText={setName} placeholder="Tarjeta Visa" />
         <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600', marginBottom: 6 }}>Entidad</Text>
-        <Pressable onPress={() => { setQuery(''); setPickingEntity(true); }} accessibilityRole="button" style={{ minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md, backgroundColor: colors.surface }}>
+        <Pressable onPress={() => { setQuery(''); setPickingEntity(true); }} accessibilityRole="button" style={{ minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md, backgroundColor: colors.surface }}>
           <Text style={{ color: entity ? colors.text : colors.textMuted, ...type.bodyLg }}>{entity?.name ?? 'Sin entidad'}</Text>
-          <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>Cambiar</Text>
+          <Text style={{ color: colors.primary, ...type.small, fontWeight: '600' }}>Cambiar</Text>
         </Pressable>
         {isCard ? <Field label="Cupo total" value={limit} onChangeText={setLimit} keyboardType="numeric" placeholder="5.000.000" hint="Con el cupo, Millo te muestra cuánto te queda disponible." /> : null}
         {isCard ? <RateInput value={rate} unit={unit} onChange={(v, u) => { setRate(v); setUnit(u); }} /> : null}
@@ -150,12 +151,12 @@ export function EditDebtScreen({ route, navigation }: Props) {
       </Card>
 
       {!isCard ? (
-        <Card style={{ backgroundColor: colors.warningSoft, borderColor: colors.warning }}>
+        <Card style={{ backgroundColor: colors.warningSoft, borderColor: colors.warningSoft }}>
           <Row style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
             <Ico name="information-circle-outline" color={colors.warningDeep} size={18} />
             <Text style={{ color: colors.text, ...type.small, flex: 1, lineHeight: 18 }}>
               Las cuotas, el plazo, la tasa y la cuota pactada se cambian en{' '}
-              <Text onPress={() => navigation.navigate('RenegotiateDebt', { debtId, name: d.name })} style={{ color: colors.primary, fontWeight: '700' }}>Renegociar</Text>
+              <Text onPress={() => navigation.navigate('RenegotiateDebt', { debtId, name: d.name })} style={{ color: colors.primary, fontWeight: '600' }}>Renegociar</Text>
               , para que tu plan de pago quede bien. Hoy: {formatMoney(toNumber(d.monthlyPayment))} de cuota{d.termMonths ? ` · ${d.termMonths} cuotas` : ''}.
             </Text>
           </Row>
@@ -164,8 +165,8 @@ export function EditDebtScreen({ route, navigation }: Props) {
 
       {error ? <Text style={{ color: colors.danger, marginBottom: spacing.sm }}>{error}</Text> : null}
       <Button title="Guardar cambios" onPress={() => void save()} loading={busy} />
-      <View style={{ marginTop: spacing.md }}>
-        <Button title="Eliminar esta deuda" variant="ghost" onPress={remove} disabled={busy} />
+      <View style={{ marginTop: spacing.sm }}>
+        <Button title="Eliminar esta deuda" icon="trash-outline" variant="danger" onPress={remove} disabled={busy} />
       </View>
     </FormScroll>
   );

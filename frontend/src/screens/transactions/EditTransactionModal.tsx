@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Text } from '../../components/AppText';
 import { DatePicker } from '../../components/DatePicker';
 import { Button, Card, Field, Ico } from '../../components/ui';
 import { CategoryGlyph } from '../../components/CategoryGlyph';
@@ -136,13 +137,13 @@ export function EditTransactionModal({
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.scrim }}>
-        <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: '92%', paddingBottom: spacing.md + bottomInset }}>
+        <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: '92%', paddingBottom: spacing.md + bottomInset }}>
           <ScrollView contentContainerStyle={{ padding: spacing.md }} keyboardShouldPersistTaps="handled">
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: spacing.sm }}>Editar movimiento</Text>
+            <Text style={{ color: colors.text, ...type.title, marginBottom: spacing.md }} accessibilityRole="header">Editar movimiento</Text>
 
             {isDebt ? (
-              <Card style={{ borderColor: colors.warning, borderWidth: 1 }}>
-                <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+              <Card style={{ borderColor: colors.warningDeep, borderWidth: 1, backgroundColor: colors.warningSoft }}>
+                <Text style={{ color: colors.textMuted, ...type.small }}>
                   Es un pago de deuda: para cambiar el monto o la fecha, anúlalo y regístralo de nuevo
                   — así el saldo de tu deuda queda correcto. Aquí puedes ajustar la nota.
                 </Text>
@@ -150,13 +151,14 @@ export function EditTransactionModal({
             ) : (
               <>
                 <Field label="Monto" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="0" />
-                <Text style={{ color: colors.text, fontWeight: '600', marginBottom: 6 }}>Fecha</Text>
+                <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600', marginBottom: 6 }}>Fecha</Text>
                 <Pressable
                   onPress={() => setShowPicker(true)}
                   accessibilityRole="button"
-                  style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.md, backgroundColor: colors.surface }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: 12, minHeight: 44, marginBottom: spacing.md, backgroundColor: colors.surface }}
                 >
-                  <Text style={{ color: colors.text }}><Ico name="calendar-outline" /> {date ? formatLocalDate(date) : '—'}</Text>
+                  <Ico name="calendar-outline" color={colors.textFaint} size={16} />
+                  <Text style={{ color: colors.text, ...type.bodyLg }}>{date ? formatLocalDate(date) : '—'}</Text>
                 </Pressable>
                 {showPicker ? (
                   <DatePicker
@@ -175,10 +177,10 @@ export function EditTransactionModal({
             {hasCategory ? (
               <View style={{ marginBottom: spacing.md }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <Text style={{ color: colors.text, fontWeight: '600' }}>Categoría</Text>
+                  <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600' }}>Categoría</Text>
                   {truncated || showAll ? (
                     <Pressable onPress={() => setShowAll(!showAll)} accessibilityRole="button" hitSlop={8}>
-                      <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>{showAll ? 'Menos' : `Ver todas (${dayToDay.length})`}</Text>
+                      <Text style={{ color: colors.primary, ...type.small, fontWeight: '600' }}>{showAll ? 'Menos' : `Ver todas (${dayToDay.length})`}</Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -192,10 +194,10 @@ export function EditTransactionModal({
                         accessibilityRole="radio"
                         accessibilityState={{ checked: on }}
                         accessibilityLabel={c.name}
-                        style={{ height: 36, paddingHorizontal: 10, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 2 : 1, borderColor: on ? colors.primary : colors.border }}
+                        style={{ height: 36, paddingHorizontal: 10, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 1.5 : 1, borderColor: on ? colors.primary : colors.border }}
                       >
-                        <CategoryGlyph size="sm" emoji={c.icon} kind={movement.kind === 'ingreso' ? 'ingreso' : 'gasto'} color={c.color} />
-                        <Text style={{ color: on ? colors.primaryDark : colors.text, ...type.small, fontWeight: on ? '800' : '600' }}>{c.name}</Text>
+                        <CategoryGlyph size="sm" emoji={c.icon} kind={movement.kind === 'ingreso' ? 'ingreso' : 'gasto'} />
+                        <Text style={{ color: on ? colors.primaryDark : colors.text, ...type.small, fontWeight: on ? '600' : '500' }}>{c.name}</Text>
                       </Pressable>
                     );
                   })}
@@ -218,10 +220,10 @@ export function EditTransactionModal({
 
             <Button title="Guardar" onPress={() => void save()} loading={busy} />
             <Pressable onPress={anular} disabled={busy} accessibilityRole="button" style={{ alignItems: 'center', paddingVertical: spacing.sm, minHeight: 44, justifyContent: 'center' }}>
-              <Text style={{ color: colors.danger, fontWeight: '700' }}><Ico name="trash-outline" color={colors.danger} /> Anular movimiento</Text>
+              <Text style={{ color: colors.danger, ...type.body, fontWeight: '600' }}><Ico name="trash-outline" color={colors.danger} /> Anular movimiento</Text>
             </Pressable>
             <Pressable onPress={onClose} disabled={busy} accessibilityRole="button" style={{ alignItems: 'center', paddingVertical: 4, minHeight: 40, justifyContent: 'center' }}>
-              <Text style={{ color: colors.textMuted }}>Cerrar</Text>
+              <Text style={{ color: colors.textFaint, ...type.body }}>Cerrar</Text>
             </Pressable>
           </ScrollView>
         </View>

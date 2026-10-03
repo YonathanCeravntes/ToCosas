@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Linking, ScrollView, Text, View } from 'react-native';
+import { Linking, ScrollView, View } from 'react-native';
+import { Text } from '../../components/AppText';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Card, Ico } from '../../components/ui';
 import { colors, radius, spacing } from '../../theme/colors';

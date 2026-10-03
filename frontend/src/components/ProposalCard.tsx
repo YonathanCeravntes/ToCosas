@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
+import { Text } from './AppText';
 import { Ico } from './ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { Insight } from '../api/types';

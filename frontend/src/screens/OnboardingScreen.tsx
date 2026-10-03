@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Text } from '../components/AppText';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Chip, Field, HeroCard, ProgressBar, Row } from '../components/ui';
-import { colors, spacing, type } from '../theme/colors';
+import { Button, Card, Chip, Field, Money, ProgressBar, Row } from '../components/ui';
+import { colors, radius, spacing, type } from '../theme/colors';
 import { authApi, incomeApi } from '../api/endpoints';
 import { WorkProfile } from '../api/types';
-import { formatMoney, parseAmount } from '../utils/format';
+import { parseAmount } from '../utils/format';
 import { useAuthStore } from '../store/auth.store';
 import { RootStackParamList } from '../navigation/types';
 
@@ -85,15 +86,15 @@ export function OnboardingScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ padding: spacing.md, paddingTop: spacing.xxl }} keyboardShouldPersistTaps="handled">
-        <ProgressBar value={progress} label="Progreso del inicio" />
-        <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xs, marginBottom: spacing.lg }}>
+        <ProgressBar value={progress} height={4} label="Progreso del inicio" />
+        <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.xs, marginBottom: spacing.lg }}>
           Paso {step === 'bienvenida' ? 1 : step === 'ingreso' ? 2 : 3} de 3
         </Text>
 
         {step === 'bienvenida' ? (
           <>
-            <Text style={{ color: colors.text, ...type.display }}>Hola{name ? `, ${name}` : ''} 👋</Text>
-            <Text style={{ color: colors.textMuted, ...type.bodyLg, marginTop: spacing.sm, marginBottom: spacing.lg }}>
+            <Text style={{ color: colors.text, ...type.display }}>Hola{name ? `, ${name}` : ''}</Text>
+            <Text style={{ color: colors.textMuted, ...type.body, marginTop: spacing.sm, marginBottom: spacing.lg }}>
               En un minuto Millo te dice cuánto te queda para gastar este mes y qué hacer con tus deudas.
               Solo necesito dos cosas.
             </Text>
@@ -102,12 +103,14 @@ export function OnboardingScreen() {
               ['card-outline', 'Si tienes alguna deuda', 'Para armarte un plan honesto de salida.'],
               ['lock-closed-outline', 'Tus datos son tuyos', 'Nunca se venden ni se comparten. Puedes borrarlos cuando quieras.'],
             ].map(([icon, t, s]) => (
-              <Card key={t} style={{ paddingVertical: spacing.sm }}>
-                <Row style={{ gap: spacing.md }}>
-                  <Ionicons name={icon as never} size={24} color={colors.primary} />
+              <Card key={t} style={{ paddingVertical: spacing.sm + spacing.xs, marginBottom: spacing.sm }}>
+                <Row style={{ gap: spacing.md, alignItems: 'flex-start' }}>
+                  <View style={{ width: 32, height: 32, borderRadius: radius.sm, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={icon as never} size={16} color={colors.primary} />
+                  </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.text, ...type.body, fontWeight: '700' }}>{t}</Text>
-                    <Text style={{ color: colors.textMuted, ...type.small }}>{s}</Text>
+                    <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>{t}</Text>
+                    <Text style={{ color: colors.textMuted, ...type.small, marginTop: 2 }}>{s}</Text>
                   </View>
                 </Row>
               </Card>
@@ -125,17 +128,17 @@ export function OnboardingScreen() {
                 <Chip key={w.key} label={w.label} active={work === w.key} onPress={() => setWork(w.key)} />
               ))}
             </View>
-            <HeroCard>
-              <Text style={{ color: colors.onPrimaryMuted, ...type.body }}>
+            <Card>
+              <Text style={{ color: colors.textFaint, ...type.label }}>
                 {work === 'independiente' || work === 'empresario' ? 'Ingreso mensual estimado' : 'Tu salario al mes (antes de descuentos)'}
               </Text>
-              <Text style={{ color: colors.textInverse, ...type.hero }}>{value ? formatMoney(value) : '$0'}</Text>
-              <Text style={{ color: colors.onPrimaryFaint, ...type.small }}>
+              <Money value={value} size={30} style={{ marginTop: spacing.xs, marginBottom: spacing.xs }} />
+              <Text style={{ color: colors.textFaint, ...type.small }}>
                 {work === 'independiente' || work === 'empresario'
                   ? 'Un promedio sirve. Luego lo afinas en tu perfil de ingresos.'
                   : 'El de tu contrato. Millo descuenta salud y pensión y te dice lo que de verdad te llega.'}
               </Text>
-            </HeroCard>
+            </Card>
             <Field label="Monto" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="3.500.000" />
             <Field label="¿Qué día te pagan? (opcional)" value={day} onChangeText={setDay} keyboardType="numeric" placeholder="30" hint="Millo usa este día para tu ciclo." />
             {error ? <Text style={{ color: colors.danger, ...type.body, marginBottom: spacing.sm }}>{error}</Text> : null}
@@ -147,7 +150,7 @@ export function OnboardingScreen() {
         {step === 'deuda' ? (
           <>
             <Text style={{ color: colors.text, ...type.heading }}>¿Tienes alguna deuda?</Text>
-            <Text style={{ color: colors.textMuted, ...type.bodyLg, marginTop: spacing.sm, marginBottom: spacing.lg }}>
+            <Text style={{ color: colors.textMuted, ...type.body, marginTop: spacing.sm, marginBottom: spacing.lg }}>
               Tarjeta, crédito, libranza, un préstamo de un familiar o un gota a gota — Millo las
               entiende todas y te muestra cuánto te cuestan de verdad, sin juzgar.
             </Text>
