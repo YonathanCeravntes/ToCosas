@@ -21,7 +21,7 @@ services:
     rootDir: backend
     buildCommand: npm ci --include=dev && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && npm run start:prod
-    plan: free
+    plan: starter  # plan pago del Fundador (verificado en Render 2026-10-03)
     region: oregon
     healthCheckPath: /v1/health
     autoDeploy: true
