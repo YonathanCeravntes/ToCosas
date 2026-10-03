@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Field, FormScroll, Pill, Row } from '../components/ui';
 import { colors, radius, spacing, touch, type } from '../theme/colors';
 import { useAuthStore } from '../store/auth.store';
+import { useTourStore } from '../store/tour.store';
 import { authApi, billingApi, budgetApi, copilotApi, insightsApi } from '../api/endpoints';
 import { BillingStatus } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
@@ -248,6 +249,27 @@ export function SettingsScreen() {
         )}
         {msg ? <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.sm }}>{msg}</Text> : null}
       </Card>
+
+      {/* FIN-060: volver a ver el recorrido de bienvenida (va a Inicio y lo abre). */}
+      <Pressable
+        onPress={() => {
+          navigation.navigate('Main', { screen: 'Dashboard' });
+          setTimeout(() => useTourStore.getState().start(), 400);
+        }}
+        accessibilityRole="button"
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+      >
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="compass-outline" size={18} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ ...type.body, fontWeight: '600', color: colors.text }}>Ver el recorrido otra vez</Text>
+            <Text style={{ ...type.small, color: colors.textFaint }}>Repasa en un minuto dónde está cada cosa</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+        </Card>
+      </Pressable>
 
       {/* FIN-060: "Cerrar sesión" en contorno rojo; el único botón lleno rojo es "Eliminar definitivamente". */}
       <Pressable
