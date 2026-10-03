@@ -1,7 +1,8 @@
 {
   "_comment": "Baseline de la APK instalada en los dispositivos Beta (BP-05). El preflight OTA bloquea si el proyecto ya no coincide: un bundle de otro SDK/runtime rompería la app instalada (lección 2026-09-26). Actualiza este archivo SOLO cuando construyas y distribuyas una APK nueva.",
-  "builtAt": "2026-07-13",
+  "builtAt": "2026-10-03",
   "channel": "preview",
+  "build": "cdb355fa-f940-41e4-8761-9eab810dab8f",
   "runtimeVersion": "0.1.0",
   "expoSdkMajor": 54,
   "reactNative": "0.81",
