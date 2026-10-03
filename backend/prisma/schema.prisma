@@ -330,6 +330,7 @@ model User {
   subscriptions   Subscription[]
   settings        UserSettings?
   passwordResets  PasswordResetToken[]
+  householdMemberships HouseholdMember[]
   botPending      BotPendingAction[]
   incomeProfile   IncomeProfile?
   incomeSources   IncomeSource[]
@@ -411,6 +412,8 @@ model Debt {
   entityId       String?     @map("entity_id") @db.Uuid
   name           String
   debtType       DebtType    @default(otro) @map("debt_type")
+  /// FIN-059: deuda de la casa (el carro, el crédito de vivienda) — su cuota cuenta en "Nuestro mes".
+  householdId    String?     @map("household_id") @db.Uuid
   currency       String      @default("COP") @db.Char(3)
   originalAmount Decimal     @map("original_amount") @db.Decimal(18, 2)
   currentBalance Decimal     @map("current_balance") @db.Decimal(18, 2)
@@ -621,6 +624,8 @@ model Transaction {
   fixedItemId     String?     @map("fixed_item_id") @db.Uuid
   /// FIN-056: cómo se pagó (Registrar lo pregunta; la deducción del 1 % de la renta lo necesita).
   paymentMethod   PaymentMethod? @map("payment_method")
+  /// FIN-059: "de la casa" — cuenta en "Nuestro mes" del hogar (Millo en pareja).
+  householdId     String?     @map("household_id") @db.Uuid
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
   deletedAt       DateTime?   @map("deleted_at")
@@ -636,6 +641,7 @@ model Transaction {
 
   @@unique([userId, clientUuid])
   @@index([userId, occurredAt])
+  @@index([householdId, occurredAt])
   @@index([debtId])
   @@index([fixedItemId])
   @@map("transactions")
@@ -732,6 +738,8 @@ model FixedItem {
   startDate  DateTime? @map("start_date") @db.Date
   endDate    DateTime? @map("end_date") @db.Date
   notes      String?
+  /// FIN-059: gasto fijo de la casa (arriendo, servicios) — cuenta en "Nuestro mes".
+  householdId String?  @map("household_id") @db.Uuid
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
   deletedAt  DateTime? @map("deleted_at")
@@ -1387,4 +1395,99 @@ model Document {
 
   @@index([userId, year, kind])
   @@map("documents")
+}
+
+
+// ---------------------------------------------------------------------------
+// FIN-059 · Millo en pareja (Fundador, 2026-10-03). "Tuyo, mío y nuestro": cada uno con
+// su Millo privado y un hogar con lo de la casa, metas y aporte justo. Lo personal NUNCA
+// se comparte en detalle; cada miembro decide qué ve el otro y puede salir solo (Ley 1257).
+// ---------------------------------------------------------------------------
+
+enum HouseholdSplit {
+  proporcional
+  mitad
+}
+
+model Household {
+  id            String         @id @default(uuid()) @db.Uuid
+  createdById   String         @map("created_by_id") @db.Uuid
+  splitMode     HouseholdSplit @default(proporcional) @map("split_mode")
+  /// Lo que la pareja quiere poner para la casa al mes (opcional): da "Nos queda para la casa".
+  monthlyBudget Decimal?       @map("monthly_budget") @db.Decimal(18, 2)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  deletedAt     DateTime?      @map("deleted_at")
+
+  members HouseholdMember[]
+  invites HouseholdInvite[]
+  goals   HouseholdGoal[]
+
+  @@map("households")
+}
+
+model HouseholdMember {
+  id          String    @id @default(uuid()) @db.Uuid
+  householdId String    @map("household_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  /// Consentimiento propio (Ley 1581): cada uno acepta por separado.
+  consentAt   DateTime  @map("consent_at")
+  /// Comparte su proporción de ingreso (solo el %, nunca el monto) para el aporte justo.
+  shareIncome Boolean   @default(false) @map("share_income")
+  /// Comparte el total de cuotas y saldo de SUS deudas (nunca las compras).
+  shareDebts  Boolean   @default(false) @map("share_debts")
+  joinedAt    DateTime  @default(now()) @map("joined_at")
+  leftAt      DateTime? @map("left_at")
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, leftAt])
+  @@index([householdId])
+  @@map("household_members")
+}
+
+model HouseholdInvite {
+  id          String    @id @default(uuid()) @db.Uuid
+  householdId String    @map("household_id") @db.Uuid
+  code        String    @unique
+  createdById String    @map("created_by_id") @db.Uuid
+  expiresAt   DateTime  @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@map("household_invites")
+}
+
+model HouseholdGoal {
+  id           String    @id @default(uuid()) @db.Uuid
+  householdId  String    @map("household_id") @db.Uuid
+  name         String
+  targetAmount Decimal   @map("target_amount") @db.Decimal(18, 2)
+  targetDate   DateTime? @map("target_date") @db.Date
+  createdById  String    @map("created_by_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  household     Household                 @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  contributions HouseholdGoalContribution[]
+
+  @@index([householdId])
+  @@map("household_goals")
+}
+
+model HouseholdGoalContribution {
+  id         String   @id @default(uuid()) @db.Uuid
+  goalId     String   @map("goal_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  amount     Decimal  @db.Decimal(18, 2)
+  occurredAt DateTime @default(now()) @map("occurred_at")
+
+  goal HouseholdGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
+  @@map("household_goal_contributions")
 }

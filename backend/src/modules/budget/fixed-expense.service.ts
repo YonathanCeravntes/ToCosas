@@ -49,6 +49,8 @@ export class FixedExpenseService {
           occurredAt: new Date(occ.getTime() + 12 * 3_600_000).toISOString(),
           categoryId: f.categoryId ?? undefined,
           note: f.name,
+          // FIN-059: el fijo de la casa se registra como gasto de la casa.
+          household: !!f.householdId,
         },
         { source: 'system', fixedItemId: f.id },
       );

@@ -62,7 +62,7 @@ export class AccountService {
   }
 
   async exportData(userId: string) {
-    const [user, debts, transactions, accounts, assets, incomeSources, fixedItems, insurances, purchases, documents] =
+    const [user, debts, transactions, accounts, assets, incomeSources, fixedItems, insurances, purchases, documents, household] =
       await Promise.all([
         this.prisma.user.findUnique({
           where: { id: userId },
@@ -86,6 +86,11 @@ export class AccountService {
           omit: { storageKey: true },
           orderBy: { docDate: 'desc' },
         }),
+        // FIN-059: su pertenencia a Millo en pareja y lo que aportó a las metas (no los datos del otro).
+        this.prisma.householdMember.findMany({
+          where: { userId },
+          select: { householdId: true, joinedAt: true, leftAt: true, shareIncome: true, shareDebts: true, consentAt: true },
+        }),
       ]);
     return {
       exportedAt: new Date().toISOString(),
@@ -100,6 +105,7 @@ export class AccountService {
       incomeSources,
       fixedItems,
       documents,
+      household,
     };
   }
 
@@ -128,6 +134,8 @@ export class AccountService {
       this.prisma.device.deleteMany({ where: { userId } }),
       this.prisma.passwordResetToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: now } }),
       this.prisma.conversation.deleteMany({ where: { userId } }),
+      // FIN-059: borrar la cuenta es salir de Millo en pareja (la pareja deja de verla al instante).
+      this.prisma.householdMember.updateMany({ where: { userId, leftAt: null }, data: { leftAt: now } }),
     ]);
     return { deleted: true };
   }

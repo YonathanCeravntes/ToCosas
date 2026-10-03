@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import {
   IsArray,
+  IsBoolean,
   IsEnum,
   IsISO8601,
   IsNumber,
@@ -63,6 +64,11 @@ export class CreateTransactionDto {
   @IsOptional()
   @IsEnum(PaymentMethodDto)
   paymentMethod?: PaymentMethodDto;
+
+  @ApiPropertyOptional({ description: 'FIN-059: "de la casa" — cuenta en Nuestro mes de Millo en pareja.' })
+  @IsOptional()
+  @IsBoolean()
+  household?: boolean;
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()

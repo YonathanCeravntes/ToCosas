@@ -101,6 +101,8 @@ export interface Debt {
   /** FIN-056: entidad (solo en el detalle), para editarla. */
   entityId?: string | null;
   entity?: { id: string; name: string } | null;
+  /** FIN-059: deuda de la casa (Millo en pareja). */
+  householdId?: string | null;
   projection?: DebtProjection;
   // FIN-032: el modelo/capacidades del tipo (del descriptor) — el detalle decide
   // qué secciones muestra por MODELO, no por tipo.
@@ -666,6 +668,8 @@ export interface FixedItem {
   startDate: string | null;
   endDate: string | null;
   notes: string | null;
+  /** FIN-059: gasto fijo de la casa (Millo en pareja). */
+  householdId?: string | null;
 }
 
 // FIN-016: ciclo financiero activo (día de corte configurable 1–28).
@@ -898,4 +902,38 @@ export interface DocsConsent {
   health: boolean;
   filesEnabled: boolean;
   deleted?: number;
+}
+
+
+// --- FIN-059 · Millo en pareja ---
+export interface HouseholdState {
+  household: null | {
+    id: string;
+    splitMode: 'proporcional' | 'mitad';
+    monthlyBudget: number | null;
+    me: { shareIncome: boolean; shareDebts: boolean; joinedAt: string; isCreator: boolean };
+    partner: { name: string; joinedAt: string } | null;
+    invite: { code: string; expiresAt: string } | null;
+  };
+}
+
+export interface HouseholdMonth {
+  period: { start: string; end: string; label: string };
+  members: Array<{ who: string; isMe: boolean }>;
+  budget: number | null;
+  spent: number;
+  committedPending: number;
+  left: number | null;
+  fair: {
+    mode: 'proporcional' | 'mitad';
+    fallbackReason: 'sin_ingreso_compartido' | null;
+    total: number;
+    rows: Array<{ who: string; isMe: boolean; percent: number; due: number; paid: number; balance: number }>;
+    settlement: { from: string; to: string; fromIsMe: boolean; amount: number } | null;
+  };
+  fixed: Array<{ id: string; name: string; owner: string; amount: number; pending: number; dayOfMonth: number | null }>;
+  debts: Array<{ id: string; name: string; owner: string; mine: boolean; monthly: number; paid: number; pending: number; nextDueDate: string | null }>;
+  partnerDebts: Array<{ name: string; count: number; monthly: number; balance: number }>;
+  goals: Array<{ id: string; name: string; target: number; saved: number; percent: number; targetDate: string | null; eta: string | null; byMember: Array<{ who: string; amount: number }> }>;
+  recent: Array<{ id: string; who: string; isMe: boolean; amount: number; occurredAt: string; label: string; icon: string; color: string }>;
 }

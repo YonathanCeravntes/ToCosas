@@ -19,6 +19,7 @@ const SECTIONS: Array<{ title: string; items: Item[] }> = [
       { icon: 'business-outline', title: 'Cuentas y patrimonio', sub: 'Saldos, activos y fondo de emergencia', to: 'Accounts' },
       { icon: 'briefcase-outline', title: 'Mi perfil de ingresos', sub: 'Fuentes, deducciones y neto mensual', to: 'IncomeProfile' },
       { icon: 'folder-open-outline', title: 'Mis documentos', sub: 'Facturas, extractos y certificados para tu renta', to: 'Documents' },
+      { icon: 'heart-outline', title: 'Millo en pareja', sub: 'La plata de la casa, el aporte justo y sus metas', to: 'Household' },
     ],
   },
   {

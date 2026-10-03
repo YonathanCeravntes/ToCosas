@@ -62,6 +62,11 @@ export class CreateFixedItemDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'FIN-059: gasto fijo de la casa (Millo en pareja).' })
+  @IsOptional()
+  @IsBoolean()
+  household?: boolean;
 }
 
 export class UpdateFixedItemDto extends PartialType(CreateFixedItemDto) {

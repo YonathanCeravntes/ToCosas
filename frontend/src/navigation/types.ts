@@ -37,6 +37,8 @@ export type RootStackParamList = {
   Budget: undefined;
   // FIN-054: facturas, extractos y certificados.
   Documents: undefined;
+  /** FIN-059: Millo en pareja. */
+  Household: undefined;
   // FIN-056: gastos del ciclo por categoría ("En qué se te va" completo).
   /** FIN-057: pestaña inicial — gastos ("En qué se te va") o ingresos ("Cómo te llega la plata"). */
   Categories: { tab?: 'gastos' | 'ingresos' } | undefined;

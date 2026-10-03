@@ -1,5 +1,7 @@
 import { api } from './client';
 import {
+  HouseholdMonth,
+  HouseholdState,
   AiConsentStatus,
   DocumentIntake,
   BillingStatus,
@@ -363,6 +365,8 @@ export interface CreateFixedItemInput {
   dayOfMonth?: number;
   categoryId?: string;
   notes?: string;
+  /** FIN-059: gasto fijo de la casa. */
+  household?: boolean;
 }
 
 export interface CreateTransactionInput {
@@ -376,6 +380,8 @@ export interface CreateTransactionInput {
   fixedItemId?: string;
   /** FIN-056: cómo se pagó (Registrar rápido lo recuerda; la deducción del 1 % lo usa). */
   paymentMethod?: PaymentMethod;
+  /** FIN-059: "de la casa" (Millo en pareja). */
+  household?: boolean;
 }
 
 /** FIN-056: mismo enum que Mis documentos. */
@@ -406,6 +412,22 @@ export interface StrategyComparison {
 }
 
 // FIN-054 · Mis documentos (facturas, extractos, certificados).
+// --- FIN-059 · Millo en pareja ---
+export const householdApi = {
+  state: () => api.get<HouseholdState>('/household'),
+  create: () => api.post<HouseholdState>('/household', { consent: true }),
+  invite: () => api.post<HouseholdState>('/household/invite', {}),
+  join: (code: string) => api.post<HouseholdState>('/household/join', { code, consent: true }),
+  updateMe: (input: { shareIncome?: boolean; shareDebts?: boolean }) => api.patch<HouseholdState>('/household/me', input),
+  update: (input: { splitMode?: 'proporcional' | 'mitad'; monthlyBudget?: number | null }) => api.patch<HouseholdState>('/household', input),
+  leave: () => api.post<HouseholdState>('/household/leave', {}),
+  month: () => api.get<HouseholdMonth>('/household/month'),
+  createGoal: (input: { name: string; targetAmount: number; targetDate?: string }) => api.post<{ id: string }>('/household/goals', input),
+  contribute: (goalId: string, amount: number) => api.post<{ goalId: string }>(`/household/goals/${goalId}/contribute`, { amount }),
+  removeGoal: (goalId: string) => api.delete<{ removed: boolean }>(`/household/goals/${goalId}`),
+  shareDebt: (debtId: string, shared: boolean) => api.patch<{ shared: boolean }>(`/household/debts/${debtId}`, { shared }),
+};
+
 export const documentsApi = {
   consent: () => api.get<DocsConsent>('/documents/consent'),
   grant: (health: boolean) => api.post<DocsConsent>('/documents/consent', { health }),

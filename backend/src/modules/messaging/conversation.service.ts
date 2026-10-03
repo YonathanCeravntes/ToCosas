@@ -33,6 +33,7 @@ import { SimulationsService } from '../simulations/simulations.service';
 import { TransactionsService } from '../transactions/transactions.service';
 import { TxKindDto } from '../transactions/dto/transaction.dto';
 import { platformMention, ruleParse, TxKind } from '../whatsapp/nlp/rule.parser';
+import { mentionsHouse } from '../household/household.util';
 import { looksLikeOtp } from '../whatsapp/otp.util';
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO');
@@ -978,6 +979,8 @@ export class ConversationService {
       }
     }
 
+    // FIN-059: "casa" en el mensaje lo marca como gasto de la casa (si la persona está en Millo en pareja).
+    const house = (parsed.kind === 'gasto' || parsed.kind === 'pago_deuda') && mentionsHouse(parsed.note);
     const tx = await this.transactions.create(
       userId,
       {
@@ -988,6 +991,7 @@ export class ConversationService {
         entityId: entity?.id,
         debtId,
         note: parsed.note,
+        household: house || undefined,
       },
       { source, rawMessage: parsed.note, parseConfidence: parsed.confidence },
     );
@@ -999,7 +1003,7 @@ export class ConversationService {
       const debt = await this.prisma.debt.findUnique({ where: { id: debtId } });
       return `✅ Registré tu pago de ${fmt(parsed.amount)}${debt ? ` a ${debt.name}` : ''} ${when}. Nuevo saldo: ${fmt(Number(debt?.currentBalance ?? 0))}.${SEEN_IN_APP}`;
     }
-    const label = parsed.kind === 'ingreso' ? 'ingreso' : parsed.kind === 'gasto' ? 'gasto' : 'movimiento';
+    const label = parsed.kind === 'ingreso' ? 'ingreso' : parsed.kind === 'gasto' ? (tx.householdId ? 'gasto de la casa' : 'gasto') : 'movimiento';
     const cat = categoryName ? ` en ${categoryName}` : '';
     // FIN-047: si era un gasto fijo, se dice que quedó cruzado (no se cuenta doble).
     if (tx.fixedItemId) {

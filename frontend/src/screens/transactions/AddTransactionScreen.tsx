@@ -7,7 +7,7 @@ import { Button, Card, Field, Ico, IconButton, Row, Toast, ToastSpec } from '../
 import { CategoryGlyph } from '../../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { Category, Debt, TxKind } from '../../api/types';
-import { budgetApi, debtsApi, gamificationApi, incomeApi, PaymentMethod, transactionsApi } from '../../api/endpoints';
+import { budgetApi, debtsApi, gamificationApi, householdApi, incomeApi, PaymentMethod, transactionsApi } from '../../api/endpoints';
 import { ApiError } from '../../api/client';
 import { transactionsRepo } from '../../offline/transactionsRepo';
 import { runSync } from '../../offline/syncEngine';
@@ -100,6 +100,9 @@ export function AddTransactionScreen() {
   const [undone, setUndone] = useState(false);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const [celebration, setCelebration] = useState<string | null>(null);
+  // FIN-059: Millo en pareja — "Mío / De la casa" solo aparece si la persona está en un hogar.
+  const [inHouse, setInHouse] = useState(false);
+  const [house, setHouse] = useState(false);
   const undoRef = useRef<null | (() => Promise<void>)>(null);
 
   // §39 (BT-001): "45.000" son cuarenta y cinco mil — parser regional único.
@@ -115,7 +118,7 @@ export function AddTransactionScreen() {
     setHistory(['form']); setAmount(''); setSelectedCat(null); setNote(''); setShowNote(false);
     setSelectedCard(null); setInstallments('1'); setWithInterest(false); setError(null);
     setAcuse([]); setUndo(null); setUndone(false); setOccurredAt(new Date()); setCelebration(null);
-    setToast(null); setMonthly(false); setPayDay(''); setShowAllCats(false);
+    setToast(null); setMonthly(false); setPayDay(''); setShowAllCats(false); setHouse(false);
     undoRef.current = null;
   }, []);
 
@@ -133,6 +136,7 @@ export function AddTransactionScreen() {
     useCallback(() => {
       // BT-032: al volver horas después, el acuse viejo no debe seguir ahí.
       if (step === 'acuse') reset();
+      householdApi.state().then((h) => setInHouse(!!h.household)).catch(() => {});
       // Deudas activas (para abonar) y tarjetas (para compras a cuotas).
       debtsApi
         .list()
@@ -220,10 +224,12 @@ export function AddTransactionScreen() {
       const tx = await transactionsApi.create({
         kind, amount: value, occurredAt: toApiDate(occurredAt),
         categoryId: selectedCat?.id, note: note || selectedCat?.name || undefined, debtId, paymentMethod,
+        household: kind === 'gasto' && house ? true : undefined,
       });
       // P1: el acuse ENUMERA la cascada (§42) con consecuencias en lenguaje humano.
       const lines: string[] = [`✅ Registré tu ${label} de ${formatMoney(value)}${selectedCat ? ` en ${selectedCat.name}` : ''}.`];
       if (tx.fixedItemId) lines.push('Ya lo tenías como gasto fijo: quedó cruzado y no se cuenta doble.');
+      if (kind === 'gasto' && house) lines.push('Es de la casa: ya suma en Nuestro mes y en el aporte de cada uno.');
       if (kind === 'gasto' || kind === 'ingreso') {
         const b = await budgetApi.monthly().catch(() => null);
         if (b) lines.push(`${kind === 'gasto' ? 'Actualicé tu presupuesto:' : 'Sumó a tu ingreso del ciclo:'} te quedan ${formatMoney(b.teQueda.amount)} hasta el ${shortDate(b.teQueda.until)}.`);
@@ -276,9 +282,9 @@ export function AddTransactionScreen() {
     let undoFixed: (() => Promise<unknown>) | null = null;
     try {
       if (kind === 'gasto') {
-        const fixed = await budgetApi.createFixed({ kind: 'gasto', name, amount: value, dayOfMonth: day, categoryId: selectedCat!.id, notes: isOther ? undefined : note.trim() || undefined });
+        const fixed = await budgetApi.createFixed({ kind: 'gasto', name, amount: value, dayOfMonth: day, categoryId: selectedCat!.id, notes: isOther ? undefined : note.trim() || undefined, household: house || undefined });
         undoFixed = () => budgetApi.removeFixed(fixed.id);
-        const tx = await transactionsApi.create({ kind: 'gasto', amount: value, occurredAt: toApiDate(occurredAt), categoryId: selectedCat!.id, note: name, fixedItemId: fixed.id, paymentMethod: toPaymentMethod(pay) });
+        const tx = await transactionsApi.create({ kind: 'gasto', amount: value, occurredAt: toApiDate(occurredAt), categoryId: selectedCat!.id, note: name, fixedItemId: fixed.id, paymentMethod: toPaymentMethod(pay), household: house || undefined });
         const lines = [
           `✅ Registré tu gasto de ${formatMoney(value)} en ${name}.`,
           `Quedó como gasto fijo: desde el próximo mes se registra solo el día ${day}. No tienes que volver a anotarlo.`,
@@ -547,6 +553,21 @@ export function AddTransactionScreen() {
               })}
             </View>
           </>
+        ) : null}
+
+        {/* FIN-059: un toque para que el gasto cuente en Nuestro mes (Millo en pareja). */}
+        {flow === 'gasto' && inHouse ? (
+          <Row style={{ backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: 3, marginBottom: spacing.md }} accessibilityRole="radiogroup">
+            {[{ v: false, l: 'Mío', i: 'person-outline' }, { v: true, l: 'De la casa', i: 'home-outline' }].map((o) => {
+              const on = house === o.v;
+              return (
+                <Pressable key={o.l} onPress={() => setHouse(o.v)} accessibilityRole="radio" accessibilityState={{ checked: on }} style={{ flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: radius.sm, backgroundColor: on ? colors.surface : 'transparent' }}>
+                  <Ionicons name={o.i as never} size={15} color={on ? colors.primaryDark : colors.textMuted} />
+                  <Text style={{ color: on ? colors.text : colors.textMuted, ...type.body, fontWeight: '700' }}>{o.l}</Text>
+                </Pressable>
+              );
+            })}
+          </Row>
         ) : null}
 
         {flow !== 'pago_deuda' ? (

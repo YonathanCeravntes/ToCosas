@@ -34,6 +34,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { CronModule } from './modules/cron/cron.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { HouseholdModule } from './modules/household/household.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
     DashboardModule,
     CronModule,
     DocumentsModule,
+    HouseholdModule,
     // TODO (siguientes PRs): LLM fallback en el parser, OCR.
   ],
   controllers: [HealthController],
