@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/types';
 import { Button, Card, ErrorState, GroupLabel, Ico, Money, Pill, ProgressBar, Row, SegmentBar, Skeleton } from '../components/ui';
+import { FirstSteps } from '../components/FirstSteps';
 import { CyclePace, IncomeSplit } from '../components/IncomeSplit';
 import { CategoryGlyph, incomeSourceColors } from '../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../theme/colors';
@@ -105,7 +106,8 @@ export function DashboardScreen() {
         </Pressable>
       </Row>
 
-      {/* Espacio reservado: aquí va la tarjeta "Primeros pasos" (otro agente, FIN-060). */}
+      {/* FIN-060: lista de primeros pasos para personas nuevas (se oculta sola). */}
+      <FirstSteps />
 
       {/* Hero ÚNICO (FIN-017/018/020, §32): la cifra viene del servicio único de
           Presupuesto. Tocarlo abre Presupuesto, la casa del detalle (FIN-038). */}

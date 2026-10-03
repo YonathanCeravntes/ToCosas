@@ -361,10 +361,60 @@ export function AddTransactionScreen() {
     void (monthly ? commitMonthly(flow) : commitCashTx(flow));
   };
 
+  // ---------- FIN-060: botón central "✓" + botón encima del teclado ----------
+  const isFocused = useIsFocused();
+  const amountRef = useRef<TextInput>(null);
+  /**
+   * Lo que falta para poder guardar el formulario: las mismas reglas que corren
+   * submitForm y commitMonthly ANTES de guardar (no agrega ni quita ninguna).
+   */
+  const missing = (): string | null => {
+    if (!value) return 'Escribe cuánto fue.';
+    if (flow === 'pago_deuda' || !monthly) return null;
+    if (flow === 'gasto' && !selectedCat) return 'Elige qué tipo de gasto fijo es.';
+    if (flow === 'gasto' && selectedCat?.name === OTHER_FIXED && !note.trim()) return 'Escribe qué es en la nota (p. ej. "Cuota del carro").';
+    const day = payDay.trim() ? parseInt(payDay, 10) : occurredAt.getDate();
+    if (Number.isNaN(day) || day < 1 || day > 31) return 'El día debe estar entre 1 y 31.';
+    return null;
+  };
+  // Pasos con acción final pendiente: en 'tarjeta' y 'deuda' el ✓ queda gris (se elige tocando la fila).
+  const barStep = step === 'form' || step === 'cuotas' || step === 'tarjeta' || step === 'deuda';
+  const ready = !busy && (step === 'form' ? missing() === null : step === 'cuotas' ? !!selectedCard : false);
+  const submitRef = useRef<() => void>(() => undefined);
+  submitRef.current = step === 'cuotas' ? () => void commitCardPurchase() : step === 'form' ? submitForm : () => undefined;
+  const nudgeRef = useRef<() => void>(() => undefined);
+  nudgeRef.current = () => {
+    if (busy || step !== 'form') return;
+    const m = missing();
+    if (!m) return;
+    setError(m);
+    if (!value) amountRef.current?.focus();
+  };
+  useEffect(() => {
+    const st = useRegisterForm.getState();
+    st.setSubmit(() => submitRef.current());
+    st.setNudge(() => nudgeRef.current());
+    return () => useRegisterForm.getState().clear();
+  }, []);
+  useEffect(() => {
+    const st = useRegisterForm.getState();
+    st.setActive(isFocused && barStep);
+    st.setReady(isFocused && barStep && ready);
+  }, [isFocused, barStep, ready]);
+
+  // Teclado abierto → la barra de pestañas se oculta y el botón final va justo encima del teclado.
+  const kb = useKeyboardInset();
+  const [kbOpen, setKbOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKbOpen(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKbOpen(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
   // ---------- Render ----------
   const canBack = history.length > 1 && step !== 'acuse';
-  const wrap = (children: React.ReactNode) => (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+  const wrap = (children: React.ReactNode, keyboardAction?: React.ReactNode) => (
+    <View ref={kb.ref} onLayout={kb.onLayout} style={{ flex: 1, backgroundColor: colors.bg, paddingBottom: kb.inset }}>
       <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xxl }} keyboardShouldPersistTaps="handled">
         <Row style={{ gap: spacing.xs, marginBottom: spacing.md, justifyContent: 'space-between' }}>
           <Row style={{ gap: spacing.xs, flex: 1 }}>
@@ -383,7 +433,7 @@ export function AddTransactionScreen() {
                     accessibilityState={{ selected: on }}
                     style={{ height: 32, paddingHorizontal: 12, borderRadius: radius.full, justifyContent: 'center', backgroundColor: on ? colors.surface : 'transparent' }}
                   >
-                    <Text style={{ color: on ? colors.primaryDark : colors.textMuted, ...type.small, fontWeight: on ? '800' : '600' }}>{f.label}</Text>
+                    <Text style={{ color: on ? colors.text : colors.textMuted, ...type.small, fontWeight: on ? '600' : '500' }}>{f.label}</Text>
                   </Pressable>
                 );
               })}
@@ -393,14 +443,19 @@ export function AddTransactionScreen() {
         {children}
         {error ? <Text style={{ color: colors.danger, ...type.body, marginTop: spacing.sm }} accessibilityRole="alert">{error}</Text> : null}
       </ScrollView>
+      {kbOpen && keyboardAction ? (
+        <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.sm, backgroundColor: colors.surfaceAlt, borderTopWidth: 1, borderTopColor: colors.border }}>
+          {keyboardAction}
+        </View>
+      ) : null}
       <Toast spec={toast} onHide={() => setToast(null)} />
     </View>
   );
 
   const amountBig = (
     <Card style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
-      <Text style={{ color: colors.textMuted, ...type.body }}>Monto</Text>
-      <Text style={{ color: colors.text, ...type.hero }}>{value ? formatMoney(value) : '$0'}</Text>
+      <Text style={{ color: colors.textFaint, ...type.small }}>Monto</Text>
+      <Money value={value} size={34} color={value ? colors.text : colors.textFaint} />
     </Card>
   );
 
@@ -422,22 +477,23 @@ export function AddTransactionScreen() {
       <>
         {amountBig}
         <Field label="Número de cuotas" value={installments} onChangeText={setInstallments} keyboardType="numeric" placeholder="1" />
-        <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
+        <Row style={{ gap: 2, padding: 3, marginBottom: spacing.md, borderRadius: radius.md, backgroundColor: colors.surfaceAlt }} accessibilityRole="radiogroup">
           {[{ v: false, l: 'Sin interés' }, { v: true, l: 'Con interés' }].map((o) => (
             <Pressable
               key={String(o.v)}
               onPress={() => setWithInterest(o.v)}
               accessibilityRole="radio"
               accessibilityState={{ checked: withInterest === o.v }}
-              style={{ flex: 1, padding: spacing.sm, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: withInterest === o.v ? colors.primary : colors.surface, borderWidth: 1, borderColor: withInterest === o.v ? colors.primary : colors.border }}
+              style={{ flex: 1, padding: spacing.sm, minHeight: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: withInterest === o.v ? colors.surface : 'transparent' }}
             >
-              <Text style={{ color: withInterest === o.v ? colors.textInverse : colors.text, ...type.small }}>{o.l}</Text>
+              <Text style={{ color: withInterest === o.v ? colors.text : colors.textMuted, ...type.small, fontWeight: withInterest === o.v ? '600' : '500' }}>{o.l}</Text>
             </Pressable>
           ))}
         </Row>
         <Field label="Nota (opcional)" value={note} onChangeText={setNote} placeholder="¿Qué compraste?" />
-        <Button title="Registrar compra" onPress={() => void commitCardPurchase()} loading={busy} />
+        <Button title="Registrar compra" variant="secondary" onPress={() => void commitCardPurchase()} loading={busy} />
       </>,
+      <Button title={`Registrar compra ${formatMoney(value)}`} onPress={() => void commitCardPurchase()} loading={busy} />,
     );
   }
 
@@ -454,11 +510,11 @@ export function AddTransactionScreen() {
             disabled={busy}
             accessibilityRole="button"
             accessibilityLabel={`Abonar a ${d.name}, saldo ${formatMoney(Number(d.currentBalance))}`}
-            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md, minHeight: 56, marginBottom: spacing.sm, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, opacity: busy ? 0.6 : 1 }}
+            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm, padding: spacing.md, minHeight: 56, marginBottom: spacing.sm, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, opacity: busy ? 0.6 : 1 }}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, ...type.body, fontWeight: '700' }}>{d.name}</Text>
-              {d.nextDueDate ? <Text style={{ color: colors.textMuted, ...type.small }}>vence {shortDate(d.nextDueDate)}</Text> : null}
+              <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>{d.name}</Text>
+              {d.nextDueDate ? <Text style={{ color: colors.textFaint, ...type.small }}>vence {shortDate(d.nextDueDate)}</Text> : null}
             </View>
             <Text style={{ color: colors.textMuted, ...type.body }}>{formatMoney(Number(d.currentBalance))}</Text>
           </Pressable>
@@ -469,7 +525,7 @@ export function AddTransactionScreen() {
 
   if (step === 'form') {
     const isMonthlyFixed = monthly && flow === 'gasto';
-    const catLabel = flow === 'pago_deuda' ? null : isMonthlyFixed ? '¿QUÉ PAGAS CADA MES?' : shownCats.truncated ? 'CATEGORÍA · LAS QUE MÁS USAS' : 'CATEGORÍA';
+    const catLabel = flow === 'pago_deuda' ? null : isMonthlyFixed ? '¿Qué pagas cada mes?' : shownCats.truncated ? 'Categoría · las que más usas' : 'Categoría';
     const title = flow === 'pago_deuda'
       ? 'Elegir la deuda'
       : monthly
@@ -480,27 +536,27 @@ export function AddTransactionScreen() {
     return wrap(
       <>
         <Card style={{ alignItems: 'center', paddingVertical: spacing.md }}>
-          <Text style={{ color: colors.textMuted, ...type.small }}>{flow === 'ingreso' ? '¿Cuánto te entró?' : flow === 'pago_deuda' ? '¿Cuánto abonaste?' : '¿Cuánto?'}</Text>
-          <Text style={{ color: colors.text, ...type.hero }}>{value ? formatMoney(value) : '$0'}</Text>
+          <Text style={{ color: colors.textFaint, ...type.small }}>{flow === 'ingreso' ? '¿Cuánto te entró?' : flow === 'pago_deuda' ? '¿Cuánto abonaste?' : '¿Cuánto?'}</Text>
+          <Money value={value} size={36} color={value ? colors.text : colors.textFaint} />
           <View style={{ alignSelf: 'stretch', marginTop: spacing.sm, marginBottom: -spacing.md }}>
-            <Field label="Monto" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="45.000" autoFocus hint="Escribe 45000 o 45.000, es lo mismo." />
+            <Field ref={amountRef} label="Monto" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="45.000" autoFocus hint="Escribe 45000 o 45.000, es lo mismo." />
           </View>
         </Card>
 
         {catLabel ? (
           <>
             <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm }}>
-              <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '700' }}>{catLabel}</Text>
+              <Text style={{ color: colors.textFaint, ...type.label }}>{catLabel}</Text>
               {shownCats.truncated || (showAllCats && !isMonthlyFixed) ? (
                 <Pressable onPress={() => setShowAllCats(!showAllCats)} accessibilityRole="button" hitSlop={8}>
-                  <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>{showAllCats ? 'Menos' : `Todas (${shownCats.total})`}</Text>
+                  <Text style={{ color: colors.primary, ...type.small, fontWeight: '600' }}>{showAllCats ? 'Menos' : `Todas (${shownCats.total})`}</Text>
                 </Pressable>
               ) : null}
             </Row>
             {catsFailed ? (
               <Pressable onPress={() => setCatsTry((n) => n + 1)} accessibilityRole="button" style={{ padding: spacing.md, marginBottom: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
                 <Text style={{ color: colors.text, ...type.body }}>No pude cargar las categorías.</Text>
-                <Text style={{ color: colors.primary, ...type.body, fontWeight: '700', marginTop: 2 }}>Reintentar</Text>
+                <Text style={{ color: colors.primary, ...type.body, fontWeight: '600', marginTop: 2 }}>Reintentar</Text>
               </Pressable>
             ) : null}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
@@ -513,10 +569,10 @@ export function AddTransactionScreen() {
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
                     accessibilityLabel={cat.name}
-                    style={{ width: isMonthlyFixed ? '30.5%' : '22%', minHeight: 74, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', padding: 2, backgroundColor: active ? (cat.color ?? colors.primary) + '22' : colors.surface, borderWidth: 2, borderColor: active ? (cat.color ?? colors.primary) : colors.border }}
+                    style={{ width: isMonthlyFixed ? '30.5%' : '22%', minHeight: 74, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', padding: 2, backgroundColor: active ? colors.primarySoft : colors.surface, borderWidth: active ? 2 : 1, borderColor: active ? colors.primary : colors.border }}
                   >
                     <CategoryGlyph size="lg" emoji={cat.icon} kind={flow === 'ingreso' ? 'ingreso' : 'gasto'} color={cat.color} />
-                    <Text style={{ color: active ? colors.text : colors.textMuted, ...type.caption, fontWeight: active ? '800' : '400', marginTop: 2, textAlign: 'center' }} numberOfLines={2} adjustsFontSizeToFit>{cat.name}</Text>
+                    <Text style={{ color: active ? colors.primaryDark : colors.textFaint, ...type.caption, fontWeight: active ? '600' : '400', marginTop: 2, textAlign: 'center' }} numberOfLines={2} adjustsFontSizeToFit>{cat.name}</Text>
                   </Pressable>
                 );
               })}
@@ -532,7 +588,7 @@ export function AddTransactionScreen() {
 
         {flow === 'gasto' ? (
           <>
-            <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '700', marginBottom: spacing.sm }}>¿CÓMO PAGASTE?</Text>
+            <Text style={{ color: colors.textFaint, ...type.label, marginBottom: spacing.sm }}>¿Cómo pagaste?</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
               {PAY_CHOICES.map((c) => {
                 const on = pay === c.key;
@@ -544,10 +600,10 @@ export function AddTransactionScreen() {
                     accessibilityRole="radio"
                     accessibilityState={{ checked: on }}
                     accessibilityLabel={`${c.label}${isLast ? ', como la última vez' : ''}`}
-                    style={{ height: 38, paddingHorizontal: 12, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 2 : 1, borderColor: on ? colors.primary : colors.border }}
+                    style={{ height: 38, paddingHorizontal: 12, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 1.5 : 1, borderColor: on ? colors.primary : colors.border }}
                   >
-                    <Ionicons name={c.icon} size={15} color={on ? colors.primaryDark : colors.textMuted} />
-                    <Text style={{ color: on ? colors.primaryDark : colors.text, ...type.small, fontWeight: on ? '800' : '600' }}>
+                    <Ionicons name={c.icon} size={15} color={on ? colors.primaryDark : colors.textFaint} />
+                    <Text style={{ color: on ? colors.primaryDark : colors.text, ...type.small, fontWeight: on ? '600' : '500' }}>
                       {c.label}{isLast ? ' · como la última vez' : ''}{c.key === 'credito' ? ' ›' : ''}
                     </Text>
                   </Pressable>
@@ -565,7 +621,7 @@ export function AddTransactionScreen() {
               return (
                 <Pressable key={o.l} onPress={() => setHouse(o.v)} accessibilityRole="radio" accessibilityState={{ checked: on }} style={{ flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: radius.sm, backgroundColor: on ? colors.surface : 'transparent' }}>
                   <Ionicons name={o.i as never} size={15} color={on ? colors.primaryDark : colors.textMuted} />
-                  <Text style={{ color: on ? colors.text : colors.textMuted, ...type.body, fontWeight: '700' }}>{o.l}</Text>
+                  <Text style={{ color: on ? colors.text : colors.textMuted, ...type.body, fontWeight: on ? '600' : '500' }}>{o.l}</Text>
                 </Pressable>
               );
             })}
@@ -576,7 +632,7 @@ export function AddTransactionScreen() {
           <Card style={{ padding: 0 }}>
             <Pressable onPress={() => setShowDatePicker(!showDatePicker)} accessibilityRole="button" accessibilityLabel={`Fecha ${humanDate(occurredAt)}, cambiar`} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: 12, minHeight: 44 }}>
               <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>Fecha</Text>
-              <Text style={{ color: colors.primary, ...type.body, fontWeight: '700' }}>{humanDate(occurredAt)} ›</Text>
+              <Text style={{ color: colors.primary, ...type.body, fontWeight: '600' }}>{humanDate(occurredAt)} ›</Text>
             </Pressable>
             {showDatePicker ? (
               <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.sm }}>
@@ -592,7 +648,7 @@ export function AddTransactionScreen() {
                   const on = monthly === o.v;
                   return (
                     <Pressable key={String(o.v)} onPress={() => { if (!on) { setMonthly(o.v); setSelectedCat(null); setError(null); } }} accessibilityRole="radio" accessibilityState={{ checked: on }} style={{ height: 28, paddingHorizontal: 10, borderRadius: radius.full, justifyContent: 'center', backgroundColor: on ? colors.surface : 'transparent' }}>
-                      <Text style={{ color: on ? colors.primaryDark : colors.textMuted, ...type.small, fontWeight: on ? '800' : '600' }}>{o.l}</Text>
+                      <Text style={{ color: on ? colors.text : colors.textMuted, ...type.small, fontWeight: on ? '600' : '500' }}>{o.l}</Text>
                     </Pressable>
                   );
                 })}
@@ -629,31 +685,42 @@ export function AddTransactionScreen() {
           </Card>
         ) : null}
 
+        {/* Respaldo del ✓ central (con el teclado cerrado, el ✓ de la barra es la acción principal). */}
         <View style={{ marginTop: spacing.sm }}>
-          <Button title={title} icon={flow === 'pago_deuda' ? 'arrow-forward' : undefined} onPress={submitForm} loading={busy} />
+          <Button title={title} variant="secondary" icon={flow === 'pago_deuda' ? 'arrow-forward' : undefined} onPress={submitForm} loading={busy} />
         </View>
       </>,
+      <Button title={title} icon={flow === 'pago_deuda' ? 'arrow-forward' : undefined} onPress={submitForm} loading={busy} />,
     );
   }
 
   // step 'acuse' — la cascada es VISIBLE y REVERSIBLE (§42).
   return wrap(
     <>
-      <Card style={{ backgroundColor: colors.successSoft, borderColor: colors.primaryLight }}>
-        {acuse.map((line, i) => (
-          <Text key={i} style={{ color: i === 0 ? colors.primaryDark : colors.text, ...type.bodyLg, fontWeight: i === 0 ? '700' : '400', marginTop: i === 0 ? 0 : spacing.xs }}>{line}</Text>
-        ))}
+      <Card style={{ backgroundColor: colors.primarySoft, borderColor: colors.primarySoft }}>
+        {acuse.map((line, i) =>
+          i === 0 ? (
+            <Row key={i} style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
+              <Ionicons name="checkmark-circle-outline" size={20} color={colors.primary} style={{ marginTop: 1 }} />
+              <Text style={{ color: colors.primaryDark, ...type.bodyLg, fontWeight: '600', flex: 1 }}>{line}</Text>
+            </Row>
+          ) : (
+            <Text key={i} style={{ color: colors.text, ...type.body, marginTop: spacing.xs }}>{line}</Text>
+          ),
+        )}
       </Card>
       {celebration ? (
-        <Card style={{ backgroundColor: colors.warningSoft, borderColor: colors.accent }}>
-          <Text style={{ color: colors.text, ...type.body, fontWeight: '700' }}>{celebration}</Text>
+        <Card style={{ backgroundColor: colors.goldSoft, borderColor: colors.gold, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <Ionicons name="trophy-outline" size={18} color={colors.goldText} />
+          <Text style={{ color: colors.text, ...type.body, fontWeight: '600', flex: 1 }}>{celebration}</Text>
         </Card>
       ) : null}
       {undone ? (
         <Text style={{ color: colors.textMuted, ...type.body, marginTop: spacing.md, textAlign: 'center' }}>Deshecho. Todo volvió a como estaba.</Text>
       ) : undo ? (
-        <Pressable onPress={() => void onUndo()} disabled={busy} accessibilityRole="button" style={{ marginTop: spacing.md, alignItems: 'center', minHeight: 44, justifyContent: 'center' }}>
-          <Text style={{ color: colors.danger, ...type.body, fontWeight: '700' }}>↩︎ Deshacer</Text>
+        <Pressable onPress={() => void onUndo()} disabled={busy} accessibilityRole="button" accessibilityLabel="Deshacer" style={{ marginTop: spacing.md, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', minHeight: 44 }}>
+          <Ionicons name="arrow-undo-outline" size={16} color={colors.danger} />
+          <Text style={{ color: colors.danger, ...type.body, fontWeight: '600' }}>Deshacer</Text>
         </Pressable>
       ) : null}
       <View style={{ marginTop: spacing.lg }}>
@@ -693,7 +760,7 @@ function OptionRow({ icon, title, sub, selected, onPress }: { icon: React.Compon
         <Ionicons name={icon} size={22} color={colors.primaryDark} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ color: colors.text, ...type.bodyLg, fontWeight: '700' }}>{title}</Text>
+        <Text style={{ color: colors.text, ...type.bodyLg, fontWeight: '600' }}>{title}</Text>
         {sub ? <Text style={{ color: colors.textMuted, ...type.small }}>{sub}</Text> : null}
       </View>
       <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />

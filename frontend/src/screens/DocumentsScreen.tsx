@@ -83,7 +83,8 @@ export function DocumentsScreen() {
   return (
     <FormScroll onRefresh={load}>
       {/* Año */}
-      <Row style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
+      {/* FIN-060: control segmentado para el año. */}
+      <Row style={{ alignSelf: 'flex-start', gap: 3, padding: 3, borderRadius: 10, backgroundColor: colors.surfaceAlt, marginBottom: spacing.md }}>
         {[currentYear, currentYear - 1].map((y) => {
           const on = y === year;
           return (
@@ -92,9 +93,9 @@ export function DocumentsScreen() {
               onPress={() => setYear(y)}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
-              style={{ paddingHorizontal: 14, height: 34, borderRadius: 17, justifyContent: 'center', backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: 1, borderColor: on ? colors.primary : colors.border }}
+              style={{ minWidth: 72, paddingHorizontal: 14, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.surface : 'transparent' }}
             >
-              <Text style={{ color: on ? colors.primaryDark : colors.text, fontWeight: on ? '800' : '600' }}>{y}</Text>
+              <Text style={{ color: on ? colors.text : colors.textMuted, ...type.small, fontWeight: '600' }}>{y}</Text>
             </Pressable>
           );
         })}
@@ -123,7 +124,7 @@ export function DocumentsScreen() {
               accessibilityState={{ selected: on }}
               style={{ height: 36, paddingHorizontal: 14, borderRadius: 18, justifyContent: 'center', backgroundColor: on ? colors.primary : colors.surface, borderWidth: 1, borderColor: on ? colors.primary : colors.border }}
             >
-              <Text style={{ color: on ? colors.textInverse : colors.text, fontSize: 13, fontWeight: '700' }}>{label}</Text>
+              <Text style={{ color: on ? colors.textInverse : colors.text, ...type.small, fontWeight: on ? '600' : '500' }}>{label}</Text>
             </Pressable>
           );
         })}
@@ -153,8 +154,8 @@ export function DocumentsScreen() {
           accessibilityRole="button"
           style={{ height: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.surface, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md }}
         >
-          {exporting ? <ActivityIndicator color={colors.primary} /> : <Ico name="download-outline" color={colors.primaryDark} size={18} />}
-          <Text style={{ color: colors.primaryDark, fontWeight: '800', fontSize: 15 }}>Descargar todo {year} (.zip)</Text>
+          {exporting ? <ActivityIndicator color={colors.primary} /> : <Ico name="download-outline" color={colors.primary} size={18} />}
+          <Text style={{ color: colors.primary, ...type.body, fontWeight: '600' }}>Descargar todo {year} (.zip)</Text>
         </Pressable>
       ) : null}
       {!summary.filesEnabled && summary.counts.facturas + summary.counts.extractos + summary.counts.certificados > 0 ? (
@@ -175,14 +176,14 @@ function YearCard({ summary }: { summary: DocumentsSummary }) {
     <Card>
       <Text style={{ color: colors.textMuted, ...type.small }}>Tus facturas de {summary.year}</Text>
       <Row style={{ alignItems: 'baseline', gap: 8, marginTop: 2, marginBottom: spacing.sm }}>
-        <Text style={{ color: colors.text, fontSize: 30, fontWeight: '800' }}>{inv.count}</Text>
+        <Text style={{ color: colors.text, fontSize: 32, lineHeight: 38, fontWeight: '600', letterSpacing: -0.8 }}>{inv.count}</Text>
         <Text style={{ color: colors.textMuted, ...type.body }}>{inv.count === 1 ? 'factura' : 'facturas'} · {formatMoney(inv.total)}</Text>
       </Row>
       {inv.total > 0 ? (
         <SegmentBar
           parts={[
             { key: 'e', label: 'Tarjeta o transferencia', value: inv.electronicPaid, color: colors.primary },
-            { key: 'c', label: 'Efectivo', value: inv.cash, color: colors.warning },
+            { key: 'c', label: 'Efectivo', value: inv.cash, color: colors.warningDeep },
             { key: 'u', label: 'Sin dato o sin factura electrónica', value: inv.unknown, color: colors.textFaint },
           ]}
         />
@@ -190,12 +191,12 @@ function YearCard({ summary }: { summary: DocumentsSummary }) {
       <View style={{ backgroundColor: colors.primarySoft, borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.sm }}>
         {inv.deduction > 0 ? (
           <Text style={{ color: colors.text, ...type.small, lineHeight: 19 }}>
-            <Text style={{ fontWeight: '800' }}>Deducción del 1%: {formatMoney(inv.deduction)}</Text> menos en tu base de renta. Solo cuentan las
+            <Text style={{ fontWeight: '600' }}>Deducción del 1%: {formatMoney(inv.deduction)}</Text> menos en tu base de renta. Solo cuentan las
             facturas electrónicas pagadas con tarjeta o transferencia: pide factura electrónica y paga con medio electrónico para sumar más.
           </Text>
         ) : (
           <Text style={{ color: colors.text, ...type.small, lineHeight: 19 }}>
-            Cada factura electrónica pagada con tarjeta o transferencia te da una <Text style={{ fontWeight: '800' }}>deducción del 1%</Text> en la renta.
+            Cada factura electrónica pagada con tarjeta o transferencia te da una <Text style={{ fontWeight: '600' }}>deducción del 1%</Text> en la renta.
             Mándale a Millo tus facturas por Telegram y aquí vas viendo cuánto llevas.
           </Text>
         )}
@@ -252,7 +253,7 @@ function DocRow({ doc, first, onChanged }: { doc: DocumentItem; first: boolean; 
   };
 
   return (
-    <View style={{ borderTopWidth: first ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
+    <View style={{ borderTopWidth: first ? 0 : 1, borderTopColor: colors.border }}>
       <Pressable
         onPress={() => setOpen(!open)}
         accessibilityRole="button"
@@ -264,13 +265,13 @@ function DocRow({ doc, first, onChanged }: { doc: DocumentItem; first: boolean; 
           <Ico name={style.icon} color={style.fg} size={16} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{title}</Text>
-          <Text style={{ color: colors.textMuted, ...type.small }} numberOfLines={1}>{sub}</Text>
+          <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }} numberOfLines={1}>{title}</Text>
+          <Text style={{ color: colors.textFaint, ...type.small }} numberOfLines={1}>{sub}</Text>
         </View>
         <View style={{ alignItems: 'flex-end', gap: 4 }}>
-          <Text style={{ color: colors.text, fontWeight: '800' }}>{doc.total != null ? formatMoney(doc.total) : '—'}</Text>
+          <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>{doc.total != null ? formatMoney(doc.total) : '—'}</Text>
           {tag ? (
-            <Text style={{ fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, overflow: 'hidden', color: tag.ok ? colors.primaryDark : colors.warningDeep, backgroundColor: tag.ok ? colors.primarySoft : colors.warningSoft }}>
+            <Text style={{ fontSize: 11, fontWeight: '600', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, overflow: 'hidden', color: tag.ok ? colors.primaryDark : colors.warningDeep, backgroundColor: tag.ok ? colors.primarySoft : colors.warningSoft }}>
               {tag.text}
             </Text>
           ) : null}
@@ -278,12 +279,12 @@ function DocRow({ doc, first, onChanged }: { doc: DocumentItem; first: boolean; 
       </Pressable>
       {open ? (
         <View style={{ paddingBottom: 12, paddingLeft: 42, gap: 6 }}>
-          {doc.number ? <Text style={{ color: colors.textMuted, ...type.small }}>Factura {doc.number}{doc.tax ? ` · IVA ${formatMoney(doc.tax)}` : ''}</Text> : null}
+          {doc.number ? <Text style={{ color: colors.textFaint, ...type.small }}>Factura {doc.number}{doc.tax ? ` · IVA ${formatMoney(doc.tax)}` : ''}</Text> : null}
           <Row style={{ gap: spacing.sm, flexWrap: 'wrap' }}>
             {doc.hasFile ? (
               <Pressable onPress={() => void download()} disabled={busy} accessibilityRole="button" style={{ flexDirection: 'row', gap: 6, alignItems: 'center', backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 8, paddingHorizontal: 14 }}>
                 {busy ? <ActivityIndicator size="small" color={colors.textInverse} /> : <Ico name="download-outline" color={colors.textInverse} />}
-                <Text style={{ color: colors.textInverse, fontWeight: '800' }}>Descargar</Text>
+                <Text style={{ color: colors.textInverse, ...type.small, fontWeight: '600' }}>Descargar</Text>
               </Pressable>
             ) : (
               <Text style={{ color: colors.textFaint, ...type.small, paddingVertical: 8 }}>De este documento guardamos los datos, no el archivo.</Text>
@@ -293,7 +294,7 @@ function DocRow({ doc, first, onChanged }: { doc: DocumentItem; first: boolean; 
               accessibilityRole="button"
               style={{ paddingVertical: 8, paddingHorizontal: 8 }}
             >
-              <Text style={{ color: colors.dangerDeep, fontWeight: '700' }}>Borrar</Text>
+              <Text style={{ color: colors.danger, ...type.small, fontWeight: '600' }}>Borrar</Text>
             </Pressable>
           </Row>
           {err ? <Text style={{ color: colors.danger, ...type.small }}>{err}</Text> : null}
@@ -321,9 +322,9 @@ function ConsentCard({ onDone }: { onDone: (c: DocsConsent) => void }) {
   return (
     <Card style={{ borderColor: colors.primaryLight }}>
       <Row style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
-        <Ico name="shield-checkmark-outline" color={colors.primaryDark} size={20} />
+        <Ico name="shield-checkmark-outline" color={colors.primary} size={20} />
         <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>Millo va a guardar tus documentos</Text>
+          <Text style={{ color: colors.text, ...type.bodyLg, fontWeight: '600' }}>Millo va a guardar tus documentos</Text>
           <Text style={{ color: colors.textMuted, ...type.small, marginTop: 4, lineHeight: 19 }}>
             Guardamos tus facturas, extractos y certificados cifrados para armar tus informes y el borrador de tu renta. La inteligencia
             artificial de Millo (Google Gemini, EE. UU.) los lee para sacar los datos; no guardamos tu cédula ni tus números de cuenta.
@@ -341,18 +342,18 @@ function ConsentCard({ onDone }: { onDone: (c: DocsConsent) => void }) {
             accessibilityState={{ checked: health }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.sm, minHeight: 36 }}
           >
-            <Ico name={health ? 'checkbox' : 'square-outline'} color={health ? colors.primary : colors.textMuted} size={20} />
+            <Ico name={health ? 'checkbox' : 'square-outline'} color={health ? colors.primary : colors.textFaint} size={20} />
             <Text style={{ color: colors.text, ...type.small, flex: 1 }}>Guardar también mis facturas de salud (dato sensible)</Text>
           </Pressable>
           <Row style={{ gap: spacing.sm, marginTop: spacing.sm, flexWrap: 'wrap' }}>
             <Pressable onPress={() => void accept()} disabled={busy} accessibilityRole="button" style={{ backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 9, paddingHorizontal: 18 }}>
-              <Text style={{ color: colors.textInverse, fontWeight: '800' }}>{busy ? 'Guardando…' : 'Acepto'}</Text>
+              <Text style={{ color: colors.textInverse, ...type.body, fontWeight: '600' }}>{busy ? 'Guardando…' : 'Acepto'}</Text>
             </Pressable>
             <Pressable onPress={() => setMore(!more)} accessibilityRole="button" style={{ paddingVertical: 9, paddingHorizontal: 6 }}>
-              <Text style={{ color: colors.primary, fontWeight: '700' }}>{more ? 'Ver menos' : 'Ver detalles'}</Text>
+              <Text style={{ color: colors.primary, ...type.body, fontWeight: '600' }}>{more ? 'Ver menos' : 'Ver detalles'}</Text>
             </Pressable>
             <Pressable onPress={() => setLater(true)} accessibilityRole="button" style={{ paddingVertical: 9, paddingHorizontal: 6 }}>
-              <Text style={{ color: colors.textMuted }}>Ahora no</Text>
+              <Text style={{ color: colors.textFaint, ...type.body }}>Ahora no</Text>
             </Pressable>
           </Row>
         </View>
@@ -366,7 +367,7 @@ function PrivacyFooter({ consent, onChanged }: { consent: DocsConsent; onChanged
   return (
     <View style={{ marginTop: spacing.lg, alignItems: 'center' }}>
       <Pressable onPress={() => setOpen(!open)} accessibilityRole="button">
-        <Text style={{ color: colors.primary, fontWeight: '700', ...type.small }}>Privacidad de mis documentos</Text>
+        <Text style={{ color: colors.primary, fontWeight: '600', ...type.small }}>Privacidad de mis documentos</Text>
       </Pressable>
       {open ? (
         <Card style={{ marginTop: spacing.sm, alignSelf: 'stretch' }}>
@@ -376,16 +377,16 @@ function PrivacyFooter({ consent, onChanged }: { consent: DocsConsent; onChanged
           </Text>
           <Row style={{ gap: spacing.md, marginTop: spacing.sm, flexWrap: 'wrap' }}>
             <Pressable onPress={() => void documentsApi.grant(!consent.health).then(onChanged)} accessibilityRole="button">
-              <Text style={{ color: colors.primary, fontWeight: '700', ...type.small }}>{consent.health ? 'No guardar las de salud' : 'Guardar también las de salud'}</Text>
+              <Text style={{ color: colors.primary, fontWeight: '600', ...type.small }}>{consent.health ? 'No guardar las de salud' : 'Guardar también las de salud'}</Text>
             </Pressable>
             <Pressable onPress={() => void documentsApi.revoke(false).then(onChanged)} accessibilityRole="button">
-              <Text style={{ color: colors.primary, fontWeight: '700', ...type.small }}>Dejar de guardar</Text>
+              <Text style={{ color: colors.primary, fontWeight: '600', ...type.small }}>Dejar de guardar</Text>
             </Pressable>
             <Pressable
               onPress={() => confirmRemove('todos mis documentos', 'Se borran todos, con sus archivos, y Millo deja de guardarlos.', () => documentsApi.revoke(true).then(onChanged))}
               accessibilityRole="button"
             >
-              <Text style={{ color: colors.dangerDeep, fontWeight: '700', ...type.small }}>Borrar todo</Text>
+              <Text style={{ color: colors.danger, fontWeight: '600', ...type.small }}>Borrar todo</Text>
             </Pressable>
           </Row>
         </Card>
@@ -470,12 +471,12 @@ function UploadCard({ onSaved }: { onSaved: () => Promise<unknown> }) {
   return (
     <Card style={{ borderColor: colors.primary, borderWidth: 2, borderStyle: 'dashed' }}>
       <Row style={{ gap: spacing.sm, alignItems: 'center' }}>
-        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Ico name="cloud-upload-outline" color={colors.primaryDark} size={20} />
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Ico name="cloud-upload-outline" color={colors.primary} size={18} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>Subir una factura, extracto o certificado</Text>
-          <Text style={{ color: colors.textMuted, ...type.small }}>Millo lo lee, lo guarda y te propone el gasto: tú confirmas.</Text>
+          <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>Subir una factura, extracto o certificado</Text>
+          <Text style={{ color: colors.textFaint, ...type.small }}>Millo lo lee, lo guarda y te propone el gasto: tú confirmas.</Text>
         </View>
       </Row>
       {isWeb ? (
@@ -504,18 +505,21 @@ function UploadCard({ onSaved }: { onSaved: () => Promise<unknown> }) {
           <Text style={{ color: colors.text, ...type.small, lineHeight: 18 }}>{statusText(result)}</Text>
           {result.status === 'guardado' && result.proposal && !result.proposal.alreadyRegistered ? (
             registered ? (
-              <Text style={{ color: colors.primaryDark, ...type.small, fontWeight: '700', marginTop: 6 }}>✅ Gasto registrado y enlazado a la factura.</Text>
+              <Row style={{ gap: 6, marginTop: 6 }}>
+                <Ico name="checkmark-circle" color={colors.primary} size={15} />
+                <Text style={{ color: colors.primaryDark, ...type.small, fontWeight: '600', flex: 1 }}>Gasto registrado y enlazado a la factura.</Text>
+              </Row>
             ) : (
               <View style={{ marginTop: spacing.sm }}>
-                <Text style={{ color: colors.text, ...type.small, fontWeight: '700' }}>
+                <Text style={{ color: colors.text, ...type.small, fontWeight: '600' }}>
                   ¿Registro el gasto de {formatMoney(result.proposal.amount)}{result.proposal.merchant ? ` en ${result.proposal.merchant}` : ''} ({result.proposal.occurredAt})?
                 </Text>
                 <Row style={{ gap: spacing.sm, marginTop: 6 }}>
                   <Pressable onPress={() => void registerProposal()} disabled={registering} accessibilityRole="button" style={{ backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 8, paddingHorizontal: 14 }}>
-                    <Text style={{ color: colors.textInverse, fontWeight: '800', ...type.small }}>{registering ? 'Registrando…' : 'Sí, registrarlo'}</Text>
+                    <Text style={{ color: colors.textInverse, fontWeight: '600', ...type.small }}>{registering ? 'Registrando…' : 'Sí, registrarlo'}</Text>
                   </Pressable>
                   <Pressable onPress={() => setResult({ ...result, proposal: null })} accessibilityRole="button" style={{ paddingVertical: 8, paddingHorizontal: 8 }}>
-                    <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '700' }}>No, solo guardarla</Text>
+                    <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600' }}>No, solo guardarla</Text>
                   </Pressable>
                 </Row>
               </View>
@@ -531,8 +535,8 @@ function EmptyTab({ tab, consented }: { tab: Tab; consented: boolean }) {
   const what = tab === 'facturas' ? 'facturas' : tab === 'extractos' ? 'extractos' : 'certificados';
   return (
     <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.textFaint, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md }}>
-      <Text style={{ color: colors.text, fontWeight: '700' }}>Aún no tienes {what} aquí</Text>
-      <Text style={{ color: colors.textMuted, ...type.small, marginTop: 2, lineHeight: 19 }}>
+      <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>Aún no tienes {what} aquí</Text>
+      <Text style={{ color: colors.textFaint, ...type.small, marginTop: 2, lineHeight: 19 }}>
         {consented
           ? `Mándale a Millo por Telegram la foto o el PDF ${tab === 'certificados' ? 'de tu certificado de ingresos y retenciones o de tus certificados bancarios' : tab === 'extractos' ? 'de tus extractos' : 'de tus facturas'}: los reconoce y los guarda aquí.`
           : 'Acepta arriba que Millo guarde tus documentos y mándaselos por Telegram.'}

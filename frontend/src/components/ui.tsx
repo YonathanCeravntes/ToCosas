@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
   },
   buttonOutline: { borderWidth: 1, borderColor: colors.primary },
   buttonText: { ...type.bodyLg, fontWeight: '600' },
-  label: { ...type.small, fontWeight: '600', color: colors.textMuted, marginBottom: 6 },
+  label: { ...type.label, color: colors.textFaint, marginBottom: 6 },
   hint: { ...type.caption, color: colors.textFaint, marginTop: spacing.xs },
   input: {
     backgroundColor: colors.surface,

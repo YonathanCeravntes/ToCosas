@@ -5,7 +5,8 @@ import { DatePicker } from '../../components/DatePicker';
 import { formatLocalDate } from '../../utils/format';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Field, Ico, IconName } from '../../components/ui';
-import { colors, radius, spacing } from '../../theme/colors';
+import { colors, radius, spacing, type as typo } from '../../theme/colors';
+import { Segmented } from '../../components/DebtControls';
 import { debtsApi, entitiesApi, CreateDebtInput } from '../../api/endpoints';
 import { FinancialEntity, ProductFieldSpec, ProductTypeDescriptor } from '../../api/types';
 import { useApi } from '../../utils/useApi';
@@ -219,12 +220,12 @@ export function AddDebtScreen({ navigation }: Props) {
       <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
           <View style={{ flex: 1 }}>
-            {entity ? <Text style={{ color: colors.textMuted, fontSize: 12 }}>{entity.name}</Text> : null}
-            <Text style={{ fontWeight: '800', fontSize: 18, color: colors.text }}>{type.label}</Text>
+            {entity ? <Text style={{ color: colors.textFaint, ...typo.small }}>{entity.name}</Text> : null}
+            <Text style={{ ...typo.heading, color: colors.text }}>{type.label}</Text>
           </View>
           {/* Condición §3.3: el tipo inferido SIEMPRE es editable. */}
-          <Pressable onPress={reset}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>Cambiar</Text>
+          <Pressable onPress={reset} accessibilityRole="button" hitSlop={8}>
+            <Text style={{ color: colors.primary, fontWeight: '600', ...typo.body }}>Cambiar</Text>
           </Pressable>
         </View>
 
@@ -241,15 +242,15 @@ export function AddDebtScreen({ navigation }: Props) {
             <FieldFromSpec key={f.key} spec={f} value={values[f.key] ?? ''} onChange={(v) => set(f.key, v)} />
           ),
         )}
-        <Text style={{ color: colors.textMuted, marginBottom: 6, fontSize: 13 }}>¿Cuándo empezó? (opcional)</Text>
+        <Text style={{ color: colors.textMuted, marginBottom: 6, ...typo.small, fontWeight: '600' }}>¿Cuándo empezó? (opcional)</Text>
         <Pressable
           onPress={() => setShowStartPicker(true)}
           accessibilityRole="button"
           accessibilityLabel={`Fecha de inicio ${formatLocalDate(startDate)}, cambiar`}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: 12, minHeight: 44, marginBottom: spacing.md }}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: 12, minHeight: 44, marginBottom: spacing.md }}
         >
-          <Text style={{ fontSize: 16, color: colors.text }}><Ico name="calendar-outline" /> {formatLocalDate(startDate)}</Text>
-          <Text style={{ color: colors.primary, fontWeight: '600' }}>Cambiar</Text>
+          <Text style={{ ...typo.bodyLg, color: colors.text }}><Ico name="calendar-outline" color={colors.textFaint} /> {formatLocalDate(startDate)}</Text>
+          <Text style={{ color: colors.primary, fontWeight: '600', ...typo.small }}>Cambiar</Text>
         </Pressable>
         {showStartPicker ? (
           <DatePicker value={startDate} mode="date" maximumDate={new Date()} onChange={(e, s) => { if (Platform.OS !== 'ios') setShowStartPicker(false); if (e.type === 'set' && s) setStartDate(s); }} />
@@ -269,11 +270,11 @@ export function AddDebtScreen({ navigation }: Props) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
           <TypeBadge debtType={type.debtType} />
           <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{splitLabel(type.label).main}</Text>
-            <Text style={{ fontWeight: '800', fontSize: 20, color: colors.text }}>¿Con qué entidad?</Text>
+            <Text style={{ color: colors.textFaint, ...typo.small }}>{splitLabel(type.label).main}</Text>
+            <Text style={{ ...typo.title, fontSize: 19, color: colors.text }}>¿Con qué entidad?</Text>
           </View>
           <Pressable onPress={reset} accessibilityRole="button" hitSlop={8}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>Cambiar</Text>
+            <Text style={{ color: colors.primary, fontWeight: '600', ...typo.body }}>Cambiar</Text>
           </Pressable>
         </View>
         <SearchBox value={query} onChange={setQuery} placeholder="Busca tu banco o entidad" />
@@ -284,8 +285,8 @@ export function AddDebtScreen({ navigation }: Props) {
         >
           <Ico name="add" color={colors.primary} size={18} />
           <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.text, fontWeight: '700' }}>{q ? `No está "${query}"` : 'Otra entidad o sin banco'}</Text>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>Sigue y escribe tú el nombre</Text>
+            <Text style={{ color: colors.text, fontWeight: '600', ...typo.body }}>{q ? `No está "${query}"` : 'Otra entidad o sin banco'}</Text>
+            <Text style={{ color: colors.textMuted, ...typo.small }}>Sigue y escribe tú el nombre</Text>
           </View>
         </Pressable>
         {entities.length > 0 ? (
@@ -312,19 +313,19 @@ export function AddDebtScreen({ navigation }: Props) {
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing.md }} keyboardShouldPersistTaps="handled">
-      <Text style={{ fontWeight: '800', fontSize: 22, color: colors.text, marginBottom: 4 }}>¿Qué tipo de deuda es?</Text>
+      <Text style={{ ...typo.heading, color: colors.text, marginBottom: 4 }}>¿Qué tipo de deuda es?</Text>
       {entity ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
           <Monogram name={entity.name} />
-          <Text style={{ color: colors.text, flex: 1 }}>
-            Elige el producto de <Text style={{ fontWeight: '700' }}>{entity.name}</Text>
+          <Text style={{ color: colors.text, flex: 1, ...typo.body }}>
+            Elige el producto de <Text style={{ fontWeight: '600' }}>{entity.name}</Text>
           </Text>
           <Pressable onPress={() => setEntity(null)} accessibilityRole="button" accessibilityLabel="Cambiar entidad" hitSlop={8}>
-            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>Cambiar</Text>
+            <Text style={{ color: colors.primary, fontWeight: '600', ...typo.body }}>Cambiar</Text>
           </Pressable>
         </View>
       ) : (
-        <Text style={{ color: colors.textMuted, marginBottom: spacing.md }}>Después eliges el banco.</Text>
+        <Text style={{ color: colors.textMuted, marginBottom: spacing.md, ...typo.body }}>Después eliges el banco.</Text>
       )}
       <SearchBox value={query} onChange={setQuery} placeholder="Busca banco o tipo" />
 
@@ -342,7 +343,7 @@ export function AddDebtScreen({ navigation }: Props) {
             </>
           ) : null}
           {typeMatches.length === 0 && entities.length === 0 ? (
-            <Text style={{ color: colors.textMuted, marginTop: spacing.sm, fontSize: 13 }}>
+            <Text style={{ color: colors.textMuted, marginTop: spacing.sm, ...typo.small }}>
               No está "{query}" en el catálogo: elige el tipo y ponle ese nombre. Nadie queda por fuera.
             </Text>
           ) : null}
@@ -357,9 +358,9 @@ export function AddDebtScreen({ navigation }: Props) {
               <Pressable
                 onPress={() => setShowAllTypes(true)}
                 accessibilityRole="button"
-                style={{ minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, paddingHorizontal: spacing.md }}
+                style={{ minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}
               >
-                <Text style={{ color: colors.primary, fontWeight: '700', textAlign: 'center' }}>
+                <Text style={{ color: colors.primary, fontWeight: '600', textAlign: 'center', ...typo.small }}>
                   Ver más tipos ({others.map((t) => splitLabel(t.label).main.toLowerCase()).slice(0, 3).join(', ')}…)
                 </Text>
               </Pressable>
@@ -381,7 +382,7 @@ const listCard = {
 
 function GroupTitle({ children }: { children: React.ReactNode }) {
   return (
-    <Text style={{ color: colors.primaryDark, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginTop: spacing.md, marginBottom: spacing.sm }}>
+    <Text accessibilityRole="header" style={{ color: colors.textFaint, ...typo.label, marginTop: spacing.md, marginBottom: spacing.sm }}>
       {children}
     </Text>
   );
@@ -396,22 +397,22 @@ function SearchBox({ value, onChange, placeholder }: { value: string; onChange: 
         paddingHorizontal: spacing.md, backgroundColor: colors.surface,
       }}
     >
-      <Ico name="search" color={colors.textMuted} size={18} />
+      <Ico name="search" color={colors.textFaint} size={18} />
       <TextInput
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={colors.textFaint}
         accessibilityLabel={placeholder}
-        style={{ flex: 1, color: colors.text, fontSize: 15, paddingVertical: spacing.sm }}
+        style={{ flex: 1, color: colors.text, ...typo.body, fontSize: 15, paddingVertical: spacing.sm }}
       />
     </View>
   );
 }
 
-function TypeBadge({ debtType, size = 34 }: { debtType: string; size?: number }) {
+function TypeBadge({ debtType, size = 34, square }: { debtType: string; size?: number; square?: boolean }) {
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: size, height: size, borderRadius: square ? radius.sm : size / 2, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
       <Ico name={TYPE_ICON[debtType] ?? 'ellipsis-horizontal-circle-outline'} color={colors.primary} size={size / 2} />
     </View>
   );
@@ -432,16 +433,16 @@ function TypeGrid({ title, items, onPick }: { title: string; items: ProductTypeD
               accessibilityLabel={t.label}
               style={({ pressed }) => ({
                 flexBasis: '47%', flexGrow: 1, minHeight: 92, padding: 12, gap: 8,
-                borderRadius: radius.md, borderWidth: 1,
+                borderRadius: 14, borderWidth: 1,
                 borderColor: pressed ? colors.primary : colors.border,
                 backgroundColor: pressed ? colors.primarySoft : colors.surface,
                 justifyContent: 'space-between',
               })}
             >
-              <TypeBadge debtType={t.debtType} />
+              <TypeBadge debtType={t.debtType} size={32} square />
               <View>
-                <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{main}</Text>
-                {sub ? <Text style={{ color: colors.textMuted, fontSize: 11 }} numberOfLines={1}>{sub}</Text> : null}
+                <Text style={{ color: colors.text, fontWeight: '600', ...typo.body }}>{main}</Text>
+                {sub ? <Text style={{ color: colors.textFaint, ...typo.caption }} numberOfLines={1}>{sub}</Text> : null}
               </View>
             </Pressable>
           );
@@ -462,8 +463,8 @@ function EntityRow({ entity, last, onPress }: { entity: FinancialEntity; last: b
       }}
     >
       <Monogram name={entity.name} />
-      <Text style={{ color: colors.text, fontWeight: '600', flex: 1 }}>{entity.name}</Text>
-      <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+      <Text style={{ color: colors.text, fontWeight: '600', flex: 1, ...typo.body }}>{entity.name}</Text>
+      <Text style={{ color: colors.textFaint, ...typo.small }}>
         {CATEGORY[entity.type] ?? 'Financiera'}
         {entity.isGlobal ? '' : ' · tuya'}
       </Text>
@@ -476,7 +477,7 @@ function EntityRow({ entity, last, onPress }: { entity: FinancialEntity; last: b
 function Monogram({ name }: { name: string }) {
   return (
     <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>{name.trim().charAt(0).toUpperCase()}</Text>
+      <Text style={{ color: colors.primaryDark, fontWeight: '600' }}>{name.trim().charAt(0).toUpperCase()}</Text>
     </View>
   );
 }
@@ -500,26 +501,9 @@ function FieldFromSpec({
 }) {
   if (spec.kind === 'select') {
     return (
-      <View style={{ marginBottom: spacing.sm }}>
-        <Text style={{ color: colors.textMuted, marginBottom: 6, fontSize: 13 }}>{spec.label}</Text>
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          {(spec.options ?? []).map((opt) => {
-            const active = value === opt.value;
-            return (
-              <Pressable
-                key={opt.value}
-                onPress={() => onChange(opt.value)}
-                style={{
-                  flex: 1, padding: spacing.sm, borderRadius: radius.md, alignItems: 'center',
-                  backgroundColor: active ? colors.primary : colors.surface,
-                  borderWidth: 1, borderColor: active ? colors.primary : colors.border,
-                }}
-              >
-                <Text style={{ color: active ? colors.textInverse : colors.text, fontSize: 13 }}>{opt.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+      <View style={{ marginBottom: spacing.md }}>
+        <Text style={{ color: colors.textMuted, marginBottom: 6, ...typo.small, fontWeight: '600' }}>{spec.label}</Text>
+        <Segmented value={value} onChange={onChange} options={(spec.options ?? []).map((o) => ({ value: o.value, label: o.label }))} />
       </View>
     );
   }

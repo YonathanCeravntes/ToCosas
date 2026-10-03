@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Text, TextInput } from '../components/AppText';
 import { Button, Card, FormScroll, Ico, IconName, Row } from '../components/ui';
-import { colors, radius, spacing } from '../theme/colors';
+import { colors, radius, spacing, type } from '../theme/colors';
 import { billingApi } from '../api/endpoints';
 import { BillingStatus } from '../api/types';
 import { formatLocalDate } from '../utils/format';
@@ -17,6 +17,7 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
   const [status, setStatus] = useState<BillingStatus | null>(null);
   const [code, setCode] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const [messageIsError, setMessageIsError] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -30,13 +31,15 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
     if (!code.trim()) return;
     setLoading(true);
     setMessage(null);
+    setMessageIsError(false);
     try {
       const r = await billingApi.redeem(code.trim());
-      setMessage(`🎉 ¡Millo+ activado por ${r.days} días!`);
+      setMessage(`¡Millo+ activado por ${r.days} días!`);
       setStatus(await billingApi.me());
       setCode('');
     } catch (e) {
-      setMessage(`❌ ${(e as Error).message}`);
+      setMessageIsError(true);
+      setMessage((e as Error).message);
     } finally {
       setLoading(false);
     }
@@ -46,15 +49,20 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
 
   return (
     <FormScroll>
-      <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary, alignItems: 'center', paddingVertical: spacing.lg }}>
-        <Ico name="sparkles" size={34} color={colors.accent} />
-        <Text style={{ color: colors.textInverse, fontSize: 24, fontWeight: '800' }}>Millo+</Text>
-        <Text style={{ color: colors.textInverse, opacity: 0.85, textAlign: 'center', marginTop: 4 }}>
+      {/* FIN-060: hero blanco con filete y destello dorados (no bloque verde). */}
+      <Card style={{ alignItems: 'center', paddingVertical: spacing.lg, borderColor: colors.gold, borderTopWidth: 3 }}>
+        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.goldSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Ico name="sparkles-outline" size={22} color={colors.goldText} />
+        </View>
+        <Text style={{ color: colors.text, ...type.heading, marginTop: spacing.sm }}>
+          Millo<Text style={{ color: colors.goldText }}>+</Text>
+        </Text>
+        <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: 2 }}>
           Toda la inteligencia de Millo, sin límites.
         </Text>
         {isPremium ? (
-          <View style={{ marginTop: spacing.sm, backgroundColor: colors.onPrimaryTrack, borderRadius: radius.full, paddingVertical: 6, paddingHorizontal: 14 }}>
-            <Text style={{ color: colors.textInverse, fontWeight: '700' }}>
+          <View style={{ marginTop: spacing.md, backgroundColor: colors.goldSoft, borderRadius: radius.full, paddingVertical: 5, paddingHorizontal: 14 }}>
+            <Text style={{ color: colors.goldText, fontWeight: '600', ...type.small }}>
               {/* La vigencia es un instante real (fin de suscripción) → local. */}
               Activo{status?.until ? ` hasta ${formatLocalDate(status.until)}` : ''}
               {status?.status === 'trial' ? ' (prueba)' : ''}
@@ -63,21 +71,22 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
         ) : null}
       </Card>
 
-      {BENEFITS.map(([icon, text]) => (
-        <Card key={text} style={{ paddingVertical: spacing.sm }}>
-          <Row style={{ gap: spacing.sm }}>
-            <Ico name={icon} size={20} color={colors.primary} />
+      <Card style={{ paddingVertical: 0 }}>
+        {BENEFITS.map(([icon, text], i) => (
+          <Row key={text} style={{ gap: spacing.sm + 2, paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
+            <Ico name={icon} size={18} color={colors.goldText} />
             <Text style={{ color: colors.text, flex: 1 }}>{text}</Text>
           </Row>
-        </Card>
-      ))}
+        ))}
+      </Card>
 
       {!isPremium ? (
         <>
           <Card>
-            <Text style={{ fontWeight: '700', color: colors.text, marginBottom: spacing.sm }}>
-              <Ico name="ticket-outline" /> ¿Tienes un código?
-            </Text>
+            <Row style={{ gap: 6, marginBottom: spacing.sm }}>
+              <Ico name="ticket-outline" size={15} color={colors.textFaint} />
+              <Text style={{ fontWeight: '600', color: colors.text, fontSize: 15 }}>¿Tienes un código?</Text>
+            </Row>
             <TextInput
               value={code}
               onChangeText={setCode}
@@ -99,7 +108,8 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
               variant="secondary"
               onPress={() => {
                 void billingApi.funnel('upgrade_intent', 'notify_me').catch(() => undefined);
-                setMessage('✅ Te avisaremos apenas esté disponible.');
+                setMessageIsError(false);
+                setMessage('Te avisaremos apenas esté disponible.');
               }}
             />
           </Card>
@@ -107,7 +117,7 @@ export function MilloPlusScreen({ route }: { route?: { params?: { source?: strin
       ) : null}
 
       {message ? (
-        <Text style={{ textAlign: 'center', color: message.startsWith('❌') ? colors.danger : colors.success, marginTop: spacing.sm }}>
+        <Text style={{ textAlign: 'center', fontWeight: '600', color: messageIsError ? colors.danger : colors.primary, marginTop: spacing.sm }}>
           {message}
         </Text>
       ) : null}
