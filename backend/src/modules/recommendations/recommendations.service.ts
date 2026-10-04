@@ -9,8 +9,16 @@ import {
   DISCRETIONARY_GLOBAL_CATEGORIES,
   IMPACT_SCORE_CAP,
   MAX_ACTIVE_RECOMMENDATIONS,
+  MIN_STRATEGY_DIFFERENCE,
   URGENCY,
 } from './recommendations.constants';
+
+/** BT-043: recomendación de estrategia guardada sin diferencia real (datos viejos). */
+function isEmptyStrategy(r: { kind: string; impact: Prisma.JsonValue }): boolean {
+  if (r.kind !== 'estrategia') return false;
+  const diff = Number((r.impact as { interestDifference?: number } | null)?.interestDifference ?? 0);
+  return !(diff >= MIN_STRATEGY_DIFFERENCE);
+}
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO');
 
@@ -40,10 +48,18 @@ export class RecommendationsService {
   ) {}
 
   async list(userId: string) {
-    return this.prisma.recommendation.findMany({
+    const rows = await this.prisma.recommendation.findMany({
       where: { userId, status: { in: ['new', 'seen'] } },
-      orderBy: { priorityScore: 'desc' },
+      orderBy: [{ priorityScore: 'desc' }, { createdAt: 'desc' }],
     });
+    // BT-043: una sola por tipo (la más reciente; las de meses anteriores quedaban
+    // activas y se veían repetidas) y nunca una estrategia sin diferencia real.
+    const newest = new Map<string, (typeof rows)[number]>();
+    for (const r of rows) {
+      const cur = newest.get(r.kind);
+      if (!cur || r.createdAt > cur.createdAt) newest.set(r.kind, r);
+    }
+    return rows.filter((r) => newest.get(r.kind) === r && !isEmptyStrategy(r));
   }
 
   async setStatus(userId: string, id: string, status: RecommendationStatus) {
@@ -88,8 +104,9 @@ export class RecommendationsService {
 
     // 2) DTI alto → comparar estrategias.
     const before = state.debts.length > 1 ? await this.simulations.projectOnly(userId, { type: 'estrategia_deudas', extraBudget: Math.max(0, Math.round(surplus * 0.3)) }) : null;
-    if (before && before.before.dti > 0.35) {
-      const diff = Number(before.specifics.interestDifference ?? 0);
+    const strategyDiff = Number(before?.specifics.interestDifference ?? 0);
+    if (before && before.before.dti > 0.35 && strategyDiff >= MIN_STRATEGY_DIFFERENCE) {
+      const diff = strategyDiff;
       const rec = String(before.specifics.recommended ?? 'avalanche');
       candidates.push(this.candidate({
         kind: 'estrategia',
@@ -165,6 +182,13 @@ export class RecommendationsService {
         where: { userId_dedupeKey: { userId, dedupeKey: c.dedupeKey } },
       });
       if (exists) continue; // dedupe mensual
+
+      // BT-043: la nueva reemplaza a la del mismo tipo de un mes anterior (antes
+      // quedaban las dos activas y la persona veía la misma tarjeta repetida).
+      await this.prisma.recommendation.updateMany({
+        where: { userId, kind: c.kind, status: { in: ['new', 'seen'] } },
+        data: { status: 'dismissed', dismissReason: 'superseded' },
+      });
 
       const active = await this.prisma.recommendation.findMany({
         where: { userId, status: { in: ['new', 'seen'] } },

@@ -19,3 +19,10 @@ export const URGENCY = { rojo: 1.0, amarillo: 0.6, verde: 0.3 } as const;
 
 /** Normalización del impacto: ΔScore de +100 pts ≙ impacto 1.0 (cap). */
 export const IMPACT_SCORE_CAP = 100;
+
+/**
+ * BT-043: diferencia mínima de intereses (COP) entre avalancha y bola de nieve para
+ * recomendar un método. Por debajo no hay nada que ganar y la tarjeta confunde
+ * ("la diferencia es de $0").
+ */
+export const MIN_STRATEGY_DIFFERENCE = 50_000;

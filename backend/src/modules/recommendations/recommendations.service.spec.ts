@@ -15,6 +15,7 @@ function buildService(
 ) {
   const created: unknown[] = [];
   const updated: unknown[] = [];
+  const superseded: unknown[] = [];
   const prisma = {
     recommendation: {
       findUnique: jest.fn().mockResolvedValue(null), // sin dedupe previo
@@ -23,6 +24,7 @@ function buildService(
       ),
       create: jest.fn((args) => { created.push(args.data); return Promise.resolve(args.data); }),
       update: jest.fn((args) => { updated.push(args); return Promise.resolve({}); }),
+      updateMany: jest.fn((args) => { superseded.push(args); return Promise.resolve({ count: 0 }); }),
     },
     transaction: { findMany: jest.fn().mockResolvedValue([]) },
     metricReading: { findMany: jest.fn().mockResolvedValue(metricReadings) },
@@ -47,7 +49,7 @@ function buildService(
       specifics: { interestSaved: 2_500_000, monthsSaved: 8 },
     }),
   } as never;
-  return { service: new RecommendationsService(prisma, simulations), created, updated };
+  return { service: new RecommendationsService(prisma, simulations), created, updated, superseded, prisma, simulations };
 }
 
 describe('cupo de 3 con desplazamiento (DEC-0007 §10.2)', () => {
@@ -136,5 +138,46 @@ describe('genericidad (DEC-0005 §14.2 aplica a recomendaciones)', () => {
     for (const term of FORBIDDEN_BRAND_TERMS) {
       expect(text.includes(term)).toBe(false);
     }
+  });
+});
+
+describe('BT-043: sin repetidas ni estrategias vacías', () => {
+  it('al crear una candidata, retira las activas del mismo tipo de meses anteriores', async () => {
+    const { service, created, superseded } = buildService([]);
+    await service.generateForUser('u1', new Date('2026-10-04T12:00:00Z'));
+    expect(created.length).toBeGreaterThan(0);
+    const kinds = (superseded as Array<{ where: { kind: string }; data: { status: string } }>).map((s) => s.where.kind);
+    for (const c of created as Array<{ kind: string }>) expect(kinds).toContain(c.kind);
+    expect((superseded[0] as { data: { status: string } }).data.status).toBe('dismissed');
+  });
+
+  it('no recomienda un método de deudas si la diferencia de intereses es $0', async () => {
+    const { service, created, simulations } = buildService([]);
+    (simulations as unknown as { loadState: jest.Mock }).loadState.mockResolvedValueOnce({
+      income: 6_000_000, expense: 2_000_000, debtPayments: 0, fixedIncome: 6_000_000, fixedExpense: 1_000_000,
+      debts: [
+        { id: 'd1', ref: 'deuda #1', type: 'libre_inversion', balance: 8_000_000, ratePct: 20, rateBasis: 'EA', monthlyPayment: 400_000, remainingMonths: 24 },
+        { id: 'd2', ref: 'deuda #2', type: 'tarjeta_credito', balance: 3_000_000, ratePct: 28, rateBasis: 'EA', monthlyPayment: 200_000, remainingMonths: 18 },
+      ],
+      liquidBalance: 0, emergencyBalance: 0, assetsOnly: 0, netWorthTrend: null,
+    });
+    (simulations as unknown as { projectOnly: jest.Mock }).projectOnly.mockResolvedValue({
+      before: { dti: 0.5 }, delta: { score: 30 }, specifics: { interestSaved: 0, monthsSaved: 0, interestDifference: 0, recommended: 'avalanche' },
+    });
+    await service.generateForUser('u1', new Date('2026-10-04T12:00:00Z'));
+    expect((created as Array<{ kind: string }>).find((c) => c.kind === 'estrategia')).toBeUndefined();
+  });
+
+  it('la lista muestra una por tipo (la más reciente) y oculta estrategias de $0 ya guardadas', async () => {
+    const { service, prisma } = buildService([]);
+    const rows = [
+      { id: 'e-sep', kind: 'estrategia', priorityScore: 0.1, createdAt: new Date('2026-09-02'), impact: { interestDifference: 0 } },
+      { id: 'e-oct', kind: 'estrategia', priorityScore: 0.1, createdAt: new Date('2026-10-02'), impact: { interestDifference: 0 } },
+      { id: 'a-sep', kind: 'abono_extra', priorityScore: 0.3, createdAt: new Date('2026-09-02'), impact: {} },
+      { id: 'a-oct', kind: 'abono_extra', priorityScore: 0.3, createdAt: new Date('2026-10-02'), impact: {} },
+    ];
+    (prisma as unknown as { recommendation: { findMany: jest.Mock } }).recommendation.findMany.mockResolvedValueOnce(rows);
+    const out = await service.list('u1');
+    expect(out.map((r) => r.id)).toEqual(['a-oct']);
   });
 });
