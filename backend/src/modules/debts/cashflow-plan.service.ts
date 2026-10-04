@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SpendableService } from '../budget/spendable.service';
+import { SpendingBaselineService } from '../budget/spending-baseline.service';
 import { RateBasis } from '../finance/amortization/amortization.types';
 import { toEffectiveAnnualRate, toMonthlyEffectiveRate } from '../finance/amortization/interest.util';
 import { DebtOutlayService } from './debt-outlay.service';
@@ -20,15 +21,20 @@ export class CashflowPlanService {
     private readonly prisma: PrismaService,
     private readonly spendable: SpendableService,
     private readonly debtOutlay: DebtOutlayService,
+    private readonly baseline: SpendingBaselineService,
   ) {}
 
-  async forUser(userId: string, monthlyOverride?: number): Promise<CashflowPlan & { dueDates: Record<string, string | null> }> {
-    const [teQueda, debts, outlays, fixedItems, accounts] = await Promise.all([
+  async forUser(
+    userId: string,
+    monthlyOverride?: number,
+  ): Promise<CashflowPlan & { dueDates: Record<string, string | null>; margin: { source: 'estable' | 'hoy'; amount: number; typicalVariable: number | null } }> {
+    const [teQueda, debts, outlays, fixedItems, accounts, typical] = await Promise.all([
       this.spendable.compute(userId, new Date()),
       this.prisma.debt.findMany({ where: { userId, deletedAt: null, status: 'activa' } }),
       this.debtOutlay.outlaysByUser(userId),
       this.prisma.fixedItem.findMany({ where: { userId, deletedAt: null, isActive: true, kind: 'gasto' } }),
       this.prisma.account.findMany({ where: { userId, deletedAt: null, archivedAt: null, isEmergencyFund: true } }),
+      this.baseline.forUser(userId, new Date()),
     ]);
     const balances = await effectiveDebtBalances(this.prisma, debts);
     const planDebts: PlanDebt[] = debts.map((d) => {
@@ -46,11 +52,21 @@ export class CashflowPlanService {
         annualRatePct: rate > 0 ? toEffectiveAnnualRate(rate, basis) * 100 : 0,
       };
     });
-    const essential =
-      fixedItems.reduce((a, i) => a + Number(i.amount), 0) + outlays.totalOutlay;
+    const committed = fixedItems.reduce((a, i) => a + Number(i.amount), 0) + outlays.totalOutlay;
+    // FIN-061 F2: lo esencial incluye el mercado, transporte y salud típicos.
+    const essential = committed + (typical?.typicalEssential ?? 0);
+    // FIN-061 F2 · Margen ESTABLE: ingreso − compromisos − gasto variable típico
+    // (mediana de 3 meses). Antes era "Te queda" de hoy: el día 2 era casi todo el
+    // mes y el día 28 casi nada. Sin historial, se usa lo de hoy.
+    const stable = typical ? Math.max(0, Math.round(teQueda.incomeBase - committed - typical.typicalVariable)) : null;
+    const free = stable ?? teQueda.amount;
     const emergencyBalance = accounts.reduce((a, x) => a + Number(x.currentBalance), 0);
-    const plan = buildCashflowPlan({ free: teQueda.amount, essential, emergencyBalance, debts: planDebts, monthlyOverride });
+    const plan = buildCashflowPlan({ free, essential, emergencyBalance, debts: planDebts, monthlyOverride });
     const dueDates = Object.fromEntries(debts.map((d) => [d.id, d.nextDueDate ? d.nextDueDate.toISOString() : null]));
-    return { ...plan, dueDates };
+    return {
+      ...plan,
+      dueDates,
+      margin: { source: stable != null ? 'estable' : 'hoy', amount: free, typicalVariable: typical?.typicalVariable ?? null },
+    };
   }
 }

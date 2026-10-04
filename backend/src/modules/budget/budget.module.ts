@@ -1,3 +1,4 @@
+import { SpendingBaselineService } from './spending-baseline.service';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { DebtOutlayModule } from '../debts/debt-outlay.module';
@@ -14,9 +15,9 @@ import { TransactionsModule } from '../transactions/transactions.module';
   // TransactionsModule (FIN-047): los gastos fijos se registran solos por el servicio central.
   imports: [AuthModule, DebtOutlayModule, IncomeModule, TransactionsModule],
   controllers: [BudgetController],
-  providers: [BudgetService, SpendableService, FixedExpenseService],
+  providers: [BudgetService, SpendableService, FixedExpenseService, SpendingBaselineService],
   // SpendableService se exporta para que Inicio consuma LA MISMA fuente de
   // "Te queda" (GOBERNANZA §32 — prohibidas las implementaciones paralelas).
-  exports: [BudgetService, SpendableService, FixedExpenseService],
+  exports: [BudgetService, SpendableService, FixedExpenseService, SpendingBaselineService],
 })
 export class BudgetModule {}

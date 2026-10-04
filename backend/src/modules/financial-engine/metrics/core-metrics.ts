@@ -19,6 +19,8 @@ export interface CoreMetricsInput {
   fixedExpense: number;
   /** Suma de cuotas mensuales de deudas activas. */
   debtMonthly: number;
+  /** FIN-061 F2: gasto esencial variable típico (mercado, transporte, salud). */
+  variableEssential?: number;
   /** Saldos (cuentas incluidas en patrimonio). */
   liquidBalance: number;
   emergencyBalance: number;
@@ -45,7 +47,9 @@ export function incomeRef(fixedIncome: number, actualIncome: number): number {
 export function computeCoreMetrics(input: CoreMetricsInput): MetricValue[] {
   const ref = incomeRef(input.fixedIncome, input.income);
   const cashflow = input.income - input.expense - input.debtPayments;
-  const essential = input.fixedExpense + input.debtMonthly;
+  // FIN-061 F2: lo esencial incluye mercado, transporte y salud (antes solo fijos +
+  // cuotas, y el colchón recomendado quedaba corto).
+  const essential = input.fixedExpense + input.debtMonthly + (input.variableEssential ?? 0);
 
   const out: MetricValue[] = [
     { metricKey: MetricKey.Cashflow, value: r4(cashflow) },
