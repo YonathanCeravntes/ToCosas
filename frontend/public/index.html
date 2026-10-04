@@ -31,6 +31,11 @@
         background: #F7F5F0;
         -webkit-text-size-adjust: 100%;
       }
+      /* FIN-060: modo oscuro también en el fondo de arranque (sin destello blanco). */
+      @media (prefers-color-scheme: dark) {
+        html:not(.millo-light), html:not(.millo-light) body { background: #0B110F; }
+      }
+      html.millo-dark, html.millo-dark body { background: #0B110F; }
       body {
         overflow: hidden;
         margin: 0;
@@ -62,6 +67,9 @@
         }
       }
     </style>
+    <script>
+      try { var m = localStorage.getItem("millo.pref.appearance"); if (m === "dark" || m === "light") document.documentElement.className = "millo-" + m; } catch (e) {}
+    </script>
   </head>
 
   <body>

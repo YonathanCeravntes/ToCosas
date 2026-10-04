@@ -10,6 +10,20 @@ import { Button, Card, Field, FormScroll, Pill, Row } from '../components/ui';
 import { colors, radius, spacing, touch, type } from '../theme/colors';
 import { useAuthStore } from '../store/auth.store';
 import { useTourStore } from '../store/tour.store';
+import { appearancePref, writeAppearancePref } from '../theme/appearance';
+
+/** Recarga la app para aplicar la apariencia (web: recarga la página). */
+async function reloadApp() {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined') window.location.reload();
+    return;
+  }
+  try {
+    await Updates.reloadAsync();
+  } catch {
+    Alert.alert('Apariencia', 'Cierra y vuelve a abrir Millo para ver el cambio.');
+  }
+}
 import { authApi, billingApi, budgetApi, copilotApi, insightsApi } from '../api/endpoints';
 import { BillingStatus } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
@@ -248,6 +262,40 @@ export function SettingsScreen() {
           </View>
         )}
         {msg ? <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.sm }}>{msg}</Text> : null}
+      </Card>
+
+      {/* FIN-060: apariencia. Se aplica recargando la app (los estilos nacen con la paleta). */}
+      <Card>
+        <Text style={{ ...type.body, fontWeight: '600', color: colors.text }}>Apariencia</Text>
+        <Text style={{ ...type.small, color: colors.textFaint, marginTop: 2, marginBottom: spacing.sm }}>
+          Automático sigue el modo claro u oscuro de tu teléfono.
+        </Text>
+        <View style={{ flexDirection: 'row', backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: 3, gap: 3 }}>
+          {(
+            [
+              ['system', 'Automático'],
+              ['light', 'Claro'],
+              ['dark', 'Oscuro'],
+            ] as const
+          ).map(([value, label]) => {
+            const on = appearancePref === value;
+            return (
+              <Pressable
+                key={value}
+                onPress={() => {
+                  if (on) return;
+                  writeAppearancePref(value);
+                  void reloadApp();
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: on }}
+                style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: radius.sm, backgroundColor: on ? colors.surface : 'transparent' }}
+              >
+                <Text style={{ ...type.small, fontWeight: '600', color: on ? colors.text : colors.textMuted }}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </Card>
 
       {/* FIN-060: volver a ver el recorrido de bienvenida (va a Inicio y lo abre). */}

@@ -1,4 +1,5 @@
 import type { TextStyle } from 'react-native';
+import { isDark } from './appearance';
 
 /**
  * Tokens de diseño de Millo (Fachada v1, FIN-038).
@@ -8,7 +9,7 @@ import type { TextStyle } from 'react-native';
  * "semánticos" (successBg, scrim, onPrimaryMuted…) existen porque el mismo valor se
  * repetía en varios archivos (diagnóstico SPRINT-PULIDO-001 P3).
  */
-export const colors = {
+const light = {
   // FIN-060 · Paleta "Banca Privada" (aprobada por el Fundador 2026-10-03): esmeralda
   // profunda, neutros marfil y un acento dorado. El verde de marca ocupa ~10 % de la
   // pantalla; la jerarquía se hace con letra, no con color.
@@ -62,24 +63,71 @@ export const colors = {
   scrim: 'rgba(7,18,14,0.5)',
 };
 
+/**
+ * FIN-060 · Modo oscuro "Banca Privada": superficies verde-negro, texto marfil y la
+ * marca un tono más clara. Sobre el verde de marca el texto va oscuro (contraste 7:1),
+ * por eso `textInverse` cambia.
+ */
+const dark: typeof light = {
+  primary: '#3DB389',
+  primaryDark: '#5CC9A0',
+  primaryLight: '#2E9E76',
+  primarySoft: '#12392C',
+  accent: '#D9B45A',
+  gold: '#D9B45A',
+  goldSoft: '#3A3120',
+  goldText: '#E6C677',
+  danger: '#F2766B',
+  dangerSoft: '#3D1D1A',
+  success: '#4CC38A',
+  successSoft: '#12392C',
+  warning: '#E8A94C',
+  warningSoft: '#3A2C14',
+  warningDeep: '#F0BC6A',
+  dangerDeep: '#F79A90',
+  bandFragil: '#E8A94C',
+  info: '#7FB0E0',
+  infoSoft: '#1A2B3B',
+  debt: '#7FB0E0',
+  debtSoft: '#1A2B3B',
+  partner: '#7FB0E0',
+  partnerSoft: '#1A2B3B',
+
+  bg: '#0B110F',
+  surface: '#131B18',
+  surfaceAlt: '#1B2521',
+  border: '#26312C',
+
+  text: '#EEF1EC',
+  textMuted: '#A9B4AE',
+  textFaint: '#7E8A84',
+  textInverse: '#06120D',
+  onPrimaryMuted: 'rgba(6,18,13,0.82)',
+  onPrimaryFaint: 'rgba(6,18,13,0.68)',
+  onPrimaryTrack: 'rgba(6,18,13,0.2)',
+  scrim: 'rgba(0,0,0,0.6)',
+};
+
+export const colors = isDark ? dark : light;
+export { isDark };
+
 /** FIN-060: series de gráficos (máximo 5; el resto va en "Otros"). */
-export const chartColors = ['#0B6E4F', '#2B5C8A', '#C9A24A', '#8B5E83', '#8A9690'];
+export const chartColors = isDark
+  ? ['#3DB389', '#7FB0E0', '#D9B45A', '#C291B8', '#6E7A74']
+  : ['#0B6E4F', '#2B5C8A', '#C9A24A', '#8B5E83', '#8A9690'];
 
 /**
  * Mis deudas (opción B): tramos de la barra "cuánto pesa cada deuda en tu total".
  * Alternan claro/oscuro para distinguirse por luminosidad, no solo por tono.
  */
-export const debtShareColors = ['#0B6E4F', '#2B5C8A', '#C9A24A', '#8B5E83', '#8A9690', '#5E9E85'];
+export const debtShareColors = isDark
+  ? ['#3DB389', '#7FB0E0', '#D9B45A', '#C291B8', '#6E7A74', '#5CC9A0']
+  : ['#0B6E4F', '#2B5C8A', '#C9A24A', '#8B5E83', '#8A9690', '#5E9E85'];
 
 /** Colores por categoría de entidad financiera (antes paleta paralela en AddDebt). */
-export const entityColors: Record<string, string> = {
-  banco: '#2B5C8A',
-  cooperativa: '#3F7F86',
-  fintech: '#6B5B8A',
-  prestamista_particular: '#9A6B2E',
-  tarjeta: '#8B5E83',
-  otro: '#646E68',
-};
+export const entityColors: Record<string, string> = isDark
+  ? { banco: '#7FB0E0', cooperativa: '#6FB7BE', fintech: '#A897CC', prestamista_particular: '#D4A266', tarjeta: '#C291B8', otro: '#A9B4AE' }
+  : { banco: '#2B5C8A', cooperativa: '#3F7F86', fintech: '#6B5B8A', prestamista_particular: '#9A6B2E', tarjeta: '#8B5E83', otro: '#646E68' };
 
 export const spacing = {
   xxs: 2,

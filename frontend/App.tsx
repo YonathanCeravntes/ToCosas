@@ -6,6 +6,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { UpdateBanner } from './src/components/UpdateBanner';
 import { interFonts, setFontsReady } from './src/theme/fonts';
 import { TourOverlay } from './src/components/tour/TourOverlay';
+import { isDark } from './src/theme/colors';
 
 export default function App() {
   // FIN-060: Inter se carga desde los archivos del bundle (instantáneo). Si algo
@@ -21,7 +22,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <RootNavigator />
       <UpdateBanner />
       <TourOverlay />

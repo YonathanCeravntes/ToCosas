@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/auth.store';
-import { colors } from '../theme/colors';
+import { colors, isDark } from '../theme/colors';
 import { AuthNavigator } from './AuthNavigator';
 import { MainTabs } from './MainTabs';
 import { LinkWhatsAppScreen } from '../screens/whatsapp/LinkWhatsAppScreen';
@@ -30,9 +30,9 @@ import { useStackContentStyle } from './insets';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const navTheme = {
-  ...DefaultTheme,
+  ...(isDark ? DarkTheme : DefaultTheme),
   colors: {
-    ...DefaultTheme.colors,
+    ...(isDark ? DarkTheme : DefaultTheme).colors,
     primary: colors.primary,
     background: colors.bg,
     card: colors.surface,

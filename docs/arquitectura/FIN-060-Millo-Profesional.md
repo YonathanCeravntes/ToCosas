@@ -16,10 +16,16 @@
 | Primeros pasos | `components/FirstSteps.tsx` en Inicio: 8 pasos que se marcan solos con datos reales (gasto, ingreso, deuda o "No tengo deudas", presupuesto, Telegram, Copiloto, pareja opcional); "Ocultar"; desaparece al completar. | OTA |
 | Logo B | `assets/icon.png`; Android adaptativo con **fondo degradado** (`adaptive-background.png`, antes plano) y versión **monocromática** (Android 13+); íconos de la web (192/512/180). | APK (el ícono de Android) · web al publicar |
 
+## 1b. Modo oscuro (Fundador, 2026-10-04: "Ejecuta el modo oscuro")
+- `theme/appearance.ts`: preferencia **Automático / Claro / Oscuro** leída de forma síncrona al arrancar (SecureStore síncrono en el teléfono, localStorage en la web), antes de que las pantallas creen sus estilos. Así toda la app nace con la paleta correcta sin reescribir cada pantalla.
+- `theme/colors.ts`: paleta oscura "Banca Privada" (superficies verde-negro #0B110F/#131B18, texto marfil, verde de marca #3DB389 con texto oscuro encima, dorado #D9B45A, azul #7FB0E0); series de gráficos, entidades y deudas con su versión oscura.
+- **Ajustes → Apariencia:** al cambiarla, la app se recarga para aplicarla. En "Automático", si el teléfono cambia de tema con la app abierta, se aplica al volver a abrirla.
+- Barra de estado, navegación (`DarkTheme`) y fondo de arranque de la web (sin destello blanco) siguen el modo.
+- Verificado en la web: ingreso, Inicio, Mis deudas, Registrar (✓), Salud y Ajustes en oscuro.
+
 ## 2. No implementado (y por qué)
 - **Botón "Saldar" en pareja:** el servidor no registra cuadres; queda como texto destacado.
 - **Línea de evolución del puntaje:** sin SVG se dibuja con barras.
-- **Modo oscuro:** fase siguiente (los tokens ya están centralizados).
 
 ## 3. Verificación
 - `tsc` limpio; export Android y web sin errores; preflight OTA en verde (salvo `/health`, bloqueado por el proxy del entorno).
