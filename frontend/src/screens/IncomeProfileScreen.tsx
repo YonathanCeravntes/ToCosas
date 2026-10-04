@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { useFocusEffect } from '@react-navigation/native';
-import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButton, IconName, Row, SegmentBar } from '../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButton, IconName, Money, Row, SegmentBar } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney, parseAmount, parseDecimal } from '../utils/format';
 import { IncomeSource, NetIncomeSummary, WorkProfile, toNumber } from '../api/types';
@@ -65,11 +65,11 @@ export function IncomeProfileScreen() {
               accessibilityState={{ checked: on }}
               style={{
                 flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, minHeight: 40, borderRadius: radius.full,
-                backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 2 : 1, borderColor: on ? colors.primary : colors.border,
+                backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 1.5 : 1, borderColor: on ? colors.primary : colors.border,
               }}
             >
-              <Ico name={p.icon} color={on ? colors.primaryDark : colors.textMuted} />
-              <Text style={{ color: on ? colors.primaryDark : colors.text, fontSize: 13, fontWeight: on ? '800' : '600' }}>{p.label}</Text>
+              <Ico name={p.icon} color={on ? colors.primaryDark : colors.textFaint} />
+              <Text style={{ color: on ? colors.primaryDark : colors.text, fontSize: 13, fontWeight: on ? '600' : '500' }}>{p.label}</Text>
             </Pressable>
           );
         })}
@@ -97,10 +97,10 @@ export function IncomeProfileScreen() {
           {variable.map((s, i) => (
             <Row key={s.id} style={{ paddingVertical: 12, gap: spacing.sm, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{s.name}</Text>
-                <Text style={{ color: colors.textMuted, ...type.small }}>Estimado al mes</Text>
+                <Text style={{ color: colors.text, fontWeight: '600' }} numberOfLines={1}>{s.name}</Text>
+                <Text style={{ color: colors.textFaint, ...type.small }}>Estimado al mes</Text>
               </View>
-              <Text style={{ color: colors.primary, fontWeight: '800' }}>~{formatMoney(toNumber(s.amount))}</Text>
+              <Text style={{ color: colors.primary, fontWeight: '600' }}>~{formatMoney(toNumber(s.amount))}</Text>
               <IconButton
                 icon="trash-outline"
                 label={`Eliminar ${s.name}`}
@@ -121,9 +121,9 @@ function NetCard({ summary }: { summary: NetIncomeSummary | null }) {
   if (!summary || (summary.grossFixedTotal === 0 && summary.grossVariableEstimate === 0)) {
     return (
       <Card>
-        <Text style={{ color: colors.textMuted, ...type.small }}>Tu ingreso neto disponible</Text>
-        <Text style={{ color: colors.text, fontSize: 32, fontWeight: '800', marginTop: 2 }}>$0</Text>
-        <Text style={{ color: colors.textMuted, ...type.small }}>Agrega abajo lo que te entra: Millo calcula lo que de verdad puedes usar cada mes.</Text>
+        <Text style={{ color: colors.textFaint, ...type.small }}>Tu ingreso neto disponible</Text>
+        <Money value={0} size={32} color={colors.textFaint} style={{ marginTop: 2 }} />
+        <Text style={{ color: colors.textFaint, ...type.small }}>Agrega abajo lo que te entra: Millo calcula lo que de verdad puedes usar cada mes.</Text>
       </Card>
     );
   }
@@ -131,20 +131,18 @@ function NetCard({ summary }: { summary: NetIncomeSummary | null }) {
   return (
     <Card>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Text style={{ color: colors.textMuted, ...type.small }}>Tu ingreso neto disponible</Text>
-        <Text style={{ color: colors.textMuted, ...type.small }}>al mes</Text>
+        <Text style={{ color: colors.textFaint, ...type.small }}>Tu ingreso neto disponible</Text>
+        <Text style={{ color: colors.textFaint, ...type.small }}>al mes</Text>
       </Row>
-      <Text style={{ color: colors.text, fontSize: 32, fontWeight: '800', marginTop: 2, marginBottom: spacing.sm }}>
-        {formatMoney(summary.netMonthlyEstimate)}
-      </Text>
+      <Money value={summary.netMonthlyEstimate} size={32} style={{ marginTop: 2, marginBottom: spacing.sm }} />
       <SegmentBar
         parts={[
           { key: 'neto', label: 'Te llega', value: summary.netFixedTotal, color: colors.primary },
           { key: 'var', label: 'Variable estimado', value: summary.grossVariableEstimate, color: colors.primaryLight },
-          { key: 'ded', label: 'Deducciones', value: deductions, color: colors.warning },
+          { key: 'ded', label: 'Deducciones', value: deductions, color: colors.warningDeep },
         ]}
       />
-      <Text style={{ color: colors.textFaint, ...type.small, marginTop: spacing.sm }}>
+      <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.sm }}>
         Fijo {formatMoney(summary.grossFixedTotal)} − deducciones {formatMoney(deductions)}
         {summary.grossVariableEstimate > 0 ? ` + variables ~${formatMoney(summary.grossVariableEstimate)}` : ''}.
         {summary.selfPaidDeductionsTotal > 0 ? ` Las que pagas tú (${formatMoney(summary.selfPaidDeductionsTotal)}) quedan apartadas en Mi mes.` : ''}
@@ -155,8 +153,8 @@ function NetCard({ summary }: { summary: NetIncomeSummary | null }) {
 
 function EmptyBox({ title, sub }: { title: string; sub: string }) {
   return (
-    <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.textFaint, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm }}>
-      <Text style={{ color: colors.text, fontWeight: '700' }}>{title}</Text>
+    <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 14, padding: spacing.md, marginBottom: spacing.sm }}>
+      <Text style={{ color: colors.text, fontWeight: '600' }}>{title}</Text>
       <Text style={{ color: colors.textMuted, ...type.small, marginTop: 2 }}>{sub}</Text>
     </View>
   );
@@ -194,8 +192,8 @@ function NewSourceForm({ onSaved }: { onSaved: () => void }) {
   return (
     <Card>
       <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm }}>
-        <Text style={{ fontWeight: '800', fontSize: 15, color: colors.text }}>Nueva fuente de ingreso</Text>
-        <Pressable onPress={() => { setOpen(false); setErr(null); }} accessibilityRole="button"><Text style={{ color: colors.primary, fontWeight: '700' }}>Cerrar</Text></Pressable>
+        <Text style={{ ...type.title, color: colors.text }}>Nueva fuente de ingreso</Text>
+        <Pressable onPress={() => { setOpen(false); setErr(null); }} accessibilityRole="button" hitSlop={8}><Text style={{ color: colors.primary, fontWeight: '600' }}>Cerrar</Text></Pressable>
       </Row>
       <Row style={{ gap: spacing.sm, marginBottom: spacing.md }}>
         {[
@@ -211,8 +209,8 @@ function NewSourceForm({ onSaved }: { onSaved: () => void }) {
               accessibilityState={{ checked: on }}
               style={{ flex: 1, padding: spacing.sm, minHeight: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 2 : 1, borderColor: on ? colors.primary : colors.border }}
             >
-              <Text style={{ color: on ? colors.primaryDark : colors.text, fontWeight: on ? '800' : '600' }}>{o.l}</Text>
-              <Text style={{ color: colors.textMuted, ...type.caption }}>{o.s}</Text>
+              <Text style={{ color: on ? colors.primaryDark : colors.text, fontWeight: '600' }}>{o.l}</Text>
+              <Text style={{ color: colors.textFaint, ...type.caption }}>{o.s}</Text>
             </Pressable>
           );
         })}
@@ -267,10 +265,10 @@ function SourceCard({ source, presets, onChanged }: { source: IncomeSource; pres
     <Card style={{ paddingVertical: 0 }}>
       <Row style={{ paddingVertical: 12, gap: spacing.sm }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.text, fontWeight: '700', fontSize: 15 }} numberOfLines={1}>{source.name}</Text>
-          <Text style={{ color: colors.textMuted, ...type.small }}>{source.dayOfMonth ? `Llega el día ${source.dayOfMonth}` : 'Cada mes'} · bruto</Text>
+          <Text style={{ color: colors.text, fontWeight: '600', fontSize: 15 }} numberOfLines={1}>{source.name}</Text>
+          <Text style={{ color: colors.textFaint, ...type.small }}>{source.dayOfMonth ? `Llega el día ${source.dayOfMonth}` : 'Cada mes'} · bruto</Text>
         </View>
-        <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 15 }}>{formatMoney(amount)}</Text>
+        <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 15 }}>{formatMoney(amount)}</Text>
         <IconButton
           icon="trash-outline"
           label={`Eliminar ${source.name}`}
@@ -284,14 +282,14 @@ function SourceCard({ source, presets, onChanged }: { source: IncomeSource; pres
         return (
           <Row key={d.id} style={{ paddingVertical: 10, gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.surfaceAlt }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, fontWeight: '600' }} numberOfLines={1}>
+              <Text style={{ color: colors.text, ...type.body, fontWeight: '500' }} numberOfLines={1}>
                 {DEDUCTION_LABEL[d.kind] ?? d.name}{d.percent != null ? ` ${String(d.percent).replace('.', ',')}%` : ''}
               </Text>
-              <Text style={{ color: colors.textMuted, ...type.small }} numberOfLines={1}>
+              <Text style={{ color: colors.textFaint, ...type.small }} numberOfLines={1}>
                 {d.base === 'parcial' ? `sobre ${formatMoney(base)}` : 'sobre el total'} · {d.withheldAtSource ? 'te la descuentan' : 'la pagas tú'}
               </Text>
             </View>
-            <Text style={{ color: colors.warningDeep, fontWeight: '800' }}>−{formatMoney(value)}</Text>
+            <Text style={{ color: colors.warningDeep, fontWeight: '600' }}>−{formatMoney(value)}</Text>
             <IconButton
               icon="trash-outline"
               size={18}
@@ -305,7 +303,7 @@ function SourceCard({ source, presets, onChanged }: { source: IncomeSource; pres
       {presets && missing.length > 0 && !showForm ? (
         <View style={{ borderTopWidth: 1, borderTopColor: colors.surfaceAlt, paddingVertical: 12 }}>
           <View style={{ backgroundColor: colors.primarySoft, borderRadius: radius.md, padding: spacing.md }}>
-            <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>{presets.intro}:</Text>
+            <Text style={{ color: colors.primaryDark, fontWeight: '600' }}>{presets.intro}:</Text>
             <Text style={{ color: colors.text, marginTop: 4 }}>
               {missing.map((p) => `${p.name} ${String(p.percent).replace('.', ',')}% (${formatMoney((amount * p.baseShare * p.percent) / 100)})`).join(' · ')}
             </Text>
@@ -317,10 +315,10 @@ function SourceCard({ source, presets, onChanged }: { source: IncomeSource; pres
                 accessibilityRole="button"
                 style={{ backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 9, paddingHorizontal: 16, opacity: adding ? 0.6 : 1 }}
               >
-                <Text style={{ color: colors.textInverse, fontWeight: '800' }}>{adding ? 'Agregando…' : missing.length > 1 ? `Agregar las ${missing.length}` : 'Agregarla'}</Text>
+                <Text style={{ color: colors.textInverse, fontWeight: '600' }}>{adding ? 'Agregando…' : missing.length > 1 ? `Agregar las ${missing.length}` : 'Agregarla'}</Text>
               </Pressable>
               <Pressable onPress={() => setShowForm(true)} accessibilityRole="button" style={{ paddingVertical: 9, paddingHorizontal: 8 }}>
-                <Text style={{ color: colors.primary, fontWeight: '700' }}>Otra deducción</Text>
+                <Text style={{ color: colors.primary, fontWeight: '600' }}>Otra deducción</Text>
               </Pressable>
             </Row>
           </View>
@@ -329,9 +327,9 @@ function SourceCard({ source, presets, onChanged }: { source: IncomeSource; pres
         <DeductionForm sourceId={source.id} onDone={() => { setShowForm(false); onChanged(); }} onCancel={() => setShowForm(false)} />
       ) : (
         <Row style={{ paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.surfaceAlt }}>
-          <Text style={{ color: colors.textMuted, ...type.small, flex: 1 }}>{active.length === 0 ? 'Deducciones: ninguna' : 'Salud, pensión u otra'}</Text>
+          <Text style={{ color: colors.textFaint, ...type.small, flex: 1 }}>{active.length === 0 ? 'Deducciones: ninguna' : 'Salud, pensión u otra'}</Text>
           <Pressable onPress={() => setShowForm(true)} accessibilityRole="button">
-            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>+ Agregar deducción</Text>
+            <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>+ Agregar deducción</Text>
           </Pressable>
         </Row>
       )}
@@ -382,7 +380,7 @@ function DeductionForm({ sourceId, onDone, onCancel }: { sourceId: string; onDon
             accessibilityState={{ checked: on }}
             style={{ flex: 1, padding: spacing.sm, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.primarySoft : colors.surface, borderWidth: on ? 2 : 1, borderColor: on ? colors.primary : colors.border }}
           >
-            <Text style={{ color: on ? colors.primaryDark : colors.text, fontSize: 12, fontWeight: on ? '800' : '600', textAlign: 'center' }}>{o.l}</Text>
+            <Text style={{ color: on ? colors.primaryDark : colors.text, fontSize: 12, fontWeight: on ? '600' : '500', textAlign: 'center' }}>{o.l}</Text>
           </Pressable>
         );
       })}

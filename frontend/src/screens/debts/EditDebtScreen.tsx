@@ -166,7 +166,7 @@ export function EditDebtScreen({ route, navigation }: Props) {
       {error ? <Text style={{ color: colors.danger, marginBottom: spacing.sm }}>{error}</Text> : null}
       <Button title="Guardar cambios" onPress={() => void save()} loading={busy} />
       <View style={{ marginTop: spacing.sm }}>
-        <Button title="Eliminar esta deuda" icon="trash-outline" variant="danger" onPress={remove} disabled={busy} />
+        <Button title="Eliminar esta deuda" icon="trash-outline" variant="dangerOutline" onPress={remove} disabled={busy} />
       </View>
     </FormScroll>
   );

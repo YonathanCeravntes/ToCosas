@@ -4,7 +4,7 @@ import { Text, TextInput } from '../../components/AppText';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { DatePicker } from '../../components/DatePicker';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Field, Ico, IconButton, Money, Row, Toast, ToastSpec, useKeyboardInset } from '../../components/ui';
+import { Button, Card, Field, IconButton, Money, Row, Toast, ToastSpec, useKeyboardInset } from '../../components/ui';
 import { useRegisterForm } from '../../store/registerForm.store';
 import { CategoryGlyph } from '../../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../../theme/colors';

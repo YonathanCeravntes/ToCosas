@@ -10,6 +10,8 @@
 **Fundador (decide) ⇄ Arquitecto (ejecuta, verifica, documenta).** No hay CTO, Auditor ni CPSAO. Una FIN = un documento `docs/arquitectura/FIN-XXXX-*.md` (ARQ + Implementado + Decisiones del Fundador). Freno obligatorio: reglas de negocio, §32, UX visible, alcance, legal/gates o gobernanza → preguntar antes. Bugs → corregir y documentar.
 
 ## Trabajo activo
+**FIN-060 · Millo Profesional (Fundador, 2026-10-04, "Arranca con todo"):** paleta Banca Privada, letra Inter con cifras alineadas en toda la app, las 30 pantallas según los 93 bocetos aprobados, botón + que se vuelve ✓ Registrar, recorrido de bienvenida de 5 pasos ("Ver el recorrido otra vez" en Ajustes), tarjeta "Primeros pasos" en Inicio y logo B (Android adaptativo con degradado: requiere APK). Ver `docs/arquitectura/FIN-060-Millo-Profesional.md`. Falta el OTA desde el PC del Fundador.
+
 **OTA `01a1020c` publicada (Fundador desde su PC, 2026-10-03, canal `preview`, commit `c25a1e9`, update group `ecc805e8`):** incluye FIN-054…FIN-059, BT-025…BT-040 e INFRA-001 del lado de la app. Preflight §40 completo en verde. Aplicada en el dispositivo del Fundador. **APK nueva (2026-10-03)** con el ícono de Millo (BT-013) instalada y verificada, tras corregir BT-041 (`expo-font` de otro SDK cerraba la app).
 
 **FIN-059 · Millo en pareja (Fundador, 2026-10-03, "Aprobado. Darle, de una"):** hogar de dos con consentimiento de cada uno, "de la casa" en Registrar y en el bot, Nuestro mes, aporte justo proporcional, cuadre, metas juntos, privacidad (ingreso solo en %, deudas solo en totales) y salida de un toque. Ver `docs/arquitectura/FIN-059-Millo-en-pareja.md`. Migración `fin059` (se aplica sola en Render). Infraestructura: `docs/arquitectura/INFRA-001-Infraestructura-para-tiendas.md`.

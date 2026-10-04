@@ -35,7 +35,7 @@ export function Button({
   title: string;
   onPress: () => void;
   loading?: boolean;
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'dangerOutline' | 'ghost';
   disabled?: boolean;
   icon?: IconName;
   accessibilityLabel?: string;
@@ -48,7 +48,8 @@ export function Button({
         : variant === 'ghost'
           ? 'transparent'
           : colors.surface;
-  const fg = variant === 'secondary' || variant === 'ghost' ? colors.primary : colors.textInverse;
+  const fg =
+    variant === 'secondary' || variant === 'ghost' ? colors.primary : variant === 'dangerOutline' ? colors.danger : colors.textInverse;
   return (
     <Pressable
       onPress={onPress}
@@ -60,6 +61,7 @@ export function Button({
         styles.button,
         { backgroundColor: bg, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
         variant === 'secondary' && styles.buttonOutline,
+        variant === 'dangerOutline' && { borderWidth: 1, borderColor: colors.danger },
         variant === 'ghost' && { marginTop: 0, paddingVertical: spacing.sm },
       ]}
     >
@@ -514,7 +516,7 @@ export function Toast({ spec, onHide }: { spec: ToastSpec | null; onHide: () => 
         <Text style={{ color: colors.text, flex: 1, ...type.body }}>{spec.message}</Text>
         {spec.actionLabel && spec.onAction ? (
           <Pressable onPress={() => void act()} disabled={busy} accessibilityRole="button" hitSlop={8}>
-            <Text style={{ color: fg, fontWeight: '800', ...type.body }}>
+            <Text style={{ color: fg, fontWeight: '600', ...type.body }}>
               {busy ? '…' : `${spec.actionLabel} · ${Math.ceil(left)}s`}
             </Text>
           </Pressable>
