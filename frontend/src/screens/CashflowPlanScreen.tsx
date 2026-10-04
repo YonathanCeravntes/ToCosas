@@ -91,7 +91,9 @@ export function CashflowPlanScreen() {
             <Text style={{ color: colors.onPrimaryFaint, ...type.small, marginTop: spacing.sm }}>
               {override != null
                 ? `Con el monto que escribiste (${formatMoney(plan.proposal)} al mes).`
-                : `Es la mitad de lo que te queda libre este mes (${formatMoney(plan.free)}); la otra mitad queda para tu día a día.`}
+                : plan.margin?.source === 'estable'
+                  ? `Es la mitad de lo que te queda libre en un mes normal (${formatMoney(plan.free)}), ya descontando tu gasto típico${plan.margin.annualSetAside > 0 ? ' y lo que apartas para los gastos grandes del año' : ''}.`
+                  : `Es la mitad de lo que te queda libre este mes (${formatMoney(plan.free)}); la otra mitad queda para tu día a día.`}
             </Text>
             <Text style={{ color: colors.textInverse, ...type.body, fontWeight: '600', marginTop: spacing.sm }}>
               La terminas en {monthsText(first.monthWithPlan)} y te libera {formatMoney(first.payment)} al mes.
@@ -121,6 +123,18 @@ export function CashflowPlanScreen() {
               Abonar a {first.name} <Ico name="arrow-forward" size={13} color={colors.primary} />
             </Text>
           </Pressable>
+        </Card>
+      ) : null}
+
+      {/* FIN-061 F2 (decisión 3): una sola regla de orden, y el costo de la otra a la vista. */}
+      {plan.alternative && !plan.alternative.sameOrder ? (
+        <Card>
+          <Text style={{ color: colors.text, ...type.title, fontSize: 15 }}>¿Y si pagas primero la de tasa más alta?</Text>
+          <Text style={{ color: colors.textMuted, ...type.small, marginTop: 4 }}>
+            {plan.alternative.difference > 0
+              ? `Pagarías ${formatMoney(plan.alternative.difference)} menos de intereses en total, pero tardarías más en liberar cuota cada mes. Este plan prioriza que te quede plata libre antes.`
+              : 'Pagarías lo mismo o más de intereses: este orden te conviene en las dos cosas.'}
+          </Text>
         </Card>
       ) : null}
 

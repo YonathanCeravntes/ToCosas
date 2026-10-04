@@ -7,8 +7,8 @@ import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, Money, Pr
 import { Segmented, SoftChip } from '../../components/DebtControls';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { formatDate, formatMoney, parseAmount, parseDecimal } from '../../utils/format';
-import { AmortizationEntry, Debt, DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, ScheduleModel, toNumber } from '../../api/types';
-import { debtsApi, simulationsApi, SimulateResult } from '../../api/endpoints';
+import { AmortizationEntry, Category, Debt, DebtInsurance, PaymentBreakdown, PrepayEffect, PrepayReceipt, ScheduleModel, toNumber } from '../../api/types';
+import { categoriesApi, debtsApi, simulationsApi, SimulateResult } from '../../api/endpoints';
 import { useApi } from '../../utils/useApi';
 import { DebtsStackParamList } from '../../navigation/types';
 import { confirmRemove } from '../../utils/confirm';
@@ -84,7 +84,12 @@ export function DebtDetailScreen({ route, navigation: stackNav }: Props) {
           <View style={{ flex: 1 }}>
             <Button title="Renegociar" icon="swap-horizontal-outline" variant="secondary" onPress={() => stackNav.navigate('RenegotiateDebt', { debtId, name: data.name })} />
           </View>
-        ) : null}
+        ) : (
+          // FIN-061 F2.4: uso del cupo, pago sugerido y datos del extracto.
+          <View style={{ flex: 1 }}>
+            <Button title="Salud de tu tarjeta" icon="pulse-outline" variant="secondary" onPress={() => stackNav.navigate('CardHealth', { debtId, name: data.name })} />
+          </View>
+        )}
       </Row>
 
       {/* FIN-036: confirmación de actualización por corte (nivel 2, §42). */}
@@ -417,6 +422,13 @@ function CardSection({ debtId, tick, onChanged, onEdit }: { debtId: string; tick
   const [amount, setAmount] = useState('');
   const [installments, setInstallments] = useState('1');
   const [withInterest, setWithInterest] = useState(false);
+  // FIN-061 F2.4: avance en efectivo y categoría de la compra (para "Tus gustos" y la salud de la tarjeta).
+  const [isCashAdvance, setIsCashAdvance] = useState(false);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [cats, setCats] = useState<Category[]>([]);
+  useEffect(() => {
+    if (open && cats.length === 0) void categoriesApi.list('gasto').then((c) => setCats(c.filter((x) => !x.isFixed))).catch(() => undefined);
+  }, [open, cats.length]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -432,10 +444,18 @@ function CardSection({ debtId, tick, onChanged, onEdit }: { debtId: string; tick
     setSaving(true);
     setError(null);
     try {
-      const res = await debtsApi.registerPurchase(debtId, { amount: value, installments: n, withInterest });
+      const res = await debtsApi.registerPurchase(debtId, {
+        amount: value,
+        installments: n,
+        withInterest: isCashAdvance || withInterest,
+        isCashAdvance,
+        categoryId: isCashAdvance ? undefined : categoryId ?? undefined,
+      });
       setAmount('');
       setInstallments('1');
       setWithInterest(false);
+      setIsCashAdvance(false);
+      setCategoryId(null);
       setOpen(false);
       setAck(`${res.acknowledgment}${res.summary.availableCredit != null ? ` Cupo disponible: ${formatMoney(res.summary.availableCredit)}.` : ''}`);
       refresh();
@@ -576,17 +596,44 @@ function CardSection({ debtId, tick, onChanged, onEdit }: { debtId: string; tick
 
       {open ? (
         <View style={{ marginTop: spacing.sm }}>
-          <Field label="Monto de la compra" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="600000" />
-          <Field label="¿En cuántas cuotas?" value={installments} onChangeText={setInstallments} keyboardType="numeric" placeholder="3" />
           <Segmented
             style={{ marginBottom: spacing.sm }}
-            value={withInterest}
-            onChange={setWithInterest}
+            value={isCashAdvance}
+            onChange={setIsCashAdvance}
             options={[
-              { value: false, label: 'Sin interés' },
-              { value: true, label: 'Con interés' },
+              { value: false, label: 'Compra' },
+              { value: true, label: 'Avance en efectivo' },
             ]}
           />
+          <Field label={isCashAdvance ? 'Monto del avance' : 'Monto de la compra'} value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="600000" />
+          <Field label="¿En cuántas cuotas?" value={installments} onChangeText={setInstallments} keyboardType="numeric" placeholder="3" />
+          {isCashAdvance ? (
+            <Text style={{ color: colors.warningDeep, ...type.small, marginBottom: spacing.sm }}>
+              Un avance cobra interés desde hoy, más la comisión del avance.
+            </Text>
+          ) : (
+            <>
+              <Segmented
+                style={{ marginBottom: spacing.sm }}
+                value={withInterest}
+                onChange={setWithInterest}
+                options={[
+                  { value: false, label: 'Sin interés' },
+                  { value: true, label: 'Con interés' },
+                ]}
+              />
+              {cats.length > 0 ? (
+                <>
+                  <Text style={{ color: colors.textMuted, ...type.label, marginBottom: 6 }}>¿En qué fue?</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.sm }}>
+                    {cats.map((c) => (
+                      <SoftChip key={c.id} label={c.name} active={categoryId === c.id} onPress={() => setCategoryId(categoryId === c.id ? null : c.id)} />
+                    ))}
+                  </View>
+                </>
+              ) : null}
+            </>
+          )}
           {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
           <Button title="Registrar compra" onPress={() => void add()} loading={saving} />
         </View>

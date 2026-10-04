@@ -15,6 +15,8 @@ export type DebtsStackParamList = {
   RenegotiateDebt: { debtId: string; name: string };
   // FIN-056: editar datos de la deuda (nombre, entidad, cupo, día de pago).
   EditDebt: { debtId: string; name: string };
+  /** FIN-061 F2.4: salud de la tarjeta y datos del extracto. */
+  CardHealth: { debtId: string; name: string };
 };
 
 /**
@@ -51,6 +53,10 @@ export type RootStackParamList = {
   Accounts: undefined;
   /** FIN-045: plan para liberar flujo de caja. */
   CashflowPlan: undefined;
+  /** FIN-061 F2: esencial y gustos, tus gustos del mes y la plata del año. */
+  SpendClasses: undefined;
+  Gustos: undefined;
+  YearPlan: undefined;
   IncomeProfile: undefined;
   // FIN-026 P1: las jugadas llegan con la pregunta armada (escenario + params).
   Simulator: { scenario?: string; params?: Record<string, string | number> } | undefined;

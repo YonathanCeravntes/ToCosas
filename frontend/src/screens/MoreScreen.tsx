@@ -24,9 +24,12 @@ const SECTIONS: Array<{ title: string; tone: Tone; items: Item[] }> = [
     tone: 'brand',
     items: [
       { icon: 'wallet-outline', title: 'Mi mes', sub: 'Lo que entra, lo comprometido y lo libre', to: 'Budget' },
+      { icon: 'cafe-outline', title: 'Tus gustos este mes', sub: 'Si van a tu ritmo, sin culpas', to: 'Gustos' },
+      { icon: 'calendar-outline', title: 'Plata del año', sub: 'Tu colchón, primas y gastos grandes', to: 'YearPlan' },
       { icon: 'list-outline', title: 'Movimientos', sub: 'Historial completo con filtros y búsqueda', to: 'Transactions' },
       { icon: 'business-outline', title: 'Cuentas y patrimonio', sub: 'Saldos, activos y fondo de emergencia', to: 'Accounts' },
       { icon: 'briefcase-outline', title: 'Mi perfil de ingresos', sub: 'Fuentes, deducciones y neto mensual', to: 'IncomeProfile' },
+      { icon: 'git-compare-outline', title: 'Esencial y gustos', sub: 'Qué es esencial para ti y qué te sostiene', to: 'SpendClasses' },
       { icon: 'folder-open-outline', title: 'Mis documentos', sub: 'Facturas, extractos y certificados para tu renta', to: 'Documents' },
       { icon: 'heart-outline', title: 'Millo en pareja', sub: 'La plata de la casa, el aporte justo y sus metas', to: 'Household' },
     ],

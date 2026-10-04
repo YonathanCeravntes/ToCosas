@@ -19,6 +19,9 @@ import { CategoriesScreen } from '../screens/CategoriesScreen';
 import { HouseholdScreen } from '../screens/HouseholdScreen';
 import { SimulatorScreen } from '../screens/SimulatorScreen';
 import { CashflowPlanScreen } from '../screens/CashflowPlanScreen';
+import { SpendClassesScreen } from '../screens/SpendClassesScreen';
+import { GustosScreen } from '../screens/GustosScreen';
+import { YearPlanScreen } from '../screens/YearPlanScreen';
 import { AchievementsScreen } from '../screens/AchievementsScreen';
 import { MilloPlusScreen } from '../screens/MilloPlusScreen';
 import { BudgetScreen } from '../screens/BudgetScreen';
@@ -88,6 +91,9 @@ export function RootNavigator() {
             <Stack.Screen name="Household" component={HouseholdScreen} options={{ headerShown: true, title: 'Millo en pareja' }} />
             <Stack.Screen name="Copilot" component={CopilotScreen} options={{ headerShown: true, title: 'Copiloto' }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: true, title: 'Ajustes' }} />
+            <Stack.Screen name="SpendClasses" component={SpendClassesScreen} options={{ headerShown: true, title: 'Esencial y gustos' }} />
+            <Stack.Screen name="Gustos" component={GustosScreen} options={{ headerShown: true, title: 'Tus gustos este mes' }} />
+            <Stack.Screen name="YearPlan" component={YearPlanScreen} options={{ headerShown: true, title: 'Plata del año' }} />
             <Stack.Screen
               name="Transactions"
               component={TransactionsScreen}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, Switch, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { useFocusEffect } from '@react-navigation/native';
 import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButton, IconName, Money, Row, SegmentBar } from '../components/ui';
@@ -275,6 +275,19 @@ function SourceCard({ source, presets, onChanged }: { source: IncomeSource; pres
           onPress={() => confirmRemove(source.name, 'Dejará de contar en tu ingreso.', () => incomeApi.removeSource(source.id).then(onChanged))}
         />
       </Row>
+
+      {/* FIN-061 F2.5: la prima se planea aparte (Plata del año); nunca entra al mes. */}
+      {!source.isVariable ? (
+        <Row style={{ paddingVertical: 8, gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.surfaceAlt }}>
+          <Text style={{ color: colors.textMuted, ...type.small, flex: 1 }}>Recibo prima en junio y diciembre</Text>
+          <Switch
+            value={!!source.receivesPrima}
+            onValueChange={(v) => void incomeApi.updateSource(source.id, { receivesPrima: v }).then(onChanged)}
+            trackColor={{ true: colors.primary, false: colors.border }}
+            accessibilityLabel={`${source.name}: recibo prima`}
+          />
+        </Row>
+      ) : null}
 
       {active.map((d) => {
         const base = d.base === 'parcial' ? toNumber(d.baseAmount) : amount;

@@ -328,7 +328,7 @@ export function AddTransactionScreen() {
     setBusy(true); setError(null);
     try {
       const n = Math.max(1, parseInt(installments, 10) || 1);
-      const res = await debtsApi.registerPurchase(selectedCard.id, { amount: value, installments: n, withInterest, note: note || selectedCat?.name || undefined });
+      const res = await debtsApi.registerPurchase(selectedCard.id, { amount: value, installments: n, withInterest, note: note || selectedCat?.name || undefined, categoryId: selectedCat?.id });
       const lines = [res.acknowledgment];
       if (res.summary.availableCredit != null) lines.push(`Cupo disponible de ${selectedCard.name}: ${formatMoney(res.summary.availableCredit)}.`);
       lines.push(n > 1 ? `Las ${n} cuotas ya cuentan en "lo comprometido" de cada mes.` : 'La cuota ya cuenta en "lo comprometido" del mes.');

@@ -156,6 +156,8 @@ export interface CardSummary {
     occurredAt: string;
     installmentsCount: number;
     withInterest: boolean;
+    isCashAdvance?: boolean;
+    categoryId?: string | null;
     note: string | null;
     pendingBalance: number;
     paidInstallments: number;
@@ -736,6 +738,8 @@ export interface IncomeSource {
   amount: string | number;
   isVariable: boolean;
   dayOfMonth: number | null;
+  /** FIN-061 F2: recibe prima de servicios (junio y diciembre). */
+  receivesPrima?: boolean;
   isActive: boolean;
   deductions: IncomeDeduction[];
 }
@@ -854,6 +858,18 @@ export interface CashflowPlan {
   steps: CashflowPlanStep[];
   firstFrees: number;
   dueDates: Record<string, string | null>;
+  /** FIN-061 F2 (decisión 3): costo de pagar primero la de mayor tasa. */
+  alternative?: { interestPlan: number; interestHighestRate: number; difference: number; sameOrder: boolean } | null;
+  margin?: {
+    source: 'estable' | 'hoy';
+    amount: number;
+    typicalVariable: number | null;
+    lowVariable: number | null;
+    highVariable: number | null;
+    stableIncome: number;
+    incomeSource: 'mes_flojo' | 'estimado';
+    annualSetAside: number;
+  };
 }
 
 // --- FIN-054 · Mis documentos ---
@@ -940,4 +956,116 @@ export interface HouseholdMonth {
   partnerDebts: Array<{ name: string; count: number; monthly: number; balance: number }>;
   goals: Array<{ id: string; name: string; target: number; saved: number; percent: number; targetDate: string | null; eta: string | null; byMember: Array<{ who: string; amount: number }> }>;
   recent: Array<{ id: string; who: string; isMe: boolean; amount: number; occurredAt: string; label: string; icon: string; color: string }>;
+}
+
+// --- FIN-061 Fase 2 · Gustos, tarjetas y plata del año ---
+export type SpendClass = 'esencial' | 'gusto' | 'mixto';
+
+export interface SpendClassRow {
+  categoryId: string;
+  name: string;
+  icon: string | null;
+  isFixed: boolean;
+  monthlyCap: number | null;
+  spendClass: SpendClass;
+  suggested: SpendClass;
+  protected: boolean;
+}
+
+export interface ConsumptionCategory {
+  categoryId: string;
+  name: string;
+  spendClass: SpendClass;
+  protected: boolean;
+  monthlyCap: number | null;
+  amount: number;
+  count: number;
+  typicalAmount: number | null;
+  typicalCount: number | null;
+  financedAmount: number;
+  financedInterest: number;
+  ratio: number | null;
+  status: 'sin_historial' | 'normal' | 'abajo' | 'arriba' | 'pico';
+}
+
+export interface ConsumptionSuggestion {
+  kind: string;
+  categoryId: string | null;
+  title: string;
+  body: string;
+  frees: number;
+  canKeep: boolean;
+}
+
+export interface ConsumptionAnalysis {
+  month: string;
+  incomeBase: number;
+  dti: number;
+  gustos: { amount: number; share: number | null; band: 'tranquilo' | 'atencion' | 'alto' | null; limits: { tranquilo: number; atencion: number } };
+  categories: ConsumptionCategory[];
+  wins: string[];
+  suggestions: ConsumptionSuggestion[];
+  notes: Array<{ kind: 'protegido' | 'tarjeta_interes' | 'tope'; categoryId: string | null; text: string }>;
+}
+
+export interface CardStatement {
+  id: string;
+  closingDate: string;
+  dueDate: string | null;
+  statementBalance: number;
+  minimumPayment: number | null;
+  totalPayment: number | null;
+  creditLimit: number | null;
+  handlingFee: number | null;
+}
+
+export interface CardHealth {
+  utilization: {
+    current: number | null;
+    level: 'meta' | 'bien' | 'atencion' | 'alto' | 'critico' | null;
+    byStatement: Array<{ closingDate: string; utilization: number }>;
+    toHealthy: number;
+    toGoal: number;
+  };
+  payment: { dueDate: string | null; suggested: number | null; cuota: number; planExtra: number; total: number | null; minimum: number | null };
+  alerts: Array<{ rule: number; kind: string; title: string; body: string; amount?: number }>;
+  releaseCalendar: Array<{ month: string; frees: number }> | null;
+  ifClosed: { totalUtilizationNow: number | null; totalUtilizationIfClosed: number | null } | null;
+  cycle: { spent: number; average: number | null; byCategory: Array<{ name: string; amount: number }> } | null;
+}
+
+export interface AnnualExpense {
+  id: string;
+  name: string;
+  amount: number;
+  month: number;
+  monthsLeft: number;
+  monthly: number;
+}
+
+export type WindfallKind = 'prima_junio' | 'prima_diciembre' | 'intereses_cesantias';
+
+export interface Windfall {
+  kind: WindfallKind;
+  date: string;
+  daysLeft: number;
+  planNow: boolean;
+  estimated: number | null;
+  debtPct: number;
+  cushionPct: number;
+  freePct: number;
+  toDebt: number | null;
+  toCushion: number | null;
+  free: number | null;
+  custom: boolean;
+}
+
+export interface CushionTiers {
+  essentialMonthly: number;
+  saved: number;
+  monthsCovered: number;
+  incomeKind: 'asalariado_con_prima' | 'asalariado' | 'variable' | 'independiente';
+  tiers: Array<{ step: number; months: number; target: number; reached: boolean; why: string }>;
+  current: number | null;
+  progress: number;
 }
