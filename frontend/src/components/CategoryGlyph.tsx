@@ -25,6 +25,9 @@ const EMOJI_TO_ICON: Record<string, IconName> = {
   '📚': 'book-outline',
   '🛋️': 'bed-outline',
   '📦': 'cube-outline',
+  // FIN-061 F2
+  '🛵': 'bicycle-outline',
+  '☕': 'cafe-outline',
   // tipos de gasto fijo (FIN-048)
   '🏢': 'business-outline',
   '📶': 'wifi-outline',

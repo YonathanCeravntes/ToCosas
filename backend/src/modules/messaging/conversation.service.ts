@@ -10,6 +10,7 @@ import { SpendableService } from '../budget/spendable.service';
 import { BotReply, MenuAction, parseCallback, parseMenuCommand, txButtons } from './bot-menu';
 import { FixedKindDto } from '../budget/dto/fixed-item.dto';
 import { DebtsService } from '../debts/debts.service';
+import { CardHealthService } from '../debts/card-health.service';
 import { CardService } from '../debts/card.service';
 import { DebtRenegotiationService, RenegotiationPreview } from '../debts/debt-renegotiation.service';
 import { parseRenegotiation, RenegotiationCommand } from './renegotiation-command';
@@ -747,6 +748,23 @@ export class ConversationService {
         } catch (e) {
           this.logger.warn(`Cuota de manejo no registrada: ${(e as Error).message}`);
           feeNote = ` No pude anotar la cuota de manejo; agrégala en Deudas → ${p.name} → Cargos de la tarjeta.`;
+        }
+      }
+      // FIN-061 F2.4: el corte queda guardado para "Salud de tu tarjeta" (pago sugerido,
+      // uso del cupo, solo el mínimo). Si falla, la tarjeta igual queda creada.
+      if (p.statementDate) {
+        try {
+          await this.moduleRef.get(CardHealthService, { strict: false }).saveStatement(userId, debt.id, {
+            closingDate: p.statementDate,
+            dueDate: p.dueDate && p.dueDate >= p.statementDate ? p.dueDate : undefined,
+            statementBalance: p.balance,
+            minimumPayment: p.minimumPayment ?? undefined,
+            totalPayment: p.totalPayment ?? undefined,
+            creditLimit: p.creditLimit ?? undefined,
+            handlingFee: p.handlingFee ?? undefined,
+          });
+        } catch (e) {
+          this.logger.warn(`Extracto no guardado: ${(e as Error).message}`);
         }
       }
       return (

@@ -10,6 +10,7 @@ import {
   IsString,
   Max,
   Min,
+  IsUUID,
 } from 'class-validator';
 import { NormalizeNumber } from '../../../common/parse-number.util';
 
@@ -177,6 +178,16 @@ export class CreateCardPurchaseDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @ApiPropertyOptional({ description: 'FIN-061 F2: categoría de la compra' })
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
+  @ApiPropertyOptional({ default: false, description: 'FIN-061 F2: avance en efectivo' })
+  @IsOptional()
+  @IsBoolean()
+  isCashAdvance?: boolean;
 }
 
 /** FIN-036 · Respuesta a una confirmación de actualización (nivel 2, §42). */
@@ -229,3 +240,49 @@ export class ResplitPurchaseDto {
   installments!: number;
 }
 
+
+/** FIN-061 F2.4 · Datos del extracto de un corte de tarjeta. */
+export class CardStatementDto {
+  @ApiProperty({ example: '2026-09-28', description: 'Fecha de corte' })
+  @IsISO8601()
+  closingDate!: string;
+
+  @ApiPropertyOptional({ example: '2026-10-15', description: 'Fecha límite de pago' })
+  @IsOptional()
+  @IsISO8601()
+  dueDate?: string;
+
+  @ApiProperty({ example: 4180000, description: 'Saldo al corte' })
+  @NormalizeNumber()
+  @IsNumber()
+  @Min(0)
+  statementBalance!: number;
+
+  @ApiPropertyOptional({ example: 331918 })
+  @IsOptional()
+  @NormalizeNumber()
+  @IsNumber()
+  @Min(0)
+  minimumPayment?: number;
+
+  @ApiPropertyOptional({ example: 4180000 })
+  @IsOptional()
+  @NormalizeNumber()
+  @IsNumber()
+  @Min(0)
+  totalPayment?: number;
+
+  @ApiPropertyOptional({ example: 5600000, description: 'Cupo total' })
+  @IsOptional()
+  @NormalizeNumber()
+  @IsNumber()
+  @Min(0)
+  creditLimit?: number;
+
+  @ApiPropertyOptional({ example: 18900, description: 'Cuota de manejo del mes' })
+  @IsOptional()
+  @NormalizeNumber()
+  @IsNumber()
+  @Min(0)
+  handlingFee?: number;
+}

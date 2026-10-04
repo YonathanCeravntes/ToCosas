@@ -20,6 +20,8 @@ export interface CardSummary {
     occurredAt: string;
     installmentsCount: number;
     withInterest: boolean;
+    isCashAdvance: boolean;
+    categoryId: string | null;
     note: string | null;
     pendingBalance: number;
     paidInstallments: number;
@@ -49,14 +51,18 @@ export class CardService {
 
   async registerPurchase(
     userId: string,
-    dto: { debtId: string; amount: number; occurredAt?: string; installments: number; withInterest?: boolean; note?: string },
+    dto: {
+      debtId: string; amount: number; occurredAt?: string; installments: number; withInterest?: boolean; note?: string;
+      categoryId?: string; isCashAdvance?: boolean;
+    },
   ) {
     const card = await this.ensureCardOwned(userId, dto.debtId);
     const n = Math.max(1, Math.floor(dto.installments));
     if (dto.amount <= 0) throw new BadRequestException('El monto de la compra debe ser mayor a 0');
 
     const occurred = dto.occurredAt ? new Date(dto.occurredAt) : new Date();
-    const withInterest = dto.withInterest ?? false;
+    // FIN-061 F2: un avance en efectivo cobra interés desde el día uno.
+    const withInterest = dto.isCashAdvance ? true : dto.withInterest ?? false;
     // El plan de cuotas: sin interés = monto/N; con interés = amortización del
     // crédito (misma función pura de FIN-012 — cero fórmula nueva, §32).
     const perInstallment = withInterest
@@ -72,6 +78,8 @@ export class CardService {
           installmentsCount: n,
           withInterest,
           note: dto.note ?? null,
+          categoryId: dto.categoryId ?? null,
+          isCashAdvance: dto.isCashAdvance ?? false,
         },
       });
       await tx.cardInstallment.createMany({
@@ -221,6 +229,8 @@ export class CardService {
         occurredAt: p.occurredAt.toISOString(),
         installmentsCount: p.installmentsCount,
         withInterest: p.withInterest,
+        isCashAdvance: p.isCashAdvance,
+        categoryId: p.categoryId,
         note: p.note,
         pendingBalance: round2(pending),
         paidInstallments: paidCount,

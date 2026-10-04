@@ -71,6 +71,10 @@ export interface CardProposal {
   dueDate: string | null;
   /** Cuota de manejo leída del extracto: se crea como cargo mensual aparte (cuenta en "Te queda"). */
   handlingFee: number | null;
+  /** FIN-061 F2.4: datos del corte para "Salud de tu tarjeta" (se guardan como extracto). */
+  statementDate?: string | null;
+  minimumPayment?: number | null;
+  totalPayment?: number | null;
 }
 
 export interface LoanProposal {
@@ -169,6 +173,9 @@ export function toProposal(x: DocumentExtraction, today = new Date()): DocumentP
       dueDate: x.dueDate ?? null,
       // Una cuota de manejo plausible: positiva y pequeña frente al saldo (si no, lectura errada).
       handlingFee: x.handlingFee != null && x.handlingFee > 0 && x.handlingFee < 500_000 ? Math.round(x.handlingFee) : null,
+      statementDate: x.statementDate ?? null,
+      minimumPayment: x.minimumPayment != null && x.minimumPayment > 0 ? Math.round(x.minimumPayment) : null,
+      totalPayment: x.totalPayment != null && x.totalPayment > 0 ? Math.round(x.totalPayment) : null,
     };
   }
   if (x.kind === 'extracto_credito' && x.balance != null && x.balance > 0) {

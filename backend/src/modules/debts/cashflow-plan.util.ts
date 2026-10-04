@@ -30,6 +30,8 @@ export interface PlanDebt {
   monthlyRate: number;
   /** Tasa anual efectiva en % (solo para mostrar y desempatar). */
   annualRatePct: number;
+  /** FIN-061 F2: tasa mensual real para comparar el costo de los dos órdenes (tarjetas incluidas). */
+  compareRate?: number;
 }
 
 export interface CashflowPlanInput {
@@ -73,6 +75,11 @@ export interface CashflowPlan {
   steps: PlanStep[];
   /** Plata libre extra al mes cuando termina la primera deuda. */
   firstFrees: number;
+  /**
+   * FIN-061 F2 (decisión 3 del Fundador): una sola regla de orden — liberar flujo — y
+   * siempre a la vista cuánto costaría la otra (mayor tasa primero). null con < 2 deudas.
+   */
+  alternative: { interestPlan: number; interestHighestRate: number; difference: number; sameOrder: boolean } | null;
 }
 
 const roundTo1000 = (n: number) => Math.floor(n / 1000) * 1000;
@@ -90,6 +97,14 @@ export function orderByCashflow<T extends { balance: number; payment: number; an
 
 /** Proyección mes a mes: cuotas normales + abono extra al primer objetivo, con rollover. */
 function simulate(debts: PlanDebt[], extra: (month: number) => number): Map<string, number | null> {
+  return simulateWithInterest(debts, extra).paidAt;
+}
+
+function simulateWithInterest(
+  debts: PlanDebt[],
+  extra: (month: number) => number,
+): { paidAt: Map<string, number | null>; interest: number } {
+  let interest = 0;
   const bal = new Map(debts.map((d) => [d.id, d.balance]));
   const paidAt = new Map<string, number | null>(debts.map((d) => [d.id, d.balance <= 0.5 ? 0 : null]));
   let freed = 0;
@@ -98,6 +113,7 @@ function simulate(debts: PlanDebt[], extra: (month: number) => number): Map<stri
     if (open.length === 0) break;
     let freedThisMonth = 0;
     for (const d of open) {
+      interest += bal.get(d.id)! * d.monthlyRate;
       let b = bal.get(d.id)! * (1 + d.monthlyRate);
       const pay = Math.min(b, d.payment);
       b -= pay;
@@ -120,7 +136,7 @@ function simulate(debts: PlanDebt[], extra: (month: number) => number): Map<stri
       }
     }
   }
-  return paidAt;
+  return { paidAt, interest };
 }
 
 export function buildCashflowPlan(input: CashflowPlanInput): CashflowPlan {
@@ -160,5 +176,21 @@ export function buildCashflowPlan(input: CashflowPlanInput): CashflowPlan {
     colchonMonths,
     steps,
     firstFrees: steps[0]?.payment ?? 0,
+    alternative: compareOrders(ordered, toDebt),
+  };
+}
+
+/** Interés total del plan con el orden de liberar flujo frente a mayor tasa primero. */
+function compareOrders(ordered: PlanDebt[], toDebt: number): CashflowPlan['alternative'] {
+  if (ordered.length < 2 || toDebt <= 0) return null;
+  const real = ordered.map((d) => ({ ...d, monthlyRate: d.compareRate ?? d.monthlyRate }));
+  const byRate = [...real].sort((a, b) => b.annualRatePct - a.annualRatePct);
+  const plan = simulateWithInterest(real, () => toDebt).interest;
+  const alt = simulateWithInterest(byRate, () => toDebt).interest;
+  return {
+    interestPlan: Math.round(plan),
+    interestHighestRate: Math.round(alt),
+    difference: Math.round(plan - alt),
+    sameOrder: byRate.every((d, i) => d.id === real[i].id),
   };
 }

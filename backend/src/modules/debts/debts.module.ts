@@ -15,6 +15,7 @@ import { UpdateReviewService } from './update-review.service';
 import { DepthReadingService } from './depth-reading.service';
 import { BudgetModule } from '../budget/budget.module';
 import { CashflowPlanService } from './cashflow-plan.service';
+import { CardHealthService } from './card-health.service';
 
 @Module({
   // SimulationsModule: el summary expone el orden de ataque DEL MOTOR (FIN-022,
@@ -24,8 +25,8 @@ import { CashflowPlanService } from './cashflow-plan.service';
   // gobiernan el ProactivityJob/presupuesto anti-fatiga existentes).
   imports: [FinanceModule, AuthModule, RemindersModule, SimulationsModule, DebtOutlayModule, InsightsModule, BudgetModule],
   controllers: [DebtsController],
-  providers: [DebtsService, DebtInsuranceService, DebtPrepaymentService, CardService, UpdateReviewService, DepthReadingService, DebtRenegotiationService, CashflowPlanService],
+  providers: [DebtsService, DebtInsuranceService, DebtPrepaymentService, CardService, UpdateReviewService, DepthReadingService, DebtRenegotiationService, CashflowPlanService, CardHealthService],
   // CardService exportado para FIN-042 (saldo inicial de una tarjeta leída de un extracto).
-  exports: [DebtsService, CardService, DebtRenegotiationService],
+  exports: [DebtsService, CardService, DebtRenegotiationService, CashflowPlanService, CardHealthService],
 })
 export class DebtsModule {}

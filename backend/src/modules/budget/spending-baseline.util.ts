@@ -8,6 +8,8 @@
  *
  * Gasto esencial variable: mercado, transporte y salud (lo que no se puede dejar de
  * pagar aunque no sea fijo). Comida fuera de casa, salidas y ropa NO son esenciales.
+ * Desde 2.2 la persona puede cambiarlo (SpendClassService); esta lista queda como la
+ * sugerencia para las categorías variables.
  */
 export const VARIABLE_ESSENTIAL_CATEGORIES = ['Mercado', 'Transporte', 'Salud'];
 
@@ -25,6 +27,9 @@ export interface SpendingBaseline {
   typicalVariable: number;
   /** Parte esencial del gasto variable típico (mercado, transporte, salud). */
   typicalEssential: number;
+  /** Rango: el mes más bajo y el más alto de los usados (muestra la incertidumbre). */
+  lowVariable: number;
+  highVariable: number;
 }
 
 export function median(values: number[]): number {
@@ -42,5 +47,7 @@ export function spendingBaseline(months: MonthSpend[]): SpendingBaseline | null 
     months: used.length,
     typicalVariable: r(median(used.map((m) => m.total))),
     typicalEssential: r(median(used.map((m) => m.essential))),
+    lowVariable: r(Math.min(...used.map((m) => m.total))),
+    highVariable: r(Math.max(...used.map((m) => m.total))),
   };
 }

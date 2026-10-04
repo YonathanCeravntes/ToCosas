@@ -43,6 +43,7 @@ export class IncomeService {
         amount: dto.amount,
         isVariable: dto.isVariable ?? false,
         dayOfMonth: dto.dayOfMonth ?? null,
+        receivesPrima: dto.receivesPrima ?? false,
       },
     });
   }

@@ -14,7 +14,10 @@ export interface DefaultCategory {
 
 export const DEFAULT_CATEGORIES: DefaultCategory[] = [
   // --- Gastos del día a día (variables) ---
-  { name: 'Comida', kind: 'gasto', icon: '🍔', color: '#F2994A', keywords: ['almuerzo', 'comida', 'cena', 'desayuno', 'restaurante', 'domicilio'] },
+  { name: 'Comida', kind: 'gasto', icon: '🍔', color: '#F2994A', keywords: ['almuerzo', 'comida', 'cena', 'desayuno', 'restaurante'] },
+  // FIN-061 F2 (Fundador 2026-10-04): separadas de Comida para medir la frecuencia real.
+  { name: 'Domicilios', kind: 'gasto', icon: '🛵', color: '#E86A33', keywords: ['domicilio', 'domicilios', 'pedido'] },
+  { name: 'Café y antojos', kind: 'gasto', icon: '☕', color: '#A0522D', keywords: ['cafe', 'tinto', 'antojo', 'helado', 'postre', 'snack', 'empanada'] },
   { name: 'Mercado', kind: 'gasto', icon: '🛒', color: '#27AE60', keywords: ['mercado', 'super', 'supermercado', 'víveres'] },
   { name: 'Transporte', kind: 'gasto', icon: '🚌', color: '#2F80ED', keywords: ['uber', 'taxi', 'bus', 'gasolina', 'transporte', 'didi', 'peaje', 'transmilenio'] },
   { name: 'Salud', kind: 'gasto', icon: '💊', color: '#EB5757', keywords: ['farmacia', 'medico', 'eps', 'medicina', 'droga', 'odontologo'] },
