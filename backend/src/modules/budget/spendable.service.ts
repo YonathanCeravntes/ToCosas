@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { NetIncomeService } from '../income/net-income.service';
 import { financialPeriod } from './financial-period.util';
+import { isSalaryCategory, splitIncomeBase } from './income-split.util';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const DAY_MS = 24 * 3600 * 1000;
@@ -31,9 +32,17 @@ export interface TeQueda {
   pendingCommitments: PendingCommitment[];
   /** Ingresos realmente recibidos en el ciclo (transacciones de ingreso). */
   receivedIncome: number;
-  /** BT-004 · Base de ingreso usada en el cálculo = max(take-home fijo, recibido).
-   *  Es el denominador de la interpretación §4.1-ter (misma base que el Score). */
+  /** BT-004 + FIN-057 · Base de ingreso usada en el cálculo = parte fija + parte variable
+   *  (ver `income-split.util.ts`). Es el denominador de la interpretación §4.1-ter. */
   incomeBase: number;
+  /** FIN-057 · Parte fija de la base: max(salario neto declarado, salario recibido). */
+  incomeFixedBase: number;
+  /** FIN-057 · Parte variable de la base: max(variable estimado, extra recibido). */
+  incomeVariableBase: number;
+  /** FIN-057 · Ingresos del ciclo en la categoría de salario o sin categoría. */
+  receivedSalary: number;
+  /** FIN-057 · Ingresos del ciclo con otra categoría (Plataformas, Ventas, Freelance…). */
+  receivedExtra: number;
   /** FIN-050 · "Mi mes": lo comprometido que YA se pagó este ciclo (fijos registrados + pagos a deudas). */
   committedPaid: number;
   /** FIN-050 · Gasto del día a día del ciclo = gasto real − lo comprometido ya pagado. */
@@ -56,14 +65,19 @@ export interface PaidCommitment {
  *           − gastos y pagos REALES del ciclo
  *           − compromisos PENDIENTES del ciclo
  * donde:
- *   · BASE de ingreso = max( ingreso neto disponible del MES , ingresos
- *     realmente RECIBIDOS ). El ingreso neto disponible del mes = take-home del
- *     ingreso FIJO (netFixedTotal + deducciones auto-pagadas, que siguen como
- *     compromiso) MÁS el ingreso VARIABLE estimado — es el "ingreso neto
- *     disponible" que la usuaria configura para planificar (decisión del
- *     Fundador 2026-07-14, BT-004: "es ingreso neto sumar salario y variable").
- *     El `max` con lo recibido evita el doble conteo cuando ese ingreso además
- *     se registra como movimiento.
+ *   · BASE de ingreso (FIN-057, Fundador 2026-10-02) = PARTE FIJA + PARTE VARIABLE:
+ *     parte fija = max( take-home del ingreso FIJO declarado (netFixedTotal +
+ *     deducciones auto-pagadas, que siguen como compromiso) , salario RECIBIDO );
+ *     parte variable = max( ingreso VARIABLE estimado , ingreso EXTRA recibido ).
+ *     Hereda de BT-004 (Fundador 2026-07-14: "es ingreso neto sumar salario y
+ *     variable") y corrige su efecto no deseado: antes la base era max(declarado
+ *     total, recibido total) y, con el salario declarado sin registrar, el
+ *     rebusque (Didi, ventas…) nunca superaba lo declarado y no contaba. Cada
+ *     `max` sigue evitando el doble conteo cuando el ingreso además se registra.
+ *     "Salario recibido" = ingresos en la categoría de salario O SIN categoría (un
+ *     ingreso sin categoría es ambiguo y se compara con el salario, como antes);
+ *     "extra" = ingresos con otra categoría. La separación vive en
+ *     `income-split.util.ts` (fuente única, la comparte Inicio).
  *   · compromisos pendientes = TODOS los fijos de gasto activos (§4.1-bis),
  *     las deducciones auto-pagadas (DEC-0027 P2) y, por cada deuda activa, UNA
  *     cuota por ciclo (su desembolso mensual real, FIN-023) menos lo ya pagado a
@@ -118,7 +132,7 @@ export class SpendableService {
     const period = financialPeriod(now, settings?.cycleStartDay ?? 1);
     const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-    const [txByKind, fixedItems, debts, outlays, income, paidByDebt, paidByFixed] = await Promise.all([
+    const [txByKind, fixedItems, debts, outlays, income, paidByDebt, paidByFixed, incomeByCategory] = await Promise.all([
       this.prisma.transaction.groupBy({
         by: ['kind'],
         where: {
@@ -163,6 +177,18 @@ export class SpendableService {
         },
         _sum: { amount: true },
       }),
+      // FIN-057: los ingresos del ciclo por categoría, para separar salario de extra.
+      this.prisma.transaction.groupBy({
+        by: ['categoryId'],
+        where: {
+          userId,
+          deletedAt: null,
+          status: 'confirmada',
+          kind: 'ingreso',
+          occurredAt: { gte: period.start, lt: period.end },
+        },
+        _sum: { amount: true },
+      }),
     ]);
     const paidByFixedItem = new Map(paidByFixed.map((p) => [p.fixedItemId as string, Number(p._sum.amount ?? 0)]));
     const paidThisCycle = new Map(paidByDebt.map((p) => [p.debtId as string, Number(p._sum.amount ?? 0)]));
@@ -170,15 +196,17 @@ export class SpendableService {
     const sumKind = (k: string) =>
       Number(txByKind.find((t) => t.kind === k)?._sum.amount ?? 0);
     const receivedIncome = round2(sumKind('ingreso'));
-    // BT-004 (decisión del Fundador 2026-07-14): la base es el INGRESO NETO
-    // DISPONIBLE DEL MES = fijo neto + variable estimado ("sumar salario y
-    // variable"). Take-home = netFixedTotal + deducciones auto-pagadas (que se
-    // restan luego como compromiso) + variable estimado. `max` con lo recibido
-    // evita el doble conteo si además se registra como movimiento.
-    const monthlyTakeHome = round2(
-      income.netFixedTotal + income.selfPaidDeductionsTotal + income.grossVariableEstimate,
-    );
-    const incomeBase = Math.max(monthlyTakeHome, receivedIncome);
+    // FIN-057 (Fundador 2026-10-02): la base se arma POR PARTES — salario con salario,
+    // extra con extra — para que el rebusque siempre cuente (ver income-split.util.ts).
+    const { receivedSalary, receivedExtra } = await this.splitReceived(incomeByCategory);
+    const split = splitIncomeBase({
+      netFixedTotal: income.netFixedTotal,
+      selfPaidDeductionsTotal: income.selfPaidDeductionsTotal,
+      grossVariableEstimate: income.grossVariableEstimate,
+      receivedSalary,
+      receivedExtra,
+    });
+    const incomeBase = split.incomeBase;
     const realOut = round2(sumKind('gasto') + sumKind('pago_deuda'));
 
     const commitments: PendingCommitment[] = [];
@@ -287,9 +315,36 @@ export class SpendableService {
       pendingCommitments: commitments,
       receivedIncome,
       incomeBase,
+      incomeFixedBase: split.fixedBase,
+      incomeVariableBase: split.variableBase,
+      receivedSalary,
+      receivedExtra,
       committedPaid,
       dailySpent,
       paidCommitments,
     };
+  }
+
+  /**
+   * FIN-057 · Reparte los ingresos del ciclo entre "salario" (categoría de salario o sin
+   * categoría) y "extra" (cualquier otra categoría). Única definición (§32).
+   */
+  private async splitReceived(
+    byCategory: Array<{ categoryId: string | null; _sum: { amount: unknown } }>,
+  ): Promise<{ receivedSalary: number; receivedExtra: number }> {
+    const ids = byCategory.map((g) => g.categoryId).filter((id): id is string => !!id);
+    const names = new Map<string, string>();
+    if (ids.length) {
+      const cats = await this.prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
+      for (const c of cats) names.set(c.id, c.name);
+    }
+    let receivedSalary = 0;
+    let receivedExtra = 0;
+    for (const g of byCategory) {
+      const amt = Number(g._sum.amount ?? 0);
+      if (!g.categoryId || isSalaryCategory(names.get(g.categoryId))) receivedSalary += amt;
+      else receivedExtra += amt;
+    }
+    return { receivedSalary: round2(receivedSalary), receivedExtra: round2(receivedExtra) };
   }
 }

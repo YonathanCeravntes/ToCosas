@@ -57,6 +57,7 @@ export class BudgetService {
           startDate: dto.startDate ? new Date(dto.startDate) : null,
           endDate: dto.endDate ? new Date(dto.endDate) : null,
           notes: dto.notes ?? null,
+          householdId: dto.household ? await this.activeHouseholdId(userId) : null,
         },
       });
       return {
@@ -78,16 +79,27 @@ export class BudgetService {
     });
   }
 
-  async update(userId: string, id: string, dto: UpdateFixedItemDto) {
+  async update(userId: string, id: string, input: UpdateFixedItemDto) {
     await this.ensureOwned(userId, id);
+    const { household, ...dto } = input;
     return this.prisma.fixedItem.update({
       where: { id },
       data: {
         ...dto,
+        ...(household !== undefined ? { householdId: household ? await this.activeHouseholdId(userId) : null } : {}),
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
       },
     });
+  }
+
+  /** FIN-059: hogar activo de Millo en pareja (consulta directa, sin ciclo de módulos). */
+  private async activeHouseholdId(userId: string): Promise<string | null> {
+    const m = await this.prisma.householdMember.findFirst({
+      where: { userId, leftAt: null, household: { deletedAt: null } },
+      select: { householdId: true },
+    });
+    return m?.householdId ?? null;
   }
 
   async remove(userId: string, id: string) {

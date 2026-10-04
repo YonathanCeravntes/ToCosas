@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
-import { AnthropicClient, ToolExecutor } from '../src/modules/copilot/anthropic.client';
+import { LlmClient, ToolExecutor } from '../src/modules/copilot/llm.client';
 
 /**
  * FIN-046 Fase 1 · El Copiloto con IA usa las herramientas nuevas (plan de flujo,
@@ -46,7 +46,7 @@ describe('FIN-046 · Copiloto con IA de verdad', () => {
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(AnthropicClient)
+      .overrideProvider(LlmClient)
       .useValue(fakeLlm)
       .compile();
     app = moduleRef.createNestApplication();

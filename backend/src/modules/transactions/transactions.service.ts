@@ -69,6 +69,10 @@ export class TransactionsService {
     if (dto.kind === 'pago_deuda' && !dto.debtId) {
       throw new BadRequestException('Un pago de deuda requiere debtId');
     }
+    // FIN-059: "de la casa" se resuelve al hogar activo de la persona (si no tiene, se ignora).
+    const { household, ...rest } = dto;
+    dto = rest;
+    const householdId = household ? await this.activeHouseholdId(userId) : null;
 
     // FIN-046 Fase 4: sin categoría, se usa la que la persona ya le dio a ese comercio.
     const chosenCategory = dto.categoryId;
@@ -171,6 +175,8 @@ export class TransactionsService {
           entityId: dto.entityId ?? null,
           debtId: dto.debtId ?? null,
           note: dto.note ?? null,
+          paymentMethod: dto.paymentMethod ?? null,
+          householdId,
           tags: dto.tags ?? [],
           clientUuid: dto.clientUuid ?? null,
           source: meta?.source ?? 'app',
@@ -211,6 +217,15 @@ export class TransactionsService {
     return result;
   }
 
+  /** FIN-059: hogar activo de Millo en pareja (sin depender del módulo, para no crear ciclos). */
+  private async activeHouseholdId(userId: string): Promise<string | null> {
+    const m = await this.prisma.householdMember.findFirst({
+      where: { userId, leftAt: null, household: { deletedAt: null } },
+      select: { householdId: true },
+    });
+    return m?.householdId ?? null;
+  }
+
   /**
    * FIN-046 Fase 4 · Categoría aprendida para la nota (por comercio), si la hay y sigue
    * vigente. La usan el registro sin categoría y el bot (antes de sus palabras clave).
@@ -224,6 +239,22 @@ export class TransactionsService {
     });
     const c = hint?.category;
     if (!c || c.deletedAt || c.kind !== kind || (c.userId && c.userId !== userId)) return null;
+    return c;
+  }
+
+  /**
+   * FIN-057 · Como `suggestCategory`, pero sin saber aún el sentido del movimiento: la
+   * categoría aprendida trae su `kind` y el bot deduce de ella si fue gasto o ingreso.
+   */
+  async suggestCategoryAny(userId: string, note: string) {
+    const key = merchantKey(note);
+    if (!key) return null;
+    const hint = await this.prisma.categoryHint.findUnique({
+      where: { userId_key: { userId, key } },
+      include: { category: true },
+    });
+    const c = hint?.category;
+    if (!c || c.deletedAt || (c.kind !== 'gasto' && c.kind !== 'ingreso') || (c.userId && c.userId !== userId)) return null;
     return c;
   }
 
@@ -292,8 +323,12 @@ export class TransactionsService {
    * monto/fecha/tipo/deuda NO se editan en sitio (dejarían el saldo mentiroso) —
    * el usuario debe anular y recrear.
    */
-  async update(userId: string, id: string, dto: UpdateTransactionDto) {
+  async update(userId: string, id: string, input: UpdateTransactionDto) {
     const prev = await this.findOne(userId, id);
+    // FIN-059: marcar o desmarcar "de la casa" (siempre contra el hogar activo de la persona).
+    const { household, ...dtoRest } = input;
+    const dto: Omit<UpdateTransactionDto, 'household'> & { householdId?: string | null } = { ...dtoRest };
+    if (household !== undefined) dto.householdId = household ? await this.activeHouseholdId(userId) : null;
 
     const next: Record<string, unknown> = {
       ...dto,

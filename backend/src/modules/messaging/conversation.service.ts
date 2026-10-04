@@ -6,15 +6,21 @@ import { CopilotService } from '../copilot/copilot.service';
 import { AI_CONSENT_TEXT } from '../copilot/copilot.constants';
 import type { ProposedAction } from '../copilot/brain-views.service';
 import { BudgetService } from '../budget/budget.service';
+import { SpendableService } from '../budget/spendable.service';
+import { BotReply, MenuAction, parseCallback, parseMenuCommand, txButtons } from './bot-menu';
 import { FixedKindDto } from '../budget/dto/fixed-item.dto';
 import { DebtsService } from '../debts/debts.service';
+import { CardHealthService } from '../debts/card-health.service';
 import { CardService } from '../debts/card.service';
 import { DebtRenegotiationService, RenegotiationPreview } from '../debts/debt-renegotiation.service';
 import { parseRenegotiation, RenegotiationCommand } from './renegotiation-command';
 import { RenegotiateDebtDto } from '../debts/dto/renegotiate.dto';
 import { DebtTypeDto, RateBasisDto, RateKindDto } from '../debts/dto/debt.dto';
 import { DocumentExtractionService, SUPPORTED_MEDIA } from './document-extraction.service';
+import { DocumentsService } from '../documents/documents.service';
+import { looksHealth } from '../documents/documents.util';
 import {
+  DocumentExtraction,
   DocumentProposal,
   PROPOSAL_TTL_MINUTES,
   applyFix,
@@ -23,15 +29,34 @@ import {
   toProposal,
 } from './document-proposal';
 import { DebtOutlayService } from '../debts/debt-outlay.service';
+import { DebtInsuranceService } from '../debts/debt-insurance.service';
 import { SimulationsService } from '../simulations/simulations.service';
 import { TransactionsService } from '../transactions/transactions.service';
 import { TxKindDto } from '../transactions/dto/transaction.dto';
-import { ruleParse } from '../whatsapp/nlp/rule.parser';
+import { platformMention, ruleParse, TxKind } from '../whatsapp/nlp/rule.parser';
+import { mentionsHouse } from '../household/household.util';
 import { looksLikeOtp } from '../whatsapp/otp.util';
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO');
 /** FIN-029 (DEC-0029 §5.1): todo acuse dice DÓNDE queda el movimiento. */
 const SEEN_IN_APP = ' Lo ves en tus movimientos en la app.';
+
+/** FIN-057 · Movimiento a la espera de saber si fue gasto, ingreso o pago de deuda. */
+interface PendingKind {
+  parsed: ReturnType<typeof ruleParse>;
+  /** Plataforma mencionada ("didi"), para recordar la respuesta. */
+  platform: string | null;
+}
+
+/** FIN-057 · "ingreso" / "me lo gané" / "gasto" / "lo pagué" / "deuda". Null si no responde. */
+export function parseKindReply(text: string): 'ingreso' | 'gasto' | 'pago_deuda' | null {
+  const t = ` ${text.trim().toLowerCase()} `;
+  if (t.trim().split(/\s+/).length > 6) return null; // una frase larga es otro mensaje, no la respuesta
+  if (/\b(deuda|cuota|abono|abon[eé]|cr[eé]dito|tarjeta)\b/.test(t)) return 'pago_deuda';
+  if (/\b(ingreso|entrada|gan[eé]|gané|me lo gan|me los gan|me la gan|me las gan|me pagaron|cobr[eé]|cobré|entr[oó]|entró|recib[ií]|recibí)/.test(t)) return 'ingreso';
+  if (/\b(gasto|gast[eé]|gasté|pagu[eé]|pagué|lo pag|los pag|la pag|las pag|compr[eé]|compré|salida)/.test(t)) return 'gasto';
+  return null;
+}
 
 /** Canal de origen del mensaje (para `source` de la transacción). */
 export type ChannelSource = 'whatsapp' | 'telegram';
@@ -92,7 +117,18 @@ export class ConversationService {
 
   private readonly logger = new Logger(ConversationService.name);
 
+  /** Respuesta en texto (WhatsApp y pruebas). */
   async handle(input: ConversationInput): Promise<string> {
+    return (await this.handleRich(input)).text;
+  }
+
+  /** FIN-055 · Respuesta con botones (Telegram). */
+  async handleRich(input: ConversationInput): Promise<BotReply> {
+    const r = await this.route(input);
+    return typeof r === 'string' ? { text: r } : r;
+  }
+
+  private async route(input: ConversationInput): Promise<string | BotReply> {
     const text = (input.text ?? '').trim();
 
     // 1) Sin vincular → intentar OTP o dar instrucciones.
@@ -111,6 +147,9 @@ export class ConversationService {
     if (input.type === 'image' || input.type === 'document') {
       return this.handleDocument(input);
     }
+    // FIN-055: menú "/" y botones fijos del teclado.
+    const menu = parseMenuCommand(text);
+    if (menu) return this.runMenu(input.userId, menu);
     if (/^revocar\s+documentos\b/i.test(text)) {
       await this.prisma.userSettings.upsert({
         where: { userId: input.userId },
@@ -120,6 +159,9 @@ export class ConversationService {
       await this.clearPending(input.userId, input.source);
       return '✅ Listo, retiré el permiso: no volveré a enviar tus documentos a la IA hasta que escribas "autorizo".';
     }
+    // FIN-054: permiso para GUARDAR documentos (aparte de leerlos con IA).
+    const storageCmd = await this.handleStorageConsent(input.userId, text);
+    if (storageCmd) return storageCmd;
     if (/^autorizo\b/i.test(text)) {
       await this.prisma.userSettings.upsert({
         where: { userId: input.userId },
@@ -195,6 +237,171 @@ export class ConversationService {
         if (await this.consent.hasValidConsent(input.userId)) return this.askCopilot(input.userId, input.source, text);
         return '🤔 No te entendí. Puedes decir algo como "Gasté $45.000 en mercado", "Pagué $200.000 al crédito" o "resumen". Si era una pregunta sobre tu plata, activa la IA escribiendo "activar ia". Escribe "ayuda" para ejemplos.';
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // FIN-055 · Menú, botones fijos y botones bajo cada gasto
+  // ---------------------------------------------------------------------------
+
+  /** SpendableService por contenedor (misma fuente de "Te queda", §32); null en pruebas sin él. */
+  private spendable(): SpendableService | null {
+    try {
+      return this.moduleRef.get(SpendableService, { strict: false }) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** "Te queda este mes: $X ($Y por día · faltan N días)" — o null si no se puede calcular. */
+  private async teQuedaLine(userId: string): Promise<string | null> {
+    const svc = this.spendable();
+    if (!svc) return null;
+    try {
+      const q = await svc.compute(userId);
+      const days = `faltan ${q.daysLeft} día${q.daysLeft === 1 ? '' : 's'}`;
+      if (q.amount <= 0) return `⚠️ Este mes ya no te queda plata libre (${fmt(q.amount)}) · ${days}.`;
+      return `💚 Te queda este mes: ${fmt(q.amount)}${q.perDay ? ` (${fmt(q.perDay)} por día · ${days})` : ''}.`;
+    } catch (e) {
+      this.logger.warn(`Te queda por chat falló: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  private async runMenu(userId: string, action: MenuAction): Promise<string | BotReply> {
+    switch (action) {
+      case 'start': {
+        const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+        const first = user?.fullName?.trim().split(/\s+/)[0];
+        return {
+          text:
+            `👋 ¡Hola${first ? `, ${first}` : ''}! Soy Millo.\n` +
+            'Estoy aquí para que tu plata se vea clara. Puedes escribirme como hablas:\n\n' +
+            '"mercado 86.000"\n"me pagaron 2.400.000"\n"¿cuánto me queda?"\n\n' +
+            'O toca un botón de abajo. En "Menú" tienes más atajos.',
+          mainKeyboard: true,
+        };
+      }
+      case 'gasto':
+        return '✍️ Escríbeme el gasto como lo dirías: "almuerzo 18.500" o "mercado 86.000 ayer". Para un ingreso: "me pagaron 2.400.000".';
+      case 'queda': {
+        const line = await this.teQuedaLine(userId);
+        if (!line) return this.buildSummary(userId);
+        return `${line}\n\nTu mes completo: app → Más → Mi mes.`;
+      }
+      case 'pagos':
+        return this.upcomingPayments(userId);
+      case 'deudas':
+        return this.debtsList(userId);
+      case 'documentos': {
+        const docs = this.documents();
+        if (docs && (await docs.consentStatus(userId)).accepted) {
+          return '📎 Envíame la foto o el PDF de la factura o el extracto y lo guardo en Mis documentos.';
+        }
+        return (await this.handleStorageConsent(userId, 'guardar documentos')) ?? '📎 Envíame la foto o el PDF de la factura o el extracto.';
+      }
+      case 'app':
+        return `📱 Abre Millo aquí: ${process.env.APP_WEB_URL || 'https://yonathanceravntes.github.io/ToCosas/'}`;
+      case 'ayuda':
+        return this.helpText();
+    }
+  }
+
+  /** Pagos de los próximos 31 días: cuotas de deudas y gastos fijos con día. */
+  private async upcomingPayments(userId: string, now = new Date()): Promise<string> {
+    const DAY = 86_400_000;
+    const [debts, outlays, fixed] = await Promise.all([
+      this.prisma.debt.findMany({ where: { userId, deletedAt: null, status: 'activa', nextDueDate: { not: null } } }),
+      this.debtOutlay.outlaysByUser(userId),
+      this.prisma.fixedItem.findMany({ where: { userId, kind: 'gasto', isActive: true, dayOfMonth: { not: null } } }),
+    ]);
+    const items: Array<{ name: string; amount: number; date: Date }> = [];
+    for (const d of debts) {
+      if (d.nextDueDate!.getTime() > now.getTime() + 31 * DAY) continue;
+      items.push({ name: d.name, amount: outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0), date: d.nextDueDate! });
+    }
+    for (const f of fixed) {
+      const next = new Date(now.getFullYear(), now.getMonth(), f.dayOfMonth!);
+      if (next.getTime() < now.getTime() - DAY) next.setMonth(next.getMonth() + 1);
+      items.push({ name: f.name, amount: Number(f.amount), date: next });
+    }
+    if (items.length === 0) return '📅 No tienes pagos con fecha en los próximos 30 días. Puedes agregarlos en la app: Deudas o Mi mes → Gastos fijos.';
+    items.sort((a, b) => a.date.getTime() - b.date.getTime());
+    const lines = items.slice(0, 10).map((i) => {
+      const days = Math.ceil((i.date.getTime() - now.getTime()) / DAY);
+      const when = days <= 0 ? 'hoy' : days === 1 ? 'mañana' : `en ${days} días`;
+      return `• ${i.name}: ${fmt(i.amount)} · ${when} (${i.date.getUTCDate()}/${i.date.getUTCMonth() + 1})`;
+    });
+    const total = items.reduce((a, i) => a + i.amount, 0);
+    return ['📅 Tus próximos pagos:', ...lines, '', `Total: ${fmt(total)}`].join('\n');
+  }
+
+  private async debtsList(userId: string): Promise<string> {
+    const [debts, outlays] = await Promise.all([
+      this.prisma.debt.findMany({ where: { userId, deletedAt: null, status: 'activa' }, orderBy: { currentBalance: 'desc' } }),
+      this.debtOutlay.outlaysByUser(userId),
+    ]);
+    if (debts.length === 0) return '🎉 No tienes deudas activas registradas. Si tienes una, agrégala en la app → Deudas, o mándame la foto del extracto.';
+    const lines = debts.map((d) => `• ${d.name}: debes ${fmt(Number(d.currentBalance))} · cuota ${fmt(outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0))}`);
+    const total = debts.reduce((a, d) => a + Number(d.currentBalance), 0);
+    return [
+      `💳 Tus deudas (${debts.length}):`,
+      ...lines,
+      '',
+      `Total: ${fmt(total)} · al mes: ${fmt(outlays.totalOutlay)}`,
+      'Cuál pagar primero: app → Salud → Ver mi plan.',
+    ].join('\n');
+  }
+
+  /** FIN-055 · Toque en un botón bajo un mensaje. */
+  async handleCallback(userId: string | null, data: string): Promise<BotReply> {
+    if (!userId) return { text: 'Primero vincula tu cuenta: app → Ajustes → Telegram.' };
+    const cb = parseCallback(data);
+    if (!cb) return { text: 'Ese botón ya no está disponible. Escríbeme lo que necesitas.' };
+    const tx = await this.prisma.transaction.findFirst({ where: { id: cb.txId, userId, deletedAt: null } });
+    if (!tx) return { text: 'Ese movimiento ya no está (quizá lo anulaste). Lo ves todo en tus movimientos en la app.' };
+
+    if (cb.kind === 'undo') {
+      await this.transactions.remove(userId, tx.id);
+      return { text: `🗑️ Listo, anulé el movimiento de ${fmt(Number(tx.amount))}.${SEEN_IN_APP}` };
+    }
+    if (cb.kind === 'other_category') {
+      return { text: 'Para elegir otra categoría: app → Movimientos → toca el movimiento → Categoría. Millo lo aprende igual.' };
+    }
+    const options = await this.categoryOptions(userId, tx.kind, tx.categoryId);
+    if (cb.kind === 'categories') {
+      const rows: BotReply['buttons'] = [];
+      for (let i = 0; i < options.length; i += 2) {
+        rows.push(options.slice(i, i + 2).map((c) => ({ text: c.name, data: `sc:${tx.id}:${c.id.replace(/-/g, '').slice(0, 8)}` })));
+      }
+      rows.push([{ text: 'Otra', data: `co:${tx.id}` }]);
+      return { text: `¿En qué categoría va este ${tx.kind === 'ingreso' ? 'ingreso' : 'gasto'} de ${fmt(Number(tx.amount))}?`, buttons: rows };
+    }
+    const chosen = options.find((c) => c.id.replace(/-/g, '').startsWith(cb.prefix));
+    if (!chosen) return { text: 'No encontré esa categoría. Cámbiala en la app: Movimientos → toca el movimiento.' };
+    // Mismo servicio que la app: si hay nota, Millo aprende el comercio (FIN-046 Fase 4).
+    await this.transactions.update(userId, tx.id, { categoryId: chosen.id } as never);
+    const learn = tx.note ? ` La próxima vez que escribas "${tx.note}" lo anoto ahí.` : '';
+    return { text: `✅ Listo, lo pasé a ${chosen.name}.${learn}` };
+  }
+
+  /** Hasta 6 categorías del mismo tipo, las más usadas por la persona primero (sin la actual). */
+  private async categoryOptions(userId: string, kind: string, currentId: string | null) {
+    const cats = await this.prisma.category.findMany({
+      where: { kind: kind as never, deletedAt: null, isFixed: false, OR: [{ userId }, { isGlobal: true }] },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    const since = new Date(Date.now() - 120 * 86_400_000);
+    const used = await this.prisma.transaction.groupBy({
+      by: ['categoryId'],
+      where: { userId, deletedAt: null, occurredAt: { gte: since }, categoryId: { not: null } },
+      _count: { _all: true },
+    });
+    const count = new Map(used.map((u) => [u.categoryId, u._count._all]));
+    return cats
+      .filter((c) => c.id !== currentId)
+      .sort((a, b) => (count.get(b.id) ?? 0) - (count.get(a.id) ?? 0))
+      .slice(0, 6);
   }
 
   // ---------------------------------------------------------------------------
@@ -283,8 +490,8 @@ export class ConversationService {
   // ---------------------------------------------------------------------------
 
   private static readonly DOCS_CONSENT_TEXT =
-    '📎 Para leer tu documento lo envío a la inteligencia artificial de Millo (proveedor Anthropic, EE. UU.). ' +
-    'Un extracto contiene datos personales; Millo NO los guarda: solo toma saldo, cupo, cuota, tasa y fechas, y descarta el archivo. ' +
+    '📎 Para leer tu documento lo envío a la inteligencia artificial de Millo (proveedor Google Gemini, EE. UU.). ' +
+    'Leerlo no es guardarlo: solo tomo saldo, cupo, cuota, tasa, fechas o el total, y el archivo solo se guarda en *Mis documentos* si lo autorizas aparte. ' +
     'Si estás de acuerdo, responde *autorizo* y vuelve a enviarme el documento. Para retirar el permiso escribe "revocar documentos".';
 
   private async handleDocument(input: ConversationInput): Promise<string> {
@@ -293,7 +500,8 @@ export class ConversationService {
       return '📎 Recibí tu documento, pero la lectura con IA no está disponible en este momento. Regístralo con un mensaje, ej: "Gasté $45.000 en mercado".';
     }
     const settings = await this.prisma.userSettings.findUnique({ where: { userId } });
-    if (!settings?.docsAiConsentAt) return ConversationService.DOCS_CONSENT_TEXT;
+    // 2026-09-30: cambió el proveedor de IA (Anthropic → Google): el permiso anterior no vale.
+    if (!settings?.docsAiConsentAt || settings.docsAiConsentAt < DOCS_AI_CONSENT_SINCE) return ConversationService.DOCS_CONSENT_TEXT;
     if (!input.file) return '📎 No pude recibir el archivo. Envíalo de nuevo como foto o PDF.';
 
     let file: { data: Buffer; mimeType: string };
@@ -317,17 +525,127 @@ export class ConversationService {
       return '📎 No logré leer el documento ahora mismo. Inténtalo de nuevo en unos minutos o regístralo con un mensaje.';
     }
 
-    const proposal = toProposal(extraction);
-    if (!proposal || extraction.kind === 'desconocido' || (extraction.confidence ?? 0) < 0.35) {
+    if (extraction.kind === 'desconocido' || (extraction.confidence ?? 0) < 0.35) {
       const why = extraction.notes ? ` (${extraction.notes})` : '';
-      return `🤔 No reconocí un extracto ni un comprobante con datos suficientes${why}. Prueba con una foto más nítida, o dime los datos: "Gasté $45.000 en mercado".`;
+      return `🤔 No reconocí un extracto, factura, comprobante ni certificado con datos suficientes${why}. Prueba con una foto más nítida, o dime los datos: "Gasté $45.000 en mercado".`;
+    }
+
+    // FIN-054: cada documento a su lugar. Primero se archiva (con permiso) en Mis documentos.
+    const archive = await this.archiveDocument(userId, input.source, extraction, file);
+    const note = archiveNote(archive);
+
+    if (extraction.kind === 'extracto_cuenta') {
+      const who = extraction.entityName ?? 'tu banco';
+      const bal = extraction.balance != null ? ` Saldo${extraction.statementDate ? ` al ${extraction.statementDate}` : ''}: ${fmt(extraction.balance)}.` : '';
+      return `🏦 Leí tu extracto de cuenta de ${who}.${bal} No es una deuda: sirve para tu patrimonio y tus consignaciones en la renta.${note}`;
+    }
+    if (extraction.kind === 'certificado') {
+      const label = CERT_LABEL[extraction.certificateType ?? 'otro'] ?? 'certificado';
+      const yr = extraction.taxYear ? ` del año ${extraction.taxYear}` : '';
+      const val = extraction.amount != null ? ` Valor principal: ${fmt(extraction.amount)}.` : '';
+      return `📄 Leí tu ${label}${extraction.entityName ? ` de ${extraction.entityName}` : ''}${yr}.${val} Lo usaré en el borrador de tu renta.${note}`;
+    }
+
+    const proposal = toProposal(extraction);
+    if (!proposal) {
+      const why = extraction.notes ? ` (${extraction.notes})` : '';
+      return `🤔 Reconocí el documento pero no los datos suficientes${why}. Prueba con una foto más nítida.${note}`;
+    }
+    if (proposal.kind === 'comprobante') {
+      // FIN-054: si ese gasto ya estaba registrado, la factura solo se enlaza (no se cuenta doble).
+      const docs = this.documents();
+      const match = docs ? await docs.findMatchingExpense(userId, proposal.amount, proposal.occurredAt, proposal.merchant).catch(() => null) : null;
+      if (match) {
+        if (archive.documentId && docs) await docs.linkTransaction(userId, archive.documentId, match.id);
+        return `🧾 Ya tenías registrado ese gasto de ${fmt(proposal.amount)}${proposal.merchant ? ` en ${proposal.merchant}` : ''} (${proposal.occurredAt}): no lo registro de nuevo.${note}`;
+      }
+      proposal.documentId = archive.documentId ?? null;
     }
     await this.savePending(userId, input.source, proposal);
-    return describeProposal(proposal);
+    return describeProposal(proposal) + note;
+  }
+
+  /** FIN-054 · Mis documentos, si está disponible (en pruebas unitarias puede no estarlo). */
+  private documents(): DocumentsService | null {
+    try {
+      return this.moduleRef.get(DocumentsService, { strict: false }) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Guarda el documento en la bóveda si hay permiso (y permiso de salud si aplica). */
+  private async archiveDocument(
+    userId: string,
+    source: ChannelSource,
+    x: DocumentExtraction,
+    file: { data: Buffer; mimeType: string },
+  ): Promise<ArchiveStatus> {
+    const docs = this.documents();
+    if (!docs) return { status: 'off' };
+    const kind =
+      x.kind === 'factura_electronica' ? (x.cufe ? 'factura' : 'comprobante')
+      : x.kind === 'desconocido' ? null
+      : x.kind;
+    if (!kind) return { status: 'off' };
+    const isHealth = x.isHealth ?? looksHealth(x.merchant ?? x.entityName);
+    const isInvoice = kind === 'factura' || kind === 'comprobante';
+    try {
+      const res = await docs.save(
+        userId,
+        {
+          kind,
+          issuer: isInvoice ? x.merchant ?? x.entityName : x.entityName ?? x.merchant,
+          issuerNit: x.issuerNit,
+          number: x.invoiceNumber,
+          cufe: x.cufe,
+          docDate: isInvoice ? x.occurredAt : x.statementDate ?? x.occurredAt,
+          subtotal: x.subtotal,
+          tax: x.tax,
+          total: isInvoice || kind === 'certificado' ? x.amount : x.balance,
+          paymentMethod: x.paymentMethod ?? 'desconocido',
+          isHealth,
+          certificateType: x.certificateType,
+          year: kind === 'certificado' ? x.taxYear : null,
+          source: source as never,
+        },
+        file,
+      );
+      if (!res.saved) return { status: res.reason };
+      return { status: res.duplicate ? 'duplicate' : 'saved', documentId: res.document.id, fileStored: res.fileStored };
+    } catch (e) {
+      this.logger.warn(`No se pudo archivar el documento: ${(e as Error).message}`);
+      return { status: 'off' };
+    }
+  }
+
+  /** "guardar documentos" / "acepto guardar" / "incluir salud" / "no guardar documentos". */
+  private async handleStorageConsent(userId: string, text: string): Promise<string | null> {
+    const docs = this.documents();
+    if (!docs) return null;
+    // BT-026: singular o plural, mayúsculas, tildes y frases cercanas ("guarda mis documentos").
+    const t = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    if (/^no\s+(guardar|guardes)\s+(mis\s+|los\s+|las\s+)?(documentos?|facturas?)\b/.test(t)) {
+      await docs.revokeConsent(userId, false);
+      return '✅ Listo, no guardaré más documentos. Lo que ya estaba sigue en Mis documentos; ahí puedes descargarlo o borrarlo.';
+    }
+    if (/^(quiero\s+)?(guardar|guarda|guardame)\s+(mis\s+|los\s+|las\s+|el\s+|la\s+|un\s+)?(documentos?|facturas?)\b/.test(t)) return STORAGE_CONSENT_TEXT;
+    if (/^acepto\s+guardar\b/.test(t)) {
+      const health = /salud/.test(t);
+      await docs.grantConsent(userId, health);
+      return `✅ Listo: desde ahora guardo tus documentos en *Mis documentos* (app → Más). ${health ? 'Incluye facturas de salud.' : 'Las facturas de salud no las guardo; si quieres incluirlas, escribe *incluir salud*.'}`;
+    }
+    if (/^incluir\s+(las\s+de\s+)?salud\b/.test(t)) {
+      const st = await docs.consentStatus(userId);
+      if (!st.accepted) return STORAGE_CONSENT_TEXT;
+      await docs.grantConsent(userId, true);
+      return '✅ Listo: también guardaré tus facturas de salud (farmacia, EPS, medicina prepagada). Puedes quitarlo en la app, en Mis documentos.';
+    }
+    return null;
   }
 
   /** Respuesta a una propuesta viva: sí / no / corrección. Null si no hay propuesta o el texto no le habla. */
-  private async handlePendingReply(input: ConversationInput, text: string): Promise<string | null> {
+  private async handlePendingReply(input: ConversationInput, text: string): Promise<string | BotReply | null> {
     const userId = input.userId as string;
     const pending = await this.prisma.botPendingAction.findUnique({ where: { userId_source: { userId, source: input.source } } });
     if (!pending) return null;
@@ -335,6 +653,7 @@ export class ConversationService {
       await this.clearPending(userId, input.source);
       return null;
     }
+    if (pending.kind === 'tipo_movimiento') return this.handleKindReply(userId, input.source, pending.payload as unknown as PendingKind, text);
     if (pending.kind === 'accion_copiloto') return this.handleCopilotActionReply(userId, input.source, pending.payload as unknown as ProposedAction, text);
     if (pending.kind === 'renegociacion') return this.handleRenegotiationReply(userId, input.source, pending.payload as unknown as { debtId: string; dto: RenegotiationCommand['dto'] }, text);
     const proposal = pending.payload as unknown as DocumentProposal;
@@ -366,7 +685,7 @@ export class ConversationService {
   private async applyProposal(userId: string, source: ChannelSource, p: DocumentProposal): Promise<string> {
     const today = new Date().toISOString().slice(0, 10);
     if (p.kind === 'comprobante') {
-      await this.transactions.create(
+      const tx = await this.transactions.create(
         userId,
         {
           kind: 'gasto' as unknown as TxKindDto,
@@ -376,6 +695,8 @@ export class ConversationService {
         },
         { source, rawMessage: 'comprobante', parseConfidence: 0.8 },
       );
+      // FIN-054: la factura guardada queda enlazada a su gasto.
+      if (p.documentId) await this.documents()?.linkTransaction(userId, p.documentId, tx.id).catch(() => undefined);
       return `✅ Registré tu gasto de ${fmt(p.amount)}${p.merchant ? ` en ${p.merchant}` : ''} (${p.occurredAt}).${SEEN_IN_APP}`;
     }
 
@@ -411,10 +732,45 @@ export class ConversationService {
           note: 'Saldo del extracto',
         });
       }
+      // FIN-054 (Fundador 2026-10-02): la cuota de manejo leída se registra como cargo del
+      // banco aparte (FIN-023) — así cuenta en la cuota del mes y en "Te queda".
+      let feeNote = '';
+      if (p.handlingFee != null && p.handlingFee > 0) {
+        try {
+          const insurance = this.moduleRef.get(DebtInsuranceService, { strict: false });
+          await insurance.create(userId, debt.id, {
+            kind: 'cuota_manejo' as never,
+            name: 'Cuota de manejo',
+            monthlyPremium: p.handlingFee,
+            financed: false,
+          } as never);
+          feeNote = ` Anoté la cuota de manejo de ${fmt(p.handlingFee)} al mes como cargo aparte.`;
+        } catch (e) {
+          this.logger.warn(`Cuota de manejo no registrada: ${(e as Error).message}`);
+          feeNote = ` No pude anotar la cuota de manejo; agrégala en Deudas → ${p.name} → Cargos de la tarjeta.`;
+        }
+      }
+      // FIN-061 F2.4: el corte queda guardado para "Salud de tu tarjeta" (pago sugerido,
+      // uso del cupo, solo el mínimo). Si falla, la tarjeta igual queda creada.
+      if (p.statementDate) {
+        try {
+          await this.moduleRef.get(CardHealthService, { strict: false }).saveStatement(userId, debt.id, {
+            closingDate: p.statementDate,
+            dueDate: p.dueDate && p.dueDate >= p.statementDate ? p.dueDate : undefined,
+            statementBalance: p.balance,
+            minimumPayment: p.minimumPayment ?? undefined,
+            totalPayment: p.totalPayment ?? undefined,
+            creditLimit: p.creditLimit ?? undefined,
+            handlingFee: p.handlingFee ?? undefined,
+          });
+        } catch (e) {
+          this.logger.warn(`Extracto no guardado: ${(e as Error).message}`);
+        }
+      }
       return (
         `✅ Creé la tarjeta *${p.name}* con saldo ${fmt(p.balance)}` +
         (p.creditLimit != null ? ` y cupo ${fmt(p.creditLimit)}` : '') +
-        `. Repartí el saldo en ${p.installments} cuota${p.installments === 1 ? '' : 's'} de ≈ ${fmt(p.balance / p.installments)}. ` +
+        `. Repartí el saldo en ${p.installments} cuota${p.installments === 1 ? '' : 's'} de ≈ ${fmt(p.balance / p.installments)}.${feeNote} ` +
         `Puedes ajustar cuotas, tasa y día de pago en Deudas → ${p.name}.`
       );
     }
@@ -508,24 +864,98 @@ export class ConversationService {
     await this.prisma.botPendingAction.deleteMany({ where: { userId, source } });
   }
 
+  // ---------------------------------------------------------------------------
+  // FIN-057 · "¿Lo pagaste o te lo ganaste?" — el tipo del movimiento se pregunta UNA vez
+  // y se recuerda; antes la pregunta era un callejón sin salida (la respuesta "ingreso"
+  // sola no se entendía) y "didi 16.000" se anotaba como transporte pagado.
+  // ---------------------------------------------------------------------------
+
+  private async savePendingKind(userId: string, source: ChannelSource, parsed: ReturnType<typeof ruleParse>, platform: string | null): Promise<void> {
+    const expiresAt = new Date(Date.now() + PROPOSAL_TTL_MINUTES * 60_000);
+    const payload = { parsed, platform } as unknown as object;
+    await this.prisma.botPendingAction.upsert({
+      where: { userId_source: { userId, source } },
+      create: { userId, source, kind: 'tipo_movimiento', payload, expiresAt },
+      update: { kind: 'tipo_movimiento', payload, expiresAt },
+    });
+  }
+
+  /** La respuesta a la pregunta del tipo. Null si el texto no responde (es otro mensaje). */
+  private async handleKindReply(userId: string, source: ChannelSource, payload: PendingKind, text: string): Promise<string | BotReply | null> {
+    const kind = parseKindReply(text);
+    await this.clearPending(userId, source);
+    if (!kind) return null;
+    const platformCategory = payload.platform ? (kind === 'ingreso' ? 'plataformas' : kind === 'gasto' ? 'transporte' : null) : null;
+    const parsed = {
+      ...payload.parsed,
+      kind,
+      categoryGuess: platformCategory ?? payload.parsed.categoryGuess,
+      missing: payload.parsed.missing.filter((m) => m !== 'kind'),
+    };
+    const reply = await this.registerTransaction(userId, source, parsed);
+    if (payload.platform && (kind === 'ingreso' || kind === 'gasto')) {
+      await this.rememberPlatform(userId, payload.platform, kind).catch(() => undefined);
+      const learn = `👍 Anotado. La próxima vez que me escribas "${payload.platform}" lo tomo como ${kind === 'ingreso' ? 'plata que te entra' : 'transporte que pagas'}; si cambia, dime.`;
+      return typeof reply === 'string' ? `${learn}\n\n${reply}` : { ...reply, text: `${learn}\n\n${reply.text}` };
+    }
+    return reply;
+  }
+
+  /** Guarda "didi → Plataformas (ingreso)" o "didi → Transporte (gasto)" para esa persona. */
+  private async rememberPlatform(userId: string, platform: string, kind: 'ingreso' | 'gasto'): Promise<void> {
+    const category = await this.prisma.category.findFirst({
+      where: { kind, name: { equals: kind === 'ingreso' ? 'Plataformas' : 'Transporte', mode: 'insensitive' }, OR: [{ userId }, { isGlobal: true }], deletedAt: null },
+    });
+    if (!category) return;
+    const key = `plataforma:${platform}`;
+    const prev = await this.prisma.categoryHint.findUnique({ where: { userId_key: { userId, key } } });
+    if (!prev) await this.prisma.categoryHint.create({ data: { userId, key, categoryId: category.id } });
+    else await this.prisma.categoryHint.update({ where: { id: prev.id }, data: prev.categoryId === category.id ? { hits: { increment: 1 } } : { categoryId: category.id, hits: 1 } });
+  }
+
+  private async recallPlatform(userId: string, platform: string): Promise<{ id: string; name: string; kind: TxKind } | null> {
+    try {
+      const hint = await this.prisma.categoryHint.findUnique({ where: { userId_key: { userId, key: `plataforma:${platform}` } }, include: { category: true } });
+      const c = hint?.category;
+      if (!c || c.deletedAt || (c.kind !== 'ingreso' && c.kind !== 'gasto')) return null;
+      return { id: c.id, name: c.name, kind: c.kind };
+    } catch {
+      return null;
+    }
+  }
+
   private async registerTransaction(
     userId: string,
     source: ChannelSource,
     parsed: ReturnType<typeof ruleParse>,
-  ): Promise<string> {
+    forcedCategory?: { id: string; name: string },
+  ): Promise<string | BotReply> {
     if (parsed.amount === null) {
       return '🤔 Entendí que quieres registrar algo, pero no vi el monto. ¿Cuánto fue? (ej: "$45.000)';
     }
     if (!parsed.kind) {
-      return '🤔 ¿Ese movimiento fue un *gasto*, un *ingreso* o un *pago de deuda*?';
+      // FIN-057: lo que la persona ya me dijo de esa plataforma o ese comercio manda.
+      const platform = platformMention(parsed.note);
+      const remembered = platform ? await this.recallPlatform(userId, platform) : null;
+      const learnedAny = !remembered && parsed.note ? await this.transactions.suggestCategoryAny(userId, parsed.note).catch(() => null) : null;
+      const known = remembered ?? (learnedAny ? { id: learnedAny.id, name: learnedAny.name, kind: learnedAny.kind as TxKind } : null);
+      if (known) {
+        return this.registerTransaction(userId, source, { ...parsed, kind: known.kind, categoryGuess: known.name, missing: parsed.missing.filter((m) => m !== 'kind') }, known);
+      }
+      await this.savePendingKind(userId, source, parsed, platform);
+      if (platform) {
+        return `🤔 Esos ${fmt(parsed.amount)} de ${platform.charAt(0).toUpperCase()}${platform.slice(1)}, ¿los *pagaste* o te los *ganaste*? Responde "gasto" o "ingreso" y lo recuerdo para la próxima.`;
+      }
+      return '🤔 ¿Ese movimiento fue un *gasto*, un *ingreso* o un *pago de deuda*? Respóndeme con esa palabra y lo anoto.';
     }
 
     // FIN-046 Fase 4: lo aprendido de la persona ("netflix" → Suscripciones) gana sobre
     // las palabras clave genéricas; si no hay nada aprendido, se usan ellas.
     const learned =
-      parsed.note && (parsed.kind === 'gasto' || parsed.kind === 'ingreso')
+      forcedCategory ??
+      (parsed.note && (parsed.kind === 'gasto' || parsed.kind === 'ingreso')
         ? await this.transactions.suggestCategory(userId, parsed.note, parsed.kind).catch(() => null)
-        : null;
+        : null);
     const categoryName = learned?.name ?? parsed.categoryGuess;
     const categoryId = learned
       ? learned.id
@@ -567,6 +997,8 @@ export class ConversationService {
       }
     }
 
+    // FIN-059: "casa" en el mensaje lo marca como gasto de la casa (si la persona está en Millo en pareja).
+    const house = (parsed.kind === 'gasto' || parsed.kind === 'pago_deuda') && mentionsHouse(parsed.note);
     const tx = await this.transactions.create(
       userId,
       {
@@ -577,6 +1009,7 @@ export class ConversationService {
         entityId: entity?.id,
         debtId,
         note: parsed.note,
+        household: house || undefined,
       },
       { source, rawMessage: parsed.note, parseConfidence: parsed.confidence },
     );
@@ -588,14 +1021,19 @@ export class ConversationService {
       const debt = await this.prisma.debt.findUnique({ where: { id: debtId } });
       return `✅ Registré tu pago de ${fmt(parsed.amount)}${debt ? ` a ${debt.name}` : ''} ${when}. Nuevo saldo: ${fmt(Number(debt?.currentBalance ?? 0))}.${SEEN_IN_APP}`;
     }
-    const label = parsed.kind === 'ingreso' ? 'ingreso' : parsed.kind === 'gasto' ? 'gasto' : 'movimiento';
+    const label = parsed.kind === 'ingreso' ? 'ingreso' : parsed.kind === 'gasto' ? (tx.householdId ? 'gasto de la casa' : 'gasto') : 'movimiento';
     const cat = categoryName ? ` en ${categoryName}` : '';
     // FIN-047: si era un gasto fijo, se dice que quedó cruzado (no se cuenta doble).
     if (tx.fixedItemId) {
       const fixed = await this.prisma.fixedItem.findUnique({ where: { id: tx.fixedItemId } });
       return `✅ Registré tu ${label} de ${fmt(parsed.amount)}${cat} ${when}. Ya lo tenía como gasto fijo (${fixed?.name ?? 'fijo'}): quedó cruzado y no se cuenta doble.${SEEN_IN_APP}`;
     }
-    return `✅ Registré tu ${label} de ${fmt(parsed.amount)}${cat} ${when}.${SEEN_IN_APP}`;
+    // FIN-055: el acuse dice cuánto queda y ofrece corregir la categoría o deshacer.
+    const left = await this.teQuedaLine(userId);
+    return {
+      text: `✅ Registré tu ${label} de ${fmt(parsed.amount)}${cat} ${when}.${SEEN_IN_APP}${left ? `\n\n${left}` : ''}`,
+      buttons: txButtons(tx.id),
+    };
   }
 
   /**
@@ -734,3 +1172,49 @@ export function looksLikeQuestion(text: string): boolean {
   if (t.includes('?') || t.startsWith('¿')) return true;
   return /^(qu[eé]|cu[aá]nto|cu[aá]l|c[oó]mo|por\s*qu[eé]|me\s+alcanza|puedo|debo|deber[ií]a|conviene|me\s+conviene|ay[uú]dame|expl[ií]came|dime|quiero\s+saber|necesito\s+saber)(?=[\s,.!?]|$)/.test(t);
 }
+
+// ---------------------------------------------------------------------------
+// FIN-054 · Mis documentos
+// ---------------------------------------------------------------------------
+
+type ArchiveStatus =
+  | { status: 'saved' | 'duplicate'; documentId: string; fileStored: boolean }
+  | { status: 'sin_permiso' | 'salud_sin_permiso' | 'off'; documentId?: undefined; fileStored?: undefined };
+
+const CERT_LABEL: Record<string, string> = {
+  ingresos_retenciones: 'certificado de ingresos y retenciones',
+  bancario: 'certificado bancario',
+  intereses_vivienda: 'certificado de intereses de vivienda',
+  medicina_prepagada: 'certificado de medicina prepagada',
+  aportes_voluntarios: 'certificado de aportes voluntarios',
+  otro: 'certificado',
+};
+
+/** Una línea al final de la respuesta: qué pasó con el documento en la bóveda. */
+export function archiveNote(a: ArchiveStatus): string {
+  switch (a.status) {
+    case 'saved':
+      return a.fileStored ? '\n\n📁 Lo guardé en *Mis documentos*.' : '\n\n📁 Guardé sus datos en *Mis documentos*.';
+    case 'duplicate':
+      return '\n\n📁 Este documento ya estaba en *Mis documentos*.';
+    case 'sin_permiso':
+      return '\n\n📁 ¿Quieres que guarde tus documentos para tu renta y poder descargarlos? Escribe *guardar documentos*.';
+    case 'salud_sin_permiso':
+      return '\n\n📁 Es de salud (dato sensible): no la guardé. Si quieres guardar también las de salud, escribe *incluir salud*.';
+    default:
+      return '';
+  }
+}
+
+/** Ley 1581: autorización previa, expresa e informada para GUARDAR documentos. */
+export const STORAGE_CONSENT_TEXT =
+  '📁 *Millo va a guardar tus documentos*\n' +
+  'Guardo tus facturas, extractos y certificados *cifrados* para armar tus informes y el borrador de tu renta. ' +
+  'La inteligencia artificial de Millo (Google Gemini, EE. UU.) los lee para sacar los datos; no guardo tu cédula ni tus números de cuenta. ' +
+  'Se almacenan en servidores de Estados Unidos (país con protección adecuada según la SIC). ' +
+  'Los conservo 5 años o hasta que los borres. Las facturas de salud son datos sensibles: puedes no autorizarlas. ' +
+  'Puedes descargar o borrar todo cuando quieras en la app (Más → Mis documentos).\n\n' +
+  'Si estás de acuerdo responde *acepto guardar* (o *acepto guardar con salud* para incluir las de salud).';
+
+/** Permisos para leer documentos anteriores a esta fecha nombraban a otro proveedor (Anthropic). */
+export const DOCS_AI_CONSENT_SINCE = new Date('2026-09-30T15:00:00Z');

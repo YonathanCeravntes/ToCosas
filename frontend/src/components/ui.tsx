@@ -1,20 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  Keyboard,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  ScrollViewProps,
-  StyleSheet,
-  Text,
-  TextInput,
-  TextInputProps,
-  View,
-  ViewProps,
-} from 'react-native';
+import { ActivityIndicator, Animated, Keyboard, Platform, Pressable, RefreshControl, ScrollView, ScrollViewProps, StyleSheet, TextInputProps, View, ViewProps } from 'react-native';
+import { Text, TextInput } from './AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing, touch, type } from '../theme/colors';
 
@@ -49,7 +35,7 @@ export function Button({
   title: string;
   onPress: () => void;
   loading?: boolean;
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'dangerOutline' | 'ghost';
   disabled?: boolean;
   icon?: IconName;
   accessibilityLabel?: string;
@@ -62,7 +48,8 @@ export function Button({
         : variant === 'ghost'
           ? 'transparent'
           : colors.surface;
-  const fg = variant === 'secondary' || variant === 'ghost' ? colors.primary : colors.textInverse;
+  const fg =
+    variant === 'secondary' || variant === 'ghost' ? colors.primary : variant === 'dangerOutline' ? colors.danger : colors.textInverse;
   return (
     <Pressable
       onPress={onPress}
@@ -74,6 +61,7 @@ export function Button({
         styles.button,
         { backgroundColor: bg, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
         variant === 'secondary' && styles.buttonOutline,
+        variant === 'dangerOutline' && { borderWidth: 1, borderColor: colors.danger },
         variant === 'ghost' && { marginTop: 0, paddingVertical: spacing.sm },
       ]}
     >
@@ -125,11 +113,12 @@ export function IconButton({
   );
 }
 
-export function Field({ label, hint, ...rest }: TextInputProps & { label: string; hint?: string }) {
+export function Field({ label, hint, ref, ...rest }: TextInputProps & { label: string; hint?: string; ref?: React.Ref<TextInput> }) {
   return (
     <View style={{ marginBottom: spacing.md }}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
+        ref={ref}
         placeholderTextColor={colors.textFaint}
         accessibilityLabel={label}
         style={styles.input}
@@ -367,7 +356,9 @@ export function Skeleton({ lines = 3, hero }: { lines?: number; hero?: boolean }
     return () => loop.stop();
   }, [pulse]);
   return (
-    <Card style={hero ? { backgroundColor: colors.primary, borderColor: colors.primary } : undefined} accessibilityLabel="Cargando">
+    // BT-037: el esqueleto imita la tarjeta blanca actual (antes era el hero verde de la
+    // versión vieja y se veía como un "flash" de otro diseño al abrir la app).
+    <Card accessibilityLabel="Cargando">
       {Array.from({ length: lines }).map((_, i) => (
         <Animated.View
           key={i}
@@ -376,7 +367,7 @@ export function Skeleton({ lines = 3, hero }: { lines?: number; hero?: boolean }
             width: i === 0 ? '60%' : i % 2 ? '85%' : '45%',
             borderRadius: radius.sm,
             marginBottom: spacing.sm,
-            backgroundColor: hero ? colors.onPrimaryTrack : colors.surfaceAlt,
+            backgroundColor: colors.surfaceAlt,
             opacity: pulse,
           }}
         />
@@ -525,7 +516,7 @@ export function Toast({ spec, onHide }: { spec: ToastSpec | null; onHide: () => 
         <Text style={{ color: colors.text, flex: 1, ...type.body }}>{spec.message}</Text>
         {spec.actionLabel && spec.onAction ? (
           <Pressable onPress={() => void act()} disabled={busy} accessibilityRole="button" hitSlop={8}>
-            <Text style={{ color: fg, fontWeight: '800', ...type.body }}>
+            <Text style={{ color: fg, fontWeight: '600', ...type.body }}>
               {busy ? '…' : `${spec.actionLabel} · ${Math.ceil(left)}s`}
             </Text>
           </Pressable>
@@ -540,7 +531,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg, padding: spacing.md },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: 14,
     padding: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 1,
@@ -556,14 +547,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   buttonOutline: { borderWidth: 1, borderColor: colors.primary },
-  buttonText: { ...type.bodyLg, fontWeight: '700' },
-  label: { ...type.small, fontWeight: '600', color: colors.textMuted, marginBottom: 6 },
+  buttonText: { ...type.bodyLg, fontWeight: '600' },
+  label: { ...type.label, color: colors.textFaint, marginBottom: 6 },
   hint: { ...type.caption, color: colors.textFaint, marginTop: spacing.xs },
   input: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: 10,
     paddingHorizontal: spacing.md,
     paddingVertical: 12,
     minHeight: touch.min,
@@ -572,7 +563,7 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center' },
   sectionTitle: { ...type.title, color: colors.text },
-  link: { ...type.body, fontWeight: '700', color: colors.primary },
+  link: { ...type.body, fontWeight: '600', color: colors.primary },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -593,7 +584,7 @@ const styles = StyleSheet.create({
  */
 export function GroupLabel({
   title,
-  tone = colors.primaryDark,
+  tone = colors.textFaint,
   action,
   onAction,
 }: {
@@ -604,12 +595,12 @@ export function GroupLabel({
 }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: spacing.md, marginBottom: spacing.sm }}>
-      <Text accessibilityRole="header" style={{ color: tone, fontSize: 12, fontWeight: '800', letterSpacing: 0.8 }}>
+      <Text accessibilityRole="header" style={{ color: tone, fontSize: 11, fontWeight: '600', letterSpacing: 0.9 }}>
         {title.toUpperCase()}
       </Text>
       {action && onAction ? (
         <Pressable onPress={onAction} accessibilityRole="button" hitSlop={8}>
-          <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '700' }}>{action}</Text>
+          <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>{action}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -617,7 +608,7 @@ export function GroupLabel({
 }
 
 /** Barra segmentada (tramos proporcionales) con leyenda — Mis deudas / Inicio. */
-export function SegmentBar({ parts, height = 14 }: { parts: Array<{ key: string; label: string; value: number; color: string }>; height?: number }) {
+export function SegmentBar({ parts, height = 10 }: { parts: Array<{ key: string; label: string; value: number; color: string }>; height?: number }) {
   const shown = parts.filter((p) => p.value > 0);
   const total = shown.reduce((a, p) => a + p.value, 0);
   if (total <= 0) return null;
@@ -636,13 +627,83 @@ export function SegmentBar({ parts, height = 14 }: { parts: Array<{ key: string;
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4, marginTop: spacing.sm }}>
         {shown.map((p) => (
           <View key={p.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: p.color }} />
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.color }} />
             <Text style={{ color: colors.textMuted, fontSize: 12 }}>
               {p.label} {pct(p.value)}%
             </Text>
           </View>
         ))}
       </View>
+    </View>
+  );
+}
+
+/**
+ * FIN-060 · Cifra de dinero: dígitos alineados, "$" más pequeño y gris. Úsalo para
+ * las cifras protagonistas ("Te queda", saldo, puntaje en pesos).
+ */
+export function Money({
+  value,
+  size = 30,
+  color = colors.text,
+  weight = '600',
+  sign,
+  style,
+}: {
+  /** Texto ya formateado sin "$" (p. ej. formatCOP(x).replace('$', '')) o número. */
+  value: string | number;
+  size?: number;
+  color?: string;
+  weight?: '500' | '600' | '700';
+  /** Muestra "+" o "−" (signo menos real) delante. */
+  sign?: '+' | '-';
+  style?: ViewProps['style'];
+}) {
+  const raw = typeof value === 'number' ? Math.round(Math.abs(value)).toLocaleString('es-CO') : String(value).replace(/^[-−]?\s*\$\s*/, '');
+  const neg = sign === '-' || (typeof value === 'number' && value < 0) || /^[-−]/.test(String(value));
+  return (
+    <View style={[{ flexDirection: 'row', alignItems: 'baseline' }, style]}>
+      {neg || sign === '+' ? (
+        <Text style={{ fontSize: size, fontWeight: weight, color, letterSpacing: -0.5 }}>{neg ? '−' : '+'}</Text>
+      ) : null}
+      <Text style={{ fontSize: Math.round(size * 0.58), fontWeight: '500', color: colors.textFaint, marginRight: 2 }}>$</Text>
+      <Text style={{ fontSize: size, lineHeight: Math.round(size * 1.18), fontWeight: weight, color, letterSpacing: size >= 24 ? -0.8 : -0.2 }}>{raw}</Text>
+    </View>
+  );
+}
+
+/**
+ * FIN-060 · Barra de ritmo: cuánto se ha usado (relleno) contra dónde deberías ir
+ * hoy (marca vertical). `used` y `ideal` en 0..1.
+ */
+export function PaceBar({ used, ideal, color = colors.primary, height = 6 }: { used: number; ideal?: number; color?: string; height?: number }) {
+  const u = Math.max(0, Math.min(1, used));
+  const i = ideal == null ? null : Math.max(0, Math.min(1, ideal));
+  return (
+    <View style={{ height: height + 6, justifyContent: 'center' }}>
+      <View style={{ height, borderRadius: height / 2, backgroundColor: colors.surfaceAlt, overflow: 'hidden' }}>
+        <View style={{ width: `${Math.max(u * 100, u > 0 ? 2 : 0)}%`, height: '100%', backgroundColor: color, borderRadius: height / 2 }} />
+      </View>
+      {i != null ? (
+        <View style={{ position: 'absolute', left: `${i * 100}%`, marginLeft: -1, width: 2, height: height + 6, borderRadius: 1, backgroundColor: colors.text }} />
+      ) : null}
+    </View>
+  );
+}
+
+/** FIN-060 · Píldora de estado (ok / aviso / alerta / dorado / neutro). */
+export function Pill({ label, tone = 'neutral' }: { label: string; tone?: 'ok' | 'warn' | 'neg' | 'gold' | 'neutral' }) {
+  const map = {
+    ok: [colors.primarySoft, colors.primaryDark],
+    warn: [colors.warningSoft, colors.warningDeep],
+    neg: [colors.dangerSoft, colors.danger],
+    gold: [colors.goldSoft, colors.goldText],
+    neutral: [colors.surfaceAlt, colors.textMuted],
+  } as const;
+  const [bg, fg] = map[tone];
+  return (
+    <View style={{ alignSelf: 'flex-start', backgroundColor: bg, borderRadius: radius.full, paddingHorizontal: 9, paddingVertical: 3 }}>
+      <Text style={{ color: fg, fontSize: 11.5, fontWeight: '600' }}>{label}</Text>
     </View>
   );
 }

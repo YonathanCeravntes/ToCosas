@@ -56,7 +56,7 @@ export class InsightsGenerator {
         type: 'riesgo',
         severity: 'warning',
         title: 'Tu endeudamiento entró en zona alta',
-        body: `Tus cuotas ya toman ${pct(dti)} de tu ingreso (umbral sano: 35%). Prioriza la deuda más cara.`,
+        body: `Tus cuotas ya toman ${pct(dti)} de tu ingreso (umbral sano: 35%). Tu plan para liberar plata te dice a cuál abonarle primero.`,
         dedupeKey: `riesgo_dti:${period}`,
         metricKey: MetricKey.Dti,
         payload: { dti, prevDti: prevDti ?? null },

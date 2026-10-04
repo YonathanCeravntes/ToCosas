@@ -4,7 +4,8 @@ import { DebtOutlayModule } from '../debts/debt-outlay.module';
 import { IncomeModule } from '../income/income.module';
 import { SimulationsModule } from '../simulations/simulations.module';
 import { BillingModule } from '../billing/billing.module';
-import { AnthropicClient } from './anthropic.client';
+import { LlmClient } from './llm.client';
+import { GeminiClient } from './gemini.client';
 import { ConsentService } from './consent.service';
 import { ContextAssembler } from './context-assembler';
 import { CopilotService } from './copilot.service';
@@ -27,7 +28,8 @@ import { CashflowPlanService } from '../debts/cashflow-plan.service';
   providers: [
     ConsentService,
     ContextAssembler,
-    AnthropicClient,
+    // IA: Google Gemini (decisión del Fundador 2026-09-30). El resto depende de LlmClient.
+    { provide: LlmClient, useClass: GeminiClient },
     CopilotService,
     CopilotProductionGuard,
     CopilotRetentionJob,
@@ -37,6 +39,6 @@ import { CashflowPlanService } from '../debts/cashflow-plan.service';
   ],
   // FIN-042: el bot (MessagingModule) reutiliza el consentimiento y el cliente de IA.
   // FIN-046 Fase 2: el bot conversa con el MISMO cerebro (CopilotService).
-  exports: [ConsentService, AnthropicClient, CopilotService],
+  exports: [ConsentService, LlmClient, CopilotService],
 })
 export class CopilotModule {}

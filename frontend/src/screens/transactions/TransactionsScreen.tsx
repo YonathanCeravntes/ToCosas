@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, SectionList, Text, TextInput, View } from 'react-native';
+import { Pressable, RefreshControl, SectionList, View } from 'react-native';
+import { Text, TextInput } from '../../components/AppText';
 import { RouteProp, useFocusEffect, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Chip, EmptyState, ErrorState, GroupLabel, Row, Skeleton } from '../../components/ui';
+import { Card, Chip, EmptyState, ErrorState, GroupLabel, Money, Row, Skeleton } from '../../components/ui';
 import { CategoryGlyph } from '../../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { formatMoney } from '../../utils/format';
@@ -188,11 +189,11 @@ export function TransactionsScreen() {
           <Row style={{ gap: spacing.md, alignItems: 'stretch', marginBottom: spacing.xs }}>
             <Card style={{ flex: 1, marginBottom: 0, paddingVertical: spacing.sm }}>
               <Text style={{ color: colors.textMuted, ...type.small }}>Entró</Text>
-              <Text style={{ color: colors.primary, fontSize: 18, fontWeight: '800' }}>{formatMoney(totals.inc)}</Text>
+              <Money value={totals.inc} size={18} color={colors.primary} style={{ marginTop: 2 }} />
             </Card>
             <Card style={{ flex: 1, marginBottom: 0, paddingVertical: spacing.sm }}>
               <Text style={{ color: colors.textMuted, ...type.small }}>Salió</Text>
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800' }}>{formatMoney(totals.out)}</Text>
+              <Money value={totals.out} size={18} style={{ marginTop: 2 }} />
             </Card>
           </Row>
         ) : null}
@@ -230,7 +231,7 @@ export function TransactionsScreen() {
           renderSectionHeader={({ section }) => (
             <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
               <GroupLabel title={section.title} />
-              <Text style={{ color: colors.textMuted, ...type.caption }}>
+              <Text style={{ color: colors.textFaint, ...type.caption }}>
                 {section.net > 0 ? '+' : section.net < 0 ? '−' : ''}
                 {formatMoney(Math.abs(section.net))}
               </Text>
@@ -258,7 +259,7 @@ export function TransactionsScreen() {
             ].filter(Boolean).join(' · ');
             return (
               <Pressable
-                onPress={() => setEditing({ id: t.id, kind: t.kind, amount: toNumber(t.amount), occurredAt: t.occurredAt, note: t.note })}
+                onPress={() => setEditing({ id: t.id, kind: t.kind, amount: toNumber(t.amount), occurredAt: t.occurredAt, note: t.note, categoryId: t.categoryId })}
                 accessibilityRole="button"
                 accessibilityLabel={`${title}, ${meta.sign}${formatMoney(toNumber(t.amount))}`}
                 style={({ pressed }) => ({
@@ -283,9 +284,9 @@ export function TransactionsScreen() {
                     borderTopColor: colors.surfaceAlt,
                   }}
                 >
-                  <CategoryGlyph emoji={t.category?.icon} kind={t.kind} color={t.category?.color} />
+                  <CategoryGlyph emoji={t.category?.icon} kind={t.kind} />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.text, ...type.body, fontWeight: '700' }} numberOfLines={1}>
+                    <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }} numberOfLines={1}>
                       {title}
                     </Text>
                     {detail ? (
@@ -294,7 +295,7 @@ export function TransactionsScreen() {
                       </Text>
                     ) : null}
                   </View>
-                  <Text style={{ color: meta.color, ...type.body, fontWeight: '800' }}>
+                  <Text style={{ color: meta.color, ...type.body, fontWeight: '600' }}>
                     {meta.sign}
                     {formatMoney(toNumber(t.amount))}
                   </Text>

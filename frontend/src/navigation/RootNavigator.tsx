@@ -1,17 +1,27 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { createNavigationContainerRef, NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
+import { EdgeSwipeBack } from '../components/EdgeSwipeBack';
+
+/** BT-042: referencia para el gesto de atrás en la web del iPhone. */
+const navRef = createNavigationContainerRef();
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/auth.store';
-import { colors } from '../theme/colors';
+import { colors, isDark } from '../theme/colors';
 import { AuthNavigator } from './AuthNavigator';
 import { MainTabs } from './MainTabs';
 import { LinkWhatsAppScreen } from '../screens/whatsapp/LinkWhatsAppScreen';
 import { LinkTelegramScreen } from '../screens/telegram/LinkTelegramScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
 import { IncomeProfileScreen } from '../screens/IncomeProfileScreen';
+import { DocumentsScreen } from '../screens/DocumentsScreen';
+import { CategoriesScreen } from '../screens/CategoriesScreen';
+import { HouseholdScreen } from '../screens/HouseholdScreen';
 import { SimulatorScreen } from '../screens/SimulatorScreen';
 import { CashflowPlanScreen } from '../screens/CashflowPlanScreen';
+import { SpendClassesScreen } from '../screens/SpendClassesScreen';
+import { GustosScreen } from '../screens/GustosScreen';
+import { YearPlanScreen } from '../screens/YearPlanScreen';
 import { AchievementsScreen } from '../screens/AchievementsScreen';
 import { MilloPlusScreen } from '../screens/MilloPlusScreen';
 import { BudgetScreen } from '../screens/BudgetScreen';
@@ -27,9 +37,9 @@ import { useStackContentStyle } from './insets';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const navTheme = {
-  ...DefaultTheme,
+  ...(isDark ? DarkTheme : DefaultTheme),
   colors: {
-    ...DefaultTheme.colors,
+    ...(isDark ? DarkTheme : DefaultTheme).colors,
     primary: colors.primary,
     background: colors.bg,
     card: colors.surface,
@@ -66,7 +76,8 @@ export function RootNavigator() {
   const needsOnboarding = !!tokens && user?.onboardingDone === false;
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <>
+    <NavigationContainer ref={navRef} theme={navTheme}>
       <Stack.Navigator screenOptions={{ ...headerOptions, headerShown: false, contentStyle: stackContent }}>
         {tokens ? (
           <>
@@ -75,8 +86,14 @@ export function RootNavigator() {
             ) : null}
             <Stack.Screen name="Main" component={MainTabs} options={{ contentStyle: { backgroundColor: colors.bg } }} />
             <Stack.Screen name="Budget" component={BudgetScreen} options={{ headerShown: true, title: 'Mi mes' }} />
+            <Stack.Screen name="Documents" component={DocumentsScreen} options={{ headerShown: true, title: 'Mis documentos' }} />
+            <Stack.Screen name="Categories" component={CategoriesScreen} options={{ headerShown: true, title: 'En qué se te va' }} />
+            <Stack.Screen name="Household" component={HouseholdScreen} options={{ headerShown: true, title: 'Millo en pareja' }} />
             <Stack.Screen name="Copilot" component={CopilotScreen} options={{ headerShown: true, title: 'Copiloto' }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: true, title: 'Ajustes' }} />
+            <Stack.Screen name="SpendClasses" component={SpendClassesScreen} options={{ headerShown: true, title: 'Esencial y gustos' }} />
+            <Stack.Screen name="Gustos" component={GustosScreen} options={{ headerShown: true, title: 'Tus gustos este mes' }} />
+            <Stack.Screen name="YearPlan" component={YearPlanScreen} options={{ headerShown: true, title: 'Plata del año' }} />
             <Stack.Screen
               name="Transactions"
               component={TransactionsScreen}
@@ -128,5 +145,7 @@ export function RootNavigator() {
         )}
       </Stack.Navigator>
     </NavigationContainer>
+    <EdgeSwipeBack navRef={navRef} />
+    </>
   );
 }

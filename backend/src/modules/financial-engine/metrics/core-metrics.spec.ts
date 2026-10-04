@@ -89,3 +89,17 @@ describe('computeCoreMetrics', () => {
     expect(get(out, MetricKey.NetWorth)).toBe(171_500_000);
   });
 });
+
+describe('FIN-061 F2 · lo esencial incluye mercado, transporte y salud', () => {
+  it('el gasto esencial suma el variable esencial típico y el colchón se mide contra él', () => {
+    const m = computeCoreMetrics({
+      income: 0, expense: 0, debtPayments: 0,
+      fixedIncome: 5_749_080, fixedExpense: 1_587_000, debtMonthly: 3_138_890,
+      variableEssential: 900_000,
+      liquidBalance: 5_625_890, emergencyBalance: 5_625_890, netWorth: 0,
+    });
+    const get = (k: string) => m.find((x) => x.metricKey === k)?.value;
+    expect(get('essential_expense')).toBe(5_625_890);
+    expect(get('emergency_fund_months')).toBe(1);
+  });
+});

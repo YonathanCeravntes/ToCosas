@@ -1,4 +1,6 @@
 import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
+import { DocumentStorageService } from '../documents/storage.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PasswordService } from './password.service';
 
@@ -21,6 +23,7 @@ export class AccountService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   async me(userId: string) {
@@ -59,7 +62,7 @@ export class AccountService {
   }
 
   async exportData(userId: string) {
-    const [user, debts, transactions, accounts, assets, incomeSources, fixedItems, insurances, purchases] =
+    const [user, debts, transactions, accounts, assets, incomeSources, fixedItems, insurances, purchases, documents, household] =
       await Promise.all([
         this.prisma.user.findUnique({
           where: { id: userId },
@@ -77,6 +80,17 @@ export class AccountService {
         this.prisma.fixedItem.findMany({ where: { userId, deletedAt: null } }),
         this.prisma.debtInsurance.findMany({ where: { debt: { userId }, deletedAt: null } }),
         this.prisma.cardPurchase.findMany({ where: { debt: { userId }, deletedAt: null }, include: { installments: true } }),
+        // FIN-054: los datos de Mis documentos (los archivos se descargan desde la app en .zip).
+        this.prisma.document.findMany({
+          where: { userId, deletedAt: null },
+          omit: { storageKey: true },
+          orderBy: { docDate: 'desc' },
+        }),
+        // FIN-059: su pertenencia a Millo en pareja y lo que aportó a las metas (no los datos del otro).
+        this.prisma.householdMember.findMany({
+          where: { userId },
+          select: { householdId: true, joinedAt: true, leftAt: true, shareIncome: true, shareDebts: true, consentAt: true },
+        }),
       ]);
     return {
       exportedAt: new Date().toISOString(),
@@ -90,6 +104,8 @@ export class AccountService {
       assets,
       incomeSources,
       fixedItems,
+      documents,
+      household,
     };
   }
 
@@ -118,6 +134,8 @@ export class AccountService {
       this.prisma.device.deleteMany({ where: { userId } }),
       this.prisma.passwordResetToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: now } }),
       this.prisma.conversation.deleteMany({ where: { userId } }),
+      // FIN-059: borrar la cuenta es salir de Millo en pareja (la pareja deja de verla al instante).
+      this.prisma.householdMember.updateMany({ where: { userId, leftAt: null }, data: { leftAt: now } }),
     ]);
     return { deleted: true };
   }
@@ -139,6 +157,12 @@ export class AccountService {
     let failed = 0;
     for (const { id } of expired) {
       try {
+        // FIN-054: los archivos en R2 no se borran por cascada de la BD: se borran antes.
+        const files = await this.prisma.document.findMany({ where: { userId: id, storageKey: { not: null } }, select: { storageKey: true } });
+        if (files.length) {
+          const storage = this.moduleRef.get(DocumentStorageService, { strict: false });
+          for (const f of files) await storage.remove(f.storageKey as string);
+        }
         await this.prisma.user.delete({ where: { id } });
         purged++;
       } catch (e) {

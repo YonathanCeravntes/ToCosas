@@ -1,26 +1,30 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Text } from '../components/AppText';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, ErrorState, GroupLabel, Ico, ProgressBar, Row, Skeleton } from '../components/ui';
-import { IncomeSplit } from '../components/IncomeSplit';
-import { CategoryGlyph } from '../components/CategoryGlyph';
+import { Button, Card, ErrorState, GroupLabel, Ico, Money, Pill, ProgressBar, Row, SegmentBar, Skeleton } from '../components/ui';
+import { FirstSteps } from '../components/FirstSteps';
+import { CyclePace, IncomeSplit } from '../components/IncomeSplit';
+import { CategoryGlyph, incomeSourceColors } from '../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatLocalDate, formatMoney } from '../utils/format';
 import { useApi } from '../utils/useApi';
-import { dashboardApi, debtsApi, gamificationApi } from '../api/endpoints';
-import { FlowSection, GamificationProfile } from '../api/types';
+import { dashboardApi, debtsApi, gamificationApi, transactionsApi } from '../api/endpoints';
+import { FlowSection, GamificationProfile, HomeDebt, HomeIncomeSource } from '../api/types';
 import { useAuthStore } from '../store/auth.store';
 import { useSync } from '../offline/useSync';
 import { LocalTransaction, transactionsRepo } from '../offline/transactionsRepo';
 import { EditTransactionModal, EditableMovement } from './transactions/EditTransactionModal';
 
+// FIN-060: lo que sale va en texto oscuro (nunca rojo); lo que entra en verde; las
+// cuotas en el azul de deudas. Signo menos real (−).
 const KIND_META: Record<string, { sign: string; color: string }> = {
-  ingreso: { sign: '+', color: colors.success },
-  gasto: { sign: '-', color: colors.danger },
-  pago_deuda: { sign: '-', color: colors.primary },
+  ingreso: { sign: '+', color: colors.primary },
+  gasto: { sign: '−', color: colors.text },
+  pago_deuda: { sign: '−', color: colors.debt },
   transferencia: { sign: '', color: colors.textMuted },
 };
 
@@ -30,9 +34,10 @@ const LEVEL_COLOR: Record<string, string> = { verde: colors.success, amarillo: c
 export function DashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = useAuthStore((s) => s.user);
-  const dashboard = useApi(() => dashboardApi.home(), []);
-  const summary = useApi(() => debtsApi.summary(), []);
-  const gamification = useApi(() => gamificationApi.profile(), []);
+  // BT-037: las tres fuentes se pintan con lo de la última vez y se refrescan en silencio.
+  const dashboard = useApi(() => dashboardApi.home(), [], { cacheKey: 'home' });
+  const summary = useApi(() => debtsApi.summary(), [], { cacheKey: 'debts-summary' });
+  const gamification = useApi(() => gamificationApi.profile(), [], { cacheKey: 'gamification' });
   const sync = useSync();
   const [recent, setRecent] = useState<LocalTransaction[]>([]);
   // FIN-028: movimiento en edición (toque en una fila de "Movimientos recientes").
@@ -64,13 +69,16 @@ export function DashboardScreen() {
     }, [reloadDashboard, reloadSummary, reloadGamification]),
   );
 
-  const loading = dashboard.loading || summary.loading;
-  const reload = () => {
-    void dashboard.reload();
-    void summary.reload();
-    void gamification.reload();
-    void sync.sync();
-    void loadRecent();
+  // El control de "refrescar" solo gira cuando la persona lo pide o no hay nada que mostrar.
+  const [pulling, setPulling] = useState(false);
+  const loading = (dashboard.loading || summary.loading) && !dashboard.data;
+  const reload = async () => {
+    setPulling(true);
+    try {
+      await Promise.all([dashboard.reload(), summary.reload(), gamification.reload(), sync.sync(), loadRecent()]);
+    } finally {
+      setPulling(false);
+    }
   };
 
   const d = dashboard.data;
@@ -81,7 +89,7 @@ export function DashboardScreen() {
     <ScrollView
       style={{ backgroundColor: colors.bg }}
       contentContainerStyle={{ padding: spacing.md }}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.primary} />}
+      refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void reload()} tintColor={colors.primary} />}
     >
       <Row style={{ justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text style={{ color: colors.text, ...type.heading }} accessibilityRole="header">
@@ -98,10 +106,13 @@ export function DashboardScreen() {
         </Pressable>
       </Row>
 
+      {/* FIN-060: lista de primeros pasos para personas nuevas (se oculta sola). */}
+      <FirstSteps />
+
       {/* Hero ÚNICO (FIN-017/018/020, §32): la cifra viene del servicio único de
           Presupuesto. Tocarlo abre Presupuesto, la casa del detalle (FIN-038). */}
       {dashboard.error && !d ? (
-        <ErrorState message={friendlyError(dashboard.error)} onRetry={reload} />
+        <ErrorState message={friendlyError(dashboard.error)} onRetry={() => void reload()} />
       ) : !d && loading ? (
         <Skeleton hero lines={3} />
       ) : d ? (
@@ -116,15 +127,14 @@ export function DashboardScreen() {
                 <Ionicons name="chevron-forward" size={14} color={colors.textFaint} />
               </Row>
             </Row>
-            <Text style={{ color: d.teQueda.amount < 0 ? colors.danger : colors.text, fontSize: 32, fontWeight: '800', marginTop: 2 }}>
-              {formatMoney(d.teQueda.amount)}
-            </Text>
+            <Money value={d.teQueda.amount} size={36} color={d.teQueda.amount < 0 ? colors.danger : colors.text} style={{ marginTop: 2 }} />
             {d.teQueda.perDay !== null && d.teQueda.amount > 0 ? (
               <Text style={{ color: colors.textMuted, ...type.small }}>
                 ≈ {formatMoney(d.teQueda.perDay)} por día · {d.teQueda.daysLeft} día{d.teQueda.daysLeft === 1 ? '' : 's'}
               </Text>
             ) : null}
             <IncomeSplit teQueda={d.teQueda} />
+            <CyclePace teQueda={d.teQueda} ideal={cycle?.ratio ?? null} />
             {d.interpretation.cashflow ? (
               <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.sm }}>
                 <Ico name="ellipse" size={10} color={LEVEL_COLOR[d.interpretation.cashflow.level] ?? colors.textMuted} /> {d.interpretation.cashflow.text}
@@ -143,10 +153,10 @@ export function DashboardScreen() {
 
       {sync.pending > 0 ? (
         <Pressable onPress={() => void sync.sync()} accessibilityRole="button" accessibilityLabel="Reintentar sincronización">
-          <View style={{ backgroundColor: colors.warningSoft, borderColor: colors.warning, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md }}>
+          <View style={{ backgroundColor: colors.warningSoft, borderColor: colors.warningDeep, borderWidth: 1, borderRadius: 14, padding: spacing.md, marginBottom: spacing.md }}>
             <Row style={{ gap: spacing.sm }}>
-              <Ionicons name={sync.syncing ? 'sync-outline' : 'cloud-upload-outline'} size={18} color={colors.warning} />
-              <Text style={{ color: colors.warning, ...type.body, fontWeight: '600', flex: 1 }}>
+              <Ionicons name={sync.syncing ? 'sync-outline' : 'cloud-upload-outline'} size={18} color={colors.warningDeep} />
+              <Text style={{ color: colors.warningDeep, ...type.body, fontWeight: '600', flex: 1 }}>
                 {sync.syncing ? 'Sincronizando…' : `${sync.pending} cambio(s) sin sincronizar · toca para reintentar`}
               </Text>
             </Row>
@@ -177,23 +187,32 @@ export function DashboardScreen() {
             <Card>
               {summary.data.upcoming?.[0] ? (
                 <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 }} numberOfLines={1}>
+                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600', flex: 1, marginRight: 8 }} numberOfLines={1}>
                     {summary.data.upcoming[0].name}
                   </Text>
-                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>{formatMoney(summary.data.upcoming[0].amount)}</Text>
+                  <Money value={summary.data.upcoming[0].amount} size={16} />
                 </Row>
               ) : null}
-              <Row style={{ justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
+              <Row style={{ justifyContent: 'space-between', marginTop: 6, gap: 8 }}>
                 <Text style={{ color: colors.textMuted, ...type.small, flex: 1 }}>
                   Debes {formatMoney(summary.data.totalDebt)} en {summary.data.debtsCount} deuda{summary.data.debtsCount === 1 ? '' : 's'}
                 </Text>
                 {summary.data.upcoming?.[0] ? (
-                  <Text style={{ color: colors.textMuted, ...type.small }}>vence {shortDate(summary.data.upcoming[0].dueDate)}</Text>
+                  <Pill tone="warn" label={`vence ${shortDate(summary.data.upcoming[0].dueDate)}`} />
                 ) : null}
               </Row>
               <Text style={{ color: colors.textFaint, ...type.caption, marginTop: 2 }}>
                 {formatMoney(d?.debtPayments ?? 0)} pagado desde el {d ? shortDate(d.period.start) : '—'}
               </Text>
+              {summary.data.upcoming?.[0] ? (
+                <PayNow
+                  item={summary.data.upcoming[0]}
+                  onPaid={() => {
+                    void dashboard.reload();
+                    void summary.reload();
+                  }}
+                />
+              ) : null}
               {d?.interpretation.debt ? (
                 <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xs }}>
                   <Ico name="ellipse" size={10} color={LEVEL_COLOR[d.interpretation.debt.level] ?? colors.textMuted} /> {d.interpretation.debt.text}
@@ -203,15 +222,17 @@ export function DashboardScreen() {
               {d?.interpretation.cashflow?.level === 'verde' && summary.data.upcoming?.[0] ? (
                 <Pressable
                   onPress={() =>
+                    // BT-039: `initial: false` deja Mis deudas debajo, así "atrás" funciona.
                     (navigation as unknown as { navigate: (name: string, params: unknown) => void }).navigate('Debts', {
                       screen: 'DebtDetail',
+                      initial: false,
                       params: { debtId: summary.data!.upcoming[0].debtId, name: summary.data!.upcoming[0].name },
                     })
                   }
                   accessibilityRole="link"
                   style={{ marginTop: spacing.sm }}
                 >
-                  <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>
+                  <Text style={{ color: colors.primary, ...type.small, fontWeight: '600' }}>
                     Tienes margen: adelanta un pago y ahorra intereses →
                   </Text>
                 </Pressable>
@@ -221,17 +242,66 @@ export function DashboardScreen() {
         </>
       ) : null}
 
-      {d && d.expense.byCategory.length > 0 ? (
+      {/* FIN-057 (boceto A): las cuotas de deudas entran a la foto, siempre visibles mientras
+          haya deudas; el porcentaje es sobre gastos + pagos de deudas (decisión del Fundador). */}
+      {d && (d.expense.byCategory.length > 0 || (d.debt && (d.debt.paid > 0 || d.debt.committed > 0))) ? (
         <>
           <GroupLabel
             title="En qué se te va"
-            action={d.expense.byCategory.length > 3 ? 'Ver todo' : undefined}
-            onAction={() => navigation.navigate('Budget')}
+            action="Ver todo"
+            onAction={() => navigation.navigate('Categories', { tab: 'gastos' })}
           />
           <Card>
-            {d.expense.byCategory.slice(0, 3).map((c) => (
-              <CategoryBar key={c.name} c={c} />
-            ))}
+            {(() => {
+              const showDebt = !!d.debt && (d.debt.paid > 0 || d.debt.committed > 0);
+              const cats = d.expense.byCategory.slice(0, showDebt ? 2 : 3);
+              const rows: React.ReactNode[] = cats.map((c) => <CategoryBar key={c.id ?? c.name} c={c} />);
+              if (showDebt && d.debt) {
+                const debtRow = (
+                  <DebtRow
+                    key="deudas"
+                    debt={d.debt}
+                    onPress={() => (navigation as unknown as { navigate: (name: string, params?: unknown) => void }).navigate('Debts', { screen: 'DebtsList' })}
+                  />
+                );
+                // La fila entra en su lugar por monto (la cuota del mes), pero nunca sale de la lista.
+                const idx = cats.findIndex((c) => c.amount < debtAmount(d.debt!));
+                rows.splice(idx === -1 ? rows.length : idx, 0, debtRow);
+              }
+              return rows;
+            })()}
+          </Card>
+        </>
+      ) : null}
+
+      {/* FIN-057 (boceto B): "Cómo te llega la plata" — solo cuando hay más de una fuente;
+          para quien vive de un salario, Inicio no cambia. */}
+      {d && d.income.sources && d.income.sources.length > 1 ? (
+        <>
+          <GroupLabel
+            title="Cómo te llega la plata"
+            action="Ver todo"
+            onAction={() => navigation.navigate('Categories', { tab: 'ingresos' })}
+          />
+          <Card>
+            <SegmentBar
+              height={10}
+              parts={d.income.sources.map((s, i) => ({ key: s.id, label: s.name, value: s.amount, color: incomeSourceColors(d.income.sources!)[i] }))}
+            />
+            <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
+              {d.income.sources.slice(0, 3).map((s, i) => (
+                <SourceRow
+                  key={s.id}
+                  s={s}
+                  color={incomeSourceColors(d.income.sources!)[i]}
+                  onPress={() =>
+                    s.kind === 'fijo'
+                      ? navigation.navigate('Budget')
+                      : navigation.navigate('Transactions', { kind: 'ingreso', ...(s.id !== 'sin' ? { categoryId: s.id } : {}) })
+                  }
+                />
+              ))}
+            </View>
           </Card>
         </>
       ) : null}
@@ -252,14 +322,16 @@ export function DashboardScreen() {
       {/* Movimientos recientes (FIN-014/018/028) — el detalle completo vive en el
           historial (FIN-038), no en Registrar. */}
       <GroupLabel title="Movimientos recientes" action="Ver todos" onAction={() => navigation.navigate('Transactions')} />
-      {d?.recentTransactions.length ? (
+      {!d && loading ? (
+        <Skeleton lines={3} />
+      ) : d?.recentTransactions.length ? (
         <Card>
           {d.recentTransactions.slice(0, 4).map((t, i) => {
             const meta = KIND_META[t.kind] ?? KIND_META.transferencia;
             return (
               <Pressable
                 key={t.id}
-                onPress={() => setEditing({ id: t.id, kind: t.kind, amount: t.amount, occurredAt: t.occurredAt, note: t.note })}
+                onPress={() => setEditing({ id: t.id, kind: t.kind, amount: t.amount, occurredAt: t.occurredAt, note: t.note, categoryId: t.categoryId })}
                 accessibilityRole="button"
                 accessibilityLabel={`Editar ${t.note || t.category?.name || t.debtName || t.kind}`}
               >
@@ -271,7 +343,7 @@ export function DashboardScreen() {
                       <Text style={{ color: colors.textMuted }}> · {shortDate(t.occurredAt)}</Text>
                     </Text>
                   </Row>
-                  <Text style={{ fontWeight: '700', color: meta.color, ...type.small }}>
+                  <Text style={{ fontWeight: '600', color: meta.color, ...type.small }}>
                     {meta.sign}
                     {formatMoney(t.amount)}
                   </Text>
@@ -298,7 +370,7 @@ export function DashboardScreen() {
                     </Text>
                   </View>
                 </Row>
-                <Text style={{ fontWeight: '700', color: meta.color, ...type.body }}>
+                <Text style={{ fontWeight: '600', color: meta.color, ...type.body }}>
                   {meta.sign}
                   {formatMoney(t.amount)}
                 </Text>
@@ -309,7 +381,7 @@ export function DashboardScreen() {
       ) : !loading ? (
         <Card>
           <Text style={{ color: colors.textMuted, ...type.body }}>
-            Aún no registras movimientos. Usa el botón central o WhatsApp/Telegram.
+            Aún no registras movimientos. Usa el botón central o escríbele a Millo por Telegram.
           </Text>
           <Button title="Registrar el primero" onPress={() => navigation.navigate('Main', { screen: 'Add' } as never)} />
         </Card>
@@ -324,7 +396,7 @@ export function DashboardScreen() {
         </Text>
       ) : null}
 
-      <EditTransactionModal movement={editing} onClose={() => setEditing(null)} onChanged={reload} />
+      <EditTransactionModal movement={editing} onClose={() => setEditing(null)} onChanged={() => void reload()} />
     </ScrollView>
   );
 }
@@ -353,16 +425,129 @@ function shortDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
+/**
+ * FIN-062 (Fundador 2026-10-04) · "Ya la pagué": registra el pago de la cuota sin salir de
+ * Inicio. En una tarjeta ofrece primero el pago sugerido (rompe el ancla del mínimo); una
+ * libranza no lleva botón porque se descuenta de nómina y Millo la registra sola.
+ */
+function PayNow({
+  item,
+  onPaid,
+}: {
+  item: { debtId: string; name: string; amount: number; payroll?: boolean; isCard?: boolean };
+  onPaid: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState<Array<{ label: string; amount: number }> | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (item.payroll) {
+    return (
+      <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.xs }}>
+        <Ico name="briefcase-outline" size={11} color={colors.textFaint} /> Se descuenta de tu nómina: Millo la registra sola el día de pago.
+      </Text>
+    );
+  }
+  if (done) {
+    return (
+      <Text style={{ color: colors.primary, ...type.small, fontWeight: '600', marginTop: spacing.sm }}>
+        <Ico name="checkmark-circle-outline" size={13} color={colors.primary} /> {done}
+      </Text>
+    );
+  }
+
+  const openOptions = async () => {
+    setOpen(true);
+    setError(null);
+    if (!item.isCard) {
+      setOptions([{ label: 'Cuota', amount: item.amount }]);
+      return;
+    }
+    try {
+      const h = await debtsApi.cardHealth(item.debtId);
+      const list: Array<{ label: string; amount: number }> = [];
+      if (h.payment.suggested) list.push({ label: 'Sugerido', amount: h.payment.suggested });
+      if (h.payment.total && h.payment.total !== h.payment.suggested) list.push({ label: 'Total', amount: h.payment.total });
+      if (h.payment.minimum && h.payment.minimum !== h.payment.suggested) list.push({ label: 'Mínimo', amount: h.payment.minimum });
+      setOptions(list.length ? list : [{ label: 'Cuota', amount: item.amount }]);
+    } catch {
+      setOptions([{ label: 'Cuota', amount: item.amount }]);
+    }
+  };
+
+  const pay = async (amount: number) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await transactionsApi.create({ kind: 'pago_deuda', amount, occurredAt: new Date().toISOString(), debtId: item.debtId, note: `Cuota ${item.name}` });
+      setDone(`Registré tu pago de ${formatMoney(amount)} a ${item.name}.`);
+      onPaid();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <Pressable onPress={() => void openOptions()} accessibilityRole="button" style={{ marginTop: spacing.sm, alignSelf: 'flex-start' }} hitSlop={6}>
+        <Text style={{ color: colors.primary, ...type.small, fontWeight: '600' }}>
+          <Ico name="checkmark-done-outline" size={13} color={colors.primary} /> Ya la pagué
+        </Text>
+      </Pressable>
+    );
+  }
+  return (
+    <View style={{ marginTop: spacing.sm, gap: 6 }}>
+      <Text style={{ color: colors.textMuted, ...type.small }}>¿Cuánto pagaste?</Text>
+      {options ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {options.map((o) => (
+            <Pressable
+              key={o.label}
+              disabled={busy}
+              onPress={() => void pay(o.amount)}
+              accessibilityRole="button"
+              style={{ borderRadius: 999, borderWidth: 1, borderColor: colors.primary, paddingHorizontal: 12, paddingVertical: 7, opacity: busy ? 0.6 : 1 }}
+            >
+              <Text style={{ color: colors.primary, ...type.small, fontWeight: '600' }}>
+                {o.label} {formatMoney(o.amount)}
+              </Text>
+            </Pressable>
+          ))}
+          <Pressable onPress={() => setOpen(false)} accessibilityRole="button" style={{ paddingHorizontal: 8, paddingVertical: 7 }}>
+            <Text style={{ color: colors.textFaint, ...type.small }}>Cancelar</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Text style={{ color: colors.textFaint, ...type.caption }}>Cargando…</Text>
+      )}
+      <Text style={{ color: colors.textFaint, ...type.caption }}>¿Otro monto? Regístralo en Registrar → Pago de deuda.</Text>
+      {error ? <Text style={{ color: colors.danger, ...type.small }}>{error}</Text> : null}
+    </View>
+  );
+}
+
 /** FIN-014 + glosario FIN-017 P4: total con desglose en lenguaje cotidiano. */
 function FlowStat({ label, flow, color, onPress }: { label: string; flow?: FlowSection; color: string; onPress: () => void }) {
   return (
     <Pressable style={{ flex: 1 }} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label} del ciclo: ${formatMoney(flow?.total ?? 0)}. Ver movimientos`}>
       <Card style={{ flex: 1 }}>
         <Text style={{ color: colors.textMuted, ...type.small }}>{label}</Text>
-        <Text style={{ color, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(flow?.total ?? 0)}</Text>
-        {flow && flow.total > 0 ? (
+        {flow ? (
+          <Money value={flow.totalWithPaidDebt ?? flow.total} size={18} color={color} style={{ marginTop: 2 }} />
+        ) : (
+          // BT-037: mientras carga no se muestra "$ 0" (no es cierto, es que no ha llegado).
+          <View style={{ height: 18, width: '55%', borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, marginVertical: 3 }} />
+        )}
+        {flow && (flow.totalWithPaidDebt ?? flow.total) > 0 ? (
           <Text style={{ color: colors.textFaint, ...type.caption }}>
             {formatMoney(flow.fixed)} fijos del mes · {formatMoney(flow.variable)} del día a día
+            {/* FIN-062: las cuotas que YA pagaste también son plata que salió. */}
+            {flow.debtPaid ? ` · ${formatMoney(flow.debtPaid)} cuotas pagadas` : ''}
           </Text>
         ) : null}
       </Card>
@@ -378,14 +563,82 @@ function ProgressLine({ profile }: { profile: GamificationProfile }) {
       <Card style={{ paddingVertical: spacing.sm }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Row style={{ gap: spacing.xs }}>
-            <Ionicons name="flame" size={16} color={colors.accent} />
+            <Ionicons name="flame-outline" size={16} color={colors.gold} />
             <Text style={{ color: colors.text, ...type.small }}>
-              {profile.streak.current} sem · Nivel {profile.level.number} ({profile.level.name})
+              {profile.streak.current} semana{profile.streak.current === 1 ? '' : 's'} seguida{profile.streak.current === 1 ? '' : 's'} · Nivel {profile.level.number} ({profile.level.name})
             </Text>
           </Row>
-          <Text style={{ color: colors.primary, ...type.small, fontWeight: '700' }}>{profile.xp} XP →</Text>
+          <Text style={{ color: colors.primary, ...type.small, fontWeight: '600' }}>{profile.xp.toLocaleString('es-CO')} XP →</Text>
         </Row>
       </Card>
+    </Pressable>
+  );
+}
+
+/** La cuota comprometida del mes, o lo pagado si fue más (respuestas viejas en caché no traen `amount`). */
+function debtAmount(debt: HomeDebt): number {
+  return debt.amount ?? Math.max(debt.committed, debt.paid);
+}
+
+/**
+ * FIN-057 · La fila morada de deudas en "En qué se te va": la cuota del mes aunque su fecha no
+ * haya llegado (Fundador: "al tener pago mes a mes, debe reflejarse ahí"); abajo, pagado y falta.
+ */
+function DebtRow({ debt, onPress }: { debt: HomeDebt; onPress: () => void }) {
+  const amount = debtAmount(debt);
+  const status =
+    debt.remaining <= 0
+      ? debt.paid > debt.committed
+        ? `Pagaste ${formatMoney(debt.paid)} · las cuotas de este mes están al día`
+        : 'Las cuotas de este mes están al día'
+      : debt.paid > 0
+        ? `Pagado ${formatMoney(debt.paid)} · faltan ${formatMoney(debt.remaining)}${debt.nextDueDate ? ` · vence el ${shortDate(debt.nextDueDate)}` : ''}`
+        : `Aún sin pagar este mes${debt.nextDueDate ? ` · vence el ${shortDate(debt.nextDueDate)}` : ''}`;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Cuotas de deudas: ${formatMoney(amount)} este mes, ${debt.percent} por ciento. ${status}. Ver mis deudas`}
+      style={{ marginBottom: spacing.sm }}
+    >
+      <Row style={{ justifyContent: 'space-between', marginBottom: spacing.xs }}>
+        <Row style={{ gap: 6 }}>
+          <View style={{ width: 24, height: 24, borderRadius: 7, backgroundColor: colors.debtSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="card-outline" size={14} color={colors.debt} />
+          </View>
+          <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>Cuotas de deudas</Text>
+        </Row>
+        <Text style={{ color: colors.textMuted, ...type.small }}>
+          {formatMoney(amount)} · {debt.percent}%
+        </Text>
+      </Row>
+      <ProgressBar value={debt.percent / 100} color={colors.debt} height={6} label={`Cuotas de deudas ${debt.percent}%`} />
+      <Text style={{ color: colors.debt, ...type.caption, marginTop: 4 }}>{status}</Text>
+    </Pressable>
+  );
+}
+
+/** FIN-057 · Una fuente de "Cómo te llega la plata" (con carreras y ciclo anterior). */
+function SourceRow({ s, color, onPress }: { s: HomeIncomeSource; color: string; onPress: () => void }) {
+  const detail: string[] = [];
+  if (s.kind === 'fijo') detail.push('fijo');
+  else if (s.count > 0) detail.push(`${s.count} ${s.count === 1 ? 'vez' : 'veces'}${s.count > 1 ? ` · unos ${formatMoney(s.amount / s.count)} cada una` : ''}`);
+  if (s.previous > 0 && s.kind !== 'fijo') detail.push(`el ciclo pasado ${formatMoney(s.previous)}`);
+  if (s.id === 'sin') detail.push('toca para organizarlos');
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${s.name}: ${formatMoney(s.amount)}, ${s.percent} por ciento`}>
+      <Row style={{ justifyContent: 'space-between', gap: spacing.sm }}>
+        <Row style={{ gap: 6, flex: 1 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />
+          <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }} numberOfLines={1}>{s.name}</Text>
+        </Row>
+        <Text style={{ color: colors.text, ...type.small, fontWeight: '600' }}>
+          {formatMoney(s.amount)} · {s.percent}%
+        </Text>
+      </Row>
+      {detail.length ? (
+        <Text style={{ color: s.id === 'sin' ? colors.warningDeep : colors.textFaint, ...type.caption, marginLeft: 14 }}>{detail.join(' · ')}</Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -422,11 +675,12 @@ function CelebrationModal({ profile, onClosed }: { profile: GamificationProfile;
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => void close()}>
       <View style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: 'center', padding: spacing.lg }}>
         <View style={{ backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, alignItems: 'center' }}>
-          <Ionicons name="trophy" size={40} color={colors.accent} />
+          <Ionicons name="trophy-outline" size={40} color={colors.gold} />
           <Text style={{ color: colors.text, ...type.title, marginTop: spacing.sm, textAlign: 'center' }}>{first.title}</Text>
-          <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: 6, ...type.body }}>
-            {first.condition} · +{first.xp} XP
-          </Text>
+          <Row style={{ flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 6 }}>
+            <Text style={{ color: colors.textMuted, textAlign: 'center', ...type.body }}>{first.condition}</Text>
+            <Pill tone="gold" label={`+${first.xp} XP`} />
+          </Row>
           {fresh.length > 1 ? (
             <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xs }}>
               y {fresh.length - 1} logro(s) más en tu perfil

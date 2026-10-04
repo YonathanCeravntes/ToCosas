@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '../../components/AppText';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Card, Chip, ErrorState, Field, FormScroll, Ico, Row, SectionHeader, Skeleton } from '../../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, Row, Skeleton } from '../../components/ui';
+import { SoftChip } from '../../components/DebtControls';
 import { DatePicker } from '../../components/DatePicker';
 import { colors, radius, spacing, type } from '../../theme/colors';
 import { formatDate, formatMoney, parseAmount, parseDecimal } from '../../utils/format';
@@ -9,6 +11,8 @@ import { debtsApi } from '../../api/endpoints';
 import { RenegotiateInput, RenegotiationPreview, toNumber } from '../../api/types';
 import { useApi } from '../../utils/useApi';
 import { DebtsStackParamList } from '../../navigation/types';
+import { RateInput } from '../../components/RateInput';
+import { RateUnit, toEA } from '../../utils/rates';
 
 type Props = NativeStackScreenProps<DebtsStackParamList, 'RenegotiateDebt'>;
 
@@ -28,6 +32,7 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
   const [installments, setInstallments] = useState('');
   const [rate, setRate] = useState('');
   const [rateKind, setRateKind] = useState<'fija' | 'variable' | null>(null);
+  const [rateUnit, setRateUnit] = useState<RateUnit>('mensual');
   const [payment, setPayment] = useState('');
   const [balance, setBalance] = useState('');
   const [keepCycle, setKeepCycle] = useState(true);
@@ -48,7 +53,8 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
     const n = parseAmount(installments);
     if (installments.trim() && n > 0) dto.remainingInstallments = Math.round(n);
     const r = parseDecimal(rate);
-    if (rate.trim() && !Number.isNaN(r)) dto.interestRate = r;
+    // FIN-056: si la deuda está en EA, la tasa se escribe mensual o anual y viaja en EA.
+    if (rate.trim() && !Number.isNaN(r)) dto.interestRate = d?.rateBasis === 'EA' ? toEA(r, rateUnit) : r;
     if (rateKind && rateKind !== currentKind) dto.rateKind = rateKind;
     const p = parseAmount(payment);
     if (payment.trim() && p > 0) dto.monthlyPayment = p;
@@ -61,7 +67,7 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
     }
     if (!fromNext) dto.effectiveFrom = isoDate(fromDate);
     return dto;
-  }, [installments, rate, rateKind, currentKind, payment, balance, keepCycle, newDay, fromNext, fromDate]);
+  }, [installments, rate, rateUnit, rateKind, currentKind, payment, balance, keepCycle, newDay, fromNext, fromDate, d?.rateBasis]);
 
   const invalidate = () => setPreview(null);
 
@@ -99,9 +105,9 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
 
   return (
     <FormScroll>
-      <Card>
-        <Text style={{ color: colors.textMuted, ...type.small }}>Hoy</Text>
-        <Text style={{ color: colors.text, ...type.body }}>
+      <Card style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.surfaceAlt }}>
+        <Text style={{ color: colors.textFaint, ...type.label, marginBottom: spacing.xs }}>Hoy</Text>
+        <Text style={{ color: colors.text, ...type.small }}>
           Saldo {formatMoney(toNumber(d.currentBalance))} · cuota {formatMoney(toNumber(d.monthlyPayment))}
           {d.termMonths ? ` · ${d.termMonths} cuotas` : ''} · tasa {toNumber(d.interestRate)}% {d.rateBasis} {d.rateKind ?? 'fija'}
           {d.paymentDay ? ` · día ${d.paymentDay}` : ''}
@@ -111,16 +117,20 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
         </Text>
       </Card>
 
-      <SectionHeader title="¿Qué pactaste?" icon="create-outline" />
+      <GroupLabel title="¿Qué pactaste?" />
       <Card>
         {!informal ? (
           <Field label="Cuotas que faltan" value={installments} onChangeText={(t) => { setInstallments(t); invalidate(); }} keyboardType="numeric" placeholder={d.termMonths ? String(d.termMonths) : '60'} />
         ) : null}
-        <Field label={`Tasa (% ${d.rateBasis})`} value={rate} onChangeText={(t) => { setRate(t); invalidate(); }} keyboardType="decimal-pad" placeholder={String(toNumber(d.interestRate))} />
-        <Text style={{ color: colors.text, fontWeight: '600', marginBottom: spacing.xs }}>Tipo de tasa</Text>
-        <Row style={{ gap: spacing.sm, marginBottom: spacing.md }}>
-          <Chip label="Fija" active={(rateKind ?? currentKind) === 'fija'} onPress={() => { setRateKind('fija'); invalidate(); }} />
-          <Chip label="Variable" active={(rateKind ?? currentKind) === 'variable'} onPress={() => { setRateKind('variable'); invalidate(); }} />
+        {d.rateBasis === 'EA' ? (
+          <RateInput label="Tasa nueva (si cambió)" value={rate} unit={rateUnit} onChange={(t, u) => { setRate(t); setRateUnit(u); invalidate(); }} placeholder={String(toNumber(d.interestRate))} />
+        ) : (
+          <Field label={`Tasa (% ${d.rateBasis})`} value={rate} onChangeText={(t) => { setRate(t); invalidate(); }} keyboardType="decimal-pad" placeholder={String(toNumber(d.interestRate))} />
+        )}
+        <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600', marginBottom: 6 }}>Tipo de tasa</Text>
+        <Row style={{ gap: 6, marginBottom: spacing.md }}>
+          <SoftChip label="Fija" active={(rateKind ?? currentKind) === 'fija'} onPress={() => { setRateKind('fija'); invalidate(); }} />
+          <SoftChip label="Variable" active={(rateKind ?? currentKind) === 'variable'} onPress={() => { setRateKind('variable'); invalidate(); }} />
         </Row>
         <Field
           label={informal ? 'Cuota pactada' : 'Cuota pactada (opcional: si no das cuotas, las calculo con ella)'}
@@ -132,15 +142,15 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
         <Field label="Saldo recompuesto por la entidad (opcional)" value={balance} onChangeText={(t) => { setBalance(t); invalidate(); }} keyboardType="numeric" placeholder={String(Math.round(toNumber(d.currentBalance)))} />
       </Card>
 
-      <SectionHeader title="¿Desde cuándo aplica?" icon="calendar-outline" />
+      <GroupLabel title="¿Desde cuándo aplica?" />
       <Card>
-        <Row style={{ gap: spacing.sm, flexWrap: 'wrap' }}>
-          <Chip label={d.nextDueDate ? `Próxima cuota (${formatDate(d.nextDueDate)})` : 'Próxima cuota'} active={fromNext} onPress={() => { setFromNext(true); invalidate(); }} />
-          <Chip label="Otra fecha" active={!fromNext} onPress={() => { setFromNext(false); setShowPicker(true); invalidate(); }} />
+        <Row style={{ gap: 6, flexWrap: 'wrap' }}>
+          <SoftChip label={d.nextDueDate ? `Próxima cuota (${formatDate(d.nextDueDate)})` : 'Próxima cuota'} active={fromNext} onPress={() => { setFromNext(true); invalidate(); }} />
+          <SoftChip label="Otra fecha" active={!fromNext} onPress={() => { setFromNext(false); setShowPicker(true); invalidate(); }} />
         </Row>
         {!fromNext ? (
-          <Pressable onPress={() => setShowPicker(true)} style={{ marginTop: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md }}>
-            <Text style={{ color: colors.text }}><Ico name="calendar-outline" /> {formatDate(fromDate)}</Text>
+          <Pressable onPress={() => setShowPicker(true)} style={{ marginTop: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: 12, minHeight: 44, backgroundColor: colors.surface }}>
+            <Text style={{ color: colors.text, ...type.bodyLg }}><Ico name="calendar-outline" color={colors.textFaint} /> {formatDate(fromDate)}</Text>
           </Pressable>
         ) : null}
         {showPicker && !fromNext ? (
@@ -151,11 +161,11 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
         </Text>
       </Card>
 
-      <SectionHeader title="¿El día de pago sigue igual?" icon="repeat-outline" />
+      <GroupLabel title="¿El día de pago sigue igual?" />
       <Card>
-        <Row style={{ gap: spacing.sm }}>
-          <Chip label={d.paymentDay ? `Sí, día ${d.paymentDay}` : 'Sí'} active={keepCycle} onPress={() => { setKeepCycle(true); invalidate(); }} />
-          <Chip label="No, cambió" active={!keepCycle} onPress={() => { setKeepCycle(false); invalidate(); }} />
+        <Row style={{ gap: 6 }}>
+          <SoftChip label={d.paymentDay ? `Sí, día ${d.paymentDay}` : 'Sí'} active={keepCycle} onPress={() => { setKeepCycle(true); invalidate(); }} />
+          <SoftChip label="No, cambió" active={!keepCycle} onPress={() => { setKeepCycle(false); invalidate(); }} />
         </Row>
         {!keepCycle ? (
           <View style={{ marginTop: spacing.sm }}>
@@ -169,30 +179,31 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
       {!preview ? (
         <Button title="Ver cómo queda" icon="eye-outline" onPress={() => void onPreview()} loading={busy} />
       ) : (
-        <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
+        <Card style={{ borderColor: colors.primary, borderWidth: 1.5 }}>
           <Text style={{ color: colors.text, ...type.title }}>Antes → después</Text>
           <Text style={{ color: colors.textMuted, ...type.small, marginBottom: spacing.sm }}>
             Aplica desde la cuota del {formatDate(preview.effectiveFrom)}
             {preview.keptCycle ? ' · mismo día de pago' : ` · nuevo día de pago: ${preview.after.paymentDay}`}
           </Text>
           {preview.changes.length === 0 ? (
-            <Text style={{ color: colors.textMuted }}>Con esos datos no cambia nada.</Text>
+            <Text style={{ color: colors.textMuted, ...type.body }}>Con esos datos no cambia nada.</Text>
           ) : (
             preview.changes.map((c) => (
-              <Text key={c} style={{ color: colors.text, ...type.body, marginBottom: 2 }}>• {c}</Text>
+              <Text key={c} style={{ color: colors.text, ...type.small, marginBottom: 4 }}>• {c}</Text>
             ))
           )}
           {preview.after.payoffDate ? (
-            <Text style={{ color: colors.text, ...type.body }}>
-              • Terminas: {preview.before.payoffDate ? formatDate(preview.before.payoffDate) : '—'} → {formatDate(preview.after.payoffDate)}
+            <Text style={{ color: colors.text, ...type.small, marginBottom: 4 }}>
+              • Terminas: {preview.before.payoffDate ? formatDate(preview.before.payoffDate) : '—'} →{' '}
+              <Text style={{ color: colors.goldText, fontWeight: '600' }}>{formatDate(preview.after.payoffDate)}</Text>
             </Text>
           ) : null}
           {preview.after.remainingInterest != null && preview.before.remainingInterest != null ? (
-            <Text style={{ color: colors.text, ...type.body }}>
+            <Text style={{ color: colors.text, ...type.small, marginBottom: 4 }}>
               • Intereses por pagar: {formatMoney(preview.before.remainingInterest)} → {formatMoney(preview.after.remainingInterest)}
             </Text>
           ) : null}
-          <View style={{ marginTop: spacing.md }}>
+          <View style={{ marginTop: spacing.sm }}>
             <Button title="Confirmar renegociación" icon="checkmark-circle-outline" onPress={() => void onConfirm()} loading={busy} disabled={preview.changes.length === 0} />
             <Button title="Seguir editando" variant="ghost" onPress={() => setPreview(null)} />
           </View>
@@ -201,10 +212,10 @@ export function RenegotiateDebtScreen({ route, navigation }: Props) {
 
       {(history.data ?? []).length > 0 ? (
         <>
-          <SectionHeader title="Renegociaciones anteriores" icon="time-outline" />
+          <GroupLabel title="Renegociaciones anteriores" />
           {(history.data ?? []).map((h) => (
             <Card key={h.id} style={{ paddingVertical: spacing.sm }}>
-              <Text style={{ color: colors.text, ...type.body, fontWeight: '600' }}>
+              <Text style={{ color: colors.text, ...type.small, fontWeight: '600' }}>
                 Desde {formatDate(h.effectiveFrom)} · registrada {formatDate(h.createdAt)}
               </Text>
               <Text style={{ color: colors.textMuted, ...type.small }}>

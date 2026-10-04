@@ -66,7 +66,7 @@ describe('consentimiento — elementos legales (DEC-0005 §14.1)', () => {
   it.each([
     ['responsable del tratamiento', 'responsable del tratamiento'],
     ['finalidad con IA', 'inteligencia artificial'],
-    ['proveedor Anthropic', 'anthropic'],
+    ['proveedor Google (Gemini)', 'google llc'],
     ['transferencia internacional a EE.UU.', 'estados unidos'],
     ['advertencia de nivel de protección (criterio SIC)', 'nivel adecuado de protección'],
     ['derechos ARCO', 'arco'],

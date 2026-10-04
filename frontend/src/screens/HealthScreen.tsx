@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '../components/AppText';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Card, ErrorState, FormScroll, GroupLabel, Ico, ProgressBar, Row, Sparkline } from '../components/ui';
+import { Card, ErrorState, FormScroll, GroupLabel, Ico, Money, Pill, ProgressBar, Row, Sparkline } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney } from '../utils/format';
 import { CashflowPlan, HomeDashboard } from '../api/types';
@@ -26,13 +27,34 @@ import { useApi } from '../utils/useApi';
  * Cero backend: toda la materia prima viene de FIN-004/005/007.
  */
 
-const BAND_META: Record<ScoreBand, { label: string; text: string; soft: string }> = {
-  critico: { label: 'Crítico', text: colors.dangerDeep, soft: colors.dangerSoft },
-  fragil: { label: 'Frágil', text: colors.warningDeep, soft: colors.warningSoft },
-  estable: { label: 'Estable', text: colors.warningDeep, soft: colors.warningSoft },
-  saludable: { label: 'Saludable', text: colors.primaryDark, soft: colors.primarySoft },
-  elite: { label: 'Élite', text: colors.primaryDark, soft: colors.primarySoft },
+const BAND_META: Record<ScoreBand, { label: string; tone: 'ok' | 'warn' | 'neg' }> = {
+  critico: { label: 'Crítico', tone: 'neg' },
+  fragil: { label: 'Frágil', tone: 'warn' },
+  estable: { label: 'Estable', tone: 'ok' },
+  saludable: { label: 'Saludable', tone: 'ok' },
+  elite: { label: 'Élite', tone: 'ok' },
 };
+
+/**
+ * FIN-060 · Pisos de cada banda del Score. Espejo EXACTO de `scoreBand()` en
+ * backend/src/modules/health/score.util.ts (<400 crítico, <600 frágil, <750
+ * estable, <900 saludable, resto élite). Solo se usa para dibujar la escala y
+ * el "te faltan X puntos"; la banda real sigue viniendo de la API.
+ */
+const BAND_FLOORS: Array<{ band: ScoreBand; from: number }> = [
+  { band: 'critico', from: 0 },
+  { band: 'fragil', from: 400 },
+  { band: 'estable', from: 600 },
+  { band: 'saludable', from: 750 },
+  { band: 'elite', from: 900 },
+];
+const SCORE_MAX = 1000;
+/** Tonos de un solo verde (de claro a pleno) para los tramos de la escala. */
+const SEGMENT_OPACITY = [0.14, 0.3, 0.5, 0.75, 1];
+
+function formatPoints(n: number): string {
+  return Math.round(n).toLocaleString('es-CO');
+}
 
 /** Texto (legible sobre blanco) y barra por nivel del indicador. */
 const LEVEL_COLOR: Record<IndicatorLevel, string> = {
@@ -56,6 +78,17 @@ const PILLAR_LABEL: Record<string, string> = {
   wealth: 'Lo que tienes',
 };
 
+/** FIN-056 (BT-033): cada indicador abre el escenario del simulador que lo mueve. */
+const SCENARIO_BY_INDICATOR: Record<string, string> = {
+  debt: 'estrategia_deudas',
+  dti: 'abono_extra',
+  emergency_fund: 'proyeccion_ahorro',
+  liquidity: 'reducir_gastos',
+  savings: 'proyeccion_ahorro',
+  savings_rate: 'reducir_gastos',
+  wealth: 'abono_extra',
+};
+
 /** El peor indicador con nivel auditado (rojo primero, luego amarillo). */
 function worstIndicator(indicators: HealthIndicator[]): HealthIndicator | null {
   return (
@@ -74,10 +107,10 @@ function humanValue(display: string): string {
 }
 
 export function HealthScreen() {
-  const { data, loading, error, reload } = useApi(() => healthApi.score(), []);
+  const { data, loading, error, reload } = useApi(() => healthApi.score(), [], { cacheKey: 'health-score' });
   const recs = useApi(() => recommendationsApi.list(), []);
-  const home = useApi(() => dashboardApi.home(), []); // DEC-0040 §7: patrimonio y ahorro viven aquí
-  const plan = useApi(() => debtsApi.cashflowPlan(), []); // FIN-045: la jugada con deudas es el plan de flujo
+  const home = useApi(() => dashboardApi.home(), [], { cacheKey: 'home' }); // DEC-0040 §7: patrimonio y ahorro viven aquí
+  const plan = useApi(() => debtsApi.cashflowPlan(), [], { cacheKey: 'cashflow-plan' }); // FIN-045: la jugada con deudas es el plan de flujo
   const reloadRecs = recs.reload;
   const reloadHome = home.reload;
   const reloadPlan = plan.reload;
@@ -104,10 +137,13 @@ export function HealthScreen() {
       {/* FIN-027 (DEC-0027 §5.1): costo de honestidad, requisito del DEC — el
           Score usa ingreso neto; esto explica por qué, sin sonar a regaño. */}
       {data?.netIncomeNotice ? (
-        <Card style={{ borderColor: colors.primary, borderWidth: 1 }}>
-          <Text style={{ color: colors.textMuted, fontSize: 13, lineHeight: 19 }}>
-            <Ico name="bulb-outline" color={colors.primary} /> {data.netIncomeNotice}
-          </Text>
+        <Card style={{ borderColor: colors.primary, borderWidth: 1, paddingVertical: 12 }}>
+          <Row style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
+            <View style={{ marginTop: 2 }}>
+              <Ico name="bulb-outline" size={15} color={colors.primary} />
+            </View>
+            <Text style={{ color: colors.textMuted, ...type.small, flex: 1 }}>{data.netIncomeNotice}</Text>
+          </Row>
         </Card>
       ) : null}
       <JugadaCard recs={recs.data ?? []} worst={worst} hasScore={!!data?.score} plan={plan.data} />
@@ -130,7 +166,7 @@ export function HealthScreen() {
       <HistorySection />
       <CopilotBridge />
       {data ? (
-        <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginVertical: spacing.lg, lineHeight: 18 }}>
+        <Text style={{ color: colors.textMuted, ...type.caption, textAlign: 'center', marginVertical: spacing.lg, marginHorizontal: spacing.sm }}>
           {data.disclaimer}
         </Text>
       ) : null}
@@ -152,17 +188,17 @@ function ScoreCard({
   // o un error transitorio), NUNCA un "—" mudo. Se explica con contexto.
   if (!data && !loading) {
     return (
-      <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-        <Text style={{ color: colors.textInverse, fontWeight: '700', fontSize: 18 }}>
-          <Ico name="leaf-outline" size={18} color={colors.textInverse} /> Tu Score financiero está en preparación
-        </Text>
-        <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 6, lineHeight: 20 }}>
+      <Card>
+        <ScoreCardTitle title="Tu Score financiero está en preparación" />
+        <Text style={{ color: colors.textMuted, ...type.body, marginTop: spacing.sm }}>
           Muy pronto verás aquí un número de 0 a 1.000 que resume tu salud financiera — y qué
           lo mueve. Estamos afinando los últimos detalles antes de mostrártelo.
         </Text>
-        <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 8 }}>
-          Mientras tanto, sigue registrando tus movimientos: son la base con la que se calcula.
-        </Text>
+        <View style={{ marginTop: spacing.md, backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, paddingVertical: 10, paddingHorizontal: 12 }}>
+          <Text style={{ color: colors.text, ...type.small }}>
+            Mientras tanto, sigue registrando tus movimientos: son la base con la que se calcula.
+          </Text>
+        </View>
       </Card>
     );
   }
@@ -171,65 +207,84 @@ function ScoreCard({
   if (data && data.score === null) {
     const days = Math.max(1, data.coldStart?.remainingDays ?? 0);
     return (
-      <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-        <Text style={{ color: colors.textInverse, fontWeight: '700', fontSize: 18 }}>
-          <Ico name="leaf-outline" size={18} color={colors.textInverse} /> Tu Score se está construyendo
-        </Text>
-        <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 6, lineHeight: 20 }}>
+      <Card>
+        <ScoreCardTitle title="Tu Score se está construyendo" />
+        <Text style={{ color: colors.textMuted, ...type.body, marginTop: spacing.sm }}>
           Te faltan ~{days} días de historia. Cuando esté listo verás un número de 0 a
           1.000 que resume tu salud financiera — y qué lo mueve.
         </Text>
-        <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 8 }}>
+        {/* La escala vacía anticipa dónde aparecerá el número. */}
+        <View style={{ marginTop: spacing.md }}>
+          <ScoreScale score={null} />
+        </View>
+        <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.md }}>
           Mientras tanto, ya puedes:
         </Text>
-        <Text style={{ color: colors.textInverse, opacity: 0.9, marginTop: 2 }}>
-          <Ico name="checkmark-circle-outline" color={colors.textInverse} /> Registrar tus movimientos de cada día
-        </Text>
-        <Text style={{ color: colors.textInverse, opacity: 0.9 }}>
-          <Ico name="checkmark-circle-outline" color={colors.textInverse} /> Marcar tu fondo de emergencia en Cuentas
-        </Text>
+        <View style={{ gap: 6, marginTop: 6 }}>
+          <Row style={{ gap: 6 }}>
+            <Ico name="checkmark-circle-outline" size={15} color={colors.primary} />
+            <Text style={{ color: colors.text, ...type.small, flex: 1 }}>Registrar tus movimientos de cada día</Text>
+          </Row>
+          <Row style={{ gap: 6 }}>
+            <Ico name="checkmark-circle-outline" size={15} color={colors.primary} />
+            <Text style={{ color: colors.text, ...type.small, flex: 1 }}>Marcar tu fondo de emergencia en Cuentas</Text>
+          </Row>
+        </View>
       </Card>
     );
   }
 
   const band = data?.band ? BAND_META[data.band] : null;
+  const score = data?.score ?? null;
+  const next = score != null ? BAND_FLOORS.find((b) => b.from > score) ?? null : null;
   return (
-    // Salud J: tarjeta blanca compacta. La banda solo tiñe el aro y su palabra;
-    // los pilares siguen NEUTROS (P1 ruta b: el semáforo vive en los indicadores).
+    // FIN-060: el aro de color se vuelve una cifra protagonista sobre una escala
+    // segmentada de un solo verde con marcador dorado. Los pilares siguen NEUTROS
+    // (P1 ruta b: el semáforo vive solo en los indicadores).
     <Card>
-      <Row style={{ gap: spacing.md }}>
-        <View
-          style={{
-            width: 76, height: 76, borderRadius: 38, borderWidth: 6,
-            borderColor: band ? band.soft : colors.border,
-            alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800' }}>{data?.score ?? (loading ? '…' : '—')}</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 10 }}>de 1.000</Text>
+      <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md }}>
+        <View style={{ flexShrink: 1 }}>
+          <Text style={{ color: colors.textFaint, ...type.label }}>Score Millo</Text>
+          <Row style={{ alignItems: 'baseline', gap: 4, marginTop: 2 }}>
+            <Text style={{ color: colors.text, ...type.hero }}>
+              {score != null ? formatPoints(score) : loading ? '…' : '—'}
+            </Text>
+            <Text style={{ color: colors.textFaint, ...type.body, fontWeight: '500' }}>/ 1.000</Text>
+          </Row>
         </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ color: colors.textMuted, ...type.small }}>Score Millo</Text>
-          {band ? <Text style={{ color: band.text, fontSize: 18, fontWeight: '800' }}>{band.label}</Text> : null}
+        <View style={{ alignItems: 'flex-end', gap: 6, paddingTop: 2 }}>
+          {band ? <Pill label={band.label} tone={band.tone} /> : null}
           {data?.delta != null && data.delta !== 0 ? (
             <Text style={{ color: colors.textMuted, ...type.small }}>
               {data.delta > 0 ? '+' : '−'}
               {Math.abs(data.delta)} este mes
             </Text>
           ) : null}
-          <Text style={{ color: colors.textFaint, ...type.caption }}>No es un puntaje crediticio</Text>
         </View>
       </Row>
+
+      {score != null ? (
+        <View style={{ marginTop: spacing.md }}>
+          <ScoreScale score={score} />
+        </View>
+      ) : null}
+      {score != null && next ? (
+        <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.sm }}>
+          Te faltan <Text style={{ color: colors.text, fontWeight: '600' }}>{formatPoints(next.from - score)} puntos</Text> para{' '}
+          {BAND_META[next.band].label}
+        </Text>
+      ) : null}
+      <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.xs }}>No es un puntaje crediticio</Text>
 
       {data?.pillars?.length ? (
         <View style={{ marginTop: spacing.md, gap: 8 }}>
           {data.pillars.map((p) => (
             <Row key={p.key} style={{ gap: 8 }}>
-              <Text style={{ color: colors.textMuted, fontSize: 12, width: 92 }}>{PILLAR_LABEL[p.key] ?? p.label}</Text>
+              <Text style={{ color: colors.textMuted, ...type.small, width: 92 }}>{PILLAR_LABEL[p.key] ?? p.label}</Text>
               <View style={{ flex: 1 }}>
-                <ProgressBar value={Math.max(0, Math.min(100, p.value ?? 0)) / 100} color={colors.primary} height={6} label={PILLAR_LABEL[p.key] ?? p.label} />
+                <ProgressBar value={Math.max(0, Math.min(100, p.value ?? 0)) / 100} color={colors.primary} track={colors.surfaceAlt} height={6} label={PILLAR_LABEL[p.key] ?? p.label} />
               </View>
-              <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700', width: 28, textAlign: 'right' }}>
+              <Text style={{ color: colors.text, ...type.small, fontWeight: '600', width: 28, textAlign: 'right' }}>
                 {p.value != null ? Math.round(p.value) : '—'}
               </Text>
             </Row>
@@ -237,6 +292,94 @@ function ScoreCard({
         </View>
       ) : null}
     </Card>
+  );
+}
+
+/** Encabezado de los estados sin Score: hoja de marca en círculo suave + título. */
+function ScoreCardTitle({ title }: { title: string }) {
+  return (
+    <Row style={{ gap: 10 }}>
+      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Ico name="leaf-outline" size={17} color={colors.primary} />
+      </View>
+      <Text style={{ color: colors.text, ...type.title, flex: 1 }}>{title}</Text>
+    </Row>
+  );
+}
+
+/**
+ * FIN-060 · Escala 0–1.000 en tramos proporcionales a cada banda, en tonos de un
+ * solo verde, con un marcador dorado en el puntaje. Solo Views (sin SVG).
+ * `score = null` dibuja la escala vacía (cold-start) con solo los extremos.
+ */
+function ScoreScale({ score }: { score: number | null }) {
+  const pct = score != null ? Math.max(0, Math.min(1, score / SCORE_MAX)) * 100 : null;
+  const LABEL_W = 36;
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel="Escala del Score Millo"
+      accessibilityValue={score != null ? { min: 0, max: SCORE_MAX, now: score } : undefined}
+    >
+      <View style={{ height: 16, justifyContent: 'center' }}>
+        <View style={{ flexDirection: 'row', gap: 2, height: 8, borderRadius: 4, overflow: 'hidden' }}>
+          {BAND_FLOORS.map((b, i) => {
+            const to = BAND_FLOORS[i + 1]?.from ?? SCORE_MAX;
+            return (
+              <View
+                key={b.band}
+                style={{
+                  flex: to - b.from,
+                  backgroundColor: score != null ? colors.primary : colors.surfaceAlt,
+                  opacity: score != null ? SEGMENT_OPACITY[i] : 1,
+                }}
+              />
+            );
+          })}
+        </View>
+        {pct != null ? (
+          <View
+            style={{
+              position: 'absolute',
+              left: `${pct}%`,
+              marginLeft: -4,
+              top: 0,
+              width: 8,
+              height: 16,
+              borderRadius: 4,
+              borderWidth: 2,
+              borderColor: colors.surface,
+              backgroundColor: colors.gold,
+            }}
+          />
+        ) : null}
+      </View>
+      <View style={{ height: 14, marginTop: 2 }}>
+        <Text style={{ position: 'absolute', left: 0, color: colors.textFaint, fontSize: 10 }}>0</Text>
+        {score != null
+          ? BAND_FLOORS.slice(1).map((b) => (
+              <Text
+                key={b.band}
+                style={{
+                  position: 'absolute',
+                  left: `${(b.from / SCORE_MAX) * 100}%`,
+                  marginLeft: -LABEL_W / 2,
+                  width: LABEL_W,
+                  textAlign: 'center',
+                  color: colors.textFaint,
+                  fontSize: 10,
+                }}
+              >
+                {formatPoints(b.from)}
+              </Text>
+            ))
+          : null}
+        {/* Con puntaje, el "1.000" ya está en la cifra ("/ 1.000") y chocaría con "900". */}
+        {score == null ? (
+          <Text style={{ position: 'absolute', right: 0, color: colors.textFaint, fontSize: 10 }}>1.000</Text>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
@@ -263,14 +406,14 @@ function JugadaCard({
     const worstLine = worst ? `${worst.title}: ${humanValue(worst.display)}.` : null;
     return (
       <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-        <Text style={{ color: colors.onPrimaryMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.8 }}>
+        <Text style={{ color: colors.onPrimaryMuted, ...type.label }}>
           TU JUGADA DE MAYOR IMPACTO
         </Text>
-        <Text style={{ color: colors.textInverse, fontSize: 18, fontWeight: '800', marginTop: 6 }}>
+        <Text style={{ color: colors.textInverse, fontSize: 18, fontWeight: '600', marginTop: 6 }}>
           {plan.toDebt > 0 ? `Termina primero ${step.name}` : `Cuando te sobre, empieza por ${step.name}`}
         </Text>
         {worstLine ? (
-          <Text style={{ color: colors.onPrimaryMuted, fontSize: 13, marginTop: 4 }}>Lo que más te frena · {worstLine}</Text>
+          <Text style={{ color: colors.onPrimaryMuted, ...type.small, marginTop: 4 }}>Lo que más te frena · {worstLine}</Text>
         ) : null}
         <Text style={{ color: colors.textInverse, fontSize: 14, lineHeight: 20, marginTop: 6 }}>
           {plan.toDebt > 0
@@ -283,7 +426,7 @@ function JugadaCard({
           accessibilityRole="button"
           style={{ alignSelf: 'flex-start', marginTop: spacing.md, backgroundColor: colors.surface, borderRadius: radius.full, paddingVertical: 10, paddingHorizontal: 18 }}
         >
-          <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>Ver mi plan</Text>
+          <Text style={{ color: colors.primaryDark, fontWeight: '600' }}>Ver mi plan</Text>
         </Pressable>
       </Card>
     );
@@ -309,12 +452,12 @@ function JugadaCard({
   return (
     // Salud J: la jugada es el protagonista (verde institucional, como el hero de Mis deudas).
     <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-      <Text style={{ color: colors.onPrimaryMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.8 }}>
+      <Text style={{ color: colors.onPrimaryMuted, ...type.label }}>
         TU JUGADA DE MAYOR IMPACTO
       </Text>
-      <Text style={{ color: colors.textInverse, fontSize: 18, fontWeight: '800', marginTop: 6 }}>{title}</Text>
+      <Text style={{ color: colors.textInverse, fontSize: 18, fontWeight: '600', marginTop: 6 }}>{title}</Text>
       {worstLine ? (
-        <Text style={{ color: colors.onPrimaryMuted, fontSize: 13, marginTop: 4 }}>Lo que más te frena · {worstLine}</Text>
+        <Text style={{ color: colors.onPrimaryMuted, ...type.small, marginTop: 4 }}>Lo que más te frena · {worstLine}</Text>
       ) : null}
       {body ? <Text style={{ color: colors.textInverse, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{body}</Text> : null}
       <Pressable
@@ -322,7 +465,7 @@ function JugadaCard({
         accessibilityRole="button"
         style={{ alignSelf: 'flex-start', marginTop: spacing.md, backgroundColor: colors.surface, borderRadius: radius.full, paddingVertical: 10, paddingHorizontal: 18 }}
       >
-        <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>Simularlo</Text>
+        <Text style={{ color: colors.primaryDark, fontWeight: '600' }}>Simularlo</Text>
       </Pressable>
     </Card>
   );
@@ -338,7 +481,7 @@ function IndicatorRow({ ind, first }: { ind: HealthIndicator; first: boolean }) 
   const pct = /%\s*$/.test(ind.display) ? parseFloat(ind.display.replace(',', '.')) : NaN;
 
   return (
-    <View style={{ borderTopWidth: first ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
+    <View style={{ borderTopWidth: first ? 0 : 1, borderTopColor: colors.surfaceAlt, backgroundColor: open ? colors.bg : undefined }}>
       <Pressable
         onPress={() => setOpen(!open)}
         accessibilityRole="button"
@@ -348,8 +491,8 @@ function IndicatorRow({ ind, first }: { ind: HealthIndicator; first: boolean }) 
       >
         <View style={{ flex: 1, gap: 6 }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontWeight: '700', color: colors.text, fontSize: 14 }}>{ind.title}</Text>
-            <Text style={{ fontWeight: '800', color: LEVEL_COLOR[ind.level], fontSize: 14 }}>{humanValue(ind.display)}</Text>
+            <Text style={{ fontWeight: '600', color: colors.text, fontSize: 14 }}>{ind.title}</Text>
+            <Text style={{ fontWeight: '600', color: LEVEL_COLOR[ind.level], fontSize: 14 }}>{humanValue(ind.display)}</Text>
           </Row>
           {Number.isFinite(pct) ? <ProgressBar value={pct / 100} color={LEVEL_BAR[ind.level]} height={6} label={ind.title} /> : null}
         </View>
@@ -359,19 +502,25 @@ function IndicatorRow({ ind, first }: { ind: HealthIndicator; first: boolean }) 
         <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: 6 }}>
           <Text style={{ color: colors.textMuted, fontSize: 13 }}>{ind.meaning}</Text>
           {ind.actions.map((a, i) => (
-            <Text key={i} style={{ color: colors.text, fontSize: 13 }}>
-              <Ico name="checkmark-circle-outline" color={colors.primary} /> {a}
-            </Text>
+            <Row key={i} style={{ gap: 6, alignItems: 'flex-start' }}>
+              <View style={{ marginTop: 2 }}>
+                <Ico name="checkmark-circle-outline" color={colors.primary} />
+              </View>
+              <Text style={{ color: colors.text, fontSize: 13, flex: 1 }}>{a}</Text>
+            </Row>
           ))}
           {needsAction ? (
-            <Pressable onPress={() => navigation.navigate('Simulator')} accessibilityRole="link">
-              <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>Simularlo →</Text>
+            <Pressable onPress={() => navigation.navigate('Simulator', SCENARIO_BY_INDICATOR[ind.key] ? { scenario: SCENARIO_BY_INDICATOR[ind.key] } : undefined)} accessibilityRole="link">
+              <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>Simularlo →</Text>
             </Pressable>
           ) : null}
-          <Text style={{ color: colors.text, fontSize: 12, marginTop: 4 }}>
-            <Ico name="calculator-outline" color={colors.textMuted} /> {ind.howComputed}
-          </Text>
-          <Text style={{ color: colors.textFaint, fontSize: 12 }}>{ind.ranges}</Text>
+          <Row style={{ gap: 6, alignItems: 'flex-start', marginTop: 4 }}>
+            <View style={{ marginTop: 1 }}>
+              <Ico name="calculator-outline" color={colors.textFaint} />
+            </View>
+            <Text style={{ color: colors.textMuted, ...type.small, flex: 1 }}>{ind.howComputed}</Text>
+          </Row>
+          <Text style={{ color: colors.textFaint, ...type.caption }}>{ind.ranges}</Text>
         </View>
       ) : null}
     </View>
@@ -394,16 +543,21 @@ function WealthSection({ d }: { d: HomeDashboard | null }) {
         <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Accounts')} accessibilityRole="button" accessibilityLabel="Cuentas y patrimonio">
           <Card style={{ flex: 1 }}>
             <Text style={{ color: colors.textMuted, ...type.small }}>Patrimonio</Text>
-            <Text style={{ color: colors.text, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(d.netWorth.netWorth)}</Text>
+            <Money value={d.netWorth.netWorth} size={20} style={{ marginTop: spacing.xxs }} />
             <Text style={{ color: colors.textFaint, ...type.caption }}>lo tuyo, menos deudas</Text>
+            {d.netWorth.totalCesantias ? (
+              <Text style={{ color: colors.textMuted, ...type.caption, marginTop: spacing.xs }}>
+                {`Incluye ${formatMoney(d.netWorth.totalCesantias)} de cesantías: son tuyas, pero solo se retiran para vivienda, educación o al terminar tu contrato. No cuentan como colchón.`}
+              </Text>
+            ) : null}
           </Card>
         </Pressable>
         <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Simulator', { scenario: 'proyeccion_ahorro' })} accessibilityRole="button" accessibilityLabel="Proyectar mi ahorro">
           <Card style={{ flex: 1 }}>
             <Text style={{ color: colors.textMuted, ...type.small }}>Ahorro total</Text>
-            <Text style={{ color: colors.success, ...type.title, fontVariant: ['tabular-nums'] }}>{formatMoney(d.savings.total)}</Text>
+            <Money value={d.savings.total} size={20} style={{ marginTop: spacing.xxs }} />
             {d.interpretation.savings ? <Text style={{ color: colors.textFaint, ...type.caption }}>{d.interpretation.savings.text}</Text> : null}
-            <Text style={{ color: colors.primary, ...type.caption, fontWeight: '700', marginTop: spacing.xxs }}>¿Cuánto tendrías en unos años? →</Text>
+            <Text style={{ color: colors.primary, ...type.caption, fontWeight: '600', marginTop: spacing.xxs }}>¿Cuánto tendrías en unos años? →</Text>
           </Card>
         </Pressable>
       </Row>
@@ -443,7 +597,10 @@ function HistorySection() {
 
   return (
     <Card>
-      <Text style={{ fontWeight: '700', fontSize: 15, marginBottom: spacing.sm }}><Ico name="trending-up-outline" size={15} /> Evolución de tu Score</Text>
+      <Row style={{ gap: 6, marginBottom: spacing.sm }}>
+        <Ico name="trending-up-outline" size={15} color={colors.textFaint} />
+        <Text style={{ color: colors.text, fontWeight: '600', fontSize: 15 }}>Evolución de tu Score</Text>
+      </Row>
       {history && history.length > 0 ? (
         <>
           <Text style={{ color: colors.text, fontWeight: '600', marginBottom: spacing.sm }}>
@@ -452,27 +609,30 @@ function HistorySection() {
           {/* FIN-038 (BP-15): la evolución también se VE, no solo se lee. */}
           {history.length > 1 ? (
             <View style={{ marginBottom: spacing.sm }}>
-              <Sparkline values={history.map((h) => h.score)} height={48} label="Evolución del Score" />
+              <Sparkline values={history.map((h) => h.score)} height={48} color={colors.gold} faded={colors.primary} label="Evolución del Score" />
             </View>
           ) : null}
           {history.map((h) => (
             <Row key={h.period} style={{ justifyContent: 'space-between', marginBottom: 4 }}>
               <Text style={{ color: colors.textMuted }}>{h.period}</Text>
-              <Text style={{ fontWeight: '700', color: colors.text }}>{h.score}</Text>
+              <Text style={{ fontWeight: '600', color: colors.text }}>{h.score}</Text>
             </Row>
           ))}
         </>
       ) : locked ? (
         <View style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
-          <Ico name="lock-closed-outline" size={24} color={colors.textMuted} />
-          <Text style={{ color: colors.text, textAlign: 'center', marginTop: 4 }}>
+          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.goldSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Ico name="lock-closed-outline" size={16} color={colors.goldText} />
+          </View>
+          <Text style={{ color: colors.text, textAlign: 'center', marginTop: spacing.sm }}>
             El histórico de tu Score es una función de Millo+.
           </Text>
           <Pressable
             onPress={() => navigation.navigate('MilloPlus', { source: 'score_history' })}
-            style={{ marginTop: spacing.sm, backgroundColor: colors.accent, borderRadius: radius.full, paddingVertical: 8, paddingHorizontal: 18 }}
+            accessibilityRole="button"
+            style={{ marginTop: spacing.md, borderWidth: 1, borderColor: colors.gold, borderRadius: radius.full, paddingVertical: 8, paddingHorizontal: 18 }}
           >
-            <Text style={{ fontWeight: '700', color: colors.text }}>Conocer Millo+ →</Text>
+            <Text style={{ fontWeight: '600', color: colors.goldText }}>Conocer Millo+ →</Text>
           </Pressable>
         </View>
       ) : (
@@ -494,9 +654,12 @@ function CopilotBridge() {
       onPress={() => navigation.navigate('Copilot')}
     >
       <Card style={{ paddingVertical: spacing.sm }}>
-        <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>
-          <Ico name="chatbubble-ellipses-outline" color={colors.primary} /> ¿Preguntas sobre tu Score? El copiloto te lo explica →
-        </Text>
+        <Row style={{ gap: 6 }}>
+          <Ico name="chatbubble-ellipses-outline" size={15} color={colors.primary} />
+          <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13, flex: 1 }}>
+            ¿Preguntas sobre tu Score? El copiloto te lo explica →
+          </Text>
+        </Row>
       </Card>
     </Pressable>
   );

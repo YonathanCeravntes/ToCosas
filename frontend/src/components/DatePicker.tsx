@@ -1,7 +1,7 @@
 import React from 'react';
 import { Platform } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { colors, radius, spacing } from '../theme/colors';
+import { colors, spacing } from '../theme/colors';
 
 type Props = {
   value: Date;
@@ -40,13 +40,15 @@ export function DatePicker({ value, maximumDate, onChange }: Props) {
         fontSize: 16,
         padding: `${spacing.sm}px ${spacing.md}px`,
         marginBottom: spacing.md,
-        borderRadius: radius.sm,
+        borderRadius: 10,
         border: `1px solid ${colors.border}`,
+        accentColor: colors.primary,
         backgroundColor: colors.surface,
         color: colors.text,
         fontFamily: 'inherit',
       },
     });
   }
-  return <DateTimePicker value={value} mode="date" maximumDate={maximumDate} onChange={onChange} />;
+  // FIN-060: acento esmeralda de la paleta en el selector nativo (iOS lo respeta; Android usa el tema).
+  return <DateTimePicker value={value} mode="date" maximumDate={maximumDate} onChange={onChange} accentColor={colors.primary} />;
 }

@@ -89,7 +89,9 @@ async function request<T>(
   body?: unknown,
   retried = false,
 ): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  // FIN-056: un FormData viaja como multipart (el navegador/RN pone el boundary).
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+  const headers: Record<string, string> = isForm ? {} : { 'Content-Type': 'application/json' };
   const token = handlers.getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
@@ -104,7 +106,7 @@ async function request<T>(
     res = await fetch(`${API_URL}${path}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: body ? (isForm ? (body as FormData) : JSON.stringify(body)) : undefined,
       signal: controller.signal,
     });
   } catch (e) {
@@ -140,6 +142,8 @@ export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
+  put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
   delete: <T>(path: string, body?: unknown) => request<T>('DELETE', path, body),
+  upload: <T>(path: string, form: FormData) => request<T>('POST', path, form),
   baseUrl: API_URL,
 };

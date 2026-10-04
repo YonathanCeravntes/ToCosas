@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { DebtOutlayService } from '../debts/debt-outlay.service';
 import { NetIncomeService } from '../income/net-income.service';
 import { SpendableService } from '../budget/spendable.service';
+import { SpendingBaselineService } from '../budget/spending-baseline.service';
 import { computeNetWorth } from '../accounts/networth.util';
 import { computeScore, SCORE_VERSION } from '../health/score.util';
 import { computeCoreMetrics, MetricValue } from './metrics/core-metrics';
@@ -29,6 +30,7 @@ export class EngineService {
     private readonly netIncome: NetIncomeService,
     // BT-006 (decisión del Fundador): "Capacidad de ahorro" = razón de "Te queda".
     private readonly spendable: SpendableService,
+    private readonly baseline: SpendingBaselineService,
   ) {}
 
   /** Recalcula y persiste las métricas core del mes corriente del usuario. */
@@ -87,7 +89,9 @@ export class EngineService {
       liabilities,
     );
 
+    const typical = await this.baseline.forUser(userId, now);
     const metrics = computeCoreMetrics({
+      variableEssential: typical?.typicalEssential ?? 0,
       income: sumKind('ingreso'),
       expense: sumKind('gasto'),
       debtPayments: sumKind('pago_deuda'),

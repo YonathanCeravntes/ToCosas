@@ -98,6 +98,23 @@ try {
     const installed = JSON.parse(readFileSync(join(here, '..', '..', 'node_modules', 'expo', 'package.json'), 'utf8')).version;
     if (Number(installed.split('.')[0]) !== baseline.expoSdkMajor) fail(`node_modules tiene expo ${installed} (≠ SDK ${baseline.expoSdkMajor}) — corre npm install antes de publicar`);
     else ok(`node_modules: expo ${installed}`);
+    // Lección 2026-10-03 (APK que se cerraba al abrir): un peer (expo-font de
+    // @expo/vector-icons) se resolvió a la versión de otro SDK y el build la enlazó.
+    // Cada módulo nativo instalado debe tener la versión mayor que pide este SDK.
+    const bundledPath = join(here, '..', '..', 'node_modules', 'expo', 'bundledNativeModules.json');
+    if (existsSync(bundledPath)) {
+      const bundled = JSON.parse(readFileSync(bundledPath, 'utf8'));
+      const major = (v) => String(v).replace(/^[^\d]*/, '').split('.')[0];
+      const wrong = [];
+      for (const [name, range] of Object.entries(bundled)) {
+        const p = join(here, '..', '..', 'node_modules', ...name.split('/'), 'package.json');
+        if (!existsSync(p)) continue;
+        const v = JSON.parse(readFileSync(p, 'utf8')).version;
+        if (major(v) !== major(range)) wrong.push(`${name}@${v} (SDK pide ${range})`);
+      }
+      if (wrong.length) fail(`módulos nativos con versión de otro SDK: ${wrong.join(', ')} — corre npx expo install --fix`);
+      else ok('módulos nativos en la versión de este SDK');
+    }
   }
 } catch (e) {
   fail(`no se pudo verificar el baseline de la APK: ${e.message}`);

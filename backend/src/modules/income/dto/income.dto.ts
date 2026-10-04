@@ -59,6 +59,11 @@ export class CreateIncomeSourceDto {
   @IsOptional()
   @IsNumber()
   dayOfMonth?: number;
+
+  @ApiPropertyOptional({ default: false, description: 'FIN-061 F2: recibe prima de servicios (junio y diciembre)' })
+  @IsOptional()
+  @IsBoolean()
+  receivesPrima?: boolean;
 }
 
 export class UpdateIncomeSourceDto extends PartialType(CreateIncomeSourceDto) {

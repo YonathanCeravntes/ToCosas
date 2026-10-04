@@ -3,16 +3,18 @@
  */
 
 /** Versión del texto de consentimiento. Subirla obliga a re-consentir (§4.2). */
-export const AI_CONSENT_VERSION = 1;
+export const AI_CONSENT_VERSION = 2;
 
 /**
- * Texto de consentimiento v1 — DEC-0005 §14.1 (memorando legal, Ley 1581/2012):
- * identifica al responsable, la finalidad específica con IA/Anthropic, la
- * transferencia internacional a EE.UU., los derechos ARCO y la revocación.
+ * Texto de consentimiento v2 (2026-09-30) — DEC-0005 §14.1 (Ley 1581/2012): identifica
+ * al responsable, la finalidad con IA, el proveedor (Google, antes Anthropic en la v1), la
+ * transferencia internacional a EE. UU., los derechos y la revocación. Cambiar de
+ * proveedor cambia a quién se transmiten los datos: por eso sube la versión y todos
+ * vuelven a autorizar. Pendiente revisión de abogado.
  */
-export const AI_CONSENT_TEXT = `Autorizo a Millo (responsable del tratamiento) a usar mis datos financieros agregados y minimizados (mi puntaje e indicadores, métricas mensuales, deudas identificadas de forma genérica con tipo/saldo/tasa/cuota, y totales de presupuesto y patrimonio — nunca mis notas, nombres personales, datos de contacto ni números de cuenta) con la finalidad específica de generar respuestas y explicaciones personalizadas mediante inteligencia artificial, a través del proveedor Anthropic PBC.
+export const AI_CONSENT_TEXT = `Autorizo a Millo (responsable del tratamiento) a usar mis datos financieros agregados y minimizados (mi puntaje e indicadores, métricas mensuales, deudas identificadas de forma genérica con tipo/saldo/tasa/cuota, y totales de presupuesto y patrimonio — nunca mis notas, nombres personales, datos de contacto ni números de cuenta) con la finalidad específica de generar respuestas y explicaciones personalizadas mediante inteligencia artificial, a través del proveedor Google LLC (Gemini API, plan de pago: Google no usa estos datos para entrenar sus modelos).
 
-Entiendo que esto implica una transferencia internacional de datos a los Estados Unidos, país que no cuenta con un nivel adecuado de protección de datos según los criterios de la Superintendencia de Industria y Comercio de Colombia.
+Entiendo que esto implica una transferencia internacional de datos a los Estados Unidos, país que la Superintendencia de Industria y Comercio de Colombia reconoce con un nivel adecuado de protección (Circular Externa 005 de 2017).
 
 Conservo mis derechos de conocer, actualizar, rectificar y suprimir mis datos (derechos ARCO) y puedo revocar esta autorización en cualquier momento desde Ajustes, con efecto inmediato: al revocar, ningún dato mío volverá a enviarse al proveedor de IA. Mi historial de chat se conserva para mí y puedo borrarlo definitivamente cuando quiera con "Borrar historial del Copiloto".
 
@@ -26,7 +28,7 @@ export const AI_DAILY_LIMIT_PREMIUM = 100;
 export const AI_LOG_RETENTION_MONTHS = 12;
 export const CONVERSATION_RETENTION_MONTHS = 24;
 
-/** Resiliencia del cliente Anthropic (§4.8). */
+/** Resiliencia del cliente de IA (§4.8). */
 export const LLM_TIMEOUT_MS = 30_000;
 export const LLM_MAX_RETRIES = 1; // solo red/5xx; 429 nunca se reintenta
 export const LLM_RETRY_BACKOFF_MS = 1_000;
@@ -36,7 +38,8 @@ export const CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60_000;
 /** Historial de conversación enviado al LLM (mensajes más recientes). */
 export const LLM_HISTORY_LIMIT = 10;
 
-export const LLM_MODEL_DEFAULT = 'claude-haiku-4-5-20251001';
+/** Modelo por defecto (se cambia con GEMINI_MODEL sin tocar código). */
+export const LLM_MODEL_DEFAULT = 'gemini-3.5-flash';
 
 /**
  * DEC-0005 §14.2 — restricción de "recomendación genérica": el Copiloto nunca
@@ -81,7 +84,9 @@ Reglas obligatorias:
 2. RECOMENDACIÓN GENÉRICA: NUNCA nombres entidades financieras, bancos, fintechs, marcas ni tasas de productos de terceros. Las deudas se llaman "deuda #1 (tipo)" y los fijos "gasto fijo #N": úsalos tal cual.
 3. Español de Colombia, cálido y claro, sin jerga; montos con puntos de miles ($1.250.000).
 4. Breve: 3-6 frases o una lista corta. Nada de relleno.
-5. No pidas ni menciones datos personales (nombres, teléfonos, correos, números de cuenta).`;
+5. No pidas ni menciones datos personales (nombres, teléfonos, correos, números de cuenta).
+6. SIN CULPA (Motor de Salida Humano, FIN-061): nunca digas "desperdicio", "gastaste de más", "fallaste" ni regañes. Los gustos pequeños (el tinto, el cine, una salida) sostienen a la persona: NO recomiendes eliminarlos ni recortarlos. Si la persona pregunta si debe dejarlos, explica con cifras cuánto poco mueven la fecha y lleva la conversación a lo que sí pesa: no atrasarse (cero mora), bajar la tasa de una deuda cara (compra de cartera o pedir modificación de condiciones al banco), quitar cobros innecesarios (cuota de manejo, seguros caros) y el plan para liberar flujo.
+7. CESANTÍAS: hacen parte del patrimonio, pero NO son plata disponible. Solo se pueden retirar para vivienda (compra, construcción, mejora o abono al crédito hipotecario), educación (incluido crédito educativo) o al terminar el contrato. Nunca las propongas para pagar deudas de consumo ni como colchón; sí puedes mencionarlas si la persona tiene crédito de vivienda o educativo.`;
 
 /** Grupos de campos del contexto (para AiInteractionLog.contextFieldGroups). */
 export const ContextFieldGroup = {

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import {
   IsArray,
+  IsBoolean,
   IsEnum,
   IsISO8601,
   IsNumber,
@@ -15,6 +16,14 @@ export enum TxKindDto {
   gasto = 'gasto',
   pago_deuda = 'pago_deuda',
   transferencia = 'transferencia',
+}
+
+/** FIN-056: cómo se pagó (mismo enum que Mis documentos). */
+export enum PaymentMethodDto {
+  tarjeta = 'tarjeta',
+  transferencia = 'transferencia',
+  efectivo = 'efectivo',
+  desconocido = 'desconocido',
 }
 
 export class CreateTransactionDto {
@@ -50,6 +59,16 @@ export class CreateTransactionDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @ApiPropertyOptional({ enum: PaymentMethodDto, description: 'FIN-056: cómo se pagó (efectivo, tarjeta, transferencia).' })
+  @IsOptional()
+  @IsEnum(PaymentMethodDto)
+  paymentMethod?: PaymentMethodDto;
+
+  @ApiPropertyOptional({ description: 'FIN-059: "de la casa" — cuenta en Nuestro mes de Millo en pareja.' })
+  @IsOptional()
+  @IsBoolean()
+  household?: boolean;
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()

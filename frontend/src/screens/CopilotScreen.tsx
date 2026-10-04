@@ -2,18 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import {
-  ActivityIndicator,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Text, TextInput } from '../components/AppText';
 import { Button, Card, GroupLabel, Ico, IconName, Row } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { AiConsentStatus, CopilotAction, CopilotMessage, Insight, InsightSeverity, Recommendation } from '../api/types';
@@ -25,7 +15,8 @@ import { isProposal, ProposalCard } from '../components/ProposalCard';
 const SEVERITY_STYLE: Record<InsightSeverity, { icon: IconName; fg: string; bg: string }> = {
   critical: { icon: 'alert-circle-outline', fg: colors.dangerDeep, bg: colors.dangerSoft },
   warning: { icon: 'trending-up-outline', fg: colors.warningDeep, bg: colors.warningSoft },
-  info: { icon: 'trophy-outline', fg: colors.primaryDark, bg: colors.primarySoft },
+  // FIN-060: los logros van en dorado sobrio.
+  info: { icon: 'trophy-outline', fg: colors.goldText, bg: colors.goldSoft },
 };
 
 // FIN-046: preguntas que muestran el "cerebro" (plan de flujo, Te queda, crédito).
@@ -71,6 +62,27 @@ export function CopilotScreen() {
       void recommendationsApi.list().then(setRecommendations).catch(() => undefined);
     }, []),
   );
+
+  // FIN-056 (BT-031): al volver, se retoma la conversación de las últimas 2 horas (el
+  // servidor ya la recordaba; la pantalla la mostraba vacía).
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const convs = await copilotApi.conversations();
+        const recent = convs.find((c) => Date.now() - new Date(c.updatedAt).getTime() < 2 * 3_600_000);
+        if (!recent || !alive) return;
+        const msgs = await copilotApi.messages(recent.id);
+        if (!alive || msgs.length === 0) return;
+        setConversationId(recent.id);
+        setItems(msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, source: m.source })));
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 50);
+      } catch {
+        /* sin historial no pasa nada */
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   const dismissRecommendation = async (id: string) => {
     setRecommendations((prev) => prev.filter((r) => r.id !== id));
@@ -141,7 +153,7 @@ export function CopilotScreen() {
             {/* FIN-046 (Fundador, 2026-09-29): IA para toda la Beta con permiso de un toque. */}
             {consent && !consent.accepted && !consentLater ? (
               <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-                <Text style={{ color: colors.textInverse, fontWeight: '800', fontSize: 16 }}>
+                <Text style={{ color: colors.textInverse, fontWeight: '600', fontSize: 16, lineHeight: 22 }}>
                   Millo usa inteligencia artificial para responderte con tus números
                 </Text>
                 <Text style={{ color: colors.onPrimaryMuted, fontSize: 13, marginTop: 6, lineHeight: 19 }}>
@@ -153,10 +165,10 @@ export function CopilotScreen() {
                     accessibilityRole="button"
                     style={{ backgroundColor: colors.surface, borderRadius: radius.full, paddingVertical: 10, paddingHorizontal: 18 }}
                   >
-                    <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>Acepto</Text>
+                    <Text style={{ color: colors.primaryDark, fontWeight: '600' }}>Acepto</Text>
                   </Pressable>
                   <Pressable onPress={() => setShowConsent(true)} accessibilityRole="button" style={{ paddingVertical: 10, paddingHorizontal: 8 }}>
-                    <Text style={{ color: colors.textInverse, fontWeight: '700' }}>Ver detalles</Text>
+                    <Text style={{ color: colors.textInverse, fontWeight: '600' }}>Ver detalles</Text>
                   </Pressable>
                   <Pressable onPress={() => setConsentLater(true)} accessibilityRole="button" style={{ paddingVertical: 10, paddingHorizontal: 8 }}>
                     <Text style={{ color: colors.onPrimaryMuted }}>Ahora no</Text>
@@ -209,7 +221,7 @@ export function CopilotScreen() {
                           <Ico name={st.icon} color={st.fg} size={16} />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{stripEmoji(ins.title)}</Text>
+                          <Text style={{ color: colors.text, fontWeight: '600' }} numberOfLines={1}>{stripEmoji(ins.title)}</Text>
                           <Text style={{ color: colors.textMuted, fontSize: 12 }} numberOfLines={2}>{ins.body}</Text>
                         </View>
                         <Pressable onPress={() => void dismissInsight(ins.id)} accessibilityRole="button" accessibilityLabel="Descartar" hitSlop={8} style={{ padding: 6 }}>
@@ -224,7 +236,7 @@ export function CopilotScreen() {
             <View style={{ marginTop: spacing.md }}>
               <Bubble item={{ id: 'hola', role: 'assistant', content: 'Hola, soy tu Copiloto. Leo tus números y te digo qué hacer con ellos. ¿Por dónde empezamos?' }} />
             </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingLeft: 44 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingLeft: 38 }}>
               {STARTERS.map((q) => (
                 <Pressable
                   key={q}
@@ -232,7 +244,7 @@ export function CopilotScreen() {
                   accessibilityRole="button"
                   style={({ pressed }) => ({ minHeight: 38, justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 19, borderWidth: 1, borderColor: colors.primary, backgroundColor: pressed ? colors.primarySoft : colors.surface })}
                 >
-                  <Text style={{ color: colors.primaryDark, fontSize: 13, fontWeight: '700' }}>{q}</Text>
+                  <Text style={{ color: colors.primaryDark, fontSize: 13, fontWeight: '600' }}>{q}</Text>
                 </Pressable>
               ))}
             </View>
@@ -244,13 +256,16 @@ export function CopilotScreen() {
       {/* Estado de la IA + campo para escribir (opción 2) */}
       <View style={{ paddingHorizontal: spacing.md, paddingTop: 10, borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
         {consent?.accepted ? (
-          <Text style={{ fontSize: 12, color: colors.textMuted }}>
-            <Ico name="sparkles-outline" color={colors.primary} size={12} /> IA activa{aiRemaining !== null ? ` · te quedan ${aiRemaining} mensajes hoy` : ''}
-          </Text>
+          <Row style={{ gap: 5 }}>
+            <Ico name="sparkles-outline" color={colors.primary} size={12} />
+            <Text style={{ fontSize: 12, color: colors.textMuted }}>
+              IA activa{aiRemaining !== null ? ` · te quedan ${aiRemaining} mensajes hoy` : ''}
+            </Text>
+          </Row>
         ) : (
           <Text style={{ fontSize: 12, color: colors.textMuted }}>
             Modo básico ·{' '}
-            <Text onPress={() => setShowConsent(true)} accessibilityRole="link" style={{ color: colors.primary, fontWeight: '800' }}>
+            <Text onPress={() => setShowConsent(true)} accessibilityRole="link" style={{ color: colors.primary, fontWeight: '600' }}>
               Activar IA para preguntas abiertas
             </Text>
           </Text>
@@ -278,7 +293,7 @@ export function CopilotScreen() {
         </Pressable>
       </View>
 
-      <Text style={{ fontSize: 10, color: colors.textMuted, textAlign: 'center', paddingHorizontal: spacing.md, paddingBottom: 6, backgroundColor: colors.surface }}>
+      <Text style={{ fontSize: 10, color: colors.textFaint, textAlign: 'center', paddingHorizontal: spacing.md, paddingBottom: 6, backgroundColor: colors.surface }}>
         Información educativa; no es asesoría financiera regulada.
       </Text>
 
@@ -286,11 +301,11 @@ export function CopilotScreen() {
       <Modal visible={showConsent} animationType="slide" transparent>
         <View style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: '85%', padding: spacing.md, paddingBottom: spacing.md + bottomInset }}>
-            <Text style={{ fontWeight: '800', fontSize: 18, color: colors.text, marginBottom: spacing.sm }}>
+            <Text style={{ fontWeight: '600', fontSize: 18, color: colors.text, marginBottom: spacing.sm }}>
               Activar inteligencia artificial
             </Text>
             <ScrollView style={{ maxHeight: 380 }}>
-              <Text style={{ color: colors.text, lineHeight: 20, fontSize: 13 }}>
+              <Text style={{ color: colors.textMuted, lineHeight: 20, fontSize: 13 }}>
                 {consent?.consentText ?? 'Cargando…'}
               </Text>
             </ScrollView>
@@ -324,10 +339,10 @@ function RecommendationRow({
     >
       <Row style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
         <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Ico name="bulb-outline" color={colors.primaryDark} size={16} />
+          <Ico name="bulb-outline" color={colors.primary} size={16} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontWeight: '700', color: colors.text }} numberOfLines={2}>{rec.title}</Text>
+          <Text style={{ fontWeight: '600', color: colors.text }} numberOfLines={2}>{rec.title}</Text>
           <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }} numberOfLines={open ? undefined : 2}>{rec.body}</Text>
           {open ? (
             <View style={{ marginTop: spacing.sm }}>
@@ -335,7 +350,7 @@ function RecommendationRow({
               <Button icon="checkmark" title="Lo hice" variant="secondary" onPress={onDone} />
             </View>
           ) : (
-            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700', marginTop: 4 }}>Ver más</Text>
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600', marginTop: 4 }}>Ver más</Text>
           )}
         </View>
         <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Descartar" hitSlop={8} style={{ padding: 6 }}>
@@ -349,10 +364,10 @@ function RecommendationRow({
 function Bubble({ item }: { item: ChatItem }) {
   const isUser = item.role === 'user';
   return (
-    <View style={{ flexDirection: 'row', gap: 10, alignSelf: isUser ? 'flex-end' : 'flex-start', maxWidth: isUser ? '85%' : '100%', marginBottom: spacing.sm }}>
+    <View style={{ flexDirection: 'row', gap: spacing.sm, alignSelf: isUser ? 'flex-end' : 'flex-start', maxWidth: isUser ? '85%' : '100%', marginBottom: spacing.sm }}>
       {!isUser ? (
-        <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-          <Ico name="chatbox-outline" color={colors.textInverse} size={16} />
+        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+          <Ico name="chatbox-outline" color={colors.textInverse} size={15} />
         </View>
       ) : null}
       <View style={{ flexShrink: 1, maxWidth: isUser ? undefined : '88%' }}>
@@ -370,10 +385,8 @@ function Bubble({ item }: { item: ChatItem }) {
         }}
       >
         <Text style={{ color: isUser ? colors.textInverse : colors.text, lineHeight: 21, fontSize: 14 }}>{item.content}</Text>
-        {!isUser && item.source ? (
-          <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>
-            {item.source === 'llm' ? 'IA' : 'instantánea'}
-          </Text>
+        {!isUser && item.source === 'llm' ? (
+          <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 4 }}>con IA</Text>
         ) : null}
       </View>
       {item.actions?.length ? (
@@ -411,7 +424,7 @@ function ActionButton({ action }: { action: CopilotAction }) {
         }
         return;
       case 'abonar_deuda':
-        navigation.navigate('Main', { screen: 'Debts', params: { screen: 'DebtDetail', params: { debtId: action.debtId, name: action.debtName } } });
+        navigation.navigate('Main', { screen: 'Debts', params: { screen: 'DebtDetail', initial: false, params: { debtId: action.debtId, name: action.debtName } } });
         return;
       case 'ver_plan':
         navigation.navigate('CashflowPlan');
@@ -426,7 +439,7 @@ function ActionButton({ action }: { action: CopilotAction }) {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: radius.full, backgroundColor: colors.primarySoft }}>
         <Ico name="checkmark-circle" color={colors.primary} />
-        <Text style={{ color: colors.primaryDark, fontWeight: '700', fontSize: 13 }}>Hecho: {action.label.replace(/^Crear /, '')}</Text>
+        <Text style={{ color: colors.primaryDark, fontWeight: '600', fontSize: 13 }}>Hecho: {action.label.replace(/^Crear /, '')}</Text>
       </View>
     );
   }
@@ -447,7 +460,7 @@ function ActionButton({ action }: { action: CopilotAction }) {
         {state === 'busy' ? <ActivityIndicator size="small" color={colors.primary} /> : (
           <Ico name={action.type === 'crear_gasto_fijo' ? 'add-circle-outline' : action.type === 'abonar_deuda' ? 'cash-outline' : 'arrow-forward-circle-outline'} color={colors.primary} />
         )}
-        <Text style={{ color: colors.primaryDark, fontWeight: '700', fontSize: 13 }}>
+        <Text style={{ color: colors.primaryDark, fontWeight: '600', fontSize: 13 }}>
           {action.type === 'crear_gasto_fijo' ? `Confirmar: ${action.label}` : action.label}
         </Text>
       </Pressable>

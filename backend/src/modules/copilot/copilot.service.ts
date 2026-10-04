@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { EntitlementsService, Feature } from '../billing/entitlements.service';
 import { SimulationsService } from '../simulations/simulations.service';
 import { ScenarioParams } from '../simulations/simulation-engine';
-import { AnthropicClient } from './anthropic.client';
+import { LlmClient } from './llm.client';
 import { ConsentService } from './consent.service';
 import { ContextAssembler, toMinimizedSimulationView } from './context-assembler';
 import { BrainViewsService, ProposedAction } from './brain-views.service';
@@ -44,7 +44,7 @@ export class CopilotService {
     private readonly prisma: PrismaService,
     private readonly consent: ConsentService,
     private readonly assembler: ContextAssembler,
-    private readonly llm: AnthropicClient,
+    private readonly llm: LlmClient,
     private readonly simulations: SimulationsService,
     private readonly entitlements: EntitlementsService,
     private readonly brain: BrainViewsService,

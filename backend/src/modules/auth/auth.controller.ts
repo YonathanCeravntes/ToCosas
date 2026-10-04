@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import {
   DeleteAccountDto,
+  EmailStatusDto,
   ForgotPasswordDto,
   LoginDto,
   RefreshDto,
@@ -29,6 +30,15 @@ export class AuthController {
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto);
+  }
+
+  // BT-025: al crear cuenta, avisar de una vez si el correo ya está registrado. No revela
+  // más que el propio registro (que ya responde "Ya existe una cuenta"); con tope por IP.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('email-status')
+  emailStatus(@Body() dto: EmailStatusDto) {
+    return this.auth.emailStatus(dto.email);
   }
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })

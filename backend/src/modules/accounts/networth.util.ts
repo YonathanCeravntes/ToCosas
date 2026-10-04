@@ -16,6 +16,8 @@ export interface AccountLike {
 export interface AssetLike {
   currentValue: number;
   includeInNetWorth: boolean;
+  /** FIN-061: para separar las cesantías (patrimonio no disponible). */
+  type?: string;
 }
 
 export interface NetWorthResult {
@@ -26,6 +28,8 @@ export interface NetWorthResult {
   totalAccounts: number; // saldos de cuentas incluidos en patrimonio
   totalAssetsOnly: number; // solo activos incluidos en patrimonio
   totalLiabilities: number; // deudas
+  /** FIN-061: cesantías incluidas en el patrimonio (no disponibles). */
+  totalCesantias: number;
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -46,9 +50,11 @@ export function computeNetWorth(
   }
 
   let totalAssetsOnly = 0;
+  let totalCesantias = 0;
   for (const asset of assets) {
     if (!asset.includeInNetWorth) continue;
     totalAssetsOnly += asset.currentValue;
+    if (asset.type === 'cesantias') totalCesantias += asset.currentValue;
   }
 
   const totalAssets = totalAccounts + totalAssetsOnly;
@@ -61,5 +67,6 @@ export function computeNetWorth(
     totalAccounts: r2(totalAccounts),
     totalAssetsOnly: r2(totalAssetsOnly),
     totalLiabilities: r2(totalLiabilities),
+    totalCesantias: r2(totalCesantias),
   };
 }

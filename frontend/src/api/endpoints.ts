@@ -1,6 +1,17 @@
 import { api } from './client';
 import {
+  AnnualExpense,
+  CardHealth,
+  CardStatement,
+  ConsumptionAnalysis,
+  CushionTiers,
+  SpendClassRow,
+  Windfall,
+  WindfallKind,
+  HouseholdMonth,
+  HouseholdState,
   AiConsentStatus,
+  DocumentIntake,
   BillingStatus,
   AmortizationEntry,
   Account,
@@ -48,11 +59,16 @@ import {
   RenegotiateInput,
   RenegotiationPreview,
   RenegotiationRecord,
+  DocsConsent,
+  DocumentItem,
+  DocumentsSummary,
 } from './types';
 
 export const authApi = {
   register: (email: string, password: string, fullName?: string, acceptsDataPolicy?: boolean) =>
     api.post<AuthResult>('/auth/register', { email, password, fullName, acceptsDataPolicy }),
+  // BT-025: ¿el correo ya tiene cuenta?
+  emailStatus: (email: string) => api.post<{ exists: boolean }>('/auth/email-status', { email }),
   login: (email: string, password: string) =>
     api.post<AuthResult>('/auth/login', { email, password }),
   me: () => api.get<User>('/auth/me'),
@@ -90,6 +106,9 @@ export const debtsApi = {
   // Mis deudas (opción B): cuánto te prestaron, para la barra "pagado a capital".
   setOriginalAmount: (id: string, originalAmount: number) =>
     api.patch<Debt>(`/debts/${id}`, { originalAmount }),
+  // FIN-056: editar datos de la deuda (nombre, entidad, cupo, día de pago; tasa solo en tarjetas).
+  update: (id: string, input: Record<string, unknown>) => api.patch<Debt>(`/debts/${id}`, input),
+  remove: (id: string) => api.delete<{ deleted: boolean }>(`/debts/${id}`),
   simulateExtra: (id: string, extraMonthly: number) =>
     api.post<SimulateResult>(`/debts/${id}/simulate-extra`, { extraMonthly }),
   // FIN-044: renegociación (vista previa sin efectos, aplicar, historial).
@@ -120,12 +139,41 @@ export const debtsApi = {
     ),
   // FIN-031: tarjeta de crédito — cupo y compras a cuotas.
   cardSummary: (debtId: string) => api.get<CardSummary>(`/debts/cards/${debtId}`),
-  registerPurchase: (debtId: string, input: { amount: number; installments: number; withInterest?: boolean; note?: string }) =>
+  registerPurchase: (
+    debtId: string,
+    input: { amount: number; installments: number; withInterest?: boolean; note?: string; categoryId?: string; isCashAdvance?: boolean },
+  ) =>
     api.post<{ acknowledgment: string; summary: CardSummary }>(`/debts/cards/${debtId}/purchases`, input),
   resplitPurchase: (purchaseId: string, installments: number) =>
     api.post<CardSummary>(`/debts/cards/purchases/${purchaseId}/resplit`, { installments }),
   voidPurchase: (purchaseId: string) =>
     api.delete<{ voided: boolean }>(`/debts/cards/purchases/${purchaseId}`),
+  // FIN-061 F2.4: salud de la tarjeta y datos del extracto.
+  cardHealth: (debtId: string) => api.get<CardHealth>(`/debts/cards/${debtId}/health`),
+  cardStatements: (debtId: string) => api.get<CardStatement[]>(`/debts/cards/${debtId}/statements`),
+  saveCardStatement: (
+    debtId: string,
+    input: { closingDate: string; dueDate?: string; statementBalance: number; minimumPayment?: number; totalPayment?: number; creditLimit?: number; handlingFee?: number },
+  ) => api.post<{ id: string; saved: boolean }>(`/debts/cards/${debtId}/statements`, input),
+};
+
+// FIN-061 F2.2–2.3: esencial y gustos, y el análisis de consumo.
+export const spendingApi = {
+  classes: () => api.get<SpendClassRow[]>('/spending/classes'),
+  updateClass: (categoryId: string, input: { spendClass?: 'esencial' | 'gusto' | null; protected?: boolean; monthlyCap?: number | null }) =>
+    api.patch<SpendClassRow>(`/spending/classes/${categoryId}`, input),
+  consumption: () => api.get<ConsumptionAnalysis>('/spending/consumption'),
+};
+
+// FIN-061 F2.5: plata del año.
+export const planApi = {
+  annual: () => api.get<{ items: AnnualExpense[]; monthlyTotal: number }>('/plan/annual-expenses'),
+  createAnnual: (input: { name: string; amount: number; month: number }) => api.post<{ id: string }>('/plan/annual-expenses', input),
+  removeAnnual: (id: string) => api.delete<{ deleted: boolean }>(`/plan/annual-expenses/${id}`),
+  windfalls: () => api.get<Windfall[]>('/plan/windfalls'),
+  setWindfall: (kind: WindfallKind, input: { debtPct: number; cushionPct: number; freePct: number }) =>
+    api.put<Windfall>(`/plan/windfalls/${kind}`, input),
+  cushion: (onlyIncome?: boolean) => api.get<CushionTiers>(`/plan/cushion${onlyIncome ? '?onlyIncome=true' : ''}`),
 };
 
 // FIN-034: catálogo de entidades (reconocimiento, no recomendación).
@@ -234,6 +282,8 @@ export const accountsApi = {
   removeAccount: (id: string) => api.delete<{ deleted: boolean }>(`/accounts/${id}`),
   listAssets: () => api.get<Asset[]>('/assets'),
   createAsset: (input: CreateAssetInput) => api.post<Asset>('/assets', input),
+  // FIN-056: actualizar el valor de un activo sin borrarlo.
+  updateAsset: (id: string, input: Partial<CreateAssetInput>) => api.patch<Asset>(`/assets/${id}`, input),
   removeAsset: (id: string) => api.delete<{ deleted: boolean }>(`/assets/${id}`),
 };
 
@@ -333,6 +383,7 @@ export interface CreateIncomeSourceInput {
   amount: number;
   isVariable?: boolean;
   dayOfMonth?: number;
+  receivesPrima?: boolean;
 }
 
 export interface CreateDeductionInput {
@@ -352,6 +403,8 @@ export interface CreateFixedItemInput {
   dayOfMonth?: number;
   categoryId?: string;
   notes?: string;
+  /** FIN-059: gasto fijo de la casa. */
+  household?: boolean;
 }
 
 export interface CreateTransactionInput {
@@ -363,7 +416,14 @@ export interface CreateTransactionInput {
   note?: string;
   // FIN-049: el gasto ES este gasto fijo (se eligió "Cada mes" al registrar).
   fixedItemId?: string;
+  /** FIN-056: cómo se pagó (Registrar rápido lo recuerda; la deducción del 1 % lo usa). */
+  paymentMethod?: PaymentMethod;
+  /** FIN-059: "de la casa" (Millo en pareja). */
+  household?: boolean;
 }
+
+/** FIN-056: mismo enum que Mis documentos. */
+export type PaymentMethod = 'efectivo' | 'tarjeta' | 'transferencia' | 'desconocido';
 
 export interface CreateDebtInsuranceInput {
   kind?: string;
@@ -388,3 +448,35 @@ export interface StrategyComparison {
   recommended: string;
   interestDifference: number;
 }
+
+// FIN-054 · Mis documentos (facturas, extractos, certificados).
+// --- FIN-059 · Millo en pareja ---
+export const householdApi = {
+  state: () => api.get<HouseholdState>('/household'),
+  create: () => api.post<HouseholdState>('/household', { consent: true }),
+  invite: () => api.post<HouseholdState>('/household/invite', {}),
+  join: (code: string) => api.post<HouseholdState>('/household/join', { code, consent: true }),
+  updateMe: (input: { shareIncome?: boolean; shareDebts?: boolean }) => api.patch<HouseholdState>('/household/me', input),
+  update: (input: { splitMode?: 'proporcional' | 'mitad'; monthlyBudget?: number | null }) => api.patch<HouseholdState>('/household', input),
+  leave: () => api.post<HouseholdState>('/household/leave', {}),
+  month: () => api.get<HouseholdMonth>('/household/month'),
+  createGoal: (input: { name: string; targetAmount: number; targetDate?: string }) => api.post<{ id: string }>('/household/goals', input),
+  contribute: (goalId: string, amount: number) => api.post<{ goalId: string }>(`/household/goals/${goalId}/contribute`, { amount }),
+  removeGoal: (goalId: string) => api.delete<{ removed: boolean }>(`/household/goals/${goalId}`),
+  shareDebt: (debtId: string, shared: boolean) => api.patch<{ shared: boolean }>(`/household/debts/${debtId}`, { shared }),
+};
+
+export const documentsApi = {
+  consent: () => api.get<DocsConsent>('/documents/consent'),
+  grant: (health: boolean) => api.post<DocsConsent>('/documents/consent', { health }),
+  revoke: (deleteAll: boolean) => api.post<DocsConsent>('/documents/consent/revoke', { deleteAll }),
+  summary: (year: number) => api.get<DocumentsSummary>(`/documents/summary?year=${year}`),
+  list: (year: number, kind?: 'facturas' | 'extractos' | 'certificados') =>
+    api.get<DocumentItem[]>(`/documents?year=${year}${kind ? `&kind=${kind}` : ''}`),
+  download: (id: string) => api.get<{ url: string }>(`/documents/${id}/download`),
+  remove: (id: string) => api.delete<{ deleted: boolean }>(`/documents/${id}`),
+  exportLink: (year: number) => api.post<{ url: string }>(`/documents/export-link?year=${year}`, {}),
+  // FIN-056: subir una foto o PDF desde la app (misma lectura y bóveda que el bot).
+  upload: (form: FormData) => api.upload<DocumentIntake>('/documents/upload', form),
+  link: (documentId: string, transactionId: string) => api.post<{ linked: boolean }>(`/documents/${documentId}/link`, { transactionId }),
+};

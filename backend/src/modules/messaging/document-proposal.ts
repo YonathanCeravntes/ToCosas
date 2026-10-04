@@ -5,7 +5,17 @@
  * Nada aquí toca la base de datos ni la IA: es la capa "explicable" (§42).
  */
 
-export type DocumentKind = 'extracto_tarjeta' | 'extracto_credito' | 'comprobante' | 'desconocido';
+// FIN-054: se separan extracto de cuenta, factura electrónica (con CUFE) y certificado.
+export type DocumentKind =
+  | 'extracto_tarjeta'
+  | 'extracto_credito'
+  | 'extracto_cuenta'
+  | 'factura_electronica'
+  | 'comprobante'
+  | 'certificado'
+  | 'desconocido';
+
+export type PaymentMethodRead = 'tarjeta' | 'transferencia' | 'efectivo' | 'desconocido';
 
 /** Lo que la IA extrae del documento (todo opcional: el modelo solo llena lo que ve). */
 export interface DocumentExtraction {
@@ -18,6 +28,8 @@ export interface DocumentExtraction {
   creditLimit?: number | null;
   availableCredit?: number | null;
   minimumPayment?: number | null;
+  /** Cuota de manejo del periodo (tarjetas) — se registra como cargo mensual aparte. */
+  handlingFee?: number | null;
   totalPayment?: number | null; // pago total del mes (tarjeta) o cuota (crédito)
   monthlyRate?: number | null; // % mensual
   annualEffectiveRate?: number | null; // % E.A.
@@ -31,6 +43,16 @@ export interface DocumentExtraction {
   merchant?: string | null; // comprobante
   amount?: number | null; // comprobante
   occurredAt?: string | null; // comprobante, YYYY-MM-DD
+  // FIN-054 · factura electrónica y certificados
+  issuerNit?: string | null;
+  invoiceNumber?: string | null;
+  cufe?: string | null;
+  subtotal?: number | null;
+  tax?: number | null;
+  paymentMethod?: PaymentMethodRead | null;
+  isHealth?: boolean | null;
+  certificateType?: string | null;
+  taxYear?: number | null;
   confidence?: number | null; // 0..1
   notes?: string | null;
 }
@@ -47,6 +69,12 @@ export interface CardProposal {
   annualEffectiveRate: number | null;
   paymentDay: number | null;
   dueDate: string | null;
+  /** Cuota de manejo leída del extracto: se crea como cargo mensual aparte (cuenta en "Te queda"). */
+  handlingFee: number | null;
+  /** FIN-061 F2.4: datos del corte para "Salud de tu tarjeta" (se guardan como extracto). */
+  statementDate?: string | null;
+  minimumPayment?: number | null;
+  totalPayment?: number | null;
 }
 
 export interface LoanProposal {
@@ -70,6 +98,10 @@ export interface ReceiptProposal {
   amount: number;
   merchant: string | null;
   occurredAt: string; // YYYY-MM-DD
+  /** FIN-054: es factura electrónica (tiene CUFE). */
+  electronic?: boolean;
+  /** FIN-054: documento ya guardado en Mis documentos (se enlaza al gasto al confirmar). */
+  documentId?: string | null;
 }
 
 export type DocumentProposal = CardProposal | LoanProposal | ReceiptProposal;
@@ -139,6 +171,11 @@ export function toProposal(x: DocumentExtraction, today = new Date()): DocumentP
       annualEffectiveRate: ea,
       paymentDay: dayOf(x.dueDate),
       dueDate: x.dueDate ?? null,
+      // Una cuota de manejo plausible: positiva y pequeña frente al saldo (si no, lectura errada).
+      handlingFee: x.handlingFee != null && x.handlingFee > 0 && x.handlingFee < 500_000 ? Math.round(x.handlingFee) : null,
+      statementDate: x.statementDate ?? null,
+      minimumPayment: x.minimumPayment != null && x.minimumPayment > 0 ? Math.round(x.minimumPayment) : null,
+      totalPayment: x.totalPayment != null && x.totalPayment > 0 ? Math.round(x.totalPayment) : null,
     };
   }
   if (x.kind === 'extracto_credito' && x.balance != null && x.balance > 0) {
@@ -175,12 +212,13 @@ export function toProposal(x: DocumentExtraction, today = new Date()): DocumentP
       warnings,
     };
   }
-  if (x.kind === 'comprobante' && x.amount != null && x.amount > 0) {
+  if ((x.kind === 'comprobante' || x.kind === 'factura_electronica') && x.amount != null && x.amount > 0) {
     return {
       kind: 'comprobante',
       amount: Math.round(x.amount),
       merchant: x.merchant?.trim() || null,
       occurredAt: x.occurredAt ?? today.toISOString().slice(0, 10),
+      electronic: x.kind === 'factura_electronica' && !!x.cufe,
     };
   }
   return null;
@@ -190,7 +228,7 @@ export function toProposal(x: DocumentExtraction, today = new Date()): DocumentP
 export function describeProposal(p: DocumentProposal): string {
   if (p.kind === 'comprobante') {
     return (
-      `🧾 Leí tu comprobante:\n` +
+      `🧾 Leí tu ${p.electronic ? 'factura electrónica' : 'comprobante'}:\n` +
       `• Gasto de ${fmt(p.amount)}${p.merchant ? ` en ${p.merchant}` : ''}\n` +
       `• Fecha: ${p.occurredAt}\n\n` +
       `¿Lo registro? Responde *sí* o *no*. Para corregir: "monto 45.000", "fecha 2026-09-27".`
@@ -203,6 +241,7 @@ export function describeProposal(p: DocumentProposal): string {
   if (p.kind === 'extracto_tarjeta') {
     if (p.creditLimit != null) lines.push(`• Cupo: ${fmt(p.creditLimit)}${p.availableCredit != null ? ` (disponible ${fmt(p.availableCredit)})` : ''}`);
     lines.push(`• Pago mensual (mínimo): ${fmt(p.monthlyPayment)} → repartiré el saldo en ${p.installments} cuota${p.installments === 1 ? '' : 's'} para que tu compromiso del mes coincida`);
+    if (p.handlingFee != null) lines.push(`• Cuota de manejo: ${fmt(p.handlingFee)} al mes → la registro como cargo aparte (cuenta en "Te queda")`);
   } else {
     if (p.monthlyPayment != null) lines.push(`• Cuota del mes: ${fmt(p.monthlyPayment)}`);
     const parts: string[] = [];
@@ -221,7 +260,7 @@ export function describeProposal(p: DocumentProposal): string {
   lines.push(`¿Creo esta deuda en Millo? Responde *sí* o *no*.`);
   lines.push(
     p.kind === 'extracto_tarjeta'
-      ? `Para corregir antes: "saldo 2.350.000", "cuota 180.000", "cupo 5.000.000", "tasa 28.5", "dia 15", "nombre Tarjeta principal".`
+      ? `Para corregir antes: "saldo 2.350.000", "cuota 180.000", "cupo 5.000.000", "manejo 32.900" (0 si no tiene), "tasa 28.5", "dia 15", "nombre Tarjeta principal".`
       : `Para corregir antes: "saldo 63.253.744", "cuota 932.000", "restantes 109", "plazo 120", "tasa 15.39", "vence 2026-10-02", "nombre Crédito libre inversión".`,
   );
   return lines.join('\n');
@@ -233,7 +272,7 @@ export type Reply = { type: 'yes' } | { type: 'no' } | { type: 'fix'; field: str
 const END = '(?=$|[\\s.,!¡?¿])';
 const YES = new RegExp('^(s[ií]|ok|okay|dale|listo|confirmo|confirmar|de una|correcto|va|hazlo|crea|creala|créala)' + END, 'i');
 const NO = new RegExp('^(no|nop|cancelar|cancela|olv[ií]dalo|d[ée]jalo|nada)' + END, 'i');
-const FIX = /^(saldo|cuotas?\s+restantes?|restantes?|cuotas?\s+pendientes?|pendientes?|plazo|cuota|pago|cupo|tasa|d[ií]a|vence|nombre|monto|fecha|comercio)\s*[:=]?\s*(.+)$/i;
+const FIX = /^(saldo|cuotas?\s+restantes?|restantes?|cuotas?\s+pendientes?|pendientes?|plazo|cuota\s+de\s+manejo|manejo|cuota|pago|cupo|tasa|d[ií]a|vence|nombre|monto|fecha|comercio)\s*[:=]?\s*(.+)$/i;
 
 /** Interpreta la respuesta del usuario a una propuesta pendiente. */
 export function parseReply(text: string): Reply {
@@ -244,6 +283,7 @@ export function parseReply(text: string): Reply {
   if (m) {
     let field = m[1].toLowerCase().replace('í', 'i').replace(/\s+/g, ' ');
     if (/^(cuotas? restantes?|restantes?|cuotas? pendientes?|pendientes?)$/.test(field)) field = 'restantes';
+    if (field === 'cuota de manejo') field = 'manejo';
     const raw = m[2].trim();
     if (field === 'nombre' || field === 'comercio' || field === 'fecha' || field === 'vence') return { type: 'fix', field, value: raw };
     const num = Number(raw.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.'));
@@ -273,6 +313,7 @@ export function applyFix(p: DocumentProposal, field: string, value: string | num
     return { proposal: { ...p, monthlyPayment: Math.round(n) } };
   }
   if (field === 'cupo' && n > 0 && p.kind === 'extracto_tarjeta') return { proposal: { ...p, creditLimit: Math.round(n) } };
+  if (field === 'manejo' && n >= 0 && p.kind === 'extracto_tarjeta') return { proposal: { ...p, handlingFee: n > 0 ? Math.round(n) : null } };
   if (field === 'tasa' && n >= 0 && n < 200) return { proposal: { ...p, annualEffectiveRate: n } };
   if (field === 'dia' && n >= 1 && n <= 31) return { proposal: { ...p, paymentDay: Math.round(n) } };
   if (field === 'vence' && typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {

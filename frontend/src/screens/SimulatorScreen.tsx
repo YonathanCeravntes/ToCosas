@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { Button, Card, FormScroll, GroupLabel, Ico, IconName, Row } from '../components/ui';
+import { Pressable, ScrollView, View } from 'react-native';
+import { Text, TextInput } from '../components/AppText';
+import { Button, Card, FormScroll, GroupLabel, Ico, IconName, Money, Row } from '../components/ui';
+import { SoftChip } from '../components/DebtControls';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatLocalDate, formatMoney, parseAmount, parseDecimal } from '../utils/format';
+import { RateInput } from '../components/RateInput';
+import { RateUnit, toEA as rateToEA } from '../utils/rates';
 import {
   Asset,
   Debt,
@@ -70,7 +74,7 @@ const SCENARIOS: ScenarioDef[] = [
     fields: [
       { name: 'amount', label: 'Monto', placeholder: '20.000.000', unit: 'money', quick: [5_000_000, 10_000_000, 20_000_000, 50_000_000] },
       { name: 'termMonths', label: 'Plazo', placeholder: '60', unit: 'months', quick: [12, 24, 36, 60] },
-      { name: 'ratePct', label: 'Tasa efectiva anual', placeholder: '18', unit: 'pct' },
+      { name: 'ratePct', label: 'Tasa del crédito', placeholder: '18', unit: 'pct' },
     ],
   },
   {
@@ -113,7 +117,7 @@ const SCENARIOS: ScenarioDef[] = [
     icon: 'repeat-outline',
     needs: 'debt',
     fields: [
-      { name: 'newRatePct', label: 'Nueva tasa efectiva anual', placeholder: '14', unit: 'pct' },
+      { name: 'newRatePct', label: 'Nueva tasa', placeholder: '14', unit: 'pct' },
       { name: 'newTermMonths', label: 'Nuevo plazo', placeholder: '36', unit: 'months', quick: [12, 24, 36, 60] },
     ],
   },
@@ -164,6 +168,9 @@ export function SimulatorScreen() {
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // FIN-056 (boceto 5): la tasa de un crédito se escribe como la conoce la persona.
+  const [rateUnit, setRateUnit] = useState<RateUnit>('mensual');
+  const isLoanRate = (name: string) => name === 'ratePct' || name === 'newRatePct';
 
   const debtsQ = useApi(() => debtsApi.list(), []);
   // FIN-045: la deuda por defecto es la primera del plan para liberar flujo (la regla vigente).
@@ -240,7 +247,7 @@ export function SimulatorScreen() {
         const v = /Pct$/.test(f.name) ? parseDecimal(raw) : parseAmount(raw);
         const invalid = Number.isNaN(v) || (f.allowZero ? v < 0 : v <= 0);
         if (invalid) throw new Error(`Ingresa un valor válido en "${f.label}"`);
-        params[f.name] = v;
+        params[f.name] = isLoanRate(f.name) ? rateToEA(v, rateUnit) : v;
       }
       if (scenario.needs === 'debt') {
         if (!debtId) throw new Error('Elige la deuda');
@@ -282,29 +289,29 @@ export function SimulatorScreen() {
               }}
             >
               <Ico name={s.icon} color={on ? colors.textInverse : colors.textMuted} />
-              <Text style={{ color: on ? colors.textInverse : colors.text, fontSize: 13, fontWeight: on ? '700' : '600' }}>{s.short}</Text>
+              <Text style={{ color: on ? colors.textInverse : colors.text, fontSize: 13, fontWeight: on ? '600' : '500' }}>{s.short}</Text>
             </Pressable>
           );
         })}
       </ScrollView>
 
       {unknownScenario ? (
-        <Card style={{ borderColor: colors.warning, borderWidth: 1 }}>
-          <Text style={{ color: colors.text, fontSize: 13 }}>
+        <Card style={{ backgroundColor: colors.warningSoft, borderColor: colors.warningSoft }}>
+          <Text style={{ color: colors.text, ...type.small }}>
             <Ico name="warning-outline" color={colors.warningDeep} /> No encontré el escenario que buscabas: elige uno de la lista.
           </Text>
         </Card>
       ) : null}
 
-      <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800', marginTop: spacing.sm }} accessibilityRole="header">{scenario.label}</Text>
+      <Text style={{ color: colors.text, ...type.heading, fontSize: 21, marginTop: spacing.sm }} accessibilityRole="header">{scenario.label}</Text>
       <Text style={{ color: colors.textMuted, ...type.small, marginBottom: spacing.xs }}>Nada de esto cambia tus datos reales.</Text>
 
       {emptyReason ? (
         <Card style={{ marginTop: spacing.sm }}>
-          <Text style={{ color: colors.textMuted }}>{emptyReason.text}</Text>
+          <Text style={{ color: colors.textMuted, ...type.body }}>{emptyReason.text}</Text>
           {emptyReason.cta ? (
             <Pressable onPress={() => navigation.navigate(emptyReason.cta!.to)} style={{ marginTop: spacing.sm }}>
-              <Text style={{ color: colors.primary, fontWeight: '700' }}>{emptyReason.cta.label}</Text>
+              <Text style={{ color: colors.primary, fontWeight: '600', ...type.body }}>{emptyReason.cta.label}</Text>
             </Pressable>
           ) : null}
         </Card>
@@ -345,20 +352,30 @@ export function SimulatorScreen() {
             </>
           ) : null}
 
-          {scenario.fields.map((f) => (
-            <AmountField
-              key={f.name}
-              def={f}
-              value={values[f.name] ?? ''}
-              onChange={(t) => setValues((prev) => ({ ...prev, [f.name]: t }))}
-            />
-          ))}
+          {scenario.fields.map((f) =>
+            isLoanRate(f.name) ? (
+              <RateInput
+                key={f.name}
+                label={f.label}
+                value={values[f.name] ?? ''}
+                unit={rateUnit}
+                onChange={(t, u) => { setValues((prev) => ({ ...prev, [f.name]: t })); setRateUnit(u); }}
+              />
+            ) : (
+              <AmountField
+                key={f.name}
+                def={f}
+                value={values[f.name] ?? ''}
+                onChange={(t) => setValues((prev) => ({ ...prev, [f.name]: t }))}
+              />
+            ),
+          )}
           {error ? (
             <View style={{ marginBottom: 8 }}>
-              <Text style={{ color: colors.danger }}>{error}</Text>
+              <Text style={{ color: colors.danger, ...type.body }}>{error}</Text>
               {/(Millo+|simulaciones)/.test(error) ? (
                 <Pressable onPress={() => navigation.navigate('MilloPlus', { source: 'simulations_limit' })}>
-                  <Text style={{ color: colors.primary, fontWeight: '700', marginTop: 4 }}><Ico name="sparkles-outline" color={colors.primary} /> Conocer Millo+ →</Text>
+                  <Text style={{ color: colors.goldText, fontWeight: '600', marginTop: 4, ...type.body }}><Ico name="sparkles-outline" color={colors.gold} /> Conocer Millo+ →</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -453,10 +470,10 @@ function RadioList({
                 {on ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary }} /> : null}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{o.title}</Text>
+                <Text style={{ color: colors.text, fontWeight: '600', ...type.body }} numberOfLines={1}>{o.title}</Text>
                 {o.sub ? <Text style={{ color: colors.textMuted, ...type.small }} numberOfLines={1}>{o.sub}</Text> : null}
               </View>
-              {o.right ? <Text style={{ color: colors.text, fontWeight: '800' }}>{o.right}</Text> : null}
+              {o.right ? <Text style={{ color: colors.text, fontWeight: '600', ...type.body }}>{o.right}</Text> : null}
             </Pressable>
           );
         })}
@@ -472,7 +489,7 @@ function AmountField({ def, value, onChange }: { def: FieldDef; value: string; o
     <>
       <GroupLabel title={def.label} />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 52, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: spacing.md }}>
-        {def.unit === 'money' ? <Text style={{ color: colors.textMuted, fontSize: 18, fontWeight: '800' }}>$</Text> : null}
+        {def.unit === 'money' ? <Text style={{ color: colors.textFaint, fontSize: 13, fontWeight: '500' }}>$</Text> : null}
         <TextInput
           value={value}
           onChangeText={onChange}
@@ -480,25 +497,22 @@ function AmountField({ def, value, onChange }: { def: FieldDef; value: string; o
           placeholder={def.placeholder}
           placeholderTextColor={colors.textFaint}
           accessibilityLabel={def.label}
-          style={{ flex: 1, fontSize: 18, fontWeight: '800', color: colors.text, paddingVertical: 0 }}
+          style={{ flex: 1, fontSize: 18, fontWeight: '600', color: colors.text, paddingVertical: 0 }}
         />
-        {def.unit === 'months' ? <Text style={{ color: colors.textMuted, fontWeight: '700' }}>meses</Text> : null}
-        {def.unit === 'pct' ? <Text style={{ color: colors.textMuted, fontWeight: '700' }}>% EA</Text> : null}
+        {def.unit === 'months' ? <Text style={{ color: colors.textFaint, fontWeight: '500', ...type.body }}>meses</Text> : null}
+        {def.unit === 'pct' ? <Text style={{ color: colors.textFaint, fontWeight: '500', ...type.body }}>% EA</Text> : null}
       </View>
       {def.quick ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm }}>
           {def.quick.map((q) => {
             const on = value.trim() !== '' && current === q;
             return (
-              <Pressable
+              <SoftChip
                 key={q}
+                label={quickLabel(q, def.unit)}
+                active={on}
                 onPress={() => onChange(def.unit === 'money' ? formatMoney(q).replace(/[^0-9.]/g, '') : String(q))}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                style={{ height: 34, paddingHorizontal: 12, borderRadius: 17, justifyContent: 'center', backgroundColor: on ? colors.primary : colors.surface, borderWidth: 1, borderColor: on ? colors.primary : colors.border }}
-              >
-                <Text style={{ color: on ? colors.textInverse : colors.text, fontSize: 13, fontWeight: on ? '700' : '600' }}>{quickLabel(q, def.unit)}</Text>
-              </Pressable>
+              />
             );
           })}
         </View>
@@ -565,26 +579,24 @@ function ResultCard({ result }: { result: SimulationResult }) {
       .sort((a, b) => Number(a.slice(9)) - Number(b.slice(9)));
     return (
       <Card style={{ marginTop: spacing.md }}>
-        <Text style={{ fontWeight: '700', fontSize: 16 }}><Ico name="wallet-outline" size={16} /> Tu ahorro proyectado</Text>
-        <Text style={{ fontSize: 30, fontWeight: '800', color: colors.primary, marginTop: 4 }}>
-          {formatMoney(Number(s.futureValue))}
-        </Text>
+        <Text style={{ ...type.title, fontSize: 15, color: colors.text }}><Ico name="wallet-outline" size={15} color={colors.textFaint} /> Tu ahorro proyectado</Text>
+        <Money value={formatMoney(Number(s.futureValue))} size={30} style={{ marginTop: 4 }} />
         <Row style={{ justifyContent: 'space-between', marginTop: spacing.sm }}>
-          <Text style={{ color: colors.textMuted }}>Aportarías</Text>
-          <Text style={{ color: colors.text, fontWeight: '600' }}>{formatMoney(Number(s.totalContributed))}</Text>
+          <Text style={{ color: colors.textMuted, ...type.small }}>Aportarías</Text>
+          <Text style={{ color: colors.text, ...type.small }}>{formatMoney(Number(s.totalContributed))}</Text>
         </Row>
         <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
-          <Text style={{ color: colors.textMuted }}>Interés ganado</Text>
-          <Text style={{ color: colors.success, fontWeight: '700' }}>{formatMoney(Number(s.interestEarned))}</Text>
+          <Text style={{ color: colors.textMuted, ...type.small }}>Interés ganado</Text>
+          <Text style={{ color: colors.primary, fontWeight: '600', ...type.small }}>+{formatMoney(Number(s.interestEarned))}</Text>
         </Row>
         {years.map((k) => (
           <Row key={k} style={{ justifyContent: 'space-between', marginTop: 4 }}>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>Año {k.slice(9)}</Text>
-            <Text style={{ color: colors.text, fontSize: 12 }}>{formatMoney(Number(s[k]))}</Text>
+            <Text style={{ color: colors.textFaint, ...type.caption }}>Año {k.slice(9)}</Text>
+            <Text style={{ color: colors.textFaint, ...type.caption }}>{formatMoney(Number(s[k]))}</Text>
           </Row>
         ))}
-        <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: spacing.sm, lineHeight: 15 }}>
-          <Ico name="scale-outline" color={colors.textMuted} /> {String(s.disclaimer)}
+        <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.sm }}>
+          <Ico name="scale-outline" size={12} color={colors.textFaint} /> {String(s.disclaimer)}
         </Text>
       </Card>
     );
@@ -620,18 +632,19 @@ function ResultCard({ result }: { result: SimulationResult }) {
   return (
     <Card style={{ marginTop: spacing.md }}>
       {title ? (
-        <Text style={{ fontWeight: '700', fontSize: 16, lineHeight: 22, marginBottom: spacing.sm }}>
+        <Text style={{ fontWeight: '600', color: colors.text, ...type.bodyLg, fontSize: 15, marginBottom: spacing.sm }}>
           {title}
         </Text>
       ) : null}
-      <Text style={{ fontWeight: '600', color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm }}>
-        <Ico name="stats-chart-outline" /> El detalle: antes → después
+      <Text style={{ fontWeight: '600', color: colors.textMuted, ...type.small, marginBottom: 2 }}>
+        <Ico name="stats-chart-outline" size={13} color={colors.textFaint} /> El detalle: antes → después
       </Text>
-      {rows.map((r) => (
-        <Row key={r.label} style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-          <Text style={{ color: colors.textMuted, flex: 1 }}>{r.label}</Text>
-          <Text style={{ color: colors.text }}>{r.before} → </Text>
-          <Text style={{ fontWeight: '800', color: r.good ? colors.primary : colors.dangerDeep }}>
+      {rows.map((r, i) => (
+        <Row key={r.label} style={{ justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
+          <Text style={{ color: colors.textMuted, flex: 1, ...type.small }}>{r.label}</Text>
+          <Text style={{ color: colors.text, ...type.small }}>{r.before} → </Text>
+          {/* FIN-060: lo que empeora va en ámbar (aviso), no en rojo. */}
+          <Text style={{ fontWeight: '600', ...type.small, color: r.good ? colors.primary : colors.warningDeep }}>
             {r.after}
           </Text>
         </Row>
@@ -659,7 +672,7 @@ function NextStep({
     return () =>
       navigation.navigate('Main', {
         screen: 'Debts',
-        params: { screen: 'DebtDetail', params: { debtId: debt.id, name: debt.name } },
+        params: { screen: 'DebtDetail', initial: false, params: { debtId: debt.id, name: debt.name } },
       });
   };
   const cta = (() => {
@@ -690,13 +703,9 @@ function NextStep({
   })();
   if (!cta) return null;
   return (
-    <Pressable
-      onPress={cta.go}
-      accessibilityRole="button"
-      style={{ backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, alignItems: 'center' }}
-    >
-      <Text style={{ color: colors.textInverse, fontWeight: '800' }}>{cta.label}</Text>
-    </Pressable>
+    <View style={{ marginTop: -spacing.sm, marginBottom: spacing.sm }}>
+      <Button title={cta.label} onPress={cta.go} />
+    </View>
   );
 }
 
@@ -712,19 +721,19 @@ function HistorySection({
   if (history.length === 0) return null;
   return (
     <Card style={{ marginTop: spacing.md }}>
-      <Pressable onPress={() => setOpen((v) => !v)}>
-        <Text style={{ fontWeight: '700', fontSize: 15 }}>
-          <Ico name="time-outline" /> {open ? 'Tus últimas simulaciones' : `Ver tus últimas simulaciones (${Math.min(history.length, 5)}) →`}
+      <Pressable onPress={() => setOpen((v) => !v)} accessibilityRole="button" style={{ minHeight: 28, justifyContent: 'center' }}>
+        <Text style={{ fontWeight: '600', color: colors.text, ...type.body }}>
+          <Ico name="time-outline" color={colors.textFaint} /> {open ? 'Tus últimas simulaciones' : `Ver tus últimas simulaciones (${Math.min(history.length, 5)}) →`}
         </Text>
       </Pressable>
       {open
-        ? history.slice(0, 5).map((h) => (
-            <Pressable key={h.id} onPress={() => onPick(h)} style={{ marginTop: spacing.sm }}>
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ color: colors.text, flex: 1 }} numberOfLines={1}>
-                  <Ico name={SCENARIO_ICON[h.type] ?? 'flask-outline'} color={colors.textMuted} /> {SCENARIO_LABEL[h.type] ?? h.type}
+        ? history.slice(0, 5).map((h, i) => (
+            <Pressable key={h.id} onPress={() => onPick(h)} accessibilityRole="button" style={{ paddingVertical: 10, marginTop: i === 0 ? spacing.xs : 0, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
+              <Row style={{ justifyContent: 'space-between', gap: spacing.sm }}>
+                <Text style={{ color: colors.text, flex: 1, ...type.small }} numberOfLines={1}>
+                  <Ico name={SCENARIO_ICON[h.type] ?? 'flask-outline'} size={13} color={colors.textFaint} /> {SCENARIO_LABEL[h.type] ?? h.type}
                 </Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                <Text style={{ color: colors.textFaint, ...type.caption }}>
                   {formatLocalDate(h.createdAt)} · repetir →
                 </Text>
               </Row>

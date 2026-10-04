@@ -28,9 +28,14 @@
       html,
       body {
         height: 100%;
-        background: #f6f8f7;
+        background: #F7F5F0;
         -webkit-text-size-adjust: 100%;
       }
+      /* FIN-060: modo oscuro también en el fondo de arranque (sin destello blanco). */
+      @media (prefers-color-scheme: dark) {
+        html:not(.millo-light), html:not(.millo-light) body { background: #0B110F; }
+      }
+      html.millo-dark, html.millo-dark body { background: #0B110F; }
       body {
         overflow: hidden;
         margin: 0;
@@ -42,6 +47,17 @@
         height: 100%;
         flex: 1;
       }
+      /* BT-038: Millo es una app de bolsillo; las listas se desplazan con el dedo y Safari
+         (iPhone, pantalla de inicio) dibujaba la barra de desplazamiento de cada lista pegada
+         a las tarjetas, no al borde. Sin barras en la web, como en la app instalada. */
+      * {
+        scrollbar-width: none;
+      }
+      *::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+      }
       /* Ancho de teléfono en pantallas grandes: Millo es una app de bolsillo. */
       @media (min-width: 640px) {
         #root {
@@ -51,6 +67,9 @@
         }
       }
     </style>
+    <script>
+      try { var m = localStorage.getItem("millo.pref.appearance"); if (m === "dark" || m === "light") document.documentElement.className = "millo-" + m; } catch (e) {}
+    </script>
   </head>
 
   <body>
@@ -73,7 +92,7 @@
           var empty = !root || (!root.innerText.trim() && !root.querySelector('[role="progressbar"]'));
           if (!empty) return;
           var d = document.createElement('div');
-          d.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;justify-content:center;padding:24px;font-family:-apple-system,system-ui,sans-serif;background:#F6F8F7;color:#12211C;z-index:9999';
+          d.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;justify-content:center;padding:24px;font-family:-apple-system,system-ui,sans-serif;background:#F7F5F0;color:#14201B;z-index:9999';
           d.innerHTML = '<h2 style="color:#0B6E4F;margin:0 0 8px">Millo no pudo abrir</h2>' +
             '<p style="margin:0 0 12px;line-height:1.4">Toca Recargar. Si se repite, envía una captura de esta pantalla.</p>' +
             '<button style="padding:14px;border-radius:12px;border:0;background:#0B6E4F;color:#fff;font-size:16px;font-weight:700">Recargar</button>' +

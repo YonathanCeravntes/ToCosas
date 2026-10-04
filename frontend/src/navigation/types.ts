@@ -1,8 +1,9 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type AuthStackParamList = {
-  Login: undefined;
-  Register: undefined;
+  // BT-025: el correo viaja entre Ingresar y Crear cuenta (no se vuelve a escribir).
+  Login: { email?: string } | undefined;
+  Register: { email?: string } | undefined;
   // FIN-039: recuperar contraseña (correo → código → nueva clave).
   ForgotPassword: { email?: string } | undefined;
 };
@@ -12,6 +13,10 @@ export type DebtsStackParamList = {
   DebtDetail: { debtId: string; name: string };
   AddDebt: undefined;
   RenegotiateDebt: { debtId: string; name: string };
+  // FIN-056: editar datos de la deuda (nombre, entidad, cupo, día de pago).
+  EditDebt: { debtId: string; name: string };
+  /** FIN-061 F2.4: salud de la tarjeta y datos del extracto. */
+  CardHealth: { debtId: string; name: string };
 };
 
 /**
@@ -32,6 +37,13 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Main: NavigatorScreenParams<MainTabsParamList>;
   Budget: undefined;
+  // FIN-054: facturas, extractos y certificados.
+  Documents: undefined;
+  /** FIN-059: Millo en pareja. */
+  Household: undefined;
+  // FIN-056: gastos del ciclo por categoría ("En qué se te va" completo).
+  /** FIN-057: pestaña inicial — gastos ("En qué se te va") o ingresos ("Cómo te llega la plata"). */
+  Categories: { tab?: 'gastos' | 'ingresos' } | undefined;
   Copilot: undefined;
   Settings: undefined;
   // FIN-038: historial completo de movimientos con filtros.
@@ -41,6 +53,10 @@ export type RootStackParamList = {
   Accounts: undefined;
   /** FIN-045: plan para liberar flujo de caja. */
   CashflowPlan: undefined;
+  /** FIN-061 F2: esencial y gustos, tus gustos del mes y la plata del año. */
+  SpendClasses: undefined;
+  Gustos: undefined;
+  YearPlan: undefined;
   IncomeProfile: undefined;
   // FIN-026 P1: las jugadas llegan con la pregunta armada (escenario + params).
   Simulator: { scenario?: string; params?: Record<string, string | number> } | undefined;

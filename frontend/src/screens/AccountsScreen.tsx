@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text, TextInput } from '../components/AppText';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButton, IconName, ProgressBar, Row } from '../components/ui';
-import { colors, radius, spacing } from '../theme/colors';
+import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButton, IconName, Money, ProgressBar, Row } from '../components/ui';
+import { colors, radius, spacing, type as typo } from '../theme/colors';
 import { formatMoney, parseAmount } from '../utils/format';
 import { Account, AccountType, Asset, AssetType, DebtsSummary, NetWorth, toNumber } from '../api/types';
 import { accountsApi, debtsApi } from '../api/endpoints';
@@ -22,10 +23,11 @@ const ASSET_TYPES: Array<{ key: AssetType; label: string }> = [
   { key: 'vehiculo', label: 'Vehículo' },
   { key: 'inversion', label: 'Inversión' },
   { key: 'negocio', label: 'Negocio' },
+  { key: 'cesantias', label: 'Cesantías' },
 ];
 
 export function AccountsScreen() {
-  const { data: nw, loading, error, reload } = useApi(() => accountsApi.netWorth(), []);
+  const { data: nw, loading, error, reload } = useApi(() => accountsApi.netWorth(), [], { cacheKey: 'net-worth' });
   const { data: accounts, reload: reloadAcc } = useApi(() => accountsApi.listAccounts(), []);
   const { data: assets, reload: reloadAss } = useApi(() => accountsApi.listAssets(), []);
   const { data: debts, reload: reloadDebts } = useApi(() => debtsApi.summary(), []);
@@ -67,27 +69,30 @@ function NetWorthCard({ nw, loading }: { nw: NetWorth | null; loading: boolean }
   const top = Math.max(have, owe, 1);
   return (
     <Card>
-      <Text style={{ color: colors.textMuted, fontSize: 13 }}>Tu patrimonio · lo tuyo menos lo que debes</Text>
-      <Text style={{ color: negative ? colors.dangerDeep : colors.text, fontSize: 30, fontWeight: '800', marginTop: 2 }}>
-        {nw ? formatMoney(nw.netWorth) : loading ? '…' : formatMoney(0)}
-      </Text>
+      <Text style={{ color: colors.textMuted, ...typo.small }}>Tu patrimonio · lo tuyo menos lo que debes</Text>
+      {nw || !loading ? (
+        <Money value={nw ? nw.netWorth : 0} size={32} color={negative ? colors.dangerDeep : colors.text} style={{ marginTop: 2 }} />
+      ) : (
+        <Text style={{ color: colors.textFaint, fontSize: 32, fontWeight: '600', marginTop: 2 }}>…</Text>
+      )}
       {nw ? (
-        <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
+        <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
           <View style={{ gap: 4 }}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Tienes</Text>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>{formatMoney(nw.totalAssets)}</Text>
+              <Text style={{ color: colors.textMuted, ...typo.small }}>Tienes</Text>
+              <Text style={{ color: colors.text, ...typo.small, fontWeight: '600' }}>{formatMoney(nw.totalAssets)}</Text>
             </Row>
-            <ProgressBar value={have / top} color={colors.primary} height={10} label="Lo que tienes" />
+            <ProgressBar value={have / top} color={colors.primary} track={colors.surfaceAlt} height={6} label="Lo que tienes" />
           </View>
           <View style={{ gap: 4 }}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Debes</Text>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>{formatMoney(nw.totalLiabilities)}</Text>
+              <Text style={{ color: colors.textMuted, ...typo.small }}>Debes</Text>
+              <Text style={{ color: colors.text, ...typo.small, fontWeight: '600' }}>{formatMoney(nw.totalLiabilities)}</Text>
             </Row>
-            <ProgressBar value={owe / top} color={colors.danger} height={10} label="Lo que debes" />
+            {/* FIN-060: deudas en azul (serie de deudas), no en rojo. */}
+            <ProgressBar value={owe / top} color={colors.debt} track={colors.surfaceAlt} height={6} label="Lo que debes" />
           </View>
-          <Text style={{ color: colors.textFaint, fontSize: 12 }}>
+          <Text style={{ color: colors.textFaint, ...typo.small }}>
             Liquidez (lo que puedes usar ya): {formatMoney(nw.totalLiquid)}
           </Text>
         </View>
@@ -97,7 +102,7 @@ function NetWorthCard({ nw, loading }: { nw: NetWorth | null; loading: boolean }
 }
 
 const ACC_LABEL: Record<string, string> = { ahorros: 'Ahorros', efectivo: 'Efectivo', corriente: 'Corriente', billetera: 'Billetera', otro: 'Otra' };
-const ASSET_LABEL: Record<string, string> = { inmueble: 'Inmueble', vehiculo: 'Vehículo', inversion: 'Inversión', negocio: 'Negocio', otro: 'Otro' };
+const ASSET_LABEL: Record<string, string> = { inmueble: 'Inmueble', vehiculo: 'Vehículo', inversion: 'Inversión', negocio: 'Negocio', cesantias: 'Cesantías', otro: 'Otro' };
 
 /** Invitación cuando la lista está vacía (tocarla abre el formulario). */
 function EmptyInvite({ icon, title, body, onPress }: { icon: IconName; title: string; body: string; onPress: () => void }) {
@@ -110,12 +115,12 @@ function EmptyInvite({ icon, title, body, onPress }: { icon: IconName; title: st
         borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.textFaint, backgroundColor: colors.surface,
       }}
     >
-      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
         <Ico name={icon} size={18} color={colors.primary} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ color: colors.text, fontWeight: '700' }}>{title}</Text>
-        <Text style={{ color: colors.textMuted, fontSize: 12 }}>{body}</Text>
+        <Text style={{ color: colors.text, ...typo.body, fontWeight: '600' }}>{title}</Text>
+        <Text style={{ color: colors.textFaint, ...typo.small }}>{body}</Text>
       </View>
     </Pressable>
   );
@@ -136,7 +141,7 @@ function TypeChips<T extends string>({ options, value, onChange }: { options: Ar
             borderWidth: 1, borderColor: value === t.key ? colors.primary : colors.border,
           }}
         >
-          <Text style={{ color: value === t.key ? colors.textInverse : colors.text, fontSize: 13, fontWeight: value === t.key ? '700' : '600' }}>{t.label}</Text>
+          <Text style={{ color: value === t.key ? colors.textInverse : colors.text, ...typo.small, fontWeight: value === t.key ? '600' : '500' }}>{t.label}</Text>
         </Pressable>
       ))}
     </View>
@@ -144,7 +149,7 @@ function TypeChips<T extends string>({ options, value, onChange }: { options: Ar
 }
 
 /** Estilo de fila dentro de una sola tarjeta (mismo patrón que Mis deudas/Movimientos). */
-const rowDivider = (first: boolean) => ({ borderTopWidth: first ? 0 : 1, borderTopColor: colors.surfaceAlt, paddingVertical: 12 });
+const rowDivider = (first: boolean) => ({ borderTopWidth: first ? 0 : 1, borderTopColor: colors.border, paddingVertical: 12 });
 
 function AccountsSection({ accounts, onChange }: { accounts: Account[]; onChange: () => void }) {
   const [name, setName] = useState('');
@@ -198,8 +203,8 @@ function AccountsSection({ accounts, onChange }: { accounts: Account[]; onChange
             <View key={a.id} style={rowDivider(i === 0)}>
               <Row style={{ gap: spacing.sm }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.text, fontWeight: '700' }}>{a.name}</Text>
-                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                  <Text style={{ color: colors.text, ...typo.body, fontWeight: '600' }}>{a.name}</Text>
+                  <Text style={{ color: colors.textFaint, ...typo.small }}>
                     {ACC_LABEL[a.type] ?? a.type}
                     {a.isEmergencyFund ? ' · fondo de emergencia' : ''}
                   </Text>
@@ -210,9 +215,10 @@ function AccountsSection({ accounts, onChange }: { accounts: Account[]; onChange
                     accessibilityRole="button"
                     accessibilityLabel={`Editar saldo de ${a.name}`}
                   >
-                    <Text style={{ fontWeight: '800', color: colors.text }}>
-                      {formatMoney(toNumber(a.currentBalance))} <Ico name="pencil-outline" color={colors.primary} />
-                    </Text>
+                    <Row style={{ gap: 6 }}>
+                      <Text style={{ ...typo.body, fontWeight: '600', color: colors.text }}>{formatMoney(toNumber(a.currentBalance))}</Text>
+                      <Ico name="pencil-outline" size={13} color={colors.primary} />
+                    </Row>
                   </Pressable>
                 )}
                 <IconButton
@@ -228,7 +234,7 @@ function AccountsSection({ accounts, onChange }: { accounts: Account[]; onChange
                     onChangeText={setEditVal}
                     keyboardType="numeric"
                     accessibilityLabel={`Nuevo saldo de ${a.name}`}
-                    style={{ flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: 8, color: colors.text }}
+                    style={{ flex: 1, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8, color: colors.text, ...typo.body }}
                   />
                   <Button title="Guardar" onPress={() => saveBalance(a.id)} />
                 </Row>
@@ -240,7 +246,7 @@ function AccountsSection({ accounts, onChange }: { accounts: Account[]; onChange
 
       {adding ? (
         <Card>
-          <Text style={{ fontWeight: '800', fontSize: 15, marginBottom: spacing.sm, color: colors.text }}>Nueva cuenta</Text>
+          <Text style={{ ...typo.title, marginBottom: spacing.sm, color: colors.text }}>Nueva cuenta</Text>
           <TypeChips options={ACC_TYPES} value={type} onChange={setType} />
           <Field label="Nombre" value={name} onChangeText={setName} placeholder="Ahorros Bancolombia" />
           <Field label="Saldo" value={balance} onChangeText={setBalance} keyboardType="numeric" placeholder="1.500.000" />
@@ -252,8 +258,8 @@ function AccountsSection({ accounts, onChange }: { accounts: Account[]; onChange
           >
             <Ico name={emergency ? 'checkbox' : 'square-outline'} size={22} color={emergency ? colors.primary : colors.textMuted} />
             <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>Es mi fondo de emergencia</Text>
-              <Text style={{ color: colors.textMuted, fontSize: 12 }}>Sube tu pilar "Tu colchón" en Salud</Text>
+              <Text style={{ color: colors.text, ...typo.body, fontWeight: '600' }}>Es mi fondo de emergencia</Text>
+              <Text style={{ color: colors.textFaint, ...typo.small }}>Sube tu pilar "Tu colchón" en Salud</Text>
             </View>
           </Pressable>
           {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
@@ -269,13 +275,35 @@ function AssetsSection({ assets, onChange }: { assets: Asset[]; onChange: () => 
   const [type, setType] = useState<AssetType>('inmueble');
   const [value, setValue] = useState('');
   const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // FIN-056 (BT-034): el valor de un activo se actualiza en sitio (antes: borrar y crear).
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editVal, setEditVal] = useState('');
 
   const add = async () => {
     const v = parseAmount(value) || 0; // §39
-    if (!name.trim() || !v) return;
-    await accountsApi.createAsset({ name: name.trim(), type, currentValue: v });
-    setName(''); setValue(''); setAdding(false);
-    onChange();
+    setError(null);
+    if (!name.trim() || !v) return setError('Escribe el nombre y el valor.');
+    try {
+      await accountsApi.createAsset({ name: name.trim(), type, currentValue: v });
+      setName(''); setValue(''); setAdding(false);
+      onChange();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const saveValue = async (id: string) => {
+    const v = parseAmount(editVal) || 0;
+    setError(null);
+    if (!v) return setError('Escribe el valor de hoy.');
+    try {
+      await accountsApi.updateAsset(id, { currentValue: v });
+      setEditId(null); setEditVal('');
+      onChange();
+    } catch (e) {
+      setError((e as Error).message);
+    }
   };
 
   return (
@@ -284,31 +312,59 @@ function AssetsSection({ assets, onChange }: { assets: Asset[]; onChange: () => 
       {assets.length === 0 && !adding ? (
         <EmptyInvite icon="home-outline" title="Casa, carro, inversiones…" body="Lo que tienes y vale plata." onPress={() => setAdding(true)} />
       ) : null}
+      {error && !adding ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
       {assets.length > 0 ? (
         <Card style={{ paddingVertical: 0 }}>
           {assets.map((a, i) => (
-            <Row key={a.id} style={{ ...rowDivider(i === 0), gap: spacing.sm }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text, fontWeight: '700' }}>{a.name}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{ASSET_LABEL[a.type] ?? a.type}</Text>
-              </View>
-              <Text style={{ fontWeight: '800', color: colors.text }}>{formatMoney(toNumber(a.currentValue))}</Text>
-              <IconButton
-                icon="trash-outline"
-                label={`Eliminar ${a.name}`}
-                onPress={() => confirmRemove(a.name, 'Su valor dejará de contar en tu patrimonio.', () => accountsApi.removeAsset(a.id).then(onChange))}
-              />
-            </Row>
+            <View key={a.id} style={rowDivider(i === 0)}>
+              <Row style={{ gap: spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, ...typo.body, fontWeight: '600' }}>{a.name}</Text>
+                  <Text style={{ color: colors.textFaint, ...typo.small }}>{ASSET_LABEL[a.type] ?? a.type}</Text>
+                </View>
+                {editId === a.id ? null : (
+                  <Pressable onPress={() => { setEditId(a.id); setEditVal(String(Math.round(toNumber(a.currentValue)))); }} accessibilityRole="button" accessibilityLabel={`Actualizar el valor de ${a.name}`}>
+                    <Row style={{ gap: 6 }}>
+                      <Text style={{ ...typo.body, fontWeight: '600', color: colors.text }}>{formatMoney(toNumber(a.currentValue))}</Text>
+                      <Ico name="pencil-outline" size={13} color={colors.primary} />
+                    </Row>
+                  </Pressable>
+                )}
+                <IconButton
+                  icon="trash-outline"
+                  label={`Eliminar ${a.name}`}
+                  onPress={() => confirmRemove(a.name, 'Su valor dejará de contar en tu patrimonio.', () => accountsApi.removeAsset(a.id).then(onChange))}
+                />
+              </Row>
+              {editId === a.id ? (
+                <Row style={{ marginTop: 6, gap: spacing.sm }}>
+                  <TextInput
+                    value={editVal}
+                    onChangeText={setEditVal}
+                    keyboardType="numeric"
+                    accessibilityLabel={`Nuevo valor de ${a.name}`}
+                    style={{ flex: 1, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8, color: colors.text, ...typo.body }}
+                  />
+                  <Button title="Guardar" onPress={() => void saveValue(a.id)} />
+                </Row>
+              ) : null}
+            </View>
           ))}
         </Card>
       ) : null}
       {adding ? (
         <Card>
-          <Text style={{ fontWeight: '800', fontSize: 15, marginBottom: spacing.sm, color: colors.text }}>Nuevo activo</Text>
+          <Text style={{ ...typo.title, marginBottom: spacing.sm, color: colors.text }}>Nuevo activo</Text>
           <TypeChips options={ASSET_TYPES} value={type} onChange={setType} />
+          {type === 'cesantias' ? (
+            <Text style={{ color: colors.textMuted, ...typo.small, marginTop: spacing.xs }}>
+              Suman a tu patrimonio, pero no son plata disponible: solo se retiran para vivienda, educación o al terminar tu contrato. Por eso no cuentan como colchón.
+            </Text>
+          ) : null}
           <Field label="Nombre" value={name} onChangeText={setName} placeholder="Apartamento" />
           <Field label="Valor" value={value} onChangeText={setValue} keyboardType="numeric" placeholder="250.000.000" />
-          <Button title="Agregar activo" onPress={add} />
+          {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}
+          <Button title="Agregar activo" onPress={() => void add()} />
         </Card>
       ) : null}
     </>
@@ -329,11 +385,11 @@ function DebtsLink({ summary }: { summary: DebtsSummary | null }) {
       >
         <Card>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ color: colors.text, fontWeight: '700' }}>
+            <Text style={{ color: colors.text, ...typo.body, fontWeight: '600' }}>
               {summary.debtsCount} deuda{summary.debtsCount === 1 ? '' : 's'}
             </Text>
             <Row style={{ gap: spacing.xs }}>
-              <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(summary.totalDebt)}</Text>
+              <Text style={{ color: colors.text, ...typo.body, fontWeight: '600' }}>{formatMoney(summary.totalDebt)}</Text>
               <Ico name="chevron-forward" size={16} color={colors.textFaint} />
             </Row>
           </Row>

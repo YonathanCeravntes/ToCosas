@@ -1,9 +1,11 @@
 import React from 'react';
-import { Pressable, SectionList, Text, View } from 'react-native';
+import { Pressable, SectionList, View } from 'react-native';
+import { Text } from '../../components/AppText';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Button, Card, Ico, ProgressBar, Row, Screen } from '../../components/ui';
-import { colors, debtShareColors, spacing } from '../../theme/colors';
+import { Button, Card, GroupLabel, Ico, Money, Pill, ProgressBar, Row, Screen } from '../../components/ui';
+import { debtShade } from '../../components/debtShades';
+import { colors, spacing, type } from '../../theme/colors';
 import { formatDate, formatMoney, formatPercent } from '../../utils/format';
 import { Debt, DebtsSummary, toNumber } from '../../api/types';
 import { debtsApi } from '../../api/endpoints';
@@ -36,16 +38,16 @@ function groupByUrgency(all: Debt[]): DebtSection[] {
     else later.push(d);
   }
   return [
-    { key: 'overdue', title: 'VENCIDAS', tone: colors.danger, data: overdue },
-    { key: 'soon', title: `VENCEN EN LOS PRÓXIMOS ${SOON_DAYS} DÍAS`, tone: colors.warning, data: soon },
-    { key: 'later', title: 'MÁS ADELANTE', tone: colors.primaryDark, data: later },
-    { key: 'closed', title: 'PAGADAS O CERRADAS', tone: colors.textMuted, data: closed },
+    { key: 'overdue', title: 'Vencidas', tone: colors.danger, data: overdue },
+    { key: 'soon', title: `Vencen en los próximos ${SOON_DAYS} días`, tone: colors.warningDeep, data: soon },
+    { key: 'later', title: 'Más adelante', tone: colors.textFaint, data: later },
+    { key: 'closed', title: 'Pagadas o cerradas', tone: colors.textFaint, data: closed },
   ].filter((s) => s.data.length > 0);
 }
 
 export function DebtsListScreen({ navigation }: Props) {
-  const { data, loading, error, reload } = useApi(() => debtsApi.list(), []);
-  const summary = useApi(() => debtsApi.summary(), []);
+  const { data, loading, error, reload } = useApi(() => debtsApi.list(), [], { cacheKey: 'debts-list' });
+  const summary = useApi(() => debtsApi.summary(), [], { cacheKey: 'debts-summary' });
   const reloadSummary = summary.reload;
 
   useFocusEffect(
@@ -64,7 +66,7 @@ export function DebtsListScreen({ navigation }: Props) {
         sections={sections}
         keyExtractor={(d) => d.id}
         stickySectionHeadersEnabled={false}
-        refreshing={loading}
+        refreshing={loading && !data}
         onRefresh={() => {
           void reload();
           void reloadSummary();
@@ -76,25 +78,15 @@ export function DebtsListScreen({ navigation }: Props) {
             <Button title="+ Nueva deuda" onPress={() => navigation.navigate('AddDebt')} />
           </View>
         }
-        renderSectionHeader={({ section }) => (
-          <Text
-            style={{
-              color: section.tone,
-              fontSize: 12,
-              fontWeight: '800',
-              letterSpacing: 0.8,
-              marginTop: spacing.md,
-              marginBottom: spacing.xs,
-            }}
-          >
-            {section.title}
-          </Text>
-        )}
+        renderSectionHeader={({ section }) => <GroupLabel title={section.title} tone={section.tone} />}
         ListEmptyComponent={
           !loading ? (
-            <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: spacing.xl }}>
-              Aún no tienes deudas. Agrega la primera para ver tu plan de pago.
-            </Text>
+            <Card style={{ alignItems: 'center', paddingVertical: spacing.lg, marginTop: spacing.md, backgroundColor: colors.surfaceAlt, borderColor: colors.surfaceAlt }}>
+              <Ico name="card-outline" size={20} color={colors.textFaint} />
+              <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm, ...type.body }}>
+                Aún no tienes deudas. Agrega la primera para ver tu plan de pago.
+              </Text>
+            </Card>
           ) : null
         }
         renderItem={({ item }) => (
@@ -146,25 +138,23 @@ function FrontHero({ summary, debts }: { summary: DebtsSummary | null; debts: De
   return (
     <Card>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+        <Text style={{ color: colors.textMuted, ...type.small }}>
           Debes · {summary.debtsCount} deuda{summary.debtsCount === 1 ? '' : 's'}
         </Text>
         {/* "Tus cuotas suman": contrato programado — NUNCA "pagas al mes"
             (desembolso real con seguros aparte = FIN-023; pagado del ciclo = Inicio). */}
-        <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+        <Text style={{ color: colors.textMuted, ...type.small }}>
           Cuotas {formatMoney(summary.monthlyPaymentsTotal)}/mes
         </Text>
       </Row>
-      <Text style={{ color: colors.text, fontSize: 30, fontWeight: '800', marginTop: 2 }}>
-        {formatMoney(summary.totalDebt)}
-      </Text>
+      <Money value={formatMoney(summary.totalDebt)} size={30} style={{ marginTop: 2 }} />
       {total > 0 && parts.length > 1 ? (
         <>
-          <View style={{ flexDirection: 'row', height: 14, borderRadius: 7, overflow: 'hidden', gap: 2, marginTop: spacing.sm }}>
+          <View style={{ flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', gap: 2, marginTop: spacing.sm }}>
             {parts.map((p, i) => (
               <View
                 key={p.id}
-                style={{ flex: p.balance / total, backgroundColor: debtShareColors[i % debtShareColors.length] }}
+                style={{ flex: p.balance / total, minWidth: 3, backgroundColor: debtShade(i) }}
               />
             ))}
           </View>
@@ -172,7 +162,7 @@ function FrontHero({ summary, debts }: { summary: DebtsSummary | null; debts: De
             {parts.map((p, i) => (
               <Row key={p.id} style={{ gap: 6 }}>
                 <View
-                  style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: debtShareColors[i % debtShareColors.length] }}
+                  style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: debtShade(i) }}
                 />
                 <Text style={{ color: colors.textMuted, fontSize: 12 }}>
                   {p.name} {Math.round((p.balance / total) * 100)}%
@@ -184,13 +174,13 @@ function FrontHero({ summary, debts }: { summary: DebtsSummary | null; debts: De
       ) : null}
       {/* FIN-023 P4: el desembolso real, SOLO si difiere de las cuotas (§29.1). */}
       {summary.totalMonthlyOutlay > summary.monthlyPaymentsTotal ? (
-        <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.sm }}>
+        <Text style={{ color: colors.textFaint, ...type.small, marginTop: spacing.sm }}>
           Con seguros y cargos: {formatMoney(summary.totalMonthlyOutlay)} al mes
         </Text>
       ) : null}
       {freeDate ? (
-        <Text style={{ color: colors.primaryDark, fontWeight: '700', marginTop: spacing.sm }}>
-          <Ico name="flag-outline" color={colors.primary} /> Libre de todo: {formatDate(freeDate)}
+        <Text style={{ color: colors.text, fontWeight: '600', marginTop: spacing.sm, ...type.body }}>
+          <Ico name="flag-outline" color={colors.gold} /> Libre de todo: <Text style={{ color: colors.goldText, fontWeight: '600' }}>{formatDate(freeDate)}</Text>
         </Text>
       ) : null}
     </Card>
@@ -213,35 +203,42 @@ function AttackPlan({ onDebt }: { onDebt: (d: { debtId: string; name: string }) 
   if (!plan || plan.steps.length === 0) return null;
 
   return (
-    <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
-      <Text style={{ fontWeight: '800', fontSize: 15, color: colors.text }}>Tu orden para liberar plata</Text>
-      <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13, lineHeight: 19 }}>
+    <Card style={{ borderColor: colors.primary, borderWidth: 1.5 }}>
+      <Text style={{ ...type.title, color: colors.text }}>Tu orden para liberar plata</Text>
+      <Text style={{ color: colors.textMuted, marginTop: 4, ...type.small }}>
         {plan.toDebt > 0
           ? `Abona ${formatMoney(plan.toDebt)} al mes a la primera; al terminarla, su cuota se suma a la siguiente.`
           : 'Cuando te sobre plata, abónale primero a la que más cuota libera.'}
       </Text>
-      <View style={{ marginTop: spacing.sm, gap: 8 }}>
-        {plan.steps.map((s) => (
-          <Pressable key={s.debtId} onPress={() => onDebt({ debtId: s.debtId, name: s.name })} accessibilityRole="button">
+      <View style={{ marginTop: spacing.xs }}>
+        {plan.steps.map((s, i) => (
+          <Pressable
+            key={s.debtId}
+            onPress={() => onDebt({ debtId: s.debtId, name: s.name })}
+            accessibilityRole="button"
+            style={{ paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}
+          >
             <Row style={{ justifyContent: 'space-between', gap: 8 }}>
-              <Text style={{ color: colors.text, flex: 1, fontWeight: s.order === 1 ? '700' : '400' }} numberOfLines={1}>
+              <Text style={{ color: colors.text, flex: 1, fontWeight: s.order === 1 ? '600' : '400', ...type.body }} numberOfLines={1}>
                 {s.order}º {s.name}
               </Text>
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>libera {formatMoney(s.payment)}/mes</Text>
+              <Text style={{ color: colors.textMuted, ...type.small }}>libera {formatMoney(s.payment)}/mes</Text>
             </Row>
           </Pressable>
         ))}
       </View>
       <Row style={{ justifyContent: 'space-between', marginTop: spacing.sm }}>
         <Pressable onPress={() => rootNav.navigate('CashflowPlan')} accessibilityRole="link" hitSlop={8}>
-          <Text style={{ color: colors.primary, fontWeight: '800' }}>Ver mi plan →</Text>
+          <Text style={{ color: colors.primary, fontWeight: '600', ...type.body }}>
+            Ver mi plan <Ico name="arrow-forward" size={13} color={colors.primary} />
+          </Text>
         </Pressable>
         <Pressable
           onPress={() => rootNav.navigate('Simulator', { scenario: 'estrategia_deudas', params: { extraBudget: plan.toDebt } })}
           accessibilityRole="link"
           hitSlop={8}
         >
-          <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+          <Text style={{ color: colors.textMuted, ...type.small }}>
             <Ico name="flask-outline" color={colors.textMuted} /> Comparar
           </Text>
         </Pressable>
@@ -289,12 +286,12 @@ function DebtCard({ debt }: { debt: Debt }) {
 
   return (
     <Card style={closed ? { opacity: 0.6 } : undefined}>
-      <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text, flex: 1, marginRight: 8 }} numberOfLines={1}>
+      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, flex: 1, marginRight: 8 }} numberOfLines={1}>
           {debt.name}
           {flag ? <Text style={{ fontSize: 12, color: flag.color }}> · {flag.text}</Text> : null}
         </Text>
-        <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{formatMoney(balance)}</Text>
+        <Money value={formatMoney(balance)} size={16} />
       </Row>
       {bar ? (
         <View style={{ marginTop: spacing.sm }}>
@@ -308,9 +305,7 @@ function DebtCard({ debt }: { debt: Debt }) {
         {/* FIN-024 P2: estado de mora derivado por el backend (helper único).
             Naranja, no rojo — es un aviso, no un juicio (§29.2). */}
         {debt.overdueDays ? (
-          <Text style={{ color: colors.warning, fontWeight: '700', fontSize: 12 }}>
-            venció hace {debt.overdueDays} día{debt.overdueDays === 1 ? '' : 's'}
-          </Text>
+          <Pill tone="warn" label={`venció hace ${debt.overdueDays} día${debt.overdueDays === 1 ? '' : 's'}`} />
         ) : debt.nextDueDate && !closed ? (
           <Text style={{ color: colors.textMuted, fontSize: 12 }}>
             {shortDate(debt.nextDueDate)} · {formatMoney(toNumber(debt.monthlyPayment))}

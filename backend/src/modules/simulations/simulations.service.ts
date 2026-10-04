@@ -191,10 +191,16 @@ export class SimulationsService {
         ratePct: Number(d.interestRate),
         rateBasis: d.rateBasis as RateBasis,
         monthlyPayment: Number(d.monthlyPayment ?? 0),
-        remainingMonths: Math.max(
-          1,
-          (d._count.amortization ?? d.termMonths ?? 12) - ((d.amortization[0]?.periodNo ?? 1) - 1),
-        ),
+        // FIN-061: sin tabla de pagos (_count = 0, p. ej. tarjetas o "saldo y
+        // cuota") antes daba 1 mes y la recomendación de abono se perdía.
+        remainingMonths: d._count.amortization > 0
+          ? Math.max(1, d._count.amortization - ((d.amortization[0]?.periodNo ?? 1) - 1))
+          : estimateRemainingMonths(
+              Number(d.currentBalance),
+              Number(d.monthlyPayment ?? 0),
+              toMonthlyEffectiveRate(Number(d.interestRate), d.rateBasis as RateBasis),
+              d.termMonths,
+            ),
       })),
       liquidBalance: nw.totalLiquid,
       emergencyBalance: nw.totalEmergencyFund,
@@ -246,4 +252,18 @@ export class SimulationsService {
       }
     }
   }
+}
+
+/**
+ * FIN-061: meses que faltan cuando no hay tabla de pagos, con la fórmula de una
+ * cuota fija: n = −ln(1 − r·B/P) / ln(1 + r). Si la cuota no alcanza a cubrir el
+ * interés (o no hay cuota), se usa el plazo pactado o 12 como respaldo.
+ */
+export function estimateRemainingMonths(balance: number, payment: number, monthlyRate: number, termMonths?: number | null): number {
+  if (balance <= 0) return 1;
+  if (payment <= 0) return Math.max(1, termMonths ?? 12);
+  if (monthlyRate <= 0) return Math.max(1, Math.ceil(balance / payment));
+  const k = 1 - (monthlyRate * balance) / payment;
+  if (k <= 0) return Math.max(1, termMonths ?? 600);
+  return Math.max(1, Math.min(600, Math.ceil(-Math.log(k) / Math.log(1 + monthlyRate))));
 }

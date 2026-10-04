@@ -33,6 +33,10 @@ import { GamificationModule } from './modules/gamification/gamification.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { CronModule } from './modules/cron/cron.module';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { HouseholdModule } from './modules/household/household.module';
+import { SpendingModule } from './modules/spending/spending.module';
+import { MoneyPlanModule } from './modules/money-plan/money-plan.module';
 
 @Module({
   imports: [
@@ -69,6 +73,10 @@ import { CronModule } from './modules/cron/cron.module';
     BillingModule,
     DashboardModule,
     CronModule,
+    DocumentsModule,
+    HouseholdModule,
+    SpendingModule,
+    MoneyPlanModule,
     // TODO (siguientes PRs): LLM fallback en el parser, OCR.
   ],
   controllers: [HealthController],

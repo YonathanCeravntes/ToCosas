@@ -20,7 +20,8 @@ import { UpdateReviewService } from './update-review.service';
 import { DebtRenegotiationService } from './debt-renegotiation.service';
 import { RenegotiateDebtDto } from './dto/renegotiate.dto';
 import { CashflowPlanService } from './cashflow-plan.service';
-import { AnswerReviewDto, CreateCardPurchaseDto, ResplitPurchaseDto, CreateDebtDto, PrepayDto, SimulateExtraDto, UpdateDebtDto } from './dto/debt.dto';
+import { CardHealthService } from './card-health.service';
+import { AnswerReviewDto, CardStatementDto, CreateCardPurchaseDto, ResplitPurchaseDto, CreateDebtDto, PrepayDto, SimulateExtraDto, UpdateDebtDto } from './dto/debt.dto';
 import {
   CreateDebtInsuranceDto,
   UpdateDebtInsuranceDto,
@@ -39,6 +40,7 @@ export class DebtsController {
     private readonly reviews: UpdateReviewService,
     private readonly renegotiation: DebtRenegotiationService,
     private readonly cashflowPlan_: CashflowPlanService,
+    private readonly cardHealth: CardHealthService,
   ) {}
 
   @Get('summary')
@@ -81,6 +83,22 @@ export class DebtsController {
   @Get('cards/:debtId')
   cardSummary(@CurrentUser() user: AuthUser, @Param('debtId') debtId: string) {
     return this.cards.summary(user.id, debtId);
+  }
+
+  /** FIN-061 F2.4 · Salud de la tarjeta: uso del cupo, pago sugerido y avisos. */
+  @Get('cards/:debtId/health')
+  cardHealthOf(@CurrentUser() user: AuthUser, @Param('debtId') debtId: string) {
+    return this.cardHealth.health(user.id, debtId);
+  }
+
+  @Get('cards/:debtId/statements')
+  listStatements(@CurrentUser() user: AuthUser, @Param('debtId') debtId: string) {
+    return this.cardHealth.listStatements(user.id, debtId);
+  }
+
+  @Post('cards/:debtId/statements')
+  saveStatement(@CurrentUser() user: AuthUser, @Param('debtId') debtId: string, @Body() dto: CardStatementDto) {
+    return this.cardHealth.saveStatement(user.id, debtId, dto);
   }
 
   @Post('cards/:debtId/purchases')

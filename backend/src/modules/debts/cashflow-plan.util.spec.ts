@@ -65,4 +65,16 @@ describe('FIN-045 · plan para liberar flujo', () => {
     const p = buildCashflowPlan({ free: 0, essential: 0, emergencyBalance: 0, debts: [bad] });
     expect(p.steps[0].monthWithout).toBeNull();
   });
+
+  it('FIN-061 decisión 3: muestra cuánto costaría pagar primero la de mayor tasa', () => {
+    // Libera flujo: la de cuota alta y saldo bajo (tasa baja) va primero.
+    const corta: PlanDebt = { id: 'c', name: 'Corta', balance: 1_000_000, payment: 500_000, monthlyRate: 0.01, annualRatePct: 12.7 };
+    const cara: PlanDebt = { id: 't', name: 'Cara', balance: 5_000_000, payment: 150_000, monthlyRate: 0, annualRatePct: 28.6, compareRate: 0.021 };
+    const p = buildCashflowPlan({ free: 800_000, essential: 0, emergencyBalance: 0, debts: [cara, corta] });
+    expect(p.steps[0].debtId).toBe('c');
+    expect(p.alternative!.sameOrder).toBe(false);
+    expect(p.alternative!.interestHighestRate).toBeLessThanOrEqual(p.alternative!.interestPlan);
+    expect(p.alternative!.difference).toBe(p.alternative!.interestPlan - p.alternative!.interestHighestRate);
+    expect(buildCashflowPlan({ free: 800_000, essential: 0, emergencyBalance: 0, debts: [corta] }).alternative).toBeNull();
+  });
 });

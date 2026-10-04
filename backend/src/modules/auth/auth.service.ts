@@ -22,6 +22,13 @@ export class AuthService {
     private readonly tokens: TokenService,
   ) {}
 
+  /** BT-025: el correo ya tiene cuenta (mismo criterio que `register`). */
+  async emailStatus(rawEmail: string): Promise<{ exists: boolean }> {
+    const email = rawEmail.toLowerCase().trim();
+    const existing = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
+    return { exists: !!existing };
+  }
+
   async register(dto: RegisterDto): Promise<AuthResult> {
     const email = dto.email.toLowerCase().trim();
     const existing = await this.prisma.user.findUnique({ where: { email } });

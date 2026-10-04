@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '../components/AppText';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButton, Row, SegmentBar, Skeleton } from '../components/ui';
+import { Button, Card, ErrorState, Field, FormScroll, GroupLabel, Ico, IconButton, Money, Pill, Row, SegmentBar, Skeleton } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatMoney, parseAmount } from '../utils/format';
 import { CashflowPlan, Category, MonthlyBudget, TeQueda } from '../api/types';
@@ -24,8 +25,8 @@ import { fixedOrder } from '../utils/fixedTypes';
  * Esta pantalla no calcula nada: todo viene del backend.
  */
 export function BudgetScreen() {
-  const { data, loading, error, reload } = useApi(() => budgetApi.monthly(), []);
-  const plan = useApi(() => debtsApi.cashflowPlan(), []);
+  const { data, loading, error, reload } = useApi(() => budgetApi.monthly(), [], { cacheKey: 'budget-monthly' });
+  const plan = useApi(() => debtsApi.cashflowPlan(), [], { cacheKey: 'cashflow-plan' });
   // FIN-046 Fase 4: propuestas de gasto fijo / ingreso aparecen también aquí, donde aplican.
   const proposals = useApi(() => insightsApi.list().then((l) => l.filter(isProposal)), []);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -51,6 +52,14 @@ export function BudgetScreen() {
   return (
     <FormScroll onRefresh={refresh}>
       <MonthCard teQueda={data.teQueda} label={data.period.label} loading={loading} />
+      {/* FIN-056: con el mes vacío, la invitación va arriba (antes quedaba escondida al final). */}
+      {data.incomes.length === 0 && !editing ? (
+        <Pressable onPress={() => setEditing(true)} accessibilityRole="button" style={{ borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.primary, borderRadius: 14, padding: spacing.md, marginBottom: spacing.md, backgroundColor: colors.surface }}>
+          <Text style={{ color: colors.text, ...type.title }}>Arma tu mes en un minuto</Text>
+          <Text style={{ color: colors.textMuted, ...type.small, marginTop: 2 }}>Agrega lo que te entra y lo que pagas cada mes: así "Te queda" será real.</Text>
+          <Text style={{ color: colors.primary, fontWeight: '600', marginTop: spacing.sm }}>Agregar ingresos y fijos →</Text>
+        </Pressable>
+      ) : null}
       <FreeMoney teQueda={data.teQueda} plan={plan.data} />
       {(proposals.data ?? []).map((p) => (
         <ProposalCard key={p.id} insight={p} onDone={() => void Promise.all([refresh(), proposals.reload()])} />
@@ -70,10 +79,10 @@ export function BudgetScreen() {
             {data.incomes.map((i, idx) => (
               <Row key={i.id} style={{ paddingVertical: 12, gap: spacing.sm, borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: colors.surfaceAlt }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{i.name}</Text>
-                  <Text style={{ color: colors.textMuted, ...type.small }}>{i.dayOfMonth ? `Llega el día ${i.dayOfMonth}` : 'Cada mes'}</Text>
+                  <Text style={{ color: colors.text, fontWeight: '600' }} numberOfLines={1}>{i.name}</Text>
+                  <Text style={{ color: colors.textFaint, ...type.small }}>{i.dayOfMonth ? `Llega el día ${i.dayOfMonth}` : 'Cada mes'}</Text>
                 </View>
-                <Text style={{ color: colors.primary, fontWeight: '800' }}>{formatMoney(i.amount)}</Text>
+                <Text style={{ color: colors.primary, fontWeight: '600' }}>{formatMoney(i.amount)}</Text>
               </Row>
             ))}
           </Card>
@@ -86,7 +95,7 @@ export function BudgetScreen() {
         accessibilityState={{ expanded: editing }}
         style={{ alignItems: 'center', paddingVertical: spacing.md }}
       >
-        <Text style={{ color: colors.primary, fontWeight: '800' }}>
+        <Text style={{ color: colors.primary, fontWeight: '600' }}>
           {editing ? 'Cerrar edición' : 'Editar fijos e ingresos'}
         </Text>
       </Pressable>
@@ -97,7 +106,6 @@ export function BudgetScreen() {
         </>
       ) : null}
 
-      <Button icon="business-outline" title="Cuentas y patrimonio" variant="secondary" onPress={() => navigation.navigate('Accounts')} />
     </FormScroll>
   );
 }
@@ -111,30 +119,38 @@ function MonthCard({ teQueda, label, loading }: { teQueda: TeQueda; label: strin
   const negative = free < 0;
   return (
     <Card>
-      <Text style={{ color: colors.textMuted, ...type.small, marginBottom: spacing.sm }}>Así va tu plata · {label}</Text>
+      <Text style={{ color: colors.textFaint, ...type.small, marginBottom: spacing.sm }}>Así va tu plata · {label}</Text>
       <SegmentBar
         parts={[
-          { key: 'comp', label: 'Comprometido', value: committed, color: colors.textMuted },
-          { key: 'dia', label: 'Día a día', value: daily, color: colors.warning },
+          { key: 'comp', label: 'Comprometido', value: committed, color: colors.textFaint },
+          { key: 'dia', label: 'Día a día', value: daily, color: colors.warningDeep },
           { key: 'libre', label: 'Libre', value: Math.max(0, free), color: colors.primary },
         ]}
       />
       <View style={{ marginTop: spacing.md, gap: 8 }}>
         <EqLine label="Te entra" value={formatMoney(income)} bold />
-        <EqLine label="− Comprometido (fijos y deudas)" value={formatMoney(committed)} dot={colors.textMuted} />
-        <EqLine label="− Día a día (ya gastado)" value={formatMoney(daily)} dot={colors.warning} />
+        {/* FIN-057: la base se arma por partes; si hay plata extra (Didi, ventas…) se dice. */}
+        {(teQueda.incomeVariableBase ?? 0) > 0 && (teQueda.incomeFixedBase ?? 0) > 0 ? (
+          <Text style={{ color: colors.textFaint, ...type.small, marginTop: -4 }}>
+            {formatMoney(teQueda.incomeFixedBase ?? 0)} de salario + {formatMoney(teQueda.incomeVariableBase ?? 0)} extra
+          </Text>
+        ) : null}
+        <EqLine label="− Comprometido (fijos y deudas)" value={formatMoney(committed)} dot={colors.textFaint} />
+        <EqLine label="− Día a día (ya gastado)" value={formatMoney(daily)} dot={colors.warningDeep} />
         <View style={{ height: 1, backgroundColor: colors.border }} />
         <Row style={{ justifyContent: 'space-between' }}>
           <Row style={{ gap: 8 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: negative ? colors.dangerDeep : colors.primary }} />
-            <Text style={{ color: colors.text, fontWeight: '800' }}>= {negative ? 'Te falta' : 'Libre'}</Text>
+            <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: negative ? colors.danger : colors.primary }} />
+            <Text style={{ color: colors.text, fontWeight: '600' }}>= {negative ? 'Te falta' : 'Libre'}</Text>
           </Row>
-          <Text style={{ color: negative ? colors.dangerDeep : colors.primary, fontSize: 22, fontWeight: '800' }}>
-            {loading && !teQueda ? '…' : formatMoney(negative ? -free : free)}
-          </Text>
+          {loading && !teQueda ? (
+            <Text style={{ color: colors.textFaint, fontSize: 22, fontWeight: '600' }}>…</Text>
+          ) : (
+            <Money value={negative ? -free : free} size={22} color={negative ? colors.danger : colors.primary} />
+          )}
         </Row>
       </View>
-      <Text style={{ color: colors.textFaint, ...type.small, marginTop: spacing.sm }}>
+      <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.sm }}>
         {teQueda.perDay !== null
           ? `Quedan ${teQueda.daysLeft} día${teQueda.daysLeft === 1 ? '' : 's'} · unos ${formatMoney(teQueda.perDay)} por día · hasta el ${shortDate(teQueda.until)}`
           : `Ciclo hasta el ${shortDate(teQueda.until)}`}
@@ -155,7 +171,7 @@ function EqLine({ label, value, dot, bold }: { label: string; value: string; dot
         {dot ? <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: dot }} /> : null}
         <Text style={{ color: colors.text, ...type.body }} numberOfLines={1}>{label}</Text>
       </Row>
-      <Text style={{ color: colors.text, fontWeight: bold ? '800' : '700' }}>{value}</Text>
+      <Text style={{ color: colors.text, fontWeight: bold ? '600' : '500' }}>{value}</Text>
     </Row>
   );
 }
@@ -165,13 +181,13 @@ function FreeMoney({ teQueda, plan }: { teQueda: TeQueda; plan: CashflowPlan | n
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   if (teQueda.amount < 0) {
     return (
-      <Card style={{ borderColor: colors.warning, borderWidth: 2 }}>
-        <Text style={{ fontWeight: '800', fontSize: 15, color: colors.text }}>Este mes no alcanza para todo</Text>
+      <Card style={{ borderColor: colors.warningDeep, borderWidth: 1.5 }}>
+        <Text style={{ ...type.title, color: colors.text }}>Este mes no alcanza para todo</Text>
         <Text style={{ color: colors.textMuted, marginTop: 4, ...type.small, lineHeight: 19 }}>
           Lo comprometido supera lo que entra. Mira qué gasto puedes mover: pequeños recortes cambian el cierre del mes.
         </Text>
         <Pressable onPress={() => navigation.navigate('Simulator', { scenario: 'reducir_gastos' })} accessibilityRole="link" style={{ marginTop: spacing.sm }}>
-          <Text style={{ color: colors.primary, fontWeight: '700' }}>Simular un recorte →</Text>
+          <Text style={{ color: colors.primary, fontWeight: '600' }}>Simular un recorte →</Text>
         </Pressable>
       </Card>
     );
@@ -180,8 +196,8 @@ function FreeMoney({ teQueda, plan }: { teQueda: TeQueda; plan: CashflowPlan | n
   if (!plan || !step || plan.toDebt <= 0) return null;
   return (
     <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-      <Text style={{ color: colors.onPrimaryMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.8 }}>CON LO LIBRE</Text>
-      <Text style={{ color: colors.textInverse, fontSize: 17, fontWeight: '800', marginTop: 6 }}>
+      <Text style={{ color: colors.onPrimaryFaint, ...type.label }}>Con lo libre</Text>
+      <Text style={{ color: colors.textInverse, ...type.title, marginTop: 6 }}>
         Abónale {formatMoney(plan.toDebt)} a {step.name}
       </Text>
       <Text style={{ color: colors.onPrimaryMuted, ...type.small, marginTop: 4, lineHeight: 19 }}>
@@ -193,7 +209,7 @@ function FreeMoney({ teQueda, plan }: { teQueda: TeQueda; plan: CashflowPlan | n
         accessibilityRole="button"
         style={{ alignSelf: 'flex-start', marginTop: spacing.md, backgroundColor: colors.surface, borderRadius: radius.full, paddingVertical: 9, paddingHorizontal: 16 }}
       >
-        <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>Ver mi plan</Text>
+        <Text style={{ color: colors.primaryDark, fontWeight: '600' }}>Ver mi plan</Text>
       </Pressable>
     </Card>
   );
@@ -233,13 +249,11 @@ function CommittedList({ teQueda, total }: { teQueda: TeQueda; total: number }) 
                 <Ico name={r.kind === 'cuota' ? 'card-outline' : 'home-outline'} color={done ? colors.primaryDark : colors.warningDeep} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>{r.name}</Text>
-                <Text style={{ color: colors.textMuted, ...type.small }} numberOfLines={1}>{r.sub}</Text>
+                <Text style={{ color: colors.text, fontWeight: '600' }} numberOfLines={1}>{r.name}</Text>
+                <Text style={{ color: colors.textFaint, ...type.small }} numberOfLines={1}>{r.sub}</Text>
               </View>
-              <Text style={{ fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, overflow: 'hidden', color: done ? colors.primaryDark : colors.warningDeep, backgroundColor: done ? colors.primarySoft : colors.warningSoft }}>
-                {r.tag}
-              </Text>
-              <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(r.amount)}</Text>
+              <Pill label={r.tag} tone={done ? 'ok' : 'warn'} />
+              <Text style={{ color: colors.text, fontWeight: '600' }}>{formatMoney(r.amount)}</Text>
             </Row>
           );
         })}
@@ -338,16 +352,16 @@ function EditableRow({
             accessibilityRole="button"
             accessibilityLabel={`Editar ${item.name}`}
           >
-            <Text style={{ color: colors.text, fontWeight: '700' }} numberOfLines={1}>
+            <Text style={{ color: colors.text, fontWeight: '600' }} numberOfLines={1}>
               {item.name}
-              {item.notes ? <Text style={{ color: colors.textMuted, fontWeight: '400' }}> · {item.notes}</Text> : null}
+              {item.notes ? <Text style={{ color: colors.textFaint, fontWeight: '400' }}> · {item.notes}</Text> : null}
             </Text>
-            <Text style={{ color: colors.textMuted, ...type.small }}>
+            <Text style={{ color: colors.textFaint, ...type.small }}>
               {subtitle ?? (item.dayOfMonth ? `Día ${item.dayOfMonth}` : 'Sin día fijo')}
             </Text>
           </Pressable>
           <Pressable onPress={() => setEditing(true)} accessibilityRole="button" accessibilityLabel={`Editar ${item.name}`}>
-            <Text style={{ color: amountColor, fontWeight: '800' }}>
+            <Text style={{ color: amountColor, fontWeight: '600' }}>
               {formatMoney(item.amount)} <Ico name="pencil-outline" color={colors.primary} />
             </Text>
           </Pressable>
@@ -395,7 +409,7 @@ function NewItemForm({
   };
   return (
     <Card>
-      <Text style={{ fontWeight: '800', fontSize: 15, color: colors.text, marginBottom: spacing.sm }}>{title}</Text>
+      <Text style={{ ...type.title, color: colors.text, marginBottom: spacing.sm }}>{title}</Text>
       <Field label="Nombre" value={name} onChangeText={setName} placeholder={placeholder} />
       <Row style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
         <View style={{ flex: 2 }}>
@@ -453,7 +467,7 @@ function IncomesSection({ items, onChanged, onProfile }: { items: MonthlyBudget[
         />
       ) : null}
       <Pressable onPress={onProfile} accessibilityRole="link" style={{ marginTop: -spacing.xs, marginBottom: spacing.sm }}>
-        <Text style={{ color: colors.primary, fontWeight: '700', ...type.small }}>Deducciones y tipo de ingreso → Mi perfil de ingresos</Text>
+        <Text style={{ color: colors.primary, ...type.small, fontWeight: '600' }}>Deducciones y tipo de ingreso → Mi perfil de ingresos</Text>
       </Pressable>
     </>
   );
@@ -562,8 +576,8 @@ function NewFixedExpenseForm({ onChanged, onDone }: { onChanged: () => Promise<u
 
   return (
     <Card>
-      <Text style={{ fontWeight: '800', fontSize: 15, color: colors.text, marginBottom: spacing.sm }}>Nuevo gasto fijo</Text>
-      <Text style={{ color: colors.textMuted, ...type.small, fontWeight: '600', marginBottom: spacing.sm }}>¿Qué pagas cada mes?</Text>
+      <Text style={{ ...type.title, color: colors.text }}>Nuevo gasto fijo</Text>
+      <Text style={{ color: colors.textMuted, ...type.small, marginTop: 2, marginBottom: spacing.sm }}>¿Qué pagas cada mes?</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
         {types.map((t) => {
           const active = typeSel?.id === t.id;
@@ -580,7 +594,7 @@ function NewFixedExpenseForm({ onChanged, onDone }: { onChanged: () => Promise<u
               }}
             >
               <CategoryGlyph emoji={t.icon} kind="gasto" color={t.color} />
-              <Text style={{ color: active ? colors.primaryDark : colors.text, fontSize: 11, fontWeight: active ? '800' : '600', textAlign: 'center' }} numberOfLines={2} adjustsFontSizeToFit>
+              <Text style={{ color: active ? colors.primaryDark : colors.text, fontSize: 11, fontWeight: active ? '600' : '400', textAlign: 'center' }} numberOfLines={2} adjustsFontSizeToFit>
                 {t.name}
               </Text>
             </Pressable>

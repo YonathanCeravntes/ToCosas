@@ -98,6 +98,11 @@ export interface Debt {
   overdueDays?: number | null;
   /** FIN-031: cupo total de una tarjeta de crédito (null en otros tipos). */
   creditLimit?: string | number | null;
+  /** FIN-056: entidad (solo en el detalle), para editarla. */
+  entityId?: string | null;
+  entity?: { id: string; name: string } | null;
+  /** FIN-059: deuda de la casa (Millo en pareja). */
+  householdId?: string | null;
   projection?: DebtProjection;
   // FIN-032: el modelo/capacidades del tipo (del descriptor) — el detalle decide
   // qué secciones muestra por MODELO, no por tipo.
@@ -151,6 +156,8 @@ export interface CardSummary {
     occurredAt: string;
     installmentsCount: number;
     withInterest: boolean;
+    isCashAdvance?: boolean;
+    categoryId?: string | null;
     note: string | null;
     pendingBalance: number;
     paidInstallments: number;
@@ -227,7 +234,7 @@ export interface DebtsSummary {
   monthlyPaymentsTotal: number;
   /** FIN-023: cuotas + seguros/cargos APARTE — igual a monthlyPaymentsTotal si no hay. */
   totalMonthlyOutlay: number;
-  upcoming: Array<{ debtId: string; name: string; dueDate: string | null; amount: number }>;
+  upcoming: Array<{ debtId: string; name: string; dueDate: string | null; amount: number; payroll?: boolean; isCard?: boolean }>;
   // FIN-022 P2: orden de ataque del MOTOR (null con <2 deudas o sin comparación
   // válida — el bloque se omite, §29.1).
   strategy: {
@@ -275,6 +282,8 @@ export interface TransactionsQuery {
 }
 
 export interface CategorySpend {
+  /** FIN-056: id de la categoría (null = sin categoría) para abrir sus movimientos. */
+  id?: string | null;
   name: string;
   icon: string;
   color: string;
@@ -293,11 +302,49 @@ export interface Dashboard {
 
 // --- FIN-014: Dashboard de Inicio v2 ---
 
+/** FIN-057 · Una fuente de "Cómo te llega la plata". */
+export interface HomeIncomeSource {
+  /** 'salario' (parte fija), el id de la categoría (extra) o 'sin' (sin categoría). */
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  kind: 'fijo' | 'variable';
+  amount: number;
+  percent: number;
+  /** Movimientos del ciclo en esta fuente ("14 carreras"). */
+  count: number;
+  /** Lo mismo en el ciclo anterior. */
+  previous: number;
+}
+
+/** FIN-057 · La fila "Cuotas de deudas" de "En qué se te va". */
+export interface HomeDebt {
+  /** Lo que lleva la fila: la cuota comprometida del mes, o lo pagado si fue más. */
+  amount?: number;
+  /** Pagado a deudas en el ciclo. */
+  paid: number;
+  /** Cuotas comprometidas del mes (desembolso real, misma fuente que "Te queda"). */
+  committed: number;
+  remaining: number;
+  /** Sobre gastos + cuotas del mes. */
+  percent: number;
+  nextDueDate: string | null;
+  byDebt: Array<{ debtId: string; name: string; paid: number; committed: number; amount?: number }>;
+}
+
 export interface FlowSection {
   fixed: number;
   variable: number;
   total: number;
   byCategory: CategorySpend[];
+  /** FIN-057 (solo en `expense`): gastos + pagos de deudas, base del porcentaje. */
+  totalWithDebt?: number;
+  /** FIN-062 (solo en `expense`): cuotas ya pagadas en el ciclo y el total con ellas. */
+  debtPaid?: number;
+  totalWithPaidDebt?: number;
+  /** FIN-057 (solo en `income`): fuentes de "Cómo te llega la plata". */
+  sources?: HomeIncomeSource[];
 }
 
 // FIN-017: interpretación server-side ("¿qué significa esto para mí?").
@@ -325,8 +372,14 @@ export interface TeQueda {
   protectedTotal: number;
   pendingCommitments: PendingCommitment[];
   receivedIncome: number;
-  /** BT-004: base de ingreso del ciclo (declarado vs recibido, el mayor). */
+  /** BT-004 + FIN-057: base de ingreso del ciclo = parte fija + parte variable. */
   incomeBase?: number;
+  /** FIN-057 · max(salario declarado, salario recibido). */
+  incomeFixedBase?: number;
+  /** FIN-057 · max(variable estimado, extra recibido). */
+  incomeVariableBase?: number;
+  receivedSalary?: number;
+  receivedExtra?: number;
   /** FIN-050 · "Mi mes": comprometido ya pagado, día a día y lo pagado uno por uno. */
   committedPaid?: number;
   dailySpent?: number;
@@ -348,6 +401,8 @@ export interface HomeDashboard {
     totalAccounts: number;
     totalAssetsOnly: number;
     totalLiabilities: number;
+    /** FIN-061: cesantías dentro del patrimonio (no disponibles). */
+    totalCesantias?: number;
   };
   savings: {
     total: number;
@@ -356,6 +411,8 @@ export interface HomeDashboard {
   };
   income: FlowSection;
   expense: FlowSection;
+  /** FIN-057: la fila de deudas de "En qué se te va" (ausente en respuestas en caché viejas). */
+  debt?: HomeDebt;
   debtPayments: number;
   estimatedCashflow: number;
   teQueda: TeQueda;
@@ -365,6 +422,7 @@ export interface HomeDashboard {
     amount: number;
     occurredAt: string;
     note: string | null;
+    categoryId?: string | null;
     category: { name: string; icon: string; color: string } | null;
     debtName: string | null;
   }>;
@@ -382,7 +440,7 @@ export interface Category {
 }
 
 export type AccountType = 'efectivo' | 'ahorros' | 'corriente' | 'billetera' | 'otro';
-export type AssetType = 'inmueble' | 'vehiculo' | 'inversion' | 'negocio' | 'otro';
+export type AssetType = 'inmueble' | 'vehiculo' | 'inversion' | 'negocio' | 'cesantias' | 'otro';
 
 export interface Account {
   id: string;
@@ -412,6 +470,8 @@ export interface NetWorth {
   totalAccounts: number;
   totalAssetsOnly: number;
   totalLiabilities: number;
+  /** FIN-061: cesantías dentro del patrimonio (no disponibles). */
+  totalCesantias?: number;
   accounts: Array<{ id: string; name: string; type: AccountType; currentBalance: number; isLiquid: boolean; isEmergencyFund: boolean }>;
   assets: Array<{ id: string; name: string; type: AssetType; currentValue: number }>;
   liabilities: Array<{ id: string; name: string; currentBalance: number }>;
@@ -617,6 +677,8 @@ export interface FixedItem {
   startDate: string | null;
   endDate: string | null;
   notes: string | null;
+  /** FIN-059: gasto fijo de la casa (Millo en pareja). */
+  householdId?: string | null;
 }
 
 // FIN-016: ciclo financiero activo (día de corte configurable 1–28).
@@ -679,6 +741,8 @@ export interface IncomeSource {
   amount: string | number;
   isVariable: boolean;
   dayOfMonth: number | null;
+  /** FIN-061 F2: recibe prima de servicios (junio y diciembre). */
+  receivesPrima?: boolean;
   isActive: boolean;
   deductions: IncomeDeduction[];
 }
@@ -797,4 +861,214 @@ export interface CashflowPlan {
   steps: CashflowPlanStep[];
   firstFrees: number;
   dueDates: Record<string, string | null>;
+  /** FIN-061 F2 (decisión 3): costo de pagar primero la de mayor tasa. */
+  alternative?: { interestPlan: number; interestHighestRate: number; difference: number; sameOrder: boolean } | null;
+  margin?: {
+    source: 'estable' | 'hoy';
+    amount: number;
+    typicalVariable: number | null;
+    lowVariable: number | null;
+    highVariable: number | null;
+    stableIncome: number;
+    incomeSource: 'mes_flojo' | 'estimado';
+    annualSetAside: number;
+  };
+}
+
+// --- FIN-054 · Mis documentos ---
+export type DocKind = 'extracto_tarjeta' | 'extracto_credito' | 'extracto_cuenta' | 'factura' | 'comprobante' | 'certificado';
+export type DocPayment = 'tarjeta' | 'transferencia' | 'efectivo' | 'desconocido';
+
+export interface DocumentItem {
+  id: string;
+  kind: DocKind;
+  issuer: string | null;
+  number: string | null;
+  electronic: boolean;
+  docDate: string | null;
+  total: number | null;
+  tax: number | null;
+  paymentMethod: DocPayment;
+  isHealth: boolean;
+  certificateType: string | null;
+  hasFile: boolean;
+  transactionId: string | null;
+  debtId: string | null;
+  source: string;
+  createdAt: string;
+}
+
+export interface DocumentsSummary {
+  year: number;
+  uvt: number;
+  invoices: { count: number; total: number; electronicPaid: number; cash: number; unknown: number; deduction: number; cap: number; electronicCount: number };
+  counts: { facturas: number; extractos: number; certificados: number };
+  filesEnabled: boolean;
+}
+
+/** FIN-056 · Respuesta al subir un documento desde la app. */
+export type DocumentIntake =
+  | { status: 'sin_permiso' | 'salud_sin_permiso' | 'ia_no_disponible' | 'formato_no_soportado' }
+  | { status: 'no_reconocido'; notes: string | null }
+  | {
+      status: 'guardado';
+      duplicate: boolean;
+      fileStored: boolean;
+      document: { id: string; kind: DocKind; issuer: string | null; total: number | null; docDate: string | null; paymentMethod: DocPayment; isHealth: boolean };
+      proposal: { amount: number; merchant: string | null; occurredAt: string; paymentMethod: DocPayment; alreadyRegistered: boolean } | null;
+      summary: string;
+    };
+
+export interface DocsConsent {
+  accepted: boolean;
+  acceptedAt: string | null;
+  health: boolean;
+  filesEnabled: boolean;
+  deleted?: number;
+}
+
+
+// --- FIN-059 · Millo en pareja ---
+export interface HouseholdState {
+  household: null | {
+    id: string;
+    splitMode: 'proporcional' | 'mitad';
+    monthlyBudget: number | null;
+    me: { shareIncome: boolean; shareDebts: boolean; joinedAt: string; isCreator: boolean };
+    partner: { name: string; joinedAt: string } | null;
+    invite: { code: string; expiresAt: string } | null;
+  };
+}
+
+export interface HouseholdMonth {
+  period: { start: string; end: string; label: string };
+  members: Array<{ who: string; isMe: boolean }>;
+  budget: number | null;
+  spent: number;
+  committedPending: number;
+  left: number | null;
+  fair: {
+    mode: 'proporcional' | 'mitad';
+    fallbackReason: 'sin_ingreso_compartido' | null;
+    total: number;
+    rows: Array<{ who: string; isMe: boolean; percent: number; due: number; paid: number; balance: number }>;
+    settlement: { from: string; to: string; fromIsMe: boolean; amount: number } | null;
+  };
+  fixed: Array<{ id: string; name: string; owner: string; amount: number; pending: number; dayOfMonth: number | null }>;
+  debts: Array<{ id: string; name: string; owner: string; mine: boolean; monthly: number; paid: number; pending: number; nextDueDate: string | null }>;
+  partnerDebts: Array<{ name: string; count: number; monthly: number; balance: number }>;
+  goals: Array<{ id: string; name: string; target: number; saved: number; percent: number; targetDate: string | null; eta: string | null; byMember: Array<{ who: string; amount: number }> }>;
+  recent: Array<{ id: string; who: string; isMe: boolean; amount: number; occurredAt: string; label: string; icon: string; color: string }>;
+}
+
+// --- FIN-061 Fase 2 · Gustos, tarjetas y plata del año ---
+export type SpendClass = 'esencial' | 'gusto' | 'mixto';
+
+export interface SpendClassRow {
+  categoryId: string;
+  name: string;
+  icon: string | null;
+  isFixed: boolean;
+  monthlyCap: number | null;
+  spendClass: SpendClass;
+  suggested: SpendClass;
+  protected: boolean;
+}
+
+export interface ConsumptionCategory {
+  categoryId: string;
+  name: string;
+  spendClass: SpendClass;
+  protected: boolean;
+  monthlyCap: number | null;
+  amount: number;
+  count: number;
+  typicalAmount: number | null;
+  typicalCount: number | null;
+  financedAmount: number;
+  financedInterest: number;
+  ratio: number | null;
+  status: 'sin_historial' | 'normal' | 'abajo' | 'arriba' | 'pico';
+}
+
+export interface ConsumptionSuggestion {
+  kind: string;
+  categoryId: string | null;
+  title: string;
+  body: string;
+  frees: number;
+  canKeep: boolean;
+}
+
+export interface ConsumptionAnalysis {
+  month: string;
+  incomeBase: number;
+  dti: number;
+  gustos: { amount: number; share: number | null; band: 'tranquilo' | 'atencion' | 'alto' | null; limits: { tranquilo: number; atencion: number } };
+  categories: ConsumptionCategory[];
+  wins: string[];
+  suggestions: ConsumptionSuggestion[];
+  notes: Array<{ kind: 'protegido' | 'tarjeta_interes' | 'tope'; categoryId: string | null; text: string }>;
+}
+
+export interface CardStatement {
+  id: string;
+  closingDate: string;
+  dueDate: string | null;
+  statementBalance: number;
+  minimumPayment: number | null;
+  totalPayment: number | null;
+  creditLimit: number | null;
+  handlingFee: number | null;
+}
+
+export interface CardHealth {
+  utilization: {
+    current: number | null;
+    level: 'meta' | 'bien' | 'atencion' | 'alto' | 'critico' | null;
+    byStatement: Array<{ closingDate: string; utilization: number }>;
+    toHealthy: number;
+    toGoal: number;
+  };
+  payment: { dueDate: string | null; suggested: number | null; cuota: number; planExtra: number; total: number | null; minimum: number | null };
+  alerts: Array<{ rule: number; kind: string; title: string; body: string; amount?: number }>;
+  releaseCalendar: Array<{ month: string; frees: number }> | null;
+  ifClosed: { totalUtilizationNow: number | null; totalUtilizationIfClosed: number | null } | null;
+  cycle: { spent: number; average: number | null; byCategory: Array<{ name: string; amount: number }> } | null;
+}
+
+export interface AnnualExpense {
+  id: string;
+  name: string;
+  amount: number;
+  month: number;
+  monthsLeft: number;
+  monthly: number;
+}
+
+export type WindfallKind = 'prima_junio' | 'prima_diciembre' | 'intereses_cesantias';
+
+export interface Windfall {
+  kind: WindfallKind;
+  date: string;
+  daysLeft: number;
+  planNow: boolean;
+  estimated: number | null;
+  debtPct: number;
+  cushionPct: number;
+  freePct: number;
+  toDebt: number | null;
+  toCushion: number | null;
+  free: number | null;
+  custom: boolean;
+}
+
+export interface CushionTiers {
+  essentialMonthly: number;
+  saved: number;
+  monthsCovered: number;
+  incomeKind: 'asalariado_con_prima' | 'asalariado' | 'variable' | 'independiente';
+  tiers: Array<{ step: number; months: number; target: number; reached: boolean; why: string }>;
+  current: number | null;
+  progress: number;
 }

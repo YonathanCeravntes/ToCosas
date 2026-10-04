@@ -5,12 +5,32 @@ import { MetricKey } from '../financial-engine/engine.constants';
 import { nextMilestone } from '../financial-engine/metrics/emergency-fund.constants';
 import { monthStart } from '../financial-engine/metrics/series.util';
 import { SimulationsService } from '../simulations/simulations.service';
+import { orderByCashflow } from '../debts/cashflow-plan.util';
+import { toEffectiveAnnualRate } from '../finance/amortization/interest.util';
+import type { RateBasis } from '../finance/amortization/amortization.types';
 import {
-  DISCRETIONARY_GLOBAL_CATEGORIES,
   IMPACT_SCORE_CAP,
   MAX_ACTIVE_RECOMMENDATIONS,
+  MIN_STRATEGY_DIFFERENCE,
   URGENCY,
 } from './recommendations.constants';
+
+/**
+ * FIN-061 (Motor de Salida Humano, aprobado por el Fundador 2026-10-04):
+ * - `recorte_categoria` se retira: Millo no recomienda recortar gustos (regla 2:
+ *   recortes solo sobre fugas).
+ * - `estrategia` (avalancha/bola de nieve) se retira: una sola regla de orden en
+ *   toda la app, liberar flujo (FIN-045; regla 6).
+ * Las ya guardadas dejan de mostrarse.
+ */
+const RETIRED_KINDS = new Set(['recorte_categoria', 'estrategia']);
+
+/** BT-043: recomendación de estrategia guardada sin diferencia real (datos viejos). */
+function isEmptyStrategy(r: { kind: string; impact: Prisma.JsonValue }): boolean {
+  if (r.kind !== 'estrategia') return false;
+  const diff = Number((r.impact as { interestDifference?: number } | null)?.interestDifference ?? 0);
+  return !(diff >= MIN_STRATEGY_DIFFERENCE);
+}
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO');
 
@@ -40,10 +60,18 @@ export class RecommendationsService {
   ) {}
 
   async list(userId: string) {
-    return this.prisma.recommendation.findMany({
+    const rows = await this.prisma.recommendation.findMany({
       where: { userId, status: { in: ['new', 'seen'] } },
-      orderBy: { priorityScore: 'desc' },
+      orderBy: [{ priorityScore: 'desc' }, { createdAt: 'desc' }],
     });
+    // BT-043: una sola por tipo (la más reciente; las de meses anteriores quedaban
+    // activas y se veían repetidas) y nunca una estrategia sin diferencia real.
+    const newest = new Map<string, (typeof rows)[number]>();
+    for (const r of rows) {
+      const cur = newest.get(r.kind);
+      if (!cur || r.createdAt > cur.createdAt) newest.set(r.kind, r);
+    }
+    return rows.filter((r) => newest.get(r.kind) === r && !isEmptyStrategy(r) && !RETIRED_KINDS.has(r.kind));
   }
 
   async setStatus(userId: string, id: string, status: RecommendationStatus) {
@@ -62,7 +90,17 @@ export class RecommendationsService {
 
     // 1) Excedente + deudas → abono extra a la de mayor tasa.
     if (surplus > 50_000 && state.debts.length > 0) {
-      const worst = [...state.debts].sort((a, b) => b.ratePct - a.ratePct)[0];
+      // FIN-061 regla 6: la misma deuda que el plan para liberar flujo (cuota ÷
+      // saldo), con tasas comparadas en Efectiva Anual (antes: tasa cruda, que
+      // ponía 2,5 % mensual por debajo de 25 % anual).
+      const ranked = orderByCashflow(
+        state.debts.map((d) => ({
+          ...d,
+          payment: d.monthlyPayment,
+          annualRatePct: toEffectiveAnnualRate(d.ratePct, d.rateBasis as RateBasis) * 100,
+        })),
+      );
+      const worst = ranked[0];
       const extra = Math.round(surplus * 0.5);
       const sim = await this.simulations.projectOnly(userId, {
         type: 'abono_extra',
@@ -80,29 +118,14 @@ export class RecommendationsService {
           whatIfNot: `Seguirás pagando ${fmt(saved)} de intereses evitables durante la vida del crédito.`,
           impact: { interestSaved: saved, monthsSaved: months, scoreDelta: sim.delta.score },
           scoreDelta: sim.delta.score,
-          urgency: worst.ratePct > 25 ? URGENCY.rojo : URGENCY.amarillo,
+          urgency: worst.annualRatePct > 25 ? URGENCY.rojo : URGENCY.amarillo,
           feasibility: Math.min(1, surplus / (extra * 2)),
         }));
       }
     }
 
-    // 2) DTI alto → comparar estrategias.
-    const before = state.debts.length > 1 ? await this.simulations.projectOnly(userId, { type: 'estrategia_deudas', extraBudget: Math.max(0, Math.round(surplus * 0.3)) }) : null;
-    if (before && before.before.dti > 0.35) {
-      const diff = Number(before.specifics.interestDifference ?? 0);
-      const rec = String(before.specifics.recommended ?? 'avalanche');
-      candidates.push(this.candidate({
-        kind: 'estrategia',
-        dedupeKey: `rec_estrategia:${period}`,
-        title: `Ordena tus deudas con el método ${rec === 'avalanche' ? 'avalancha' : 'bola de nieve'}`,
-        body: `Priorizando bien el orden de pago, la diferencia entre estrategias es de ${fmt(diff)} en intereses totales.`,
-        whatIfNot: 'Pagar sin orden definido suele costar más intereses y alargar las deudas.',
-        impact: { interestDifference: diff, recommended: rec },
-        scoreDelta: 10,
-        urgency: URGENCY.rojo,
-        feasibility: 1,
-      }));
-    }
+    // 2) (FIN-061) La comparación avalancha/bola de nieve ya no se recomienda:
+    //    el orden lo da el plan para liberar flujo.
 
     // 3) Fondo por debajo de su próximo hito + excedente → aporte mensual.
     //    FIN-021 (DEC-0021 §5.1): cobertura y gasto esencial se leen de las
@@ -131,24 +154,7 @@ export class RecommendationsService {
       }
     }
 
-    // 4) Categoría dominante DISCRECIONAL (DEC-0007 §10.1: solo lista curada de
-    //    globales; personalizadas EXCLUIDAS).
-    const topDiscretionary = await this.topDiscretionarySpend(userId, now);
-    if (topDiscretionary && topDiscretionary.amount > 200_000) {
-      const cut = Math.round(topDiscretionary.amount * 0.2);
-      const sim = await this.simulations.projectOnly(userId, { type: 'reducir_gastos', monthlyAmount: cut });
-      candidates.push(this.candidate({
-        kind: 'recorte_categoria',
-        dedupeKey: `rec_recorte:${period}`,
-        title: `Recorta 20% de ${topDiscretionary.name}`,
-        body: `Este mes llevas ${fmt(topDiscretionary.amount)} en ${topDiscretionary.name}. Un recorte del 20% libera ${fmt(cut)}/mes.`,
-        whatIfNot: `Son ${fmt(cut * 12)} al año que podrían trabajar en tus metas.`,
-        impact: { freedMonthly: cut, scoreDelta: sim.delta.score },
-        scoreDelta: sim.delta.score,
-        urgency: URGENCY.amarillo,
-        feasibility: 0.8,
-      }));
-    }
+    // 4) (FIN-061) Sin recortes de categorías: Millo no recomienda quitar gustos.
 
     return this.applyWithDisplacement(userId, candidates);
   }
@@ -165,6 +171,13 @@ export class RecommendationsService {
         where: { userId_dedupeKey: { userId, dedupeKey: c.dedupeKey } },
       });
       if (exists) continue; // dedupe mensual
+
+      // BT-043: la nueva reemplaza a la del mismo tipo de un mes anterior (antes
+      // quedaban las dos activas y la persona veía la misma tarjeta repetida).
+      await this.prisma.recommendation.updateMany({
+        where: { userId, kind: c.kind, status: { in: ['new', 'seen'] } },
+        data: { status: 'dismissed', dismissReason: 'superseded' },
+      });
 
       const active = await this.prisma.recommendation.findMany({
         where: { userId, status: { in: ['new', 'seen'] } },
@@ -218,26 +231,4 @@ export class RecommendationsService {
     return { ...rest, priorityScore };
   }
 
-  /** Mayor gasto del mes en categorías globales de la lista curada. */
-  private async topDiscretionarySpend(userId: string, now: Date) {
-    const from = monthStart(now);
-    const to = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 1, 1));
-    const txs = await this.prisma.transaction.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        kind: 'gasto',
-        occurredAt: { gte: from, lt: to },
-        category: { isGlobal: true, name: { in: DISCRETIONARY_GLOBAL_CATEGORIES } },
-      },
-      include: { category: { select: { name: true } } },
-    });
-    const byName = new Map<string, number>();
-    for (const t of txs) {
-      const name = t.category?.name ?? '';
-      byName.set(name, (byName.get(name) ?? 0) + Number(t.amount));
-    }
-    const top = [...byName.entries()].sort(([, a], [, b]) => b - a)[0];
-    return top ? { name: top[0], amount: top[1] } : null;
-  }
 }

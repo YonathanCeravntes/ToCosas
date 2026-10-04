@@ -14,6 +14,8 @@ export enum AssetTypeDto {
   vehiculo = 'vehiculo',
   inversion = 'inversion',
   negocio = 'negocio',
+  /** FIN-061: cuentan en el patrimonio, nunca como plata disponible. */
+  cesantias = 'cesantias',
   otro = 'otro',
 }
 

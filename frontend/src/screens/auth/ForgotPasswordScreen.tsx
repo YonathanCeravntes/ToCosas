@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Text } from '../../components/AppText';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Card, Field } from '../../components/ui';
-import { colors, spacing, type } from '../../theme/colors';
+import { Button, Card, Field, Ico } from '../../components/ui';
+import { colors, spacing, touch, type } from '../../theme/colors';
 import { authApi } from '../../api/endpoints';
 import { AuthStackParamList } from '../../navigation/types';
 
@@ -13,6 +14,20 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
  * código de 6 dígitos + contraseña nueva. El backend nunca dice si el correo
  * existe; la app explica por dónde llega el código según los canales activos.
  */
+/** Mismo aspecto que el campo de `Field`; el correo ya enviado queda bloqueado en gris. */
+const baseInput = {
+  borderWidth: 1,
+  borderColor: colors.border,
+  borderRadius: 10,
+  paddingHorizontal: spacing.md,
+  paddingVertical: 12,
+  minHeight: touch.min,
+  ...type.bodyLg,
+};
+const lockedInput = { ...baseInput, backgroundColor: colors.surfaceAlt, color: colors.textFaint };
+/** El código se lee en cifras espaciadas. */
+const codeInput = { ...baseInput, backgroundColor: colors.surface, color: colors.text, letterSpacing: 4 };
+
 export function ForgotPasswordScreen({ navigation, route }: Props) {
   const [email, setEmail] = useState(route.params?.email ?? '');
   const [code, setCode] = useState('');
@@ -75,14 +90,17 @@ export function ForgotPasswordScreen({ navigation, route }: Props) {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ padding: spacing.md }} keyboardShouldPersistTaps="handled">
         {done ? (
-          <Card style={{ backgroundColor: colors.successSoft, borderColor: colors.primaryLight }}>
+          <Card style={{ backgroundColor: colors.primarySoft, borderColor: colors.primarySoft, marginTop: spacing.sm }}>
+            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}>
+              <Ico name="checkmark" color={colors.textInverse} size={18} />
+            </View>
             <Text style={{ color: colors.primaryDark, ...type.title }}>Listo, contraseña cambiada</Text>
-            <Text style={{ color: colors.text, ...type.body, marginTop: spacing.xs }}>Ya puedes ingresar con tu nueva contraseña.</Text>
+            <Text style={{ color: colors.textMuted, ...type.body, marginTop: spacing.xs, marginBottom: spacing.sm }}>Ya puedes ingresar con tu nueva contraseña.</Text>
             <Button title="Ir a ingresar" onPress={() => navigation.navigate('Login')} />
           </Card>
         ) : (
           <>
-            <Text style={{ color: colors.textMuted, ...type.bodyLg, marginBottom: spacing.md }}>
+            <Text style={{ color: colors.textMuted, ...type.body, marginTop: spacing.xs, marginBottom: spacing.md }}>
               Te enviamos un código para que elijas una contraseña nueva. Tus datos no se tocan.
             </Text>
             <Field
@@ -93,15 +111,19 @@ export function ForgotPasswordScreen({ navigation, route }: Props) {
               keyboardType="email-address"
               placeholder="tucorreo@mail.com"
               editable={!sent}
+              style={sent ? lockedInput : undefined}
             />
             {!sent ? (
               <Button title="Enviarme el código" onPress={() => void request()} loading={busy} />
             ) : (
               <>
-                <Card style={{ backgroundColor: colors.infoSoft, borderColor: colors.info }}>
-                  <Text style={{ color: colors.text, ...type.body }}>{channelText()}</Text>
+                <Card style={{ backgroundColor: colors.infoSoft, borderColor: colors.infoSoft, flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' }}>
+                  <View style={{ marginTop: 2 }}>
+                    <Ico name="mail-outline" color={colors.info} size={16} />
+                  </View>
+                  <Text style={{ color: colors.text, ...type.small, flex: 1 }}>{channelText()}</Text>
                 </Card>
-                <Field label="Código (6 dígitos)" value={code} onChangeText={setCode} keyboardType="number-pad" placeholder="482913" maxLength={6} />
+                <Field label="Código (6 dígitos)" value={code} onChangeText={setCode} keyboardType="number-pad" placeholder="482913" maxLength={6} style={codeInput} />
                 <Field label="Contraseña nueva (mín. 8)" value={password} onChangeText={setPassword} secureTextEntry placeholder="••••••••" />
                 <Button title="Cambiar contraseña" onPress={() => void reset()} loading={busy} />
                 <Button title="Reenviar código" variant="ghost" onPress={() => void request()} disabled={busy} />
