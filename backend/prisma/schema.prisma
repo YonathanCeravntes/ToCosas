@@ -142,6 +142,8 @@ enum AssetType {
   vehiculo
   inversion
   negocio
+  /// FIN-061: patrimonio no disponible (solo vivienda, educación o fin del contrato).
+  cesantias
   otro
 }
 

@@ -396,6 +396,8 @@ export interface HomeDashboard {
     totalAccounts: number;
     totalAssetsOnly: number;
     totalLiabilities: number;
+    /** FIN-061: cesantías dentro del patrimonio (no disponibles). */
+    totalCesantias?: number;
   };
   savings: {
     total: number;
@@ -433,7 +435,7 @@ export interface Category {
 }
 
 export type AccountType = 'efectivo' | 'ahorros' | 'corriente' | 'billetera' | 'otro';
-export type AssetType = 'inmueble' | 'vehiculo' | 'inversion' | 'negocio' | 'otro';
+export type AssetType = 'inmueble' | 'vehiculo' | 'inversion' | 'negocio' | 'cesantias' | 'otro';
 
 export interface Account {
   id: string;
@@ -463,6 +465,8 @@ export interface NetWorth {
   totalAccounts: number;
   totalAssetsOnly: number;
   totalLiabilities: number;
+  /** FIN-061: cesantías dentro del patrimonio (no disponibles). */
+  totalCesantias?: number;
   accounts: Array<{ id: string; name: string; type: AccountType; currentBalance: number; isLiquid: boolean; isEmergencyFund: boolean }>;
   assets: Array<{ id: string; name: string; type: AssetType; currentValue: number }>;
   liabilities: Array<{ id: string; name: string; currentBalance: number }>;

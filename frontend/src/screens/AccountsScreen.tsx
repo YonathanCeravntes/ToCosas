@@ -23,6 +23,7 @@ const ASSET_TYPES: Array<{ key: AssetType; label: string }> = [
   { key: 'vehiculo', label: 'Vehículo' },
   { key: 'inversion', label: 'Inversión' },
   { key: 'negocio', label: 'Negocio' },
+  { key: 'cesantias', label: 'Cesantías' },
 ];
 
 export function AccountsScreen() {
@@ -101,7 +102,7 @@ function NetWorthCard({ nw, loading }: { nw: NetWorth | null; loading: boolean }
 }
 
 const ACC_LABEL: Record<string, string> = { ahorros: 'Ahorros', efectivo: 'Efectivo', corriente: 'Corriente', billetera: 'Billetera', otro: 'Otra' };
-const ASSET_LABEL: Record<string, string> = { inmueble: 'Inmueble', vehiculo: 'Vehículo', inversion: 'Inversión', negocio: 'Negocio', otro: 'Otro' };
+const ASSET_LABEL: Record<string, string> = { inmueble: 'Inmueble', vehiculo: 'Vehículo', inversion: 'Inversión', negocio: 'Negocio', cesantias: 'Cesantías', otro: 'Otro' };
 
 /** Invitación cuando la lista está vacía (tocarla abre el formulario). */
 function EmptyInvite({ icon, title, body, onPress }: { icon: IconName; title: string; body: string; onPress: () => void }) {
@@ -355,6 +356,11 @@ function AssetsSection({ assets, onChange }: { assets: Asset[]; onChange: () => 
         <Card>
           <Text style={{ ...typo.title, marginBottom: spacing.sm, color: colors.text }}>Nuevo activo</Text>
           <TypeChips options={ASSET_TYPES} value={type} onChange={setType} />
+          {type === 'cesantias' ? (
+            <Text style={{ color: colors.textMuted, ...typo.small, marginTop: spacing.xs }}>
+              Suman a tu patrimonio, pero no son plata disponible: solo se retiran para vivienda, educación o al terminar tu contrato. Por eso no cuentan como colchón.
+            </Text>
+          ) : null}
           <Field label="Nombre" value={name} onChangeText={setName} placeholder="Apartamento" />
           <Field label="Valor" value={value} onChangeText={setValue} keyboardType="numeric" placeholder="250.000.000" />
           {error ? <Text style={{ color: colors.danger, marginBottom: 8 }}>{error}</Text> : null}

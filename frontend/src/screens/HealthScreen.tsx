@@ -545,6 +545,11 @@ function WealthSection({ d }: { d: HomeDashboard | null }) {
             <Text style={{ color: colors.textMuted, ...type.small }}>Patrimonio</Text>
             <Money value={d.netWorth.netWorth} size={20} style={{ marginTop: spacing.xxs }} />
             <Text style={{ color: colors.textFaint, ...type.caption }}>lo tuyo, menos deudas</Text>
+            {d.netWorth.totalCesantias ? (
+              <Text style={{ color: colors.textMuted, ...type.caption, marginTop: spacing.xs }}>
+                {`Incluye ${formatMoney(d.netWorth.totalCesantias)} de cesantías: son tuyas, pero solo se retiran para vivienda, educación o al terminar tu contrato. No cuentan como colchón.`}
+              </Text>
+            ) : null}
           </Card>
         </Pressable>
         <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Simulator', { scenario: 'proyeccion_ahorro' })} accessibilityRole="button" accessibilityLabel="Proyectar mi ahorro">

@@ -121,7 +121,8 @@ export class AccountsService {
           currentValue: dto.currentValue,
           acquisitionValue: dto.acquisitionValue ?? null,
           acquisitionDate: dto.acquisitionDate ? new Date(dto.acquisitionDate) : null,
-          isLiquid: dto.isLiquid ?? false,
+          // FIN-061: las cesantías nunca son líquidas (no se pueden usar como colchón).
+          isLiquid: dto.type === 'cesantias' ? false : (dto.isLiquid ?? false),
           includeInNetWorth: dto.includeInNetWorth ?? true,
           notes: dto.notes ?? null,
         },
@@ -146,12 +147,15 @@ export class AccountsService {
   }
 
   async updateAsset(userId: string, id: string, dto: UpdateAssetDto) {
-    await this.ownAsset(userId, id);
+    const own = await this.ownAsset(userId, id);
+    // FIN-061: unas cesantías nunca pasan a ser líquidas.
+    const isCesantias = (dto.type ?? own.type) === 'cesantias';
     return this.outbox.withEvent(async (tx) => {
       const asset = await tx.asset.update({
         where: { id },
         data: {
           ...dto,
+          ...(isCesantias ? { isLiquid: false } : {}),
           acquisitionDate: dto.acquisitionDate ? new Date(dto.acquisitionDate) : undefined,
         },
       });
@@ -203,6 +207,7 @@ export class AccountsService {
       assets.map((a) => ({
         currentValue: Number(a.currentValue),
         includeInNetWorth: a.includeInNetWorth,
+        type: a.type,
       })),
       liabilities,
     );

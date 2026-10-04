@@ -126,6 +126,7 @@ export class DashboardService {
       assets.map((a) => ({
         currentValue: Number(a.currentValue),
         includeInNetWorth: a.includeInNetWorth,
+        type: a.type,
       })),
       liabilities,
     );
