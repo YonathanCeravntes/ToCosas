@@ -1,6 +1,10 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
+import { createNavigationContainerRef, NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
+import { EdgeSwipeBack } from '../components/EdgeSwipeBack';
+
+/** BT-042: referencia para el gesto de atrás en la web del iPhone. */
+const navRef = createNavigationContainerRef();
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/auth.store';
 import { colors, isDark } from '../theme/colors';
@@ -69,7 +73,8 @@ export function RootNavigator() {
   const needsOnboarding = !!tokens && user?.onboardingDone === false;
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <>
+    <NavigationContainer ref={navRef} theme={navTheme}>
       <Stack.Navigator screenOptions={{ ...headerOptions, headerShown: false, contentStyle: stackContent }}>
         {tokens ? (
           <>
@@ -134,5 +139,7 @@ export function RootNavigator() {
         )}
       </Stack.Navigator>
     </NavigationContainer>
+    <EdgeSwipeBack navRef={navRef} />
+    </>
   );
 }
