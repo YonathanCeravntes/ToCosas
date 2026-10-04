@@ -234,7 +234,7 @@ export interface DebtsSummary {
   monthlyPaymentsTotal: number;
   /** FIN-023: cuotas + seguros/cargos APARTE — igual a monthlyPaymentsTotal si no hay. */
   totalMonthlyOutlay: number;
-  upcoming: Array<{ debtId: string; name: string; dueDate: string | null; amount: number }>;
+  upcoming: Array<{ debtId: string; name: string; dueDate: string | null; amount: number; payroll?: boolean; isCard?: boolean }>;
   // FIN-022 P2: orden de ataque del MOTOR (null con <2 deudas o sin comparación
   // válida — el bloque se omite, §29.1).
   strategy: {
@@ -340,6 +340,9 @@ export interface FlowSection {
   byCategory: CategorySpend[];
   /** FIN-057 (solo en `expense`): gastos + pagos de deudas, base del porcentaje. */
   totalWithDebt?: number;
+  /** FIN-062 (solo en `expense`): cuotas ya pagadas en el ciclo y el total con ellas. */
+  debtPaid?: number;
+  totalWithPaidDebt?: number;
   /** FIN-057 (solo en `income`): fuentes de "Cómo te llega la plata". */
   sources?: HomeIncomeSource[];
 }

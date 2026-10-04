@@ -12,7 +12,7 @@ import { CategoryGlyph, incomeSourceColors } from '../components/CategoryGlyph';
 import { colors, radius, spacing, type } from '../theme/colors';
 import { formatLocalDate, formatMoney } from '../utils/format';
 import { useApi } from '../utils/useApi';
-import { dashboardApi, debtsApi, gamificationApi } from '../api/endpoints';
+import { dashboardApi, debtsApi, gamificationApi, transactionsApi } from '../api/endpoints';
 import { FlowSection, GamificationProfile, HomeDebt, HomeIncomeSource } from '../api/types';
 import { useAuthStore } from '../store/auth.store';
 import { useSync } from '../offline/useSync';
@@ -204,6 +204,15 @@ export function DashboardScreen() {
               <Text style={{ color: colors.textFaint, ...type.caption, marginTop: 2 }}>
                 {formatMoney(d?.debtPayments ?? 0)} pagado desde el {d ? shortDate(d.period.start) : '—'}
               </Text>
+              {summary.data.upcoming?.[0] ? (
+                <PayNow
+                  item={summary.data.upcoming[0]}
+                  onPaid={() => {
+                    void dashboard.reload();
+                    void summary.reload();
+                  }}
+                />
+              ) : null}
               {d?.interpretation.debt ? (
                 <Text style={{ color: colors.textMuted, ...type.small, marginTop: spacing.xs }}>
                   <Ico name="ellipse" size={10} color={LEVEL_COLOR[d.interpretation.debt.level] ?? colors.textMuted} /> {d.interpretation.debt.text}
@@ -416,6 +425,112 @@ function shortDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
+/**
+ * FIN-062 (Fundador 2026-10-04) · "Ya la pagué": registra el pago de la cuota sin salir de
+ * Inicio. En una tarjeta ofrece primero el pago sugerido (rompe el ancla del mínimo); una
+ * libranza no lleva botón porque se descuenta de nómina y Millo la registra sola.
+ */
+function PayNow({
+  item,
+  onPaid,
+}: {
+  item: { debtId: string; name: string; amount: number; payroll?: boolean; isCard?: boolean };
+  onPaid: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState<Array<{ label: string; amount: number }> | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (item.payroll) {
+    return (
+      <Text style={{ color: colors.textFaint, ...type.caption, marginTop: spacing.xs }}>
+        <Ico name="briefcase-outline" size={11} color={colors.textFaint} /> Se descuenta de tu nómina: Millo la registra sola el día de pago.
+      </Text>
+    );
+  }
+  if (done) {
+    return (
+      <Text style={{ color: colors.primary, ...type.small, fontWeight: '600', marginTop: spacing.sm }}>
+        <Ico name="checkmark-circle-outline" size={13} color={colors.primary} /> {done}
+      </Text>
+    );
+  }
+
+  const openOptions = async () => {
+    setOpen(true);
+    setError(null);
+    if (!item.isCard) {
+      setOptions([{ label: 'Cuota', amount: item.amount }]);
+      return;
+    }
+    try {
+      const h = await debtsApi.cardHealth(item.debtId);
+      const list: Array<{ label: string; amount: number }> = [];
+      if (h.payment.suggested) list.push({ label: 'Sugerido', amount: h.payment.suggested });
+      if (h.payment.total && h.payment.total !== h.payment.suggested) list.push({ label: 'Total', amount: h.payment.total });
+      if (h.payment.minimum && h.payment.minimum !== h.payment.suggested) list.push({ label: 'Mínimo', amount: h.payment.minimum });
+      setOptions(list.length ? list : [{ label: 'Cuota', amount: item.amount }]);
+    } catch {
+      setOptions([{ label: 'Cuota', amount: item.amount }]);
+    }
+  };
+
+  const pay = async (amount: number) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await transactionsApi.create({ kind: 'pago_deuda', amount, occurredAt: new Date().toISOString(), debtId: item.debtId, note: `Cuota ${item.name}` });
+      setDone(`Registré tu pago de ${formatMoney(amount)} a ${item.name}.`);
+      onPaid();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <Pressable onPress={() => void openOptions()} accessibilityRole="button" style={{ marginTop: spacing.sm, alignSelf: 'flex-start' }} hitSlop={6}>
+        <Text style={{ color: colors.primary, ...type.small, fontWeight: '600' }}>
+          <Ico name="checkmark-done-outline" size={13} color={colors.primary} /> Ya la pagué
+        </Text>
+      </Pressable>
+    );
+  }
+  return (
+    <View style={{ marginTop: spacing.sm, gap: 6 }}>
+      <Text style={{ color: colors.textMuted, ...type.small }}>¿Cuánto pagaste?</Text>
+      {options ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {options.map((o) => (
+            <Pressable
+              key={o.label}
+              disabled={busy}
+              onPress={() => void pay(o.amount)}
+              accessibilityRole="button"
+              style={{ borderRadius: 999, borderWidth: 1, borderColor: colors.primary, paddingHorizontal: 12, paddingVertical: 7, opacity: busy ? 0.6 : 1 }}
+            >
+              <Text style={{ color: colors.primary, ...type.small, fontWeight: '600' }}>
+                {o.label} {formatMoney(o.amount)}
+              </Text>
+            </Pressable>
+          ))}
+          <Pressable onPress={() => setOpen(false)} accessibilityRole="button" style={{ paddingHorizontal: 8, paddingVertical: 7 }}>
+            <Text style={{ color: colors.textFaint, ...type.small }}>Cancelar</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Text style={{ color: colors.textFaint, ...type.caption }}>Cargando…</Text>
+      )}
+      <Text style={{ color: colors.textFaint, ...type.caption }}>¿Otro monto? Regístralo en Registrar → Pago de deuda.</Text>
+      {error ? <Text style={{ color: colors.danger, ...type.small }}>{error}</Text> : null}
+    </View>
+  );
+}
+
 /** FIN-014 + glosario FIN-017 P4: total con desglose en lenguaje cotidiano. */
 function FlowStat({ label, flow, color, onPress }: { label: string; flow?: FlowSection; color: string; onPress: () => void }) {
   return (
@@ -423,14 +538,16 @@ function FlowStat({ label, flow, color, onPress }: { label: string; flow?: FlowS
       <Card style={{ flex: 1 }}>
         <Text style={{ color: colors.textMuted, ...type.small }}>{label}</Text>
         {flow ? (
-          <Money value={flow.total} size={18} color={color} style={{ marginTop: 2 }} />
+          <Money value={flow.totalWithPaidDebt ?? flow.total} size={18} color={color} style={{ marginTop: 2 }} />
         ) : (
           // BT-037: mientras carga no se muestra "$ 0" (no es cierto, es que no ha llegado).
           <View style={{ height: 18, width: '55%', borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, marginVertical: 3 }} />
         )}
-        {flow && flow.total > 0 ? (
+        {flow && (flow.totalWithPaidDebt ?? flow.total) > 0 ? (
           <Text style={{ color: colors.textFaint, ...type.caption }}>
             {formatMoney(flow.fixed)} fijos del mes · {formatMoney(flow.variable)} del día a día
+            {/* FIN-062: las cuotas que YA pagaste también son plata que salió. */}
+            {flow.debtPaid ? ` · ${formatMoney(flow.debtPaid)} cuotas pagadas` : ''}
           </Text>
         ) : null}
       </Card>

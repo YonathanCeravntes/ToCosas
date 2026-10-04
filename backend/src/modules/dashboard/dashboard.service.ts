@@ -254,6 +254,9 @@ export class DashboardService {
         fixed: round2(fixedExpense),
         variable: round2(variableExpense),
         total: round2(expenseTotal),
+        /** FIN-062: cuotas de deudas YA pagadas en el ciclo y el total con ellas (tarjeta Gastos de Inicio). */
+        debtPaid: round2(debtPayments),
+        totalWithPaidDebt: round2(expenseTotal + debtPayments),
         /** FIN-057: gastos + cuotas del mes, la base del porcentaje de "En qué se te va". */
         totalWithDebt: outflowTotal,
         byCategory: toSorted(expenseByCat, outflowTotal),

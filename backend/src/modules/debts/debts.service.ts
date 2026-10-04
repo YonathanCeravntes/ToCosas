@@ -306,7 +306,11 @@ export class DebtsService {
           debtId: d.id,
           name: d.name,
           dueDate: d.nextDueDate,
-          amount: Number(d.monthlyPayment ?? 0),
+          // FIN-062: la cuota real del mes (con cargos aparte; en tarjetas, sus cuotas).
+          amount: outlays.byDebt.get(d.id)?.outlay ?? Number(d.monthlyPayment ?? 0),
+          /** FIN-062: se paga por nómina (libranza): Millo la registra solo el día de pago. */
+          payroll: descriptorFor(d.debtType).paymentSource === 'nomina',
+          isCard: scheduleModelFor(d.debtType) === 'cuotas_por_compra',
           // FIN-024 P2: mismo helper único (§32) también en el summary.
           overdueDays: overdueDays(d.nextDueDate),
         })),
